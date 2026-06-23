@@ -119,7 +119,7 @@ export default function LiveMap() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F6F7F4] flex flex-col">
+      <div className="flex h-[100dvh] flex-col overflow-y-auto bg-[#F6F8FB] [-webkit-overflow-scrolling:touch]">
         <div className="pt-[env(safe-area-inset-top,20px)] px-5 pb-4">
           <Skeleton className="h-9 w-9 rounded-full" />
         </div>
@@ -134,9 +134,9 @@ export default function LiveMap() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#F6F7F4] flex flex-col items-center justify-center gap-4 px-6">
-        <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
-          <span className="text-red-500 text-2xl">!</span>
+      <div className="flex h-[100dvh] flex-col items-center justify-center gap-4 overflow-y-auto bg-[#F6F8FB] px-6 [-webkit-overflow-scrolling:touch]">
+        <div className="w-16 h-16 rounded-full bg-[#FFF0F2] flex items-center justify-center ring-1 ring-[#FB6B7A]/20">
+          <span className="text-[#FB6B7A] text-2xl">!</span>
         </div>
         <h2 className="text-lg font-semibold text-gray-900">{error}</h2>
         <button

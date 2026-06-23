@@ -38,9 +38,8 @@ function generateParticles(count: number) {
     y: randomBetween(-10, 30),
     size: randomBetween(3, 8),
     color: [
-      "#f97316", "#ef4444", "#3b82f6", "#84cc16",
-      "#a855f7", "#f59e0b", "#ec4899",
-    ][Math.floor(Math.random() * 7)],
+      "#22C7A1", "#7C83F6", "#38BDF8", "#FB6B7A", "#F97316",
+    ][Math.floor(Math.random() * 5)],
     duration: randomBetween(1.5, 4),
     delay: randomBetween(0, 1.5),
   }));
@@ -81,15 +80,15 @@ export function PlanRevealAnimation({
   }, [phase]);
 
   const rings: MacroRing[] = [
-    { label: "Carbs", value: carbs, max: Math.round((calories * (carbsPct / 100)) / 4) || carbs, color: "#ef4444", gradientId: "gradCarbs" },
-    { label: "Protein", value: protein, max: Math.round((calories * (proteinPct / 100)) / 4) || protein, color: "#f97316", gradientId: "gradProtein" },
-    { label: "Fat", value: fat, max: Math.round((calories * (fatPct / 100)) / 9) || fat, color: "#3b82f6", gradientId: "gradFat" },
+    { label: "Carbs", value: carbs, max: Math.round((calories * (carbsPct / 100)) / 4) || carbs, color: "#F97316", gradientId: "gradCarbs" },
+    { label: "Protein", value: protein, max: Math.round((calories * (proteinPct / 100)) / 4) || protein, color: "#7C83F6", gradientId: "gradProtein" },
+    { label: "Fat", value: fat, max: Math.round((calories * (fatPct / 100)) / 9) || fat, color: "#FB6B7A", gradientId: "gradFat" },
   ];
 
   const mainOffset = CIRC * (1 - ringProgress);
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-background overflow-hidden" style={{ maxWidth: 430, margin: "0 auto" }}>
+    <div className="fixed inset-0 mx-auto flex max-w-[430px] flex-col overflow-hidden bg-[#F6F8FB] text-[#020617]">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {particles.map((p) => (
           <motion.div
@@ -117,8 +116,8 @@ export function PlanRevealAnimation({
         ))}
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-8 relative z-10">
-        <h1 className="text-[26px] font-extrabold text-foreground leading-tight text-center mb-10">
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-8">
+        <h1 className="mb-10 text-center text-[26px] font-extrabold leading-tight text-[#020617]">
           Your personalized plan is ready!
         </h1>
 
@@ -126,15 +125,15 @@ export function PlanRevealAnimation({
           <svg width="240" height="240" viewBox="0 0 240 240">
             <defs>
               <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#f97316" />
-                <stop offset="50%" stopColor="#84cc16" />
-                <stop offset="100%" stopColor="#3b82f6" />
+                <stop offset="0%" stopColor="#22C7A1" />
+                <stop offset="50%" stopColor="#7C83F6" />
+                <stop offset="100%" stopColor="#F97316" />
               </linearGradient>
             </defs>
             <circle
               cx="120" cy="120" r={R}
               fill="none"
-              className="stroke-muted/40"
+              stroke="#E5EAF1"
               strokeWidth="16"
             />
             <motion.circle
@@ -148,7 +147,7 @@ export function PlanRevealAnimation({
               animate={{ strokeDashoffset: mainOffset }}
               transition={{ duration: 0 }}
               transform="rotate(-90 120 120)"
-              style={{ filter: "drop-shadow(0 0 8px rgba(249,115,22,0.3))" }}
+              style={{ filter: "drop-shadow(0 10px 18px rgba(34,199,161,0.18))" }}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -156,7 +155,7 @@ export function PlanRevealAnimation({
               {phase === "filling" ? (
                 <motion.span
                   key="pct"
-                  className="text-[40px] font-extrabold text-foreground leading-none"
+                  className="text-[40px] font-extrabold leading-none text-[#020617]"
                   animate={{ scale: [1, 1.04, 1] }}
                   transition={{ repeat: Infinity, duration: 2 }}
                 >
@@ -170,8 +169,8 @@ export function PlanRevealAnimation({
                   transition={spring}
                   className="flex flex-col items-center"
                 >
-                  <span className="text-[36px] font-extrabold text-foreground leading-none">{calories.toLocaleString()}</span>
-                  <span className="text-sm font-medium text-muted-foreground mt-1">kcal / day</span>
+                  <span className="text-[36px] font-extrabold leading-none text-[#020617]">{calories.toLocaleString()}</span>
+                  <span className="mt-1 text-sm font-bold text-[#64748B]">kcal / day</span>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -186,7 +185,7 @@ export function PlanRevealAnimation({
               transition={{ ...spring, delay: 0.2 }}
               className="w-full max-w-xs space-y-3"
             >
-              <div className="flex items-center gap-3 justify-center">
+              <div className="flex items-center justify-center gap-3">
                 {rings.map((ring) => (
                   <motion.div
                     key={ring.label}
@@ -195,14 +194,14 @@ export function PlanRevealAnimation({
                     transition={{ ...springBouncy, delay: 0.4 }}
                     className="flex items-center gap-1.5"
                   >
-                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: ring.color }} />
-                    <span className="text-xs font-semibold text-foreground">{ring.label}</span>
-                    <span className="text-xs text-muted-foreground">{ring.value}g</span>
+                    <div className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: ring.color }} />
+                    <span className="text-xs font-extrabold text-[#020617]">{ring.label}</span>
+                    <span className="text-xs text-[#64748B]">{ring.value}g</span>
                   </motion.div>
                 ))}
               </div>
 
-              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mt-1">
+              <div className="mt-1 flex items-center justify-center gap-1 text-xs text-[#64748B]">
                 <span>{carbsPct}% carbs</span>
                 <span className="text-border">·</span>
                 <span>{proteinPct}% protein</span>
@@ -220,12 +219,11 @@ export function PlanRevealAnimation({
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...spring, delay: 0.6 }}
-            className="px-6 pb-10 pt-4 flex-shrink-0"
+            className="flex-shrink-0 px-6 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-4"
           >
             <Button
-              variant="gradient"
               size="xl"
-              className="w-full rounded-2xl font-bold shadow-lg shadow-primary/20"
+              className="h-14 w-full rounded-[20px] bg-[#020617] font-extrabold text-white shadow-none hover:bg-[#020617]/90"
               onClick={onViewDashboard}
             >
               View Dashboard

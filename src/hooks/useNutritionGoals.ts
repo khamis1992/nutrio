@@ -12,6 +12,20 @@ interface NutritionGoal {
   fat_target_g: number;
   fiber_target_g: number;
   is_active: boolean;
+  calculation_source?: string | null;
+  reason?: string | null;
+  version?: number | null;
+  activity_level_snapshot?: string | null;
+}
+
+interface GoalEvent {
+  id: string;
+  goal_id: string | null;
+  event_type: string;
+  previous_values: Record<string, unknown> | null;
+  new_values: Record<string, unknown> | null;
+  reason: string | null;
+  created_at: string;
 }
 
 interface Milestone {
@@ -28,6 +42,7 @@ export function useNutritionGoals(userId: string | undefined) {
   const [goals, setGoals] = useState<NutritionGoal[]>([]);
   const [activeGoal, setActiveGoal] = useState<NutritionGoal | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [goalEvents, setGoalEvents] = useState<GoalEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchGoals = useCallback(async () => {
@@ -37,17 +52,38 @@ export function useNutritionGoals(userId: string | undefined) {
       setLoading(true);
 
       // Fetch nutrition goals
-      const { data: goalsData, error: goalsError } = await supabase
+      let { data: goalsData, error: goalsError } = await supabase
         .from("nutrition_goals")
-        .select("id, goal_type, target_weight_kg, target_date, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g, fiber_target_g, is_active")
+        .select("id, goal_type, target_weight_kg, target_date, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g, fiber_target_g, is_active, calculation_source, reason, version, activity_level_snapshot")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
+
+      if (goalsError && /calculation_source|reason|version|activity_level_snapshot/i.test(goalsError.message)) {
+        const fallback = await supabase
+          .from("nutrition_goals")
+          .select("id, goal_type, target_weight_kg, target_date, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g, fiber_target_g, is_active")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
+        goalsData = fallback.data;
+        goalsError = fallback.error;
+      }
 
       if (goalsError) throw goalsError;
 
       const goalsList = goalsData || [];
       setGoals(goalsList);
       setActiveGoal(goalsList.find((g: NutritionGoal) => g.is_active) || goalsList[0] || null);
+
+      const { data: eventsData, error: eventsError } = await supabase
+        .from("nutrition_goal_events" as never)
+        .select("id, goal_id, event_type, previous_values, new_values, reason, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(12);
+
+      if (!eventsError) {
+        setGoalEvents((eventsData || []) as unknown as GoalEvent[]);
+      }
 
       // Fetch milestones
       const { data: milestonesData, error: milestonesError } = await supabase
@@ -66,7 +102,30 @@ export function useNutritionGoals(userId: string | undefined) {
     }
   }, [userId]);
 
-  const setGoal = useCallback(async (goal: Omit<NutritionGoal, "id">) => {
+  const logGoalEvent = useCallback(async (
+    goalId: string | null,
+    eventType: "created" | "updated" | "recalculated" | "smart_adjusted" | "coach_updated" | "archived" | "activated",
+    previousValues: Record<string, unknown> | null,
+    newValues: Record<string, unknown> | null,
+    reason?: string | null,
+  ) => {
+    if (!userId) return;
+
+    const { error } = await supabase
+      .from("nutrition_goal_events" as never)
+      .insert({
+        user_id: userId,
+        goal_id: goalId,
+        event_type: eventType,
+        previous_values: previousValues,
+        new_values: newValues,
+        reason: reason || null,
+      } as never);
+
+    if (error) console.warn("Failed to log nutrition goal event:", error);
+  }, [userId]);
+
+  const setGoal = useCallback(async (goal: Omit<NutritionGoal, "id">, reason?: string) => {
     if (!userId) return;
 
     // Deactivate current goal
@@ -79,25 +138,55 @@ export function useNutritionGoals(userId: string | undefined) {
     }
 
     // Insert new goal — let any error propagate to the caller
-    const { error } = await supabase
+    const insertPayload = {
+      user_id: userId,
+      goal_type: goal.goal_type,
+      target_weight_kg: goal.target_weight_kg,
+      target_date: goal.target_date,
+      daily_calorie_target: goal.daily_calorie_target,
+      protein_target_g: goal.protein_target_g,
+      carbs_target_g: goal.carbs_target_g,
+      fat_target_g: goal.fat_target_g,
+      fiber_target_g: goal.fiber_target_g,
+      is_active: true,
+      calculation_source: goal.calculation_source || "manual",
+      reason: reason || goal.reason || null,
+      version: 1,
+      activity_level_snapshot: goal.activity_level_snapshot || null,
+    };
+
+    let { data, error } = await supabase
       .from("nutrition_goals")
-      .insert({
-        user_id: userId,
-        goal_type: goal.goal_type,
-        target_weight_kg: goal.target_weight_kg,
-        target_date: goal.target_date,
-        daily_calorie_target: goal.daily_calorie_target,
-        protein_target_g: goal.protein_target_g,
-        carbs_target_g: goal.carbs_target_g,
-        fat_target_g: goal.fat_target_g,
-        fiber_target_g: goal.fiber_target_g,
-        is_active: true,
-      });
+      .insert(insertPayload as never)
+      .select("id")
+      .single();
+
+    if (error && /calculation_source|reason|version|activity_level_snapshot/i.test(error.message)) {
+      const { calculation_source, reason: _reason, version, activity_level_snapshot, ...legacyPayload } = insertPayload;
+      void calculation_source;
+      void _reason;
+      void version;
+      void activity_level_snapshot;
+      const fallback = await supabase
+        .from("nutrition_goals")
+        .insert(legacyPayload)
+        .select("id")
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) throw error;
+    await logGoalEvent(
+      (data as { id?: string } | null)?.id || null,
+      "created",
+      activeGoal as unknown as Record<string, unknown> | null,
+      goal as unknown as Record<string, unknown>,
+      reason || goal.reason || "Goal created",
+    );
 
     await fetchGoals();
-  }, [userId, activeGoal, fetchGoals]);
+  }, [userId, activeGoal, fetchGoals, logGoalEvent]);
 
   useEffect(() => {
     fetchGoals();
@@ -127,12 +216,63 @@ export function useNutritionGoals(userId: string | undefined) {
     }
   }, [userId, activeGoal, fetchGoals]);
 
+  const updateActiveGoal = useCallback(async (
+    updates: Partial<Omit<NutritionGoal, "id">>,
+    reason?: string,
+    eventType: "updated" | "recalculated" | "smart_adjusted" | "coach_updated" = "updated",
+  ) => {
+    if (!userId || !activeGoal) return false;
+
+    try {
+      const payload = {
+        ...updates,
+        reason: reason || updates.reason || activeGoal.reason || null,
+        version: (activeGoal.version || 1) + 1,
+        updated_at: new Date().toISOString(),
+      };
+
+      let { error } = await supabase
+        .from("nutrition_goals")
+        .update(payload as never)
+        .eq("id", activeGoal.id);
+
+      if (error && /reason|version|activity_level_snapshot/i.test(error.message)) {
+        const { reason: _reason, version, activity_level_snapshot, ...legacyPayload } = payload;
+        void _reason;
+        void version;
+        void activity_level_snapshot;
+        const fallback = await supabase
+          .from("nutrition_goals")
+          .update(legacyPayload as never)
+          .eq("id", activeGoal.id);
+        error = fallback.error;
+      }
+
+      if (error) throw error;
+
+      await logGoalEvent(
+        activeGoal.id,
+        eventType,
+        activeGoal as unknown as Record<string, unknown>,
+        { ...activeGoal, ...payload } as unknown as Record<string, unknown>,
+        reason || updates.reason || "Goal updated",
+      );
+      await fetchGoals();
+      return true;
+    } catch (error) {
+      console.error("Error updating active nutrition goal:", error);
+      return false;
+    }
+  }, [userId, activeGoal, fetchGoals, logGoalEvent]);
+
   return {
     goals,
     activeGoal,
     milestones,
+    goalEvents,
     loading,
     setGoal,
+    updateActiveGoal,
     updateGoalTargets,
     refresh: fetchGoals,
   };

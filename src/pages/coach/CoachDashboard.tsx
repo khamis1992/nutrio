@@ -88,7 +88,7 @@ function ClientCard({ client, onClick }: { client: ClientCompliance; onClick: ()
         <div className="px-3 py-3.5 text-center">
           <Target className="w-4 h-4 text-slate-400 mx-auto mb-1" />
           <p className={cn("text-lg font-extrabold", macroColor)}>{client.macroHitRate}%</p>
-          <p className="text-[10px] font-medium text-slate-400">Macro Hit</p>
+          <p className="text-[10px] font-medium text-slate-400">Nutrition</p>
         </div>
         <div className="px-3 py-3.5 text-center">
           {weightIcon ? (
@@ -107,9 +107,18 @@ function ClientCard({ client, onClick }: { client: ClientCompliance; onClick: ()
       <div className="flex items-center gap-2 px-5 py-3 bg-slate-50/50">
         <Flame className="w-4 h-4 text-amber-500" />
         <span className="text-[12px] font-bold text-slate-700">{client.streakDays}-day streak</span>
+        <span className="rounded-full bg-white px-2 py-1 text-[10px] font-extrabold text-[#7C83F6] ring-1 ring-slate-200">
+          P {client.proteinHitDays}/7
+        </span>
+        <span className="rounded-full bg-white px-2 py-1 text-[10px] font-extrabold text-[#38BDF8] ring-1 ring-slate-200">
+          W {client.hydrationHitDays}/7
+        </span>
         {client.weightLastKg !== null && (
           <span className="text-[11px] text-slate-400 ml-auto">{client.weightLastKg.toFixed(1)} kg</span>
         )}
+      </div>
+      <div className="border-t border-slate-100 bg-white px-5 py-2.5">
+        <p className="text-[11px] font-bold text-slate-500">{client.coachSummary}</p>
       </div>
     </motion.button>
   );

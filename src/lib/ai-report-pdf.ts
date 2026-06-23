@@ -12,19 +12,24 @@ const CONTENT_W = PAGE.w - M * 2;
 const BOTTOM = PAGE.h - 22;
 
 const C = {
-  paper: [246, 248, 244] as RGB,
+  paper: [246, 248, 251] as RGB,
   white: [255, 255, 255] as RGB,
   ink: [2, 6, 23] as RGB,
   muted: [100, 116, 139] as RGB,
-  line: [226, 232, 240] as RGB,
-  green: [2, 6, 23] as RGB,
-  greenSoft: [241, 245, 249] as RGB,
+  subtle: [148, 163, 184] as RGB,
+  line: [229, 234, 241] as RGB,
+  primary: [2, 6, 23] as RGB,
+  green: [34, 199, 161] as RGB,
+  greenSoft: [239, 255, 250] as RGB,
   orange: [249, 115, 22] as RGB,
-  orangeSoft: [255, 237, 213] as RGB,
-  amber: [245, 158, 11] as RGB,
-  red: [220, 68, 56] as RGB,
-  blue: [2, 132, 199] as RGB,
-  violet: [124, 58, 237] as RGB,
+  orangeSoft: [255, 247, 237] as RGB,
+  amber: [249, 115, 22] as RGB,
+  red: [251, 107, 122] as RGB,
+  redSoft: [255, 240, 242] as RGB,
+  blue: [56, 189, 248] as RGB,
+  blueSoft: [239, 249, 255] as RGB,
+  violet: [124, 131, 246] as RGB,
+  violetSoft: [243, 244, 255] as RGB,
 };
 
 type RGB = [number, number, number];
@@ -67,7 +72,9 @@ class AIReportPDF {
 
     this.drawPageBackground();
     this.cover(data, content);
+    this.actionPlan(data);
     this.wellnessScore(data);
+    this.recoveryReadiness(data);
     this.weeklySnapshot(data, content);
     this.eatingRhythm(data);
     this.momentum(data);
@@ -111,11 +118,11 @@ class AIReportPDF {
     this.doc.setDrawColor(...C.line);
     this.doc.setLineWidth(0.25);
     this.doc.line(M, PAGE.h - 14, PAGE.w - M, PAGE.h - 14);
-    this.drawLogo(M, PAGE.h - 12.5, 8, 8);
+    this.drawLogo(M, PAGE.h - 13, 9, 9);
     this.doc.setFont("helvetica", "bold");
     this.doc.setFontSize(8);
     this.doc.setTextColor(...C.muted);
-    this.doc.text("Nutrio AI Nutrition Report", M + 10, PAGE.h - 8);
+    this.doc.text("Nutrio AI Nutrition Report", M + 11, PAGE.h - 8);
     this.doc.text(`${pageNumber} / ${this.totalPages}`, PAGE.w - M, PAGE.h - 8, { align: "right" });
   }
 
@@ -153,7 +160,7 @@ class AIReportPDF {
   }
 
   private sectionTitle(number: string, title: string, y: number, eyebrow?: string) {
-    this.doc.setFillColor(...C.green);
+    this.doc.setFillColor(...C.primary);
     this.doc.roundedRect(M, y - 1, 13, 10, 3, 3, "F");
     this.doc.setTextColor(...C.white);
     this.doc.setFont("helvetica", "bold");
@@ -186,7 +193,7 @@ class AIReportPDF {
 
   private progressBar(x: number, y: number, w: number, value: number, color: RGB) {
     const clamped = clamp(value);
-    this.doc.setFillColor(226, 232, 240);
+    this.doc.setFillColor(...C.line);
     this.doc.roundedRect(x, y, w, 4, 2, 2, "F");
     if (clamped > 0) {
       this.doc.setFillColor(...color);
@@ -196,7 +203,7 @@ class AIReportPDF {
 
   private ring(cx: number, cy: number, r: number, value: number, color: RGB) {
     const stroke = 4;
-    this.doc.setDrawColor(226, 232, 240);
+    this.doc.setDrawColor(...C.line);
     this.doc.setLineWidth(stroke);
     this.doc.circle(cx, cy, r, "S");
     this.doc.setDrawColor(...color);
@@ -224,6 +231,18 @@ class AIReportPDF {
     this.doc.text(sub, x + w - 5, y + 21, { align: "right" });
   }
 
+  private goalName(goal: string | null | undefined) {
+    const labels: Record<string, string> = {
+      weight_loss: "Weight Loss",
+      muscle_gain: "Muscle Gain",
+      maintenance: "Maintenance",
+      maintain_weight: "Maintenance",
+      general_health: "General Health",
+      general: "General Health",
+    };
+    return goal ? labels[goal] ?? goal.replace(/_/g, " ") : "Nutrition";
+  }
+
   private textCard(y: number, title: string, body: string, accent: RGB = C.orange) {
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8.5);
@@ -245,17 +264,15 @@ class AIReportPDF {
   }
 
   private cover(data: WeeklyReportData, content?: AIReportContent | null) {
-    this.doc.setFillColor(...C.green);
+    this.doc.setFillColor(...C.primary);
     this.doc.roundedRect(M, 14, CONTENT_W, 72, 9, 9, "F");
-    this.doc.setFillColor(15, 23, 42);
-    this.doc.circle(PAGE.w - M - 18, 35, 22, "F");
     this.doc.setFillColor(...C.white);
-    this.doc.roundedRect(PAGE.w - M - 40, 24, 34, 34, 9, 9, "F");
-    this.drawLogo(PAGE.w - M - 34, 29, 22, 22);
+    this.doc.roundedRect(PAGE.w - M - 52, 20, 42, 42, 10, 10, "F");
+    this.drawLogo(PAGE.w - M - 48, 24, 34, 34);
 
     this.doc.setFont("helvetica", "bold");
     this.doc.setFontSize(9);
-    this.doc.setTextColor(203, 213, 225);
+    this.doc.setTextColor(...C.subtle);
     this.doc.text("NUTRIO", M + 9, 28);
     this.doc.setFontSize(7);
     this.doc.text("AI NUTRITION INTELLIGENCE", M + 9, 35);
@@ -264,7 +281,7 @@ class AIReportPDF {
     this.doc.text("Nutrition Report", M + 9, 51);
     this.doc.setFontSize(10);
     this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(226, 232, 240);
+    this.doc.setTextColor(...C.line);
     this.doc.text(`${format(new Date(data.weekStart), "MMM d")} - ${format(new Date(data.weekEnd), "MMM d, yyyy")}`, M + 9, 63);
     this.doc.text(safe(data.userEmail), M + 9, 73);
 
@@ -280,14 +297,14 @@ class AIReportPDF {
     this.doc.text(this.wrap(summary, CONTENT_W - 16), M + 8, 127);
 
     const w = (CONTENT_W - 8) / 3;
-    this.metricCard(M, 174, w, "Goal", safe(data.activeGoal, "Nutrition"), `${Math.round(data.goalProgress)}% progress`, C.green);
+    this.metricCard(M, 174, w, "Goal", this.goalName(data.activeGoal), `${Math.round(data.goalProgress)}% progress`, C.green);
     this.metricCard(M + w + 4, 174, w, "Current Weight", data.currentWeight ? `${data.currentWeight} kg` : "-", data.weightGoal ? `goal ${data.weightGoal} kg` : "not set", C.orange);
     this.metricCard(M + (w + 4) * 2, 174, w, "Streak", `${data.currentStreak}`, `best ${data.bestStreak}`, C.violet);
   }
 
   private wellnessScore(data: WeeklyReportData) {
     this.newPage();
-    this.sectionTitle("01", "Wellness Score", 24, "overall progress");
+    this.sectionTitle("02", "Wellness Score", 24, "overall progress");
     const score = this.overallScore(data);
     this.card(M, 50, CONTENT_W, 70, C.white);
     this.ring(M + 38, 85, 23, score, C.orange);
@@ -305,7 +322,7 @@ class AIReportPDF {
     const checks = [
       ["Consistency", data.consistencyScore, C.green],
       ["Calorie alignment", pct(data.avgCalories, data.calorieTarget), C.orange],
-      ["Protein", pct(data.avgProtein, data.proteinTarget), C.red],
+      ["Protein", pct(data.avgProtein, data.proteinTarget), C.violet],
       ["Meal quality", data.mealQualityScore, C.violet],
       ["Hydration", pct(data.waterAverage, 8), C.blue],
       ["Streak", pct(data.currentStreak, Math.max(data.bestStreak, 1)), C.amber],
@@ -323,16 +340,85 @@ class AIReportPDF {
     });
   }
 
+  private recoveryReadiness(data: WeeklyReportData) {
+    if (!data.healthReadiness) return;
+
+    this.newPage();
+    this.sectionTitle("03", "Recovery Readiness", 24, "health app + activity data");
+    const health = data.healthReadiness;
+
+    this.card(M, 50, CONTENT_W, 68);
+    this.ring(M + 36, 84, 22, health.readinessScore ?? 0, C.green);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(22);
+    this.doc.setTextColor(...C.ink);
+    this.doc.text(health.readinessScore === null ? "--" : `${health.readinessScore}`, M + 36, 88, { align: "center" });
+    this.doc.setFontSize(14);
+    this.doc.text("Body readiness", M + 72, 70);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(9);
+    this.doc.setTextColor(...C.muted);
+    this.doc.text(this.wrap(health.recoveryPlan, CONTENT_W - 84), M + 72, 82);
+
+    const w = (CONTENT_W - 8) / 3;
+    this.metricCard(M, 132, w, "Body Load", `${health.bodyLoad}/21`, "today", C.violet);
+    this.metricCard(M + w + 4, 132, w, "Avg Readiness", health.avgReadiness === null ? "--" : `${health.avgReadiness}`, "14 days", C.green);
+    this.metricCard(M + (w + 4) * 2, 132, w, "High-load Days", `${health.highLoadDays}`, "14 days", C.orange);
+
+    const sleepText = health.sleepMinutes
+      ? `${Math.floor(health.sleepMinutes / 60)}h ${health.sleepMinutes % 60}m average sleep.`
+      : "Sleep data is not connected yet.";
+    let y = this.textCard(176, "Nutrition recovery", health.foodTip, C.green);
+    y = this.textCard(y, "Sleep signal", sleepText, C.blue);
+    this.textCard(y, "How to use this", "Use readiness as a guide for intensity and meal timing. High body load days need protein, hydration, and enough sleep before the next push.", C.violet);
+  }
+
+  private actionPlan(data: WeeklyReportData) {
+    this.newPage();
+    this.sectionTitle("01", "Executive Action Plan", 24, "what matters next");
+
+    const proteinGap = Math.max(0, Math.round(data.proteinTarget - data.avgProtein));
+    const calorieDiff = Math.round(data.avgCalories - data.calorieTarget);
+    const scoreReasons = [
+      data.daysLogged < 4 && `Only ${data.daysLogged} days were logged, so the report has limited signal.`,
+      proteinGap > 0 && `Protein is short by ${proteinGap}g against target.`,
+      data.waterAverage < 6 && `Hydration average is ${data.waterAverage.toFixed(1)} cups, below the 8 cup baseline.`,
+      Math.abs(calorieDiff) > 250 && `Calories are ${Math.abs(calorieDiff)} kcal ${calorieDiff > 0 ? "above" : "below"} target on average.`,
+    ].filter(Boolean) as string[];
+
+    const priorities = [
+      "Log meals on at least 5 days next week.",
+      proteinGap > 0 ? `Add one protein anchor daily to close about ${Math.min(proteinGap, 35)}g.` : "Keep protein steady and repeat the meals that worked.",
+      data.waterAverage < 6 ? "Pair water with each meal to improve hydration consistency." : "Review progress midweek and adjust before the weekend.",
+    ];
+
+    const mealDirections = [
+      proteinGap > 0 ? "Choose high-protein Nutrio meals first: chicken, fish, eggs, or Greek-yogurt style options." : "Repeat balanced meals that kept calories and protein stable.",
+      Math.abs(calorieDiff) > 250 ? "Pick meals closer to your calorie target instead of adding unplanned snacks." : "Use balanced bowls with lean protein, carbs, and vegetables.",
+      "Use the weekly meal plan section to make the next logged day easier.",
+    ];
+
+    const w = (CONTENT_W - 8) / 3;
+    this.metricCard(M, 50, w, "Goal", this.goalName(data.activeGoal), `${Math.round(data.goalProgress)}% progress`, C.green);
+    this.metricCard(M + w + 4, 50, w, "Protein Gap", `${proteinGap}g`, "to target", C.violet);
+    this.metricCard(M + (w + 4) * 2, 50, w, "Calorie Gap", `${calorieDiff > 0 ? "+" : ""}${calorieDiff}`, "kcal avg", Math.abs(calorieDiff) > 250 ? C.orange : C.green);
+
+    const whyY = this.listBlock(94, "Why this score", scoreReasons.length ? scoreReasons : ["Core nutrition signals are aligned. Keep repeating the same habits next week."]);
+    const priorityY = this.listBlock(whyY + 4, "Top 3 priorities", priorities);
+    const mealY = this.listBlock(priorityY + 4, "Recommended meal direction", mealDirections);
+    this.textCard(mealY + 4, "Coach note", data.consistencyScore >= 70 ? "The next win is repetition, not perfection. Keep the plan simple and measurable." : "Start simple: log meals, hit one protein anchor, and review again after 3 days.", C.violet);
+  }
+
   private weeklySnapshot(data: WeeklyReportData, content?: AIReportContent | null) {
     this.newPage();
-    this.sectionTitle("02", "Weekly Snapshot", 24, "your week in numbers");
+    this.sectionTitle("03", "Weekly Snapshot", 24, "your week in numbers");
     const w = (CONTENT_W - 8) / 3;
     this.metricCard(M, 50, w, "Days Tracked", `${data.daysLogged}/${data.totalDays}`, "meals logged", C.green);
     this.metricCard(M + w + 4, 50, w, "Avg Calories", `${Math.round(data.avgCalories)}`, `target ${data.calorieTarget}`, C.orange);
     this.metricCard(M + (w + 4) * 2, 50, w, "Water Days", `${data.dailyData.filter((d) => d.water > 0).length}/7`, "hydration tracked", C.blue);
     this.metricCard(M, 88, w, "Milestones", `${data.milestonesAchieved}/${data.totalMilestones}`, "achieved", C.violet);
     this.metricCard(M + w + 4, 88, w, "Meal Quality", `${Math.round(data.mealQualityScore)}`, "score /100", C.amber);
-    this.metricCard(M + (w + 4) * 2, 88, w, "Goal Progress", `${Math.round(data.goalProgress)}%`, safe(data.activeGoal), C.green);
+    this.metricCard(M + (w + 4) * 2, 88, w, "Goal Progress", `${Math.round(data.goalProgress)}%`, this.goalName(data.activeGoal), C.green);
 
     const insight = content?.weightAnalysis || this.quickInsight(data);
     const afterReflection = this.textCard(136, "This week's reflection", insight, C.green);
@@ -347,7 +433,7 @@ class AIReportPDF {
         ["Consistency", signed(data.vsLastWeek.consistency, "%")],
       ],
       styles: { font: "helvetica", fontSize: 9, cellPadding: 3, textColor: C.ink },
-      headStyles: { fillColor: C.green, textColor: C.white, fontStyle: "bold" },
+      headStyles: { fillColor: C.primary, textColor: C.white, fontStyle: "bold" },
       alternateRowStyles: { fillColor: C.paper },
       tableLineColor: C.line,
       tableLineWidth: 0.2,
@@ -356,7 +442,7 @@ class AIReportPDF {
 
   private eatingRhythm(data: WeeklyReportData) {
     this.newPage();
-    this.sectionTitle("03", "Eating Rhythm", 24, "daily intake pattern");
+    this.sectionTitle("04", "Eating Rhythm", 24, "daily intake pattern");
     const logged = data.dailyData.filter((d) => d.calories > 0);
     const variance = this.variance(logged.map((d) => d.calories));
     this.metricCard(M, 50, (CONTENT_W - 8) / 3, "Variance", `${Math.round(variance)}%`, variance < 15 ? "steady" : "variable", variance < 15 ? C.green : C.amber);
@@ -397,7 +483,7 @@ class AIReportPDF {
 
   private momentum(data: WeeklyReportData) {
     this.newPage();
-    this.sectionTitle("04", "Your Momentum", 24, "direction and pace");
+    this.sectionTitle("05", "Your Momentum", 24, "direction and pace");
     const momentum = this.momentumScore(data);
     this.card(M, 50, CONTENT_W, 48, momentum >= 0 ? C.greenSoft : C.orangeSoft);
     this.doc.setFont("helvetica", "bold");
@@ -424,7 +510,7 @@ class AIReportPDF {
 
   private habitCheckin(data: WeeklyReportData, content?: AIReportContent | null) {
     this.newPage();
-    this.sectionTitle("05", "Habit Check-in", 24, "patterns noticed");
+    this.sectionTitle("06", "Habit Check-in", 24, "patterns noticed");
     const risks = this.habitRisks(data);
     const wins = content?.insights?.filter((i) => i.type === "success").map((i) => i.text).slice(0, 4) || data.insights.slice(0, 4);
     const nextY = this.listBlock(50, "What is working", wins);
@@ -433,7 +519,7 @@ class AIReportPDF {
 
   private calorieAlignment(data: WeeklyReportData) {
     this.newPage();
-    this.sectionTitle("06", "Calorie Alignment", 24, "target comparison");
+    this.sectionTitle("07", "Calorie Alignment", 24, "target comparison");
     const diff = data.avgCalories - data.calorieTarget;
     this.metricCard(M, 50, (CONTENT_W - 8) / 3, "Daily Target", `${data.calorieTarget}`, "kcal", C.green);
     this.metricCard(M + (CONTENT_W - 8) / 3 + 4, 50, (CONTENT_W - 8) / 3, "Weekly Avg", `${Math.round(data.avgCalories)}`, "kcal", C.orange);
@@ -449,11 +535,11 @@ class AIReportPDF {
 
   private macroBalance(data: WeeklyReportData, content?: AIReportContent | null) {
     this.newPage();
-    this.sectionTitle("07", "Macro Balance", 24, "protein, carbs, and fat");
+    this.sectionTitle("08", "Macro Balance", 24, "protein, carbs, and fat");
     const macros = [
-      ["Protein", data.avgProtein, data.proteinTarget, C.red],
-      ["Carbs", data.avgCarbs, data.carbsTarget, C.amber],
-      ["Fat", data.avgFat, data.fatTarget, C.violet],
+      ["Protein", data.avgProtein, data.proteinTarget, C.violet],
+      ["Carbs", data.avgCarbs, data.carbsTarget, C.orange],
+      ["Fat", data.avgFat, data.fatTarget, C.red],
     ] as const;
 
     let y = 54;
@@ -483,7 +569,7 @@ class AIReportPDF {
       head: [["Calorie Mix", "Share"]],
       body: mix.map(([label, value]) => [label, `${value}%`]),
       styles: { font: "helvetica", fontSize: 9, cellPadding: 3, textColor: C.ink },
-      headStyles: { fillColor: C.green, textColor: C.white, fontStyle: "bold" },
+      headStyles: { fillColor: C.primary, textColor: C.white, fontStyle: "bold" },
       alternateRowStyles: { fillColor: C.paper },
     });
 
@@ -493,7 +579,7 @@ class AIReportPDF {
 
   private hydration(data: WeeklyReportData) {
     this.newPage();
-    this.sectionTitle("08", "Hydration", 24, "water tracking");
+    this.sectionTitle("09", "Hydration", 24, "water tracking");
     const tracked = data.dailyData.filter((d) => d.water > 0).length;
     this.metricCard(M, 50, (CONTENT_W - 8) / 3, "Daily Average", data.waterAverage.toFixed(1), "glasses", C.blue);
     this.metricCard(M + (CONTENT_W - 8) / 3 + 4, 50, (CONTENT_W - 8) / 3, "Days Tracked", `${tracked}/7`, "with water", C.green);
@@ -504,19 +590,19 @@ class AIReportPDF {
 
   private personalizedTips(data: WeeklyReportData, content?: AIReportContent | null) {
     this.newPage();
-    this.sectionTitle("09", "Personalized Tips", 24, "next best actions");
+    this.sectionTitle("10", "Personalized Tips", 24, "next best actions");
     const recs = content?.recommendations?.length
       ? content.recommendations.map((r) => `${r.title}: ${r.description}`)
       : data.recommendations.length
         ? data.recommendations
         : this.mealRecs(data).map((r) => `${r.title}: ${r.description}`);
     const nextY = this.listBlock(50, "Recommendations", recs.slice(0, 6));
-    this.textCard(nextY + 8, "Protein assessment", content?.proteinAssessment || `Your protein intake is ${pct(data.avgProtein, data.proteinTarget)}% of target.`, C.red);
+    this.textCard(nextY + 8, "Protein assessment", content?.proteinAssessment || `Your protein intake is ${pct(data.avgProtein, data.proteinTarget)}% of target.`, C.violet);
   }
 
   private mealPlan(data: WeeklyReportData) {
     this.newPage();
-    this.sectionTitle("10", "Your Meal Plan", 24, "week ahead");
+    this.sectionTitle("11", "Your Meal Plan", 24, "week ahead");
     if (!data.mealPlan?.length) {
       this.textCard(50, "Generate your meal plan", "No meal plan was attached to this report. Generate a personalized meal plan to include restaurant meals, nutrition totals, and weekly estimated cost.", C.orange);
       return;
@@ -525,12 +611,12 @@ class AIReportPDF {
     const totals = data.mealPlan.reduce((t, day) => ({
       calories: t.calories + day.dailyCalories,
       protein: t.protein + day.dailyProtein,
-      price: t.price + day.dailyPrice,
-    }), { calories: 0, protein: 0, price: 0 });
+      meals: t.meals + [day.breakfast, day.lunch, day.dinner, day.snack].filter(Boolean).length,
+    }), { calories: 0, protein: 0, meals: 0 });
     const w = (CONTENT_W - 8) / 3;
     this.metricCard(M, 50, w, "Avg Calories", `${Math.round(totals.calories / data.mealPlan.length)}`, "per day", C.orange);
-    this.metricCard(M + w + 4, 50, w, "Avg Protein", `${Math.round(totals.protein / data.mealPlan.length)}g`, "per day", C.red);
-    this.metricCard(M + (w + 4) * 2, 50, w, "Est. Cost", `QAR ${totals.price.toFixed(0)}`, "for week", C.green);
+    this.metricCard(M + w + 4, 50, w, "Avg Protein", `${Math.round(totals.protein / data.mealPlan.length)}g`, "per day", C.violet);
+    this.metricCard(M + (w + 4) * 2, 50, w, "Meals", `${totals.meals}`, "planned", C.green);
 
     let y = 94;
     data.mealPlan.forEach((day) => {
@@ -542,7 +628,7 @@ class AIReportPDF {
       this.doc.text(day.day, M + 7, y + 10);
       this.doc.setFontSize(8);
       this.doc.setTextColor(...C.orange);
-      this.doc.text(`${day.dailyCalories} kcal | ${day.dailyProtein}g protein | QAR ${day.dailyPrice.toFixed(0)}`, PAGE.w - M - 7, y + 10, { align: "right" });
+      this.doc.text(`${day.dailyCalories} kcal | ${day.dailyProtein}g protein`, PAGE.w - M - 7, y + 10, { align: "right" });
 
       let yy = y + 24;
       [
@@ -561,7 +647,7 @@ class AIReportPDF {
 
   private trends(data: WeeklyReportData) {
     this.newPage();
-    this.sectionTitle("11", "Your Trends", 24, "directional signals");
+    this.sectionTitle("12", "Your Trends", 24, "directional signals");
     const variance = this.variance(data.dailyData.map((d) => d.calories).filter(Boolean));
     const trends = [
       ["Calorie Intake", data.avgCalories > data.calorieTarget ? "Above target" : data.avgCalories < data.calorieTarget * 0.9 ? "Below target" : "On target"],
@@ -575,7 +661,7 @@ class AIReportPDF {
       head: [["Area", "Trend"]],
       body: trends,
       styles: { font: "helvetica", fontSize: 9, cellPadding: 4, textColor: C.ink },
-      headStyles: { fillColor: C.green, textColor: C.white, fontStyle: "bold" },
+      headStyles: { fillColor: C.primary, textColor: C.white, fontStyle: "bold" },
       alternateRowStyles: { fillColor: C.paper },
     });
     const finalY = (this.doc as TableDoc).lastAutoTable?.finalY || 100;
@@ -584,11 +670,11 @@ class AIReportPDF {
 
   private lookingAhead(data: WeeklyReportData, content?: AIReportContent | null) {
     this.newPage();
-    this.sectionTitle("12", "Looking Ahead", 24, "next week plan");
+    this.sectionTitle("13", "Looking Ahead", 24, "next week plan");
     const weeks = this.timeline(data);
     this.metricCard(M, 50, (CONTENT_W - 8) / 3, "Timeline", `${weeks} wks`, "estimated", C.green);
     this.metricCard(M + (CONTENT_W - 8) / 3 + 4, 50, (CONTENT_W - 8) / 3, "Focus", pct(data.avgProtein, data.proteinTarget) < 80 ? "Protein" : "Consistency", "priority", C.orange);
-    this.metricCard(M + ((CONTENT_W - 8) / 3 + 4) * 2, 50, (CONTENT_W - 8) / 3, "Goal", safe(data.activeGoal), `${Math.round(data.goalProgress)}%`, C.violet);
+    this.metricCard(M + ((CONTENT_W - 8) / 3 + 4) * 2, 50, (CONTENT_W - 8) / 3, "Goal", this.goalName(data.activeGoal), `${Math.round(data.goalProgress)}%`, C.violet);
     const nextY = this.listBlock(104, "Suggested weekly commitments", [
       "Log meals on at least 5 days",
       "Choose one protein anchor daily",
@@ -600,7 +686,7 @@ class AIReportPDF {
 
   private dataNotes(data: WeeklyReportData) {
     this.newPage();
-    this.sectionTitle("13", "About This Report", 24, "data notes");
+    this.sectionTitle("14", "About This Report", 24, "data notes");
     const nextY = this.listBlock(50, "Included data", [
       `Report date: ${data.reportDate}`,
       `Week range: ${format(new Date(data.weekStart), "MMM d")} - ${format(new Date(data.weekEnd), "MMM d, yyyy")}`,

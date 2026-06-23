@@ -101,19 +101,24 @@ export function AffiliateApplicationCard() {
   // Rejected application
   if (isRejected) {
     return (
-      <Card className="border-destructive/30 bg-destructive/5">
-        <CardContent className="pt-6">
+      <Card className="overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)]">
+        <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-full bg-destructive/20 flex items-center justify-center">
-              <X className="w-6 h-6 text-destructive" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[#FFF0F2] text-[#FB6B7A]">
+              <X className="h-5 w-5" strokeWidth={2.5} />
             </div>
-            <div>
-              <p className="font-semibold text-destructive">{t("affiliateNotApproved")}</p>
-              <p className="text-sm text-muted-foreground">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[15px] font-extrabold leading-tight text-[#020617]">{t("affiliateNotApproved")}</p>
+                <span className="shrink-0 rounded-full bg-[#FFF0F2] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#FB6B7A]">
+                  Review
+                </span>
+              </div>
+              <p className="mt-1 text-[13px] font-semibold leading-5 text-[#64748B]">
                 {t("affiliateNotApprovedDescription")}
               </p>
               {application?.rejection_reason && (
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="mt-3 rounded-[18px] bg-[#F6F8FB] px-3 py-2 text-[12px] font-semibold leading-5 text-[#64748B]">
                   {t("affiliateRejectionReason", { reason: application.rejection_reason })}
                 </p>
               )}

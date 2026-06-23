@@ -11,7 +11,11 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName?: string,
+  ) => Promise<{ error: Error | null; user?: User | null; session?: Session | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -99,9 +103,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       // Use VITE_APP_URL so native APK builds use the real web URL instead of capacitor://localhost
       const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      const redirectUrl = `${appUrl}/dashboard`;
+      const redirectUrl = `${appUrl}/onboarding`;
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -113,7 +117,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       if (error) throw error;
-      return { error: null };
+      return { error: null, user: data?.user ?? null, session: data?.session ?? null };
     } catch (error) {
       return { error: error as Error };
     }

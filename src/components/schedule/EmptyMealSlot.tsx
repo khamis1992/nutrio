@@ -64,33 +64,33 @@ const EmptyMealSlot = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       whileTap={{ scale: 0.98 }}
-      className="group mb-2 flex cursor-pointer items-center gap-4 rounded-[24px] bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)] active:bg-white/80"
+      className="group mb-2 flex cursor-pointer items-center gap-4 rounded-[24px] bg-white p-4 shadow-[0_12px_32px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(2,6,23,0.09)] active:bg-[#F6F8FB]"
       dir={isRTL ? "rtl" : "ltr"}
     >
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] ${config.bgGradient} ring-1 ring-white/70`}>
+      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] ${config.bgGradient} ring-1 ring-[#E5EAF1]`}>
         <config.icon className={`h-5 w-5 ${config.textColor}`} />
       </div>
 
       <div className={`min-w-0 flex-1 ${isRTL ? "text-right" : "text-left"}`}>
-        <span className="text-[16px] font-black text-slate-950">
+        <span className="text-[16px] font-black text-[#020617]">
           {noMealsLeft
             ? isRTL
               ? `أضف ${mealTypeName} - لا رصيد`
               : `Add ${mealTypeName} - no credits`
             : `${t("add") || "Add"} ${mealTypeName}`}
         </span>
-        <p className="mt-1 text-[13px] font-semibold leading-tight text-slate-500">
+        <p className="mt-1 text-[13px] font-semibold leading-tight text-[#64748B]">
           {noMealsLeft ? "Buy a meal credit to schedule this slot" : `${timeLabel} delivery window`}
         </p>
       </div>
 
       {!noMealsLeft ? (
-        <span className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-slate-950 px-4 text-[14px] font-extrabold text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)] transition group-hover:bg-emerald-600">
+        <span className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#020617] px-4 text-[14px] font-extrabold text-white shadow-[0_12px_24px_rgba(2,6,23,0.18)] transition group-hover:bg-[#020617]/90">
           <Plus className="h-4 w-4" strokeWidth={2.7} />
           {t("add")}
         </span>
       ) : (
-        <Chevron className="h-5 w-5 shrink-0 text-slate-300" strokeWidth={2.5} />
+        <Chevron className="h-5 w-5 shrink-0 text-[#94A3B8]" strokeWidth={2.5} />
       )}
     </motion.div>
   );

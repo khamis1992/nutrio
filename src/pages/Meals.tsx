@@ -27,6 +27,8 @@ import { SmartRecommendations } from "@/components/SmartRecommendations";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
+import { useNutritionGoals } from "@/hooks/useNutritionGoals";
+import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { Haptics } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
@@ -152,7 +154,16 @@ const getRestaurantImage = (restaurant: ShowcaseRestaurant) =>
     ? restaurant.image
     : "/meals/grilled-chicken-salad.jpg";
 
-const FeatureCard = ({ restaurant }: { restaurant: ShowcaseRestaurant }) => {
+const getGoalFitLabel = (goalType: string | null | undefined, restaurant: ShowcaseRestaurant) => {
+  const copy = `${restaurant.name} ${restaurant.description}`.toLowerCase();
+  if (goalType === "muscle_gain" && /protein|fitness|fuel|chicken|grill/.test(copy)) return "goal_high_protein_pick";
+  if (goalType === "weight_loss" && /salad|green|vegan|healthy|light|wellness/.test(copy)) return "goal_light_pick";
+  if (goalType === "maintenance" && /balanced|wellness|mediterranean|organic/.test(copy)) return "goal_fits_you";
+  return /healthy|protein|fitness|wellness|organic|green/.test(copy) ? "goal_fits_you" : null;
+};
+
+const FeatureCard = ({ restaurant, goalType, t }: { restaurant: ShowcaseRestaurant; goalType?: string | null; t: (key: string) => string }) => {
+  const fitLabel = getGoalFitLabel(goalType, restaurant);
   const card = (
     <motion.article
       whileHover={{ y: -4 }}
@@ -171,6 +182,11 @@ const FeatureCard = ({ restaurant }: { restaurant: ShowcaseRestaurant }) => {
           <Sparkles className="h-3.5 w-3.5 text-amber-500" strokeWidth={2.5} />
           Featured
         </span>
+        {fitLabel && (
+          <span className="inline-flex h-8 items-center rounded-full bg-[#020617] px-3 text-[11px] font-black text-white shadow-sm">
+            {t(fitLabel)}
+          </span>
+        )}
         <span className="inline-flex h-8 items-center gap-1 rounded-full bg-black/35 px-3 text-[12px] font-bold text-white backdrop-blur">
           <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" strokeWidth={0} />
           {seedRating(restaurant.name)}
@@ -208,13 +224,18 @@ const RestaurantCard = ({
   restaurant,
   isFavorite,
   onToggleFavorite,
+  goalType,
+  t,
 }: {
   restaurant: ShowcaseRestaurant;
   isFavorite: (restaurantId: string) => boolean;
   onToggleFavorite: (restaurantId: string | undefined, restaurantName: string) => void;
+  goalType?: string | null;
+  t: (key: string) => string;
 }) => {
   const favorite = restaurant.liveRestaurantId ? isFavorite(restaurant.liveRestaurantId) : false;
   const reduceMotion = useReducedMotion();
+  const fitLabel = getGoalFitLabel(goalType, restaurant);
 
   const card = (
     <motion.article
@@ -257,6 +278,11 @@ const RestaurantCard = ({
             <p className="mt-1 line-clamp-2 min-h-[40px] text-[13px] font-medium leading-relaxed text-slate-500">
               {restaurant.description}
             </p>
+            {fitLabel && (
+              <span className="mt-2 inline-flex h-7 items-center rounded-full bg-[#F3F4FF] px-2.5 text-[11px] font-black text-[#7C83F6] ring-1 ring-[#7C83F6]/20">
+                {t(fitLabel)}
+              </span>
+            )}
           </div>
           <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-500" />
         </div>
@@ -302,8 +328,17 @@ const Meals = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
   const { user } = useAuth();
+  const { activeGoal } = useNutritionGoals(user?.id);
   const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
   const { t, isRTL } = useLanguage();
+  const {
+    loading: subscriptionLoading,
+    hasActiveSubscription,
+    remainingMeals,
+    totalMeals,
+    mealsUsed,
+    isUnlimited,
+  } = useSubscription();
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
@@ -460,6 +495,14 @@ const Meals = () => {
   }, [featuredRestaurantIds, visibleRestaurants]);
 
   const hasNoResults = visibleRestaurants.length === 0 && !fetchError;
+  const mealBalancePercent = isUnlimited || totalMeals <= 0
+    ? 100
+    : Math.min(100, Math.round((remainingMeals / totalMeals) * 100));
+  const remainingMealsLabel = subscriptionLoading
+    ? "--"
+    : isUnlimited
+      ? "∞"
+      : Math.max(0, remainingMeals).toLocaleString();
 
   return (
     <div className="min-h-full bg-[#F6F7F4]" dir={isRTL ? "rtl" : "ltr"}>
@@ -473,8 +516,8 @@ const Meals = () => {
             <ArrowLeft className="h-5 w-5" strokeWidth={2.5} />
           </Link>
           <div className="text-center">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-emerald-700">Nutrio meals</p>
-            <p className="text-[14px] font-bold text-slate-900">Discover restaurants</p>
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-emerald-700">{t("nutrio_meals")}</p>
+            <p className="text-[14px] font-bold text-slate-900">{t("discover_restaurants")}</p>
           </div>
           <button
             onClick={() => setShowFavoritesOnly((value) => !value)}
@@ -511,6 +554,59 @@ const Meals = () => {
             </div>
           </div>
         )}
+
+        <section className="mb-4 overflow-hidden rounded-[24px] bg-[#F6F8FB] p-4 text-[#020617] shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">
+                {t("your_subscription")}
+              </p>
+              <h1 className="mt-1 text-[24px] font-black leading-none tracking-normal">
+                {remainingMealsLabel}
+                <span className="ml-2 text-[13px] font-bold text-[#94A3B8]">
+                  {isUnlimited
+                    ? t("unlimited_meals")
+                    : t("meals_left")}
+                </span>
+              </h1>
+              <p className="mt-2 text-[12px] font-semibold text-[#94A3B8]">
+                {subscriptionLoading
+                  ? t("loading_meal_balance")
+                  : hasActiveSubscription
+                    ? isUnlimited
+                      ? t("order_without_monthly_cap")
+                      : isRTL
+                        ? t("used_meals_this_cycle", { used: mealsUsed, total: totalMeals })
+                        : t("used_meals_this_cycle", { used: mealsUsed, total: totalMeals })
+                    : t("no_active_subscription_yet")}
+              </p>
+            </div>
+
+            <Link
+              to="/subscription"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#020617] text-white shadow-sm active:scale-95"
+              aria-label={t("manage_subscription")}
+            >
+              <ShieldCheck className="h-5 w-5" strokeWidth={2.3} />
+            </Link>
+          </div>
+
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#E5EAF1]">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${mealBalancePercent}%` }}
+              transition={reduceMotion ? { duration: 0 } : { duration: 0.45, ease: "easeOut" }}
+              className={cn(
+                "h-full rounded-full",
+                !hasActiveSubscription && !subscriptionLoading
+                  ? "bg-[#FB6B7A]"
+                  : mealBalancePercent <= 20 && !isUnlimited
+                    ? "bg-[#F97316]"
+                    : "bg-[#22C7A1]",
+              )}
+            />
+          </div>
+        </section>
 
         <section className="rounded-[24px] bg-white p-3 shadow-[0_14px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
@@ -550,7 +646,7 @@ const Meals = () => {
                       />
                     )}
                     <Icon className="relative z-10 h-4 w-4" strokeWidth={2.4} />
-                    <span className="relative z-10">{category.label}</span>
+                    <span className="relative z-10">{t(`meal_category_${category.id}`)}</span>
                   </button>
                 );
               })}
@@ -578,20 +674,24 @@ const Meals = () => {
           </section>
         ) : (
           <>
+            <section className="mt-5">
+              <SmartRecommendations />
+            </section>
+
             <section className="mt-8">
               <div className="mb-4 flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-emerald-700">Curated lineup</p>
-                  <h2 className="mt-1 text-[24px] font-black tracking-normal text-slate-950">Featured this week</h2>
+                  <p className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-emerald-700">{t("curated_lineup")}</p>
+                  <h2 className="mt-1 text-[24px] font-black tracking-normal text-slate-950">{t("featured_this_week")}</h2>
                 </div>
                 <span className="hidden rounded-full bg-white px-3 py-2 text-[12px] font-extrabold text-slate-500 ring-1 ring-slate-200 sm:inline-flex">
-                  {featuredRestaurants.length} picks
+                  {t("picks_count", { count: featuredRestaurants.length })}
                 </span>
               </div>
               <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-4 scrollbar-hide sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
                 {featuredRestaurants.map((restaurant) => (
                   <div key={`featured-${restaurant.name}`} className="snap-start">
-                    <FeatureCard restaurant={restaurant} />
+                    <FeatureCard restaurant={restaurant} goalType={activeGoal?.goal_type} t={t} />
                   </div>
                 ))}
               </div>
@@ -619,6 +719,8 @@ const Meals = () => {
                     restaurant={restaurant}
                     isFavorite={isFavorite}
                     onToggleFavorite={handleToggleFavorite}
+                    goalType={activeGoal?.goal_type}
+                    t={t}
                   />
                 ))}
               </div>

@@ -1,13 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { calculateCoachComplianceBreakdown } from "@/lib/coach-compliance";
 
-interface ClientCompliance {
+export interface ClientCompliance {
   id: string;
   full_name: string | null;
   avatar_url: string | null;
   goal_type: string | null;
   adherencePct: number;
   macroHitRate: number;
+  proteinHitDays: number;
+  calorieHitDays: number;
+  hydrationHitDays: number;
+  coachSummary: string;
   weightTrend: number | null;
   weightLastKg: number | null;
   streakDays: number;
@@ -126,6 +131,7 @@ export function useCoachClients(coachId: string | undefined) {
         { data: profiles },
         { data: mealSchedules },
         { data: progressLogs },
+        { data: waterLogs },
         { data: goals },
         { data: streaks },
         { data: bodyLogs },
@@ -133,6 +139,7 @@ export function useCoachClients(coachId: string | undefined) {
         supabase.from("profiles").select("user_id, full_name, avatar_url").in("user_id", clientIds),
         supabase.from("meal_schedules").select("user_id, order_status").in("user_id", clientIds).gte("scheduled_date", weekAgoStr).lte("scheduled_date", todayStr),
         supabase.from("progress_logs").select("user_id, calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g, log_date").in("user_id", clientIds).gte("log_date", weekAgoStr),
+        supabase.from("water_intake").select("user_id, glasses, log_date").in("user_id", clientIds).gte("log_date", weekAgoStr).lte("log_date", todayStr),
         supabase.from("nutrition_goals").select("user_id, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g").in("user_id", clientIds).eq("is_active", true),
         supabase.from("user_streaks").select("user_id, streak_type, current_streak").in("user_id", clientIds).eq("streak_type", "logging"),
         supabase.from("body_measurements").select("user_id, weight_kg, log_date").in("user_id", clientIds).gte("log_date", weekAgoStr).order("log_date", { ascending: true }),
@@ -151,6 +158,10 @@ export function useCoachClients(coachId: string | undefined) {
           goal_type: null,
           adherencePct: 0,
           macroHitRate: 0,
+          proteinHitDays: 0,
+          calorieHitDays: 0,
+          hydrationHitDays: 0,
+          coachSummary: "No weekly data yet",
           weightTrend: null,
           weightLastKg: null,
           streakDays: 0,
@@ -173,6 +184,15 @@ export function useCoachClients(coachId: string | undefined) {
         if (!c) continue;
         (c as any)._loggedDays = ((c as any)._loggedDays || 0) + 1;
         (c as any)._caloriesSum = ((c as any)._caloriesSum || 0) + (log.calories_consumed || 0);
+        if (!(c as any)._progressLogs) (c as any)._progressLogs = [];
+        (c as any)._progressLogs.push(log);
+      }
+
+      for (const water of waterLogs || []) {
+        const c = byClient.get(water.user_id);
+        if (!c) continue;
+        if (!(c as any)._waterLogs) (c as any)._waterLogs = [];
+        (c as any)._waterLogs.push(water);
       }
 
       for (const goal of goals || []) {
@@ -202,10 +222,27 @@ export function useCoachClients(coachId: string | undefined) {
         c.adherencePct = total > 0 ? Math.round((eaten / total) * 100) : 0;
 
         const loggedDays = (c as any)._loggedDays || 0;
-        const calSum = (c as any)._caloriesSum || 0;
-        const goalCal = (c as any)._goalCalories || 2000;
         c.daysTrackedThisWeek = loggedDays;
-        c.macroHitRate = loggedDays > 0 ? Math.min(100, Math.round((calSum / loggedDays / goalCal) * 100)) : 0;
+        const compliance = calculateCoachComplianceBreakdown(
+          ((c as any)._progressLogs || []).map((log: any) => ({
+            log_date: log.log_date,
+            calories_consumed: log.calories_consumed,
+            protein_consumed_g: log.protein_consumed_g,
+          })),
+          ((c as any)._waterLogs || []).map((log: any) => ({
+            log_date: log.log_date,
+            glasses: log.glasses,
+          })),
+          {
+            daily_calorie_target: (c as any)._goalCalories || 2000,
+            protein_target_g: (c as any)._goalProtein || 120,
+          },
+        );
+        c.macroHitRate = compliance.macroHitRate;
+        c.proteinHitDays = compliance.proteinHitDays;
+        c.calorieHitDays = compliance.calorieHitDays;
+        c.hydrationHitDays = compliance.hydrationHitDays;
+        c.coachSummary = compliance.coachSummary;
 
         const weights = (c as any)._weights || [];
         if (weights.length >= 2) {

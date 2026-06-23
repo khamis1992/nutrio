@@ -69,13 +69,13 @@ export const NativeRouteRedirect = ({ children }: NativeRouteRedirectProps) => {
   // This ensures there is NEVER a blank/white frame on the screen.
   if (isNativePlatform) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-3">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-5">
         <img
           src={assetPath("/logo.png")}
           alt="Nutrio"
-          className="h-14 w-auto object-contain opacity-90"
+          className="h-28 w-auto object-contain opacity-95"
         />
-        {loading && <Loader2 className="w-7 h-7 animate-spin text-primary" />}
+        {loading && <Loader2 className="h-7 w-7 animate-spin text-[#22C7A1]" />}
       </div>
     );
   }

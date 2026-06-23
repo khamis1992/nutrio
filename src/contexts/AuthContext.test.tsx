@@ -76,7 +76,7 @@ describe("AuthContext", () => {
       email: "test@example.com",
       password: "password123",
       options: {
-        emailRedirectTo: expect.stringContaining("/dashboard"),
+        emailRedirectTo: expect.stringContaining("/onboarding"),
         data: { full_name: "Test User" },
       },
     });

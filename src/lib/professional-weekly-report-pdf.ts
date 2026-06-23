@@ -151,6 +151,15 @@ export interface WeeklyReportData {
     stepGoal: number;
     waterTargetMl: number;
   };
+  healthReadiness?: {
+    readinessScore: number | null;
+    bodyLoad: number;
+    avgReadiness: number | null;
+    highLoadDays: number;
+    sleepMinutes: number | null;
+    recoveryPlan: string;
+    foodTip: string;
+  };
 }
 
 // ═══════════════════════════════════════════════════
@@ -1112,15 +1121,15 @@ export class ProfessionalWeeklyReportPDF {
     const totals = data.mealPlan.reduce((t, day) => ({
       cal: t.cal + day.dailyCalories,
       prot: t.prot + day.dailyProtein,
-      price: t.price + day.dailyPrice,
-    }), { cal: 0, prot: 0, price: 0 });
+      meals: t.meals + [day.breakfast, day.lunch, day.dinner, day.snack].filter(Boolean).length,
+    }), { cal: 0, prot: 0, meals: 0 });
 
     const cardW2 = (CONTENT_W - 15) / 4;
     const statCards2 = [
       { label: "Avg Calories", value: `${Math.round(totals.cal / 7)}`, unit: "kcal/day", color: C.sage },
       { label: "Avg Protein",  value: `${Math.round(totals.prot / 7)}g`, unit: "per day", color: C.olive },
       { label: "Avg Carbs",    value: `${Math.round(data.mealPlan.reduce((s, d) => s + (d.breakfast?.carbs_g || 0) + (d.lunch?.carbs_g || 0) + (d.dinner?.carbs_g || 0), 0) / 7)}g`, unit: "per day", color: C.honey },
-      { label: "Est. Cost",    value: `QAR ${totals.price.toFixed(0)}`, unit: "for the week", color: C.terracotta },
+      { label: "Meals",        value: `${totals.meals}`, unit: "planned", color: C.terracotta },
     ];
 
     for (let i = 0; i < 4; i++) {
@@ -1159,7 +1168,7 @@ export class ProfessionalWeeklyReportPDF {
       this.doc.setFont("helvetica", "bold");
       this.doc.text(`${day.day} — ${day.date}`, MARGIN + 8, y + 11);
       this.doc.setFontSize(T.tiny);
-      this.doc.text(`${day.dailyCalories} kcal | ${day.dailyProtein}g protein | QAR ${day.dailyPrice.toFixed(0)}`, PAGE_W - MARGIN - 8, y + 11, { align: "right" });
+      this.doc.text(`${day.dailyCalories} kcal | ${day.dailyProtein}g protein`, PAGE_W - MARGIN - 8, y + 11, { align: "right" });
 
       y += 22;
 
@@ -1233,7 +1242,7 @@ export class ProfessionalWeeklyReportPDF {
     this.doc.setTextColor(...C.latte);
     this.doc.setFontSize(T.micro);
     this.doc.setFont("helvetica", "italic");
-    this.doc.text("Meals curated from partner restaurants. Availability and prices subject to change.", MARGIN, y);
+    this.doc.text("Meals curated from partner restaurants. Availability is subject to change.", MARGIN, y);
   }
 
   // ═══════════════════════════════════════════════════

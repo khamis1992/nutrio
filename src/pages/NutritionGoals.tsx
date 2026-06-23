@@ -9,57 +9,57 @@ const NutritionGoals = () => {
   const { t } = useLanguage();
 
   return (
-    <div className="min-h-screen bg-[#f6fbf7] pb-24 pt-safe">
-      <div className="sticky top-0 z-20 border-b border-emerald-900/5 bg-[#f6fbf7]/90 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#F6F8FB] pb-24 pt-safe">
+      <div className="sticky top-0 z-20 border-b border-[#E5EAF1] bg-[#F6F8FB]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-3 rtl:flex-row-reverse">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate(-1)}
-            className="h-11 w-11 shrink-0 rounded-full bg-white text-emerald-950 shadow-sm active:scale-95"
+            className="h-11 w-11 shrink-0 rounded-full bg-white text-[#020617] shadow-sm active:scale-95"
             aria-label="Go back"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-extrabold text-emerald-950">Nutrition Goals</h1>
-            <p className="truncate text-xs font-medium text-emerald-900/55">{t("nutrition_goals_desc")}</p>
+            <h1 className="truncate text-base font-extrabold text-[#020617]">{t("goals")}</h1>
+            <p className="truncate text-xs font-medium text-[#94A3B8]">{t("nutrition_goals_desc")}</p>
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-lg px-4 py-4">
-        <section className="mb-4 overflow-hidden rounded-[28px] bg-[#103f32] p-5 text-white shadow-[0_18px_45px_rgba(16,63,50,0.20)]">
+        <section className="mb-4 overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-emerald-100">
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#F3F4FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">
                 <Target className="h-3.5 w-3.5" />
-                Goals
+                {t("goals")}
               </div>
-              <h2 className="text-2xl font-black leading-tight tracking-tight">Fuel targets</h2>
-              <p className="mt-2 max-w-[15rem] text-sm font-medium leading-relaxed text-white/75">
-                Tune your calories, macros, activity, and health direction in one place.
+              <h2 className="text-[22px] font-black leading-tight tracking-[-0.04em] text-[#020617]">{t("goal_review_update")}</h2>
+              <p className="mt-2 max-w-[17rem] text-[13px] font-semibold leading-5 text-[#64748B]">
+                {t("goal_system_role_desc")}
               </p>
             </div>
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#24b893] text-white shadow-lg shadow-black/10">
-              <Utensils className="h-7 w-7" />
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
+              <Utensils className="h-6 w-6" />
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <div className="flex items-center gap-2 text-emerald-100">
-                <Flame className="h-4 w-4 text-amber-300" />
-                <span className="text-[11px] font-bold uppercase tracking-wide">Calories</span>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-2xl bg-[#FFF7ED] px-3 py-3 ring-1 ring-[#F97316]/15">
+              <div className="flex items-center gap-2 text-[#F97316]">
+                <Flame className="h-4 w-4 text-[#F97316]" />
+                <span className="text-[11px] font-bold uppercase tracking-wide">{t("calories")}</span>
               </div>
-              <p className="mt-1 text-sm font-extrabold">Daily plan</p>
+              <p className="mt-1 text-[12px] font-black leading-4 text-[#020617]">{t("daily_nutrition_targets")}</p>
             </div>
-            <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <div className="flex items-center gap-2 text-emerald-100">
-                <Target className="h-4 w-4 text-[#6de3c4]" />
-                <span className="text-[11px] font-bold uppercase tracking-wide">Macros</span>
+            <div className="rounded-2xl bg-[#F3F4FF] px-3 py-3 ring-1 ring-[#7C83F6]/15">
+              <div className="flex items-center gap-2 text-[#7C83F6]">
+                <Target className="h-4 w-4 text-[#7C83F6]" />
+                <span className="text-[11px] font-bold uppercase tracking-wide">{t("macros")}</span>
               </div>
-              <p className="mt-1 text-sm font-extrabold">Protein first</p>
+              <p className="mt-1 text-[12px] font-black leading-4 text-[#020617]">{t("goal_impact_meals")}</p>
             </div>
           </div>
         </section>

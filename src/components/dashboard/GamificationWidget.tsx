@@ -46,7 +46,7 @@ export function GamificationDashboardWidget() {
       try {
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("level")
+          .select("xp, level")
           .eq("user_id", user.id)
           .single();
 

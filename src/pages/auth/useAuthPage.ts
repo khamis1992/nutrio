@@ -38,6 +38,7 @@ export const useAuthPage = () => {
   const [otpError, setOtpError] = useState("");
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoTriggered = useRef(false);
+  const postSignupOnboardingKey = "nutrio_post_signup_onboarding";
 
   const switchView = (newView: AuthView) => {
     const rememberedEmail = localStorage.getItem("remembered_email");
@@ -84,6 +85,13 @@ export const useAuthPage = () => {
         ]);
       };
       try {
+        if (sessionStorage.getItem(postSignupOnboardingKey) === "true") {
+          sessionStorage.removeItem(postSignupOnboardingKey);
+          navigate("/onboarding", { replace: true });
+          setCheckingRole(false);
+          return;
+        }
+
         const adminRole = await raceWithTimeout(() =>
           supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
         );
@@ -201,12 +209,18 @@ export const useAuthPage = () => {
         toast({ title: t("signup_blocked"), description: ipCheck.blocked ? t("ip_blocked") : (ipCheck.reason || t("signup_qatar_only")), variant: "destructive" });
         return;
       }
-      const { error } = await signUp(values.email, values.password, values.name);
+      sessionStorage.setItem(postSignupOnboardingKey, "true");
+      const { error, session } = await signUp(values.email, values.password, values.name);
       if (error) {
+        sessionStorage.removeItem(postSignupOnboardingKey);
         toast({ title: t("signup_failed"), description: error.message.includes("User already registered") ? t("email_exists") : error.message, variant: "destructive" });
+      } else if (!session) {
+        sessionStorage.removeItem(postSignupOnboardingKey);
+        toast({ title: t("account_created"), description: t("check_email_confirm_account") });
+        setView("signin");
       } else {
         toast({ title: t("account_created"), description: t("welcome_setup_profile") });
-        navigate("/onboarding");
+        navigate("/onboarding", { replace: true });
       }
     } catch {
       toast({ title: t("error"), description: t("unexpected_error"), variant: "destructive" });

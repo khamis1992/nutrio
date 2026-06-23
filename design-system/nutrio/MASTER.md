@@ -1,5 +1,8 @@
 # Design System Master File
 
+> **Current brand colors:** Use `design-system/nutrio/BRAND_GUIDANCE.md` as the source of truth for the current Nutrio customer mobile palette and brand guidance.
+> Some older generated values in this file may not match the current app direction.
+
 > **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
 > If that file exists, its rules **override** this Master file.
 > If not, strictly follow the rules below.

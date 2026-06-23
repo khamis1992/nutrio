@@ -18,6 +18,7 @@ import {
   Utensils,
   Flame,
   Info,
+  MessageSquareText,
   CheckCheck,
   X,
   Play,
@@ -156,6 +157,7 @@ interface Order {
   delivery_type: string;
   delivery_fee: number | null;
   addons_total: number | null;
+  restaurant_note: string | null;
   created_at: string;
   cancellation_reason: string | null;
   meal: {
@@ -376,6 +378,7 @@ const PartnerOrders = () => {
           delivery_type,
           delivery_fee,
           addons_total,
+          restaurant_note,
           created_at,
           user_id,
           meals!meal_id (
@@ -468,6 +471,7 @@ const PartnerOrders = () => {
         delivery_type: (s.delivery_type as string) || "standard",
         delivery_fee: s.delivery_fee as number | null,
         addons_total: (s.addons_total as number) || 0,
+        restaurant_note: (s.restaurant_note as string) || null,
         created_at: s.created_at as string,
         cancellation_reason: null,
         meal: s.meals as Order["meal"],
@@ -721,6 +725,16 @@ const PartnerOrders = () => {
                 )}
               </div>
             </div>
+
+            {order.restaurant_note && (
+              <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-amber-900">
+                  <MessageSquareText className="h-4 w-4" />
+                  Customer note for kitchen
+                </p>
+                <p className="whitespace-pre-wrap text-sm text-amber-800">{order.restaurant_note}</p>
+              </div>
+            )}
 
             {/* Delivery Address */}
             {order.delivery_address && (

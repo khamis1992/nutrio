@@ -46,6 +46,7 @@ import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useWeekdayData } from "@/hooks/useWeekdayData";
+import { cn } from "@/lib/utils";
 
 type RingMetric = {
   label: string;
@@ -56,9 +57,21 @@ type RingMetric = {
   track: string;
 };
 
+const PROGRESS_COLORS = {
+  text: "#020617",
+  mutedText: "#94A3B8",
+  surface: "#F6F8FB",
+  track: "#E5EAF1",
+  calories: "#22C7A1",
+  protein: "#7C83F6",
+  carbs: "#F97316",
+  fat: "#FB6B7A",
+  water: "#38BDF8",
+};
 
 
-function ProgressRing({ value, size = 112, stroke = 8, color = "#51F3A0", label }: {
+
+function ProgressRing({ value, size = 112, stroke = 8, color = PROGRESS_COLORS.calories, label }: {
   value: number;
   size?: number;
   stroke?: number;
@@ -135,7 +148,7 @@ function SectionHeader({ title, action, onClick }: { title: string; action?: str
     <div className="mb-3 flex items-center justify-between">
       <h2 className="text-[17px] font-black tracking-[-0.04em] text-[#111827]">{title}</h2>
       {action ? (
-        <button className="flex items-center gap-1 text-[13px] font-extrabold text-[#00A86B]" type="button" onClick={onClick}>
+        <button className="flex items-center gap-1 text-[13px] font-extrabold text-[#22C7A1]" type="button" onClick={onClick}>
           {action}
           <ChevronRight className="h-4 w-4" strokeWidth={3} />
         </button>
@@ -147,12 +160,12 @@ function SectionHeader({ title, action, onClick }: { title: string; action?: str
 function HumanSilhouette() {
   return (
     <div className="relative mx-auto h-[92px] w-[50px] opacity-70">
-      <div className="absolute left-1/2 top-0 h-5 w-5 -translate-x-1/2 rounded-full bg-emerald-200" />
-      <div className="absolute left-1/2 top-[19px] h-[48px] w-[24px] -translate-x-1/2 rounded-t-full rounded-b-[18px] bg-emerald-100" />
-      <div className="absolute left-[7px] top-[24px] h-[48px] w-2 rotate-12 rounded-full bg-emerald-100" />
-      <div className="absolute right-[7px] top-[24px] h-[48px] w-2 -rotate-12 rounded-full bg-emerald-100" />
-      <div className="absolute left-[17px] top-[62px] h-[30px] w-2 rotate-6 rounded-full bg-emerald-100" />
-      <div className="absolute right-[17px] top-[62px] h-[30px] w-2 -rotate-6 rounded-full bg-emerald-100" />
+      <div className="absolute left-1/2 top-0 h-5 w-5 -translate-x-1/2 rounded-full bg-[#A7F3E5]" />
+      <div className="absolute left-1/2 top-[19px] h-[48px] w-[24px] -translate-x-1/2 rounded-t-full rounded-b-[18px] bg-[#EFFFFA]" />
+      <div className="absolute left-[7px] top-[24px] h-[48px] w-2 rotate-12 rounded-full bg-[#EFFFFA]" />
+      <div className="absolute right-[7px] top-[24px] h-[48px] w-2 -rotate-12 rounded-full bg-[#EFFFFA]" />
+      <div className="absolute left-[17px] top-[62px] h-[30px] w-2 rotate-6 rounded-full bg-[#EFFFFA]" />
+      <div className="absolute right-[17px] top-[62px] h-[30px] w-2 -rotate-6 rounded-full bg-[#EFFFFA]" />
     </div>
   );
 }
@@ -187,7 +200,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
   const { days: weekdayData } = useWeekdayData(user?.id, activeGoal?.daily_calorie_target ?? 2000);
   const calorieTarget = activeGoal?.daily_calorie_target ?? 2000;
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, isRTL, language } = useLanguage();
   useEffect(() => { document.title = `${t("progress_title")} — Nutrio`; }, [t]);
   const [activeTab, setActiveTab] = useState<"today" | "week" | "goals">("today");
   const [showGoalPicker, setShowGoalPicker] = useState(false);
@@ -273,9 +286,9 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
     const getStatus = (pct: number) => (pct >= 80 ? t("progress_excellent") : pct >= 60 ? t("progress_on_track_status") : t("progress_improve"));
     return [
       { label: t("calories"), value: calPct, status: getStatus(calPct), Icon: Flame, color: "#F97316", track: "#FFEDD5" },
-      { label: t("protein"), value: macros?.protein?.percentage ?? 0, status: getStatus(macros?.protein?.percentage ?? 0), Icon: Target, color: "#3B82F6", track: "#DBEAFE" },
+      { label: t("protein"), value: macros?.protein?.percentage ?? 0, status: getStatus(macros?.protein?.percentage ?? 0), Icon: Target, color: PROGRESS_COLORS.protein, track: "#F3F4FF" },
       { label: t("carbs"), value: macros?.carbs?.percentage ?? 0, status: getStatus(macros?.carbs?.percentage ?? 0), Icon: Wheat, color: "#F7B731", track: "#FEF3C7" },
-      { label: t("fat_label"), value: macros?.fat?.percentage ?? 0, status: getStatus(macros?.fat?.percentage ?? 0), Icon: Droplet, color: "#10B981", track: "#D1FAE5" },
+      { label: t("fat_label"), value: macros?.fat?.percentage ?? 0, status: getStatus(macros?.fat?.percentage ?? 0), Icon: Droplet, color: PROGRESS_COLORS.fat, track: "#FFF0F2" },
     ];
   }, [weeklySummary, activeGoal?.daily_calorie_target, t]);
 
@@ -292,29 +305,29 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
       case "weight_loss":
         return [
           { label: t("calorie_deficit"), Icon: Flame, color: "#F97316", done: calPct <= 100 && calPct > 0 },
-          { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
-          { label: t("protein_target_label"), Icon: Target, color: "#3B82F6", done: proteinPct >= 80 },
+          { label: t("progress_day_streak", { count: logStreak }), Icon: CalendarCheck, color: PROGRESS_COLORS.calories, done: logStreak > 0 },
+          { label: t("protein_target_label"), Icon: Target, color: PROGRESS_COLORS.protein, done: proteinPct >= 80 },
           { label: t("water_intake_label"), Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
         ];
       case "muscle_gain":
         return [
-          { label: t("protein_target_label"), Icon: Target, color: "#3B82F6", done: proteinPct >= 80 },
+          { label: t("protein_target_label"), Icon: Target, color: PROGRESS_COLORS.protein, done: proteinPct >= 80 },
           { label: t("calorie_surplus"), Icon: Flame, color: "#F97316", done: calPct >= 90 },
-          { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
+          { label: t("progress_day_streak", { count: logStreak }), Icon: CalendarCheck, color: PROGRESS_COLORS.calories, done: logStreak > 0 },
           { label: t("workouts_logged_label"), Icon: Activity, color: "#8B5CF6", done: weekdayData.filter(d => d.hasWorkout).length >= 3 },
         ];
       case "maintenance":
         return [
           { label: t("calories_on_track"), Icon: Flame, color: "#F97316", done: calPct >= 80 && calPct <= 110 },
-          { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
-          { label: t("balanced_macros"), Icon: Leaf, color: "#10B981", done: proteinPct >= 70 },
+          { label: t("progress_day_streak", { count: logStreak }), Icon: CalendarCheck, color: PROGRESS_COLORS.calories, done: logStreak > 0 },
+          { label: t("balanced_macros"), Icon: Leaf, color: PROGRESS_COLORS.calories, done: proteinPct >= 70 },
           { label: t("water_intake_label"), Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
         ];
       default:
         return [
-          { label: t("meals_logged_label"), Icon: Apple, color: "#10B981", done: todayLogged },
-          { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
-          { label: t("protein_target_label"), Icon: Target, color: "#3B82F6", done: proteinPct >= 70 },
+          { label: t("meals_logged_label"), Icon: Apple, color: PROGRESS_COLORS.calories, done: todayLogged },
+          { label: t("progress_day_streak", { count: logStreak }), Icon: CalendarCheck, color: PROGRESS_COLORS.calories, done: logStreak > 0 },
+          { label: t("protein_target_label"), Icon: Target, color: PROGRESS_COLORS.protein, done: proteinPct >= 70 },
           { label: t("water_intake_label"), Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
         ];
     }
@@ -325,14 +338,14 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
     const macros = weeklySummary?.macros;
     const proteinPct = macros?.protein?.percentage ?? 0;
     if (goalType === "muscle_gain") {
-      if (proteinPct < 70) return `Increase protein to ${protein}g daily — you're at ${macros?.protein?.consumed ?? 0}g this week. Muscle needs fuel.`;
-      return `Solid protein intake! Keep hitting ${protein}g daily and push heavier lifts for gains.`;
+      if (proteinPct < 70) return t("progress_coach_muscle_low_protein", { protein, consumed: macros?.protein?.consumed ?? 0 });
+      return t("progress_coach_muscle_good", { protein });
     }
     if (goalType === "weight_loss") {
-      return `Stay in a calorie deficit while keeping protein at ${protein}g daily to preserve muscle while burning fat.`;
+      return t("progress_coach_weight_loss", { protein });
     }
-    return `Keep balanced macros — ${protein}g protein, ${activeGoal?.carbs_target_g ?? 200}g carbs, ${activeGoal?.fat_target_g ?? 65}g fat daily for optimal health.`;
-  }, [goalType, activeGoal, weeklySummary]);
+    return t("progress_coach_balanced", { protein, carbs: activeGoal?.carbs_target_g ?? 200, fat: activeGoal?.fat_target_g ?? 65 });
+  }, [goalType, activeGoal, weeklySummary, t]);
 
   const handleGoalChange = async (newGoalType: string) => {
     if (newGoalType === goalType) {
@@ -487,7 +500,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 className="h-11 flex-1 rounded-[12px] border border-slate-200 bg-[#F8FAFC] px-3 text-[14px] font-semibold text-slate-800"
               />
               <button
-                className="h-11 rounded-[12px] bg-emerald-600 px-4 text-[13px] font-black text-white active:scale-95"
+                className="h-11 rounded-[12px] bg-[#020617] px-4 text-[13px] font-black text-white active:scale-95"
                 type="button"
                 onClick={() => { toast({ description: `Showing data for ${calendarDate}` }); setShowCalendar(false); }}
               >
@@ -565,7 +578,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                     </div>
 
                     {/* ── Calorie donut section ── */}
-                    <div className="relative flex items-center gap-4 px-5 pb-4">
+                    <div className="relative flex items-center gap-4 px-5 pb-7">
                       {/* Large donut */}
                       <div className="relative shrink-0">
                         <svg width="110" height="110" viewBox="0 0 110 110">
@@ -579,7 +592,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                           {/* Calorie arc (inner) */}
                           <circle cx="55" cy="55" r="34" fill="none" stroke="#F1F5F9" strokeWidth="8" />
                           <circle cx="55" cy="55" r="34" fill="none"
-                            stroke={dailyPct > 100 ? '#F87171' : '#34D399'}
+                            stroke={dailyPct > 100 ? PROGRESS_COLORS.fat : PROGRESS_COLORS.calories}
                             strokeLinecap="round" strokeWidth="8"
                             strokeDasharray={`${(Math.min(dailyPct, 100) / 100) * (2 * Math.PI * 34)} ${2 * Math.PI * 34}`}
                             transform="rotate(-90 55 55)"
@@ -589,9 +602,18 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                           <text x="55" y="63" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94A3B8" fontFamily="system-ui">{t("progress_kcal_unit")}</text>
                         </svg>
                         {/* Legend dots */}
-                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
-                          <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-[#34D399] inline-block" />Cal</span>
-                          <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-[#818CF8] inline-block" />Pro</span>
+                        <div className="absolute -bottom-2 left-1/2 flex w-max -translate-x-1/2 items-center justify-center gap-4">
+                          <span className="flex items-center gap-1.5 text-[10px] font-black leading-none text-slate-400">
+                            <span
+                              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: dailyPct > 100 ? PROGRESS_COLORS.fat : PROGRESS_COLORS.calories }}
+                            />
+                            {t("cal_label_short")}
+                          </span>
+                          <span className="flex items-center gap-1.5 text-[10px] font-black leading-none text-slate-400">
+                            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: PROGRESS_COLORS.protein }} />
+                            {t("protein_label")}
+                          </span>
                         </div>
                       </div>
 
@@ -611,7 +633,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                           <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                             <div
                               className="h-full rounded-full transition-all duration-700"
-                              style={{ width: `${dailyPct}%`, backgroundColor: dailyPct > 100 ? '#F87171' : '#34D399' }}
+                            style={{ width: `${dailyPct}%`, backgroundColor: dailyPct > 100 ? PROGRESS_COLORS.fat : PROGRESS_COLORS.calories }}
                             />
                           </div>
                         </div>
@@ -620,7 +642,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         <div className="flex items-center gap-2">
                           <div
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[13px] font-black text-white"
-                            style={{ backgroundColor: nutritionScore >= 80 ? '#10B981' : nutritionScore >= 50 ? '#F59E0B' : '#F87171' }}
+                            style={{ backgroundColor: nutritionScore >= 80 ? PROGRESS_COLORS.calories : nutritionScore >= 50 ? PROGRESS_COLORS.carbs : PROGRESS_COLORS.fat }}
                           >
                             {nutritionScore}
                           </div>
@@ -707,7 +729,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         <button
                           type="button"
                           onClick={() => setActiveTab("goals")}
-                          className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3 text-[14px] font-black text-emerald-700 shadow-[0_8px_20px_rgba(0,0,0,0.12)] active:scale-[0.98] transition-transform"
+                          className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3 text-[14px] font-black text-[#020617] shadow-[0_8px_20px_rgba(0,0,0,0.12)] active:scale-[0.98] transition-transform"
                         >
                           <Target className="h-4 w-4" />
                           {t("progress_set_your_goal")}
@@ -737,9 +759,9 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                   <div className="grid grid-cols-4 gap-2">
                     {[
                       { icon: Flame, label: t("calories"), current: calConsumed, target: calTarget, unit: t("progress_kcal_unit"), color: "#F97316", bg: "#FFF7ED" },
-                      { icon: Target, label: t("protein"), current: proteinConsumed, target: proteinTarget, unit: t("progress_gram_unit"), color: "#3B82F6", bg: "#EFF6FF" },
-                      { icon: Leaf, label: t("carbs"), current: carbsConsumed, target: carbsTarget, unit: t("progress_gram_unit"), color: "#10B981", bg: "#ECFDF5" },
-                      { icon: Droplet, label: t("fat_label"), current: fatConsumed, target: fatTarget, unit: t("progress_gram_unit"), color: "#8B5CF6", bg: "#F5F3FF" },
+                      { icon: Target, label: t("protein"), current: proteinConsumed, target: proteinTarget, unit: t("progress_gram_unit"), color: PROGRESS_COLORS.protein, bg: "#F3F4FF" },
+                      { icon: Leaf, label: t("carbs"), current: carbsConsumed, target: carbsTarget, unit: t("progress_gram_unit"), color: PROGRESS_COLORS.carbs, bg: "#FFF7ED" },
+                      { icon: Droplet, label: t("fat_label"), current: fatConsumed, target: fatTarget, unit: t("progress_gram_unit"), color: PROGRESS_COLORS.fat, bg: "#FFF0F2" },
                     ].map((n) => {
                       const NIcon = n.icon;
                       const pct = n.target > 0 ? Math.min(100, Math.round((n.current / n.target) * 100)) : 0;
@@ -794,11 +816,11 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         general: Sparkles,
                       };
                       const catColors: Record<string, string> = {
-                        nutrition: "bg-emerald-50 text-emerald-600 ring-emerald-100",
+                        nutrition: "bg-[#EFFFFA] text-[#22C7A1] ring-[#22C7A1]/20",
                         hydration: "bg-sky-50 text-sky-600 ring-sky-100",
                         activity: "bg-orange-50 text-orange-600 ring-orange-100",
                         sleep: "bg-violet-50 text-violet-600 ring-violet-100",
-                        general: "bg-indigo-50 text-indigo-600 ring-indigo-100",
+                        general: "bg-[#F3F4FF] text-[#7C83F6] ring-[#7C83F6]/20",
                       };
                       const priorityLabels: Record<string, string> = {
                         high: t("priority_high"),
@@ -823,7 +845,8 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         <button
                           key={r.id}
                           type="button"
-                          className="w-full rounded-[24px] border border-slate-100 bg-white p-3.5 text-left shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-transform active:scale-[0.99]"
+                          dir={isRTL ? "rtl" : "ltr"}
+                          className="w-full rounded-[24px] border border-slate-100 bg-white p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-transform active:scale-[0.99]"
                           onClick={() => {
                             if (r.action_link) navigate(r.action_link);
                           }}
@@ -834,7 +857,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="mb-1 flex items-start gap-2">
-                                <p className="min-w-0 flex-1 truncate text-[14px] font-black tracking-[-0.02em] text-slate-950">{r.title}</p>
+                                <p className="min-w-0 flex-1 text-[14px] font-black leading-5 tracking-normal text-slate-950">{r.title}</p>
                                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase ring-1 ${badgeColors}`}>
                                   {priorityLabels[r.priority] || r.priority}
                                 </span>
@@ -843,7 +866,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                               {progress && (
                                 <div className="mt-3">
                                   <div className="mb-1.5 flex items-center justify-between text-[10px]">
-                                    <span className="font-black text-slate-500">{progress.value}/{progress.max} {progress.unit}</span>
+                                    <span className="font-black text-slate-500" dir="ltr">{progress.value}/{progress.max} {progress.unit}</span>
                                     <span className="font-black" style={{ color: accentColor }}>{progressPct}%</span>
                                   </div>
                                   <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
@@ -858,10 +881,10 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                                 {r.action_text && r.action_link ? (
                                   <span className="text-[11px] font-black text-orange-600">{r.action_text}</span>
                                 ) : (
-                                  <span className="text-[11px] font-bold text-slate-400">View recommendation</span>
+                                  <span className="text-[11px] font-bold text-slate-400">{t("view_recommendation")}</span>
                                 )}
                                 <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-50 text-slate-400">
-                                  <ChevronRight className="h-4 w-4" strokeWidth={2.6} />
+                                  <ChevronRight className={cn("h-4 w-4", isRTL && "rotate-180")} strokeWidth={2.6} />
                                 </span>
                               </div>
                             </div>
@@ -885,7 +908,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                       <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="text-[14px] font-black text-slate-900">{t("progress_weight_forecast")}</h3>
-                          <span className="text-[11px] font-bold text-emerald-600">{t("progress_target_label")} {goalWeight} {t("progress_kg_unit")}</span>
+                          <span className="text-[11px] font-bold text-[#22C7A1]">{t("progress_target_label")} {goalWeight} {t("progress_kg_unit")}</span>
                         </div>
                         <p className="text-[12px] text-slate-500 py-4 text-center">{t("progress_log_weight_msg")}</p>
                       </article>
@@ -935,16 +958,16 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                     <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-[14px] font-black text-slate-900">{t("progress_weight_forecast")}</h3>
-                        <span className="text-[11px] font-bold text-emerald-600">{t("progress_target_label")} {goalWeight} {t("progress_kg_unit")}</span>
+                        <span className="text-[11px] font-bold text-[#22C7A1]">{t("progress_target_label")} {goalWeight} {t("progress_kg_unit")}</span>
                       </div>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{currentWeight} {t("progress_kg_unit")} {t("progress_today")}</span>
+                        <span className="rounded-full bg-[#EFFFFA] px-2 py-0.5 text-[10px] font-bold text-[#22C7A1]">{currentWeight} {t("progress_kg_unit")} {t("progress_today")}</span>
                       </div>
                       <svg className="w-full h-16" viewBox="0 0 200 60" preserveAspectRatio="none">
                         <defs>
                           <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#10B981" stopOpacity="0.2" />
-                            <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+                            <stop offset="0%" stopColor="#22C7A1" stopOpacity="0.2" />
+                            <stop offset="100%" stopColor="#22C7A1" stopOpacity="0" />
                           </linearGradient>
                         </defs>
                         <path d={`M${actualLinePoints.split(" ")[0]} L${actualLinePoints.split(" ").slice(-1)[0]} L200,60 L0,60 Z`} fill="url(#wg)" />
@@ -952,7 +975,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         {actualLinePoints && (
                           <polyline
                             fill="none"
-                            stroke="#10B981"
+                            stroke="#22C7A1"
                             strokeWidth="2.5"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -963,7 +986,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         {predictedLinePoints && (
                           <polyline
                             fill="none"
-                            stroke="#10B981"
+                            stroke="#22C7A1"
                             strokeWidth="2"
                             strokeDasharray="4,3"
                             strokeLinecap="round"
@@ -975,7 +998,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         {actualPoints.map((p, i) => {
                           const allIdx = allPoints.indexOf(p);
                           return (
-                            <circle key={p.date} cx={toX(allIdx)} cy={toY(p.actual!)} r="3" fill="#10B981" />
+                            <circle key={p.date} cx={toX(allIdx)} cy={toY(p.actual!)} r="3" fill={PROGRESS_COLORS.calories} />
                           );
                         })}
                       </svg>
@@ -1016,7 +1039,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 const calTarget2 = activeGoal?.daily_calorie_target ?? 2000;
                 const calPct2 = calTarget2 > 0 ? Math.min(100, Math.round((calAvg / calTarget2) * 100)) : 0;
                 const daysLogged2 = weekdayData.filter(d => d.calories > 0).length;
-                const scoreColor = weekScore >= 80 ? '#10B981' : weekScore >= 60 ? '#F59E0B' : '#F87171';
+                const scoreColor = weekScore >= 80 ? PROGRESS_COLORS.calories : weekScore >= 60 ? PROGRESS_COLORS.carbs : PROGRESS_COLORS.fat;
                 const scoreLabel = weekScore >= 80 ? t("progress_excellent_week") : weekScore >= 60 ? t("progress_good_progress_status") : t("progress_keep_going");
                 const weekCircumference = 2 * Math.PI * 46;
                 const consistencyCircumference = 2 * Math.PI * 34;
@@ -1024,7 +1047,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
               <article className="overflow-hidden rounded-[28px] bg-white shadow-[0_8px_32px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
 
                 {/* ── Top banner ── */}
-                <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                <div className="flex items-center justify-between px-5 pt-4 pb-5">
                   <div>
                     <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">{t("progress_this_week")}</p>
                     <p className="text-[15px] font-black text-slate-900">{t("progress_weekly_performance")}</p>
@@ -1043,7 +1066,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 </div>
 
                 {/* ── Dual donut + right stats ── */}
-                <div className="flex items-center gap-4 px-5 pb-4">
+                <div className="flex items-center gap-4 px-5 pb-7 pt-1">
                   {/* Dual donut: outer = consistency, inner = weekly score */}
                   <div className="relative shrink-0">
                     <svg width="110" height="110" viewBox="0 0 110 110">
@@ -1068,9 +1091,15 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                       <text x="55" y="63" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94A3B8" fontFamily="system-ui">{t("progress_score_label")}</text>
                     </svg>
                     {/* Legend */}
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
-                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-[#818CF8] inline-block" />{t("progress_consistency_short")}</span>
-                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400" style={{ color: scoreColor }}><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: scoreColor }} />{t("progress_score")}</span>
+                    <div className="absolute -bottom-2 left-1/2 flex w-max -translate-x-1/2 items-center justify-center gap-4">
+                      <span className="flex items-center gap-1.5 text-[10px] font-black leading-none text-slate-400">
+                        <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: PROGRESS_COLORS.protein }} />
+                        {t("progress_consistency_short")}
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[10px] font-black leading-none text-slate-400">
+                        <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: scoreColor }} />
+                        {t("progress_score")}
+                      </span>
                     </div>
                   </div>
 
@@ -1138,7 +1167,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         <div key={i} className="flex flex-1 flex-col items-center gap-1">
                           <div
                             className="h-4 w-full rounded-full transition-colors duration-300"
-                            style={{ backgroundColor: logged ? '#34D399' : '#E2E8F0' }}
+                            style={{ backgroundColor: logged ? PROGRESS_COLORS.calories : PROGRESS_COLORS.track }}
                           />
                           <span className="text-[8px] font-bold text-slate-400">{d}</span>
                         </div>
@@ -1159,7 +1188,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-[16px] font-black tracking-[-0.04em] text-slate-900">{t("progress_your_week")}</h3>
                   <div className="flex items-center gap-3 text-[10px]">
-                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {t("progress_on_track_legend")}</span>
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#22C7A1]" /> {t("progress_on_track_legend")}</span>
                     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-400" /> {t("progress_partial_legend")}</span>
                     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-300" /> {t("progress_no_data_legend")}</span>
                   </div>
@@ -1187,8 +1216,8 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                           return (
                             <td key={i} className="py-2">
                               <div className="flex flex-col items-center gap-1">
-                                <div className={`h-6 w-6 rounded-full flex items-center justify-center ${status === 'on' ? 'bg-emerald-100' : status === 'partial' ? 'bg-orange-100' : 'bg-slate-100'}`}>
-                                  {status === 'on' ? <Check className="h-3 w-3 text-emerald-600" strokeWidth={3} /> : status === 'partial' ? <div className="h-2 w-2 rounded-full bg-orange-400" /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
+                                <div className={`h-6 w-6 rounded-full flex items-center justify-center ${status === 'on' ? 'bg-[#EFFFFA]' : status === 'partial' ? 'bg-orange-100' : 'bg-slate-100'}`}>
+                                  {status === 'on' ? <Check className="h-3 w-3 text-[#22C7A1]" strokeWidth={3} /> : status === 'partial' ? <div className="h-2 w-2 rounded-full bg-orange-400" /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
                                 </div>
                                 <span className="text-[9px] font-bold text-slate-600">{hasData ? day.calories.toLocaleString() : "—"}</span>
                                 <span className="text-[8px] text-slate-500">kcal</span>
@@ -1203,8 +1232,8 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         {weekdayData.map((day, i) => (
                           <td key={i} className="py-2">
                             <div className="flex justify-center">
-                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${day.hasWorkout ? 'bg-emerald-100' : 'bg-slate-100'}`}>
-                                {day.hasWorkout ? <Check className="h-3 w-3 text-emerald-600" strokeWidth={3} /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
+                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${day.hasWorkout ? 'bg-[#EFFFFA]' : 'bg-slate-100'}`}>
+                                {day.hasWorkout ? <Check className="h-3 w-3 text-[#22C7A1]" strokeWidth={3} /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
                               </div>
                             </div>
                           </td>
@@ -1216,8 +1245,8 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         {weekdayData.map((day, i) => (
                           <td key={i} className="py-2">
                             <div className="flex justify-center">
-                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${day.waterGlasses >= 8 ? 'bg-blue-100' : 'bg-slate-100'}`}>
-                                {day.waterGlasses >= 8 ? <Check className="h-3 w-3 text-blue-600" strokeWidth={3} /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
+                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${day.waterGlasses >= 8 ? 'bg-[#EFF9FF]' : 'bg-slate-100'}`}>
+                                {day.waterGlasses >= 8 ? <Check className="h-3 w-3 text-[#38BDF8]" strokeWidth={3} /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
                               </div>
                             </div>
                           </td>
@@ -1254,7 +1283,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                       })()}
                     />
                   </svg>
-                  <div className="flex items-center gap-1 text-[10px] font-bold mt-1" style={{ color: (weeklySummary?.calories.changePercent ?? 0) >= 0 ? "#059669" : "#EF4444" }}>
+                  <div className="flex items-center gap-1 text-[10px] font-bold mt-1" style={{ color: (weeklySummary?.calories.changePercent ?? 0) >= 0 ? PROGRESS_COLORS.calories : PROGRESS_COLORS.fat }}>
                     {(weeklySummary?.calories.changePercent ?? 0) >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                     {t("progress_vs_last_week_pct", { change: Math.abs(weeklySummary?.calories.changePercent ?? 0) })}
                   </div>
@@ -1268,7 +1297,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                   <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
                     <polyline
                       fill="none"
-                      stroke="#3B82F6"
+                      stroke={PROGRESS_COLORS.protein}
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1280,7 +1309,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                       })()}
                     />
                   </svg>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-1">
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-[#7C83F6] mt-1">
                     <ArrowUp className="h-3 w-3" />
                     {t("progress_of_target_pct", { value: weeklySummary?.macros.protein.percentage ?? 0 })}
                   </div>
@@ -1299,7 +1328,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                   <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
                     <polyline
                       fill="none"
-                      stroke="#0EA5E9"
+                      stroke={PROGRESS_COLORS.water}
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1311,7 +1340,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                       })()}
                     />
                   </svg>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-1">
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-[#38BDF8] mt-1">
                     <Check className="h-3 w-3" />
                     {t("progress_days_hit_goal", { count: weekdayData.filter(d => d.waterGlasses >= 8).length })}
                   </div>
@@ -1360,8 +1389,8 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                   </p>
                 </article>
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)] text-center">
-                  <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-blue-100 mb-2">
-                    <Droplet className="h-5 w-5 text-blue-500" />
+                  <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-[#EFF9FF] mb-2">
+                    <Droplet className="h-5 w-5 text-[#38BDF8]" />
                   </div>
                   <p className="text-[10px] font-bold text-slate-700">{t("progress_most_hydrated")}</p>
                   <p className="text-[9px] text-slate-500">
@@ -1390,34 +1419,34 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                       <Flame className="h-4 w-4" style={{ color: '#F97316' }} />
                       <span className="text-[11px] font-semibold text-slate-600">{t("progress_calories_compare")}</span>
                     </div>
-                    <span className={`text-[11px] font-bold ${(weeklySummary?.calories.changePercent ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    <span className={`text-[11px] font-bold ${(weeklySummary?.calories.changePercent ?? 0) >= 0 ? 'text-[#22C7A1]' : 'text-[#FB6B7A]'}`}>
                       {(weeklySummary?.calories.changePercent ?? 0) >= 0 ? '+' : ''}{weeklySummary?.calories.changePercent ?? 0}% {(weeklySummary?.calories.trend === 'up' ? '↑' : weeklySummary?.calories.trend === 'down' ? '↓' : '→')}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Target className="h-4 w-4" style={{ color: '#3B82F6' }} />
+                      <Target className="h-4 w-4" style={{ color: PROGRESS_COLORS.protein }} />
                       <span className="text-[11px] font-semibold text-slate-600">{t("progress_protein_compare")}</span>
                     </div>
-                    <span className="text-[11px] font-bold text-emerald-600">
+                    <span className="text-[11px] font-bold text-[#7C83F6]">
                       {t("progress_of_target_pct", { value: weeklySummary?.macros.protein.percentage ?? 0 })}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Droplet className="h-4 w-4" style={{ color: '#0EA5E9' }} />
+                      <Droplet className="h-4 w-4" style={{ color: PROGRESS_COLORS.water }} />
                       <span className="text-[11px] font-semibold text-slate-600">{t("progress_water_compare")}</span>
                     </div>
-                    <span className="text-[11px] font-bold text-emerald-600">
+                    <span className="text-[11px] font-bold text-[#38BDF8]">
                       {weekdayData.filter(d => d.waterGlasses >= 8).length}/7 days
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" style={{ color: '#10B981' }} />
+                      <TrendingUp className="h-4 w-4" style={{ color: PROGRESS_COLORS.calories }} />
                       <span className="text-[11px] font-semibold text-slate-600">{t("progress_consistency_compare")}</span>
                     </div>
-                    <span className="text-[11px] font-bold text-emerald-600">
+                    <span className="text-[11px] font-bold text-[#22C7A1]">
                       {weeklySummary?.consistency.percentage ?? 0}% {weeklySummary?.consistency.percentage >= 70 ? '↑' : '→'}
                     </span>
                   </div>
@@ -1435,9 +1464,9 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                       const waterDays = weekdayData.filter(d => d.waterGlasses > 0).length;
                       const workoutDays = weekdayData.filter(d => d.hasWorkout).length;
                       const habits = [
-                        { label: t('meal_logging_label'), days: weeklySummary?.consistency.daysLogged ?? 0, pct: weeklySummary?.consistency.percentage ?? 0, color: '#10B981' },
-                        { label: t('water_tracking_label'), days: waterDays, pct: Math.round((waterDays / 7) * 100), color: '#0EA5E9' },
-                        { label: t('workouts_label'), days: workoutDays, pct: Math.round((workoutDays / 7) * 100), color: '#8B5CF6' },
+                        { label: t('meal_logging_label'), days: weeklySummary?.consistency.daysLogged ?? 0, pct: weeklySummary?.consistency.percentage ?? 0, color: PROGRESS_COLORS.calories },
+                        { label: t('water_tracking_label'), days: waterDays, pct: Math.round((waterDays / 7) * 100), color: PROGRESS_COLORS.water },
+                        { label: t('workouts_label'), days: workoutDays, pct: Math.round((workoutDays / 7) * 100), color: PROGRESS_COLORS.protein },
                       ];
                       return habits.map((habit) => (
                         <div key={habit.label}>
@@ -1475,7 +1504,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         <div className="relative grid h-24 w-24 mx-auto place-items-center">
                           <svg className="absolute inset-0 -rotate-90" viewBox="0 0 96 96">
                             <circle cx="48" cy="48" r="40" fill="none" stroke="#EEF2F7" strokeWidth="6" />
-                            <circle cx="48" cy="48" r="40" fill="none" stroke="#10B981" strokeLinecap="round" strokeWidth="6" strokeDasharray={`${dash.toFixed(1)} ${(circumference - dash).toFixed(1)}`} />
+                            <circle cx="48" cy="48" r="40" fill="none" stroke={PROGRESS_COLORS.calories} strokeLinecap="round" strokeWidth="6" strokeDasharray={`${dash.toFixed(1)} ${(circumference - dash).toFixed(1)}`} />
                           </svg>
                           <div className="text-center">
                             <span className="text-[22px] font-black text-slate-900">{goalPct}%</span>
@@ -1486,7 +1515,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                           {goals.map((goal) => (
                             <div key={goal.label} className="flex items-center justify-between text-[10px]">
                               <span className="font-semibold text-slate-600">{goal.label}</span>
-                              <div className={`grid h-5 w-5 place-items-center rounded-full ${goal.done ? 'bg-emerald-100 text-emerald-600' : 'border border-slate-200 text-slate-300'}`}>
+                              <div className={`grid h-5 w-5 place-items-center rounded-full ${goal.done ? 'bg-[#EFFFFA] text-[#22C7A1]' : 'border border-slate-200 text-slate-300'}`}>
                                 {goal.done ? <Check className="h-3 w-3" strokeWidth={3} /> : <span className="text-[8px]">○</span>}
                               </div>
                             </div>
@@ -1511,8 +1540,8 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 {Object.entries(goalTypeLabelKey).map(([key, labelKey]) => {
                   const Icon = goalTypeIcon[key] ?? Leaf;
                   const isActive = goalType === key;
-                  const goalColors: Record<string, string> = { weight_loss: '#F59E0B', muscle_gain: '#818CF8', maintenance: '#10B981', general: '#F472B6' };
-                  const activeColor = goalColors[key] ?? '#10B981';
+                  const goalColors: Record<string, string> = { weight_loss: PROGRESS_COLORS.carbs, muscle_gain: PROGRESS_COLORS.protein, maintenance: PROGRESS_COLORS.calories, general: PROGRESS_COLORS.fat };
+                  const activeColor = goalColors[key] ?? PROGRESS_COLORS.calories;
                   return (
                     <button
                       key={key}
@@ -1532,10 +1561,10 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
 
               {/* Main goal card - white card */}
               {(() => {
-                const goalColors2: Record<string, string> = { weight_loss: '#F59E0B', muscle_gain: '#818CF8', maintenance: '#10B981', general: '#F472B6' };
-                const goalColor = goalColors2[goalType] ?? '#10B981';
-                const goalLightBg: Record<string, string> = { weight_loss: '#FEF3C7', muscle_gain: '#EEF2FF', maintenance: '#D1FAE5', general: '#FDF2F8' };
-                const goalBg = goalLightBg[goalType] ?? '#D1FAE5';
+                const goalColors2: Record<string, string> = { weight_loss: PROGRESS_COLORS.carbs, muscle_gain: PROGRESS_COLORS.protein, maintenance: PROGRESS_COLORS.calories, general: PROGRESS_COLORS.fat };
+                const goalColor = goalColors2[goalType] ?? PROGRESS_COLORS.calories;
+                const goalLightBg: Record<string, string> = { weight_loss: '#FFF7ED', muscle_gain: '#F3F4FF', maintenance: '#EFFFFA', general: '#FFF0F2' };
+                const goalBg = goalLightBg[goalType] ?? '#EFFFFA';
                 const outerC = 2 * Math.PI * 46;
                 const innerC = 2 * Math.PI * 34;
                 const calTarget3 = activeGoal?.daily_calorie_target ?? 2000;
@@ -1560,7 +1589,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 </div>
 
                 {/* ── Dual donut + right stats ── */}
-                <div className="flex items-center gap-4 px-5 pb-4">
+                <div className="flex items-center gap-4 px-5 pb-7">
                   {/* Dual donut: outer = goal ring value, inner = BMI / secondary */}
                   <div className="relative shrink-0">
                     <svg width="110" height="110" viewBox="0 0 110 110">
@@ -1575,7 +1604,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                       <circle cx="55" cy="55" r="34" fill="none" stroke="#F1F5F9" strokeWidth="8" />
                       {/* Inner arc = BMI normalized (0-40 scale) */}
                       <circle cx="55" cy="55" r="34" fill="none"
-                        stroke={bmi < 18.5 ? '#38BDF8' : bmi < 25 ? '#34D399' : bmi < 30 ? '#F59E0B' : '#F87171'}
+                        stroke={bmi < 18.5 ? PROGRESS_COLORS.water : bmi < 25 ? PROGRESS_COLORS.calories : bmi < 30 ? PROGRESS_COLORS.carbs : PROGRESS_COLORS.fat}
                         strokeLinecap="round" strokeWidth="8"
                         strokeDasharray={`${(Math.min(bmi, 40) / 40) * innerC} ${innerC}`}
                         transform="rotate(-90 55 55)"
@@ -1585,9 +1614,18 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                       <text x="55" y="63" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94A3B8" fontFamily="system-ui">%</text>
                     </svg>
                     {/* Legend */}
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
-                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: goalColor }} />{t("progress_goal_legend")}</span>
-                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: bmi < 25 ? '#34D399' : '#F59E0B' }} />{t("progress_bmi")}</span>
+                    <div className="absolute -bottom-2 left-1/2 flex w-max -translate-x-1/2 items-center justify-center gap-4">
+                      <span className="flex items-center gap-1.5 text-[10px] font-black leading-none text-slate-400">
+                        <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: goalColor }} />
+                        {t("progress_goal_legend")}
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[10px] font-black leading-none text-slate-400">
+                        <span
+                          className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: bmi < 18.5 ? PROGRESS_COLORS.water : bmi < 25 ? PROGRESS_COLORS.calories : bmi < 30 ? PROGRESS_COLORS.carbs : PROGRESS_COLORS.fat }}
+                        />
+                        {t("progress_bmi")}
+                      </span>
                     </div>
                   </div>
 
@@ -1632,10 +1670,10 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 {/* ── Nutrition targets row ── */}
                 <div className="grid grid-cols-4 gap-px bg-slate-100">
                   {[
-                    { label: t('calories'), value: calTarget3.toLocaleString(), unit: 'kcal', color: '#FB923C' },
-                    { label: t('protein'), value: `${protTarget3}`, unit: 'g', color: '#818CF8' },
-                    { label: t('carbs'), value: `${carbTarget3}`, unit: 'g', color: '#34D399' },
-                    { label: t('fat_label'), value: `${fatTarget3}`, unit: t('progress_gram_unit'), color: '#F472B6' },
+                    { label: t('calories'), value: calTarget3.toLocaleString(), unit: 'kcal', color: PROGRESS_COLORS.calories },
+                    { label: t('protein'), value: `${protTarget3}`, unit: 'g', color: PROGRESS_COLORS.protein },
+                    { label: t('carbs'), value: `${carbTarget3}`, unit: 'g', color: PROGRESS_COLORS.carbs },
+                    { label: t('fat_label'), value: `${fatTarget3}`, unit: t('progress_gram_unit'), color: PROGRESS_COLORS.fat },
                   ].map((m) => (
                     <div key={m.label} className="flex flex-col items-center bg-white px-1 py-3">
                       <p className="text-[13px] font-black text-slate-900">{m.value}</p>
@@ -1680,10 +1718,10 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
 
             <section className="mb-5 space-y-3">
               {(() => {
-                const goalColors: Record<string, string> = { weight_loss: '#F59E0B', muscle_gain: '#818CF8', maintenance: '#10B981', general: '#F472B6' };
-                const goalLightBg: Record<string, string> = { weight_loss: '#FFF7ED', muscle_gain: '#EEF2FF', maintenance: '#ECFDF5', general: '#FDF2F8' };
-                const goalColor = goalColors[goalType] ?? '#10B981';
-                const goalBg = goalLightBg[goalType] ?? '#ECFDF5';
+                const goalColors: Record<string, string> = { weight_loss: PROGRESS_COLORS.carbs, muscle_gain: PROGRESS_COLORS.protein, maintenance: PROGRESS_COLORS.calories, general: PROGRESS_COLORS.fat };
+                const goalLightBg: Record<string, string> = { weight_loss: '#FFF7ED', muscle_gain: '#F3F4FF', maintenance: '#EFFFFA', general: '#FFF0F2' };
+                const goalColor = goalColors[goalType] ?? PROGRESS_COLORS.calories;
+                const goalBg = goalLightBg[goalType] ?? '#EFFFFA';
                 const latestWeight = weightHistory[weightHistory.length - 1]?.weight ?? currentWeight;
                 const firstWeight = weightHistory[0]?.weight ?? currentWeight;
                 const weeklyChange = weightHistory.length >= 2
@@ -1695,35 +1733,35 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 const targetDate = new Date();
                 targetDate.setDate(targetDate.getDate() + estimatedWeeks * 7);
                 const paceLabel = goalType === "maintenance"
-                  ? "Hold your range"
+                  ? t("progress_pace_hold_range")
                   : weeklyChange === 0
-                    ? "Build momentum"
-                    : `${Math.abs(weeklyChange).toFixed(1)} kg/week`;
+                    ? t("progress_pace_build_momentum")
+                    : t("progress_pace_kg_week", { value: Math.abs(weeklyChange).toFixed(1) });
                 const timelineItems = [
-                  { label: "Start", value: `${firstWeight.toFixed(1)} kg`, done: true },
-                  { label: "Today", value: `${currentWeight.toFixed(1)} kg`, done: true },
-                  { label: "Target", value: goalType === "maintenance" ? "Maintain" : `${goalWeight.toFixed(1)} kg`, done: goalRingValue >= 100 },
+                  { label: t("progress_start"), value: t("progress_weight_kg_value", { value: firstWeight.toFixed(1) }), done: true },
+                  { label: t("today"), value: t("progress_weight_kg_value", { value: currentWeight.toFixed(1) }), done: true },
+                  { label: t("target"), value: goalType === "maintenance" ? t("maintain") : t("progress_weight_kg_value", { value: goalWeight.toFixed(1) }), done: goalRingValue >= 100 },
                 ];
                 const milestones = goalType === "maintenance"
                   ? [
-                      { label: "3 steady days", done: weeklySummary?.consistency?.daysLogged >= 3 },
-                      { label: "Protein steady", done: (weeklySummary?.macros?.protein?.percentage ?? 0) >= 80 },
-                      { label: "Balanced week", done: goalRingValue >= 80 },
+                      { label: t("progress_milestone_steady_days"), done: weeklySummary?.consistency?.daysLogged >= 3 },
+                      { label: t("progress_milestone_protein_steady"), done: (weeklySummary?.macros?.protein?.percentage ?? 0) >= 80 },
+                      { label: t("progress_milestone_balanced_week"), done: goalRingValue >= 80 },
                     ]
-                  : [25, 50, 75, 100].map((pct) => ({ label: pct === 100 ? "Target reached" : `${pct}% milestone`, done: goalRingValue >= pct }));
+                  : [25, 50, 75, 100].map((pct) => ({ label: pct === 100 ? t("progress_milestone_target_reached") : t("progress_milestone_percent", { percent: pct }), done: goalRingValue >= pct }));
 
                 return (
                   <>
                     <article className="rounded-[26px] bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
                       <div className="mb-4 flex items-center justify-between">
                         <div>
-                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">Goal timeline</p>
+                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">{t("progress_goal_timeline")}</p>
                           <h3 className="mt-1 text-[17px] font-black text-slate-950">
-                            {goalType === "maintenance" ? "Stay consistent" : `${estimatedWeeks} week estimate`}
+                            {goalType === "maintenance" ? t("progress_stay_consistent") : t("progress_week_estimate", { count: estimatedWeeks })}
                           </h3>
                         </div>
                         <div className="rounded-2xl px-3 py-2 text-right" style={{ backgroundColor: goalBg }}>
-                          <p className="text-[10px] font-black uppercase tracking-[0.08em]" style={{ color: goalColor }}>Pace</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.08em]" style={{ color: goalColor }}>{t("progress_pace")}</p>
                           <p className="text-[12px] font-black text-slate-900">{paceLabel}</p>
                         </div>
                       </div>
@@ -1747,7 +1785,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
 
                       {goalType !== "maintenance" && (
                         <p className="mt-4 text-center text-[11px] font-bold text-slate-400">
-                          Estimated target: {targetDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          {t("progress_estimated_target", { date: formatLocaleDate(targetDate, language, { month: "short", day: "numeric" }) })}
                         </p>
                       )}
                     </article>
@@ -1757,7 +1795,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         <Sparkles className="h-5 w-5" strokeWidth={2.4} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">Next best action</p>
+                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">{t("next_best_action")}</p>
                         <p className="mt-1 text-[14px] font-black leading-snug text-slate-950">{coachRecommendation}</p>
                       </div>
                     </article>
@@ -1765,8 +1803,8 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                     <article className="rounded-[26px] bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
                       <div className="mb-3 flex items-center justify-between">
                         <div>
-                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">Milestone ladder</p>
-                          <h3 className="mt-1 text-[17px] font-black text-slate-950">Small wins</h3>
+                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">{t("progress_milestone_ladder")}</p>
+                          <h3 className="mt-1 text-[17px] font-black text-slate-950">{t("progress_small_wins")}</h3>
                         </div>
                         <span className="rounded-full px-3 py-1.5 text-[11px] font-black" style={{ backgroundColor: goalBg, color: goalColor }}>
                           {milestones.filter((m) => m.done).length}/{milestones.length}
@@ -1801,7 +1839,10 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                     { label: t("fiber"), value: activeGoal?.fiber_target_g ?? 25, unit: t("progress_gram_unit"), pct: 0 },
                   ].map((m) => (
                     <div key={m.label} className="flex items-center gap-2 shrink-0 rounded-[12px] bg-slate-50 px-3 py-2">
-                      <div className={`h-2 w-2 rounded-full ${m.pct >= 80 ? 'bg-emerald-500' : m.pct >= 50 ? 'bg-amber-500' : m.pct > 0 ? 'bg-red-400' : 'bg-slate-300'}`} />
+                      <div
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: m.pct >= 80 ? PROGRESS_COLORS.calories : m.pct >= 50 ? PROGRESS_COLORS.carbs : m.pct > 0 ? PROGRESS_COLORS.fat : PROGRESS_COLORS.track }}
+                      />
                       <div>
                         <span className="block text-[14px] font-black leading-none text-slate-800">{m.value.toLocaleString()}</span>
                         <span className="block text-[9px] font-bold text-slate-500">{m.label} ({m.unit})</span>
@@ -1844,7 +1885,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 <article
                   key={proposal.id}
                   className={`overflow-hidden rounded-[20px] border bg-white shadow-[0_16px_34px_rgba(15,23,42,0.06)] ${
-                    isProposed ? "border-amber-200" : "border-emerald-200"
+                    isProposed ? "border-amber-200" : "border-[#22C7A1]/30"
                   }`}
                 >
                   <div className="p-4">
@@ -1852,7 +1893,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                       <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
                         isProposed
                           ? "bg-amber-100 text-amber-600"
-                          : "bg-emerald-100 text-emerald-600"
+                          : "bg-[#EFFFFA] text-[#22C7A1]"
                       }`}>
                         <Icon className="h-5 w-5" strokeWidth={2.2} />
                       </div>
@@ -1864,7 +1905,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                           <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
                             isProposed
                               ? "bg-amber-100 text-amber-700"
-                              : "bg-emerald-100 text-emerald-700"
+                              : "bg-[#EFFFFA] text-[#22C7A1]"
                           }`}>
                             {isProposed ? "NEW" : "ACTIVE"}
                           </span>
@@ -1887,15 +1928,15 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         <div className="h-2 rounded-full bg-slate-100">
                           <div
                             className={`h-full rounded-full transition-all duration-500 ${
-                              isProposed ? "bg-amber-400" : "bg-gradient-to-r from-emerald-400 to-emerald-600"
+                              isProposed ? "bg-amber-400" : "bg-[#22C7A1]"
                             }`}
                             style={{ width: `${prog?.progressPct ?? 0}%` }}
                           />
                         </div>
                       </div>
-                      <div className="rounded-[12px] bg-emerald-50 px-3 py-2 text-center">
-                        <p className="text-[18px] font-black text-emerald-700">{proposal.target_value}</p>
-                        <p className="text-[9px] font-bold text-emerald-400">{t("progress_target")}</p>
+                      <div className="rounded-[12px] bg-[#EFFFFA] px-3 py-2 text-center">
+                        <p className="text-[18px] font-black text-[#020617]">{proposal.target_value}</p>
+                        <p className="text-[9px] font-bold text-[#22C7A1]">{t("progress_target")}</p>
                       </div>
                     </div>
 
@@ -1914,7 +1955,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                         <button
                           type="button"
                           onClick={() => acceptCoachGoal(proposal.id)}
-                          className="flex-1 h-11 rounded-[12px] bg-emerald-600 text-[13px] font-bold text-white active:scale-95 transition-all hover:bg-emerald-700"
+                          className="flex-1 h-11 rounded-[12px] bg-[#020617] text-[13px] font-bold text-white active:scale-95 transition-all hover:bg-[#020617]/90"
                         >
                           {t("progress_accept_goal")}
                         </button>
@@ -1962,7 +2003,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
         <section className="mb-5">
           <article className="rounded-[20px] border border-slate-100 bg-white p-5 shadow-[0_16px_34px_rgba(15,23,42,0.06)]">
             <div className="mb-5 flex items-center gap-2">
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-emerald-100 text-emerald-600">
+              <div className="grid h-8 w-8 place-items-center rounded-full bg-[#EFFFFA] text-[#22C7A1]">
                 <UserRound className="h-5 w-5" />
               </div>
               <h3 className="text-[16px] font-black tracking-[-0.04em]">{t("progress_body_metrics")}</h3>
@@ -1987,14 +2028,14 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 <div>
                   <p className="text-[11px] font-semibold text-slate-500">{t("progress_bmi")}</p>
                   <p className="mt-1 text-[24px] font-black tracking-[-0.06em]">{bmi}</p>
-                  <p className="text-[11px] font-extrabold text-[#00A86B]">{bmiLabel}</p>
+                  <p className="text-[11px] font-extrabold text-[#22C7A1]">{bmiLabel}</p>
                 </div>
               </div>
             </div>
             {activeGoal?.target_weight_kg && (
             <div className="mt-5 h-2 rounded-full bg-slate-100">
-              <div className="relative h-full rounded-full bg-gradient-to-r from-emerald-200 to-emerald-500" style={{ width: `${progressPct}%` }}>
-                <span className="absolute right-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full bg-emerald-500 shadow" />
+              <div className="relative h-full rounded-full bg-[#22C7A1]" style={{ width: `${progressPct}%` }}>
+                <span className="absolute right-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full bg-[#22C7A1] shadow" />
               </div>
             </div>
             )}

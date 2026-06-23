@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { CalendarClock, Loader2, Utensils } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
 
@@ -44,6 +44,8 @@ interface ModifyOrderModalProps {
   schedule: ScheduledMeal | null;
   onModified: () => void;
 }
+
+const KEEP_CURRENT_MEAL_TYPE = "__keep_current_meal_type__";
 
 export const ModifyOrderModal = ({
   isOpen,
@@ -135,40 +137,42 @@ export const ModifyOrderModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md rounded-2xl">
+      <DialogContent className="max-w-[430px] rounded-[34px] border border-slate-200/80 bg-white p-0 shadow-[0_28px_90px_rgba(2,6,23,0.22)] sm:max-w-md">
         {step === "scheduler" ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>Select Delivery Time</DialogTitle>
-              <DialogDescription>
+          <div className="overflow-hidden rounded-[34px]">
+            <DialogHeader className="border-b border-slate-100 px-5 py-5 text-left">
+              <DialogTitle className="text-[20px] font-black text-[#020617]">Select Delivery Time</DialogTitle>
+              <DialogDescription className="text-[13px] font-semibold text-slate-500">
                 Choose a new date and time for your order
               </DialogDescription>
             </DialogHeader>
-            <DeliveryScheduler
-              initialDate={newDate || schedule?.scheduled_date}
-              onSchedule={handleSchedule}
-              onCancel={() => setStep("details")}
-            />
-          </>
+            <div className="p-4">
+              <DeliveryScheduler
+                initialDate={newDate || schedule?.scheduled_date}
+                onSchedule={handleSchedule}
+                onCancel={() => setStep("details")}
+              />
+            </div>
+          </div>
         ) : (
-          <>
-            <DialogHeader>
-              <DialogTitle>{t("modify_order")}</DialogTitle>
-              <DialogDescription>
+          <div className="overflow-hidden rounded-[34px]">
+            <DialogHeader className="border-b border-slate-100 px-5 pb-4 pt-6 text-left">
+              <DialogTitle className="text-center text-[20px] font-black text-[#020617]">{t("modify_order")}</DialogTitle>
+              <DialogDescription className="mx-auto mt-1 max-w-[300px] text-center text-[13px] font-semibold leading-5 text-slate-500">
                 {schedule?.meal?.name
                   ? t("change_date_or_meal_type_for", { mealName: schedule.meal.name })
                   : t("change_date_or_meal_type")}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-2">
+            <div className="space-y-4 px-5 py-5">
               {/* Current details */}
-              <div className="p-3 bg-muted/50 rounded-xl text-sm space-y-1">
-                <p className="text-muted-foreground">
+              <div className="grid grid-cols-2 gap-2 rounded-[24px] bg-slate-50 p-3 text-sm ring-1 ring-slate-200/70">
+                <p className="min-w-0 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 [&_span]:font-black [&_span]:text-[#020617]">
                   {t("current_date")}{" "}
                   <span className="font-medium text-foreground">{schedule ? formatDate(schedule.scheduled_date) : "—"}</span>
                 </p>
-                <p className="text-muted-foreground">
+                <p className="min-w-0 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 [&_span]:font-black [&_span]:text-[#020617]">
                   {t("current_meal_type")}{" "}
                   <span className="font-medium text-foreground capitalize">{schedule?.meal_type}</span>
                 </p>
@@ -176,18 +180,19 @@ export const ModifyOrderModal = ({
 
               {/* Date & Time changer — opens DeliveryScheduler */}
               <div className="space-y-2">
-                <Label>New Date & Time (optional)</Label>
+                <Label className="text-[13px] font-black text-[#020617]">New Date & Time (optional)</Label>
                 {newDate && newTime ? (
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 p-3 bg-emerald-50 rounded-xl text-sm">
-                      <span className="font-medium text-emerald-700">
+                    <div className="flex min-h-12 flex-1 items-center gap-2 rounded-[18px] bg-slate-50 px-3 text-sm ring-1 ring-slate-200/80">
+                      <CalendarClock className="h-4 w-4 shrink-0 text-[#020617]" />
+                      <span className="font-black text-[#020617]">
                         {formatDate(newDate.toISOString().split("T")[0])} at {newTime}
                       </span>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="rounded-xl text-xs"
+                      className="rounded-full text-xs font-black text-slate-500 hover:bg-slate-100"
                       onClick={() => { setNewDate(null); setNewTime(null); }}
                     >
                       Clear
@@ -196,24 +201,41 @@ export const ModifyOrderModal = ({
                 ) : (
                   <Button
                     variant="outline"
-                    className="w-full rounded-xl justify-start"
+                    className="min-h-12 w-full justify-start rounded-[18px] border-slate-200 bg-white px-4 text-[14px] font-black text-[#020617] shadow-none hover:bg-slate-50 hover:text-[#020617]"
                     onClick={() => setStep("scheduler")}
                   >
-                    Select Date & Time
+                    <CalendarClock className="mr-2 h-4 w-4 text-slate-600" />
+                    <span className="text-[#020617]">Select Date & Time</span>
                   </Button>
                 )}
               </div>
 
               {/* New meal type */}
               <div className="space-y-2">
-                <Label>{t("new_meal_type_optional")}</Label>
-                <Select value={newMealType} onValueChange={setNewMealType}>
-                  <SelectTrigger className="rounded-xl">
+                <Label className="text-[13px] font-black text-[#020617]">{t("new_meal_type_optional")}</Label>
+                <Select
+                  value={newMealType || KEEP_CURRENT_MEAL_TYPE}
+                  onValueChange={(value) => {
+                    setNewMealType(value === KEEP_CURRENT_MEAL_TYPE ? "" : value);
+                  }}
+                >
+                  <SelectTrigger className="min-h-12 rounded-[18px] border-slate-200 bg-white px-4 text-[14px] font-black text-[#020617] shadow-none">
+                    <Utensils className="mr-2 h-4 w-4 text-slate-500" />
                     <SelectValue placeholder={t("keep_current_meal_type")} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[220]">
+                    <SelectItem
+                      value={KEEP_CURRENT_MEAL_TYPE}
+                      className="font-black text-[#020617] focus:bg-slate-100 focus:text-[#020617] data-[highlighted]:bg-slate-100 data-[highlighted]:text-[#020617]"
+                    >
+                      {t("keep_current_meal_type")}
+                    </SelectItem>
                     {MEAL_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
+                      <SelectItem
+                        key={type.value}
+                        value={type.value}
+                        className="font-black text-[#020617] focus:bg-slate-100 focus:text-[#020617] data-[highlighted]:bg-slate-100 data-[highlighted]:text-[#020617]"
+                      >
                         {type.label}
                       </SelectItem>
                     ))}
@@ -222,16 +244,24 @@ export const ModifyOrderModal = ({
               </div>
             </div>
 
-            <DialogFooter className="flex gap-2">
-              <Button variant="outline" onClick={handleClose} className="flex-1 rounded-xl">
-                {t("cancel")}
-              </Button>
-              <Button onClick={handleSave} disabled={saving} className="flex-1 rounded-xl">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            <DialogFooter className="grid gap-2 border-t border-slate-100 bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+18px)] pt-4 sm:grid-cols-2">
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="min-h-12 rounded-full bg-[#020617] text-[14px] font-black text-white shadow-[0_14px_28px_rgba(2,6,23,0.18)] hover:bg-[#020617]/92"
+              >
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {t("save_changes")}
               </Button>
+              <Button
+                variant="outline"
+                onClick={handleClose}
+                className="min-h-12 rounded-full border-slate-200 bg-white text-[14px] font-black text-[#020617] shadow-none hover:bg-slate-50"
+              >
+                {t("cancel")}
+              </Button>
             </DialogFooter>
-          </>
+          </div>
         )}
       </DialogContent>
     </Dialog>

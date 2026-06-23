@@ -15,7 +15,9 @@ const WeightTracking = lazy(() => import("@/pages/WeightTracking"));
 const BloodWorkUpload = lazy(() => import("@/pages/health/BloodWorkUpload"));
 const BloodWorkResults = lazy(() => import("@/pages/health/BloodWorkResults"));
 const HealthDashboard = lazy(() => import("@/pages/health/HealthDashboard"));
+const RecoveryInsights = lazy(() => import("@/pages/RecoveryInsights"));
 const Profile = lazy(() => import("@/pages/Profile"));
+const Rewards = lazy(() => import("@/pages/Rewards"));
 const Dietary = lazy(() => import("@/pages/Dietary"));
 const Policies = lazy(() => import("@/pages/Policies"));
 const PersonalInfo = lazy(() => import("@/pages/PersonalInfo"));
@@ -191,6 +193,22 @@ export const customerRoutes = (
       element={
         <ProtectedRoute>
           <Profile />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/recovery-insights"
+      element={
+        <ProtectedRoute>
+          <RecoveryInsights />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/rewards"
+      element={
+        <ProtectedRoute>
+          <Rewards />
         </ProtectedRoute>
       }
     />

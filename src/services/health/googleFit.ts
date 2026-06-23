@@ -19,6 +19,7 @@ export interface GoogleFitAuth {
 const GOOGLE_FIT_SCOPES = [
   "https://www.googleapis.com/auth/fitness.activity.read",
   "https://www.googleapis.com/auth/fitness.body.read",
+  "https://www.googleapis.com/auth/fitness.sleep.read",
   "https://www.googleapis.com/auth/fitness.location.read",
 ];
 
@@ -284,6 +285,92 @@ export async function getWorkouts(
  * Get health data for a date range (wrapper for full sync)
  */
 export async function getHealthData(dateRange: {
+  start: Date;
+  end: Date;
+}, auth?: GoogleFitAuth): Promise<{
+  steps?: number;
+  heartRate?: number;
+  restingHeartRate?: number;
+  caloriesBurned?: number;
+  activeMinutes?: number;
+  sleepMinutes?: number;
+  workouts?: WorkoutData[];
+  date: string;
+} | null> {
+  if (!auth?.accessToken) {
+    console.warn("Google Fit web integration requires OAuth setup");
+    return null;
+  }
+
+  const startMillis = dateRange.start.getTime();
+  const endMillis = dateRange.end.getTime();
+
+  try {
+    const response = await fetch("https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        aggregateBy: [
+          { dataTypeName: "com.google.step_count.delta" },
+          { dataTypeName: "com.google.calories.expended" },
+          { dataTypeName: "com.google.heart_rate.bpm" },
+          { dataTypeName: "com.google.sleep.segment" },
+        ],
+        startTimeMillis: startMillis,
+        endTimeMillis: endMillis,
+        bucketByTime: { durationMillis: endMillis - startMillis },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Google Fit health API error:", await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    const bucket = data.bucket?.[0];
+    if (!bucket?.dataset) {
+      return { date: dateRange.start.toISOString().split("T")[0] };
+    }
+
+    type Value = { intVal?: number; fpVal?: number };
+    type Point = { value?: Value[]; startTimeNanos?: string; endTimeNanos?: string };
+    type Dataset = { dataSourceId?: string; point?: Point[] };
+
+    const findDataset = (needle: string) =>
+      (bucket.dataset as Dataset[]).find((dataset) => dataset.dataSourceId?.includes(needle));
+    const sumInt = (dataset?: Dataset) =>
+      dataset?.point?.reduce((sum, point) => sum + (point.value?.[0]?.intVal ?? 0), 0) ?? 0;
+    const sumFloat = (dataset?: Dataset) =>
+      dataset?.point?.reduce((sum, point) => sum + (point.value?.[0]?.fpVal ?? 0), 0) ?? 0;
+    const avgFloat = (dataset?: Dataset) => {
+      const values = dataset?.point?.flatMap((point) => point.value?.map((value) => value.fpVal).filter(Boolean) ?? []) ?? [];
+      return values.length ? Math.round(values.reduce((sum, value) => sum + (value ?? 0), 0) / values.length) : undefined;
+    };
+    const sleepMinutes = (dataset?: Dataset) =>
+      dataset?.point?.reduce((sum, point) => {
+        const start = Number(point.startTimeNanos ?? 0) / 1000000;
+        const end = Number(point.endTimeNanos ?? 0) / 1000000;
+        return sum + Math.max(0, Math.round((end - start) / 60000));
+      }, 0) ?? 0;
+
+    return {
+      steps: sumInt(findDataset("step_count")),
+      caloriesBurned: Math.round(sumFloat(findDataset("calories"))),
+      heartRate: avgFloat(findDataset("heart_rate")),
+      sleepMinutes: sleepMinutes(findDataset("sleep")) || undefined,
+      date: dateRange.start.toISOString().split("T")[0],
+    };
+  } catch (error) {
+    console.error("Failed to fetch Google Fit health data:", error);
+    return null;
+  }
+}
+
+export async function getLegacyHealthData(dateRange: {
   start: Date;
   end: Date;
 }): Promise<{

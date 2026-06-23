@@ -65,11 +65,11 @@ export function ReferralMilestonesWidget() {
       setReferralCode(profile?.referral_code || "");
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load referral milestones");
+      toast.error(t("failed_load_referral_milestones"));
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, t]);
 
   useEffect(() => {
     fetchData();
@@ -132,6 +132,9 @@ export function ReferralMilestonesWidget() {
   const referralProgress = nextTier
     ? Math.min(((totalReferrals - currentTier.minReferrals) / (nextMinimum - currentTier.minReferrals)) * 100, 100)
     : 100;
+  const tierLabel = (tier: TierInfo) => t(`affiliate_tier_${tier.name.toLowerCase()}`);
+  const currentTierLabel = tierLabel(currentTier);
+  const nextTierLabel = nextTier ? tierLabel(nextTier) : "";
 
   return (
     <motion.div variants={fadeInUp}>
@@ -144,16 +147,16 @@ export function ReferralMilestonesWidget() {
               </div>
               <div className="min-w-0">
                 <h3 className="truncate text-[18px] font-black leading-tight text-slate-950">
-                  {t("referral_milestones_title") || "Referral Milestones"}
+                  {t("referral_milestones_title")}
                 </h3>
                 <p className="mt-1 text-[12px] font-bold text-slate-500">
-                  {hasReferrals ? `${totalReferrals} ${totalReferrals === 1 ? "referral" : "referrals"}` : "Invite friends, earn rewards"}
+                  {hasReferrals ? t("referral_count", { count: totalReferrals }) : t("invite_friends_earn_rewards")}
                 </p>
               </div>
             </div>
             {hasReferrals && (
               <span className={cn("shrink-0 rounded-full bg-gradient-to-r px-3 py-1.5 text-[11px] font-black text-white", currentTier.color)}>
-                {currentTier.name}
+                {currentTierLabel}
               </span>
             )}
           </div>
@@ -161,14 +164,14 @@ export function ReferralMilestonesWidget() {
           <div className="mt-5 rounded-[26px] bg-slate-50 p-4 ring-1 ring-slate-100">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">Next reward</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">{t("next_reward")}</p>
                 <p className="mt-1 text-[17px] font-black text-slate-950">
-                  {nextTier ? `${nextTier.name} tier` : "Top tier reached"}
+                  {nextTier ? t("affiliate_tier_name", { tier: nextTierLabel }) : t("top_tier_reached")}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-[24px] font-black leading-none text-[#020617]">{Math.round(referralProgress)}%</p>
-                <p className="mt-1 text-[10px] font-bold text-slate-400">complete</p>
+                <p className="mt-1 text-[10px] font-bold text-slate-400">{t("complete")}</p>
               </div>
             </div>
 
@@ -190,7 +193,7 @@ export function ReferralMilestonesWidget() {
                       )}
                     />
                     <span className={cn("mt-2 block truncate text-center text-[8px] font-black", isCurrent ? "text-slate-800" : achieved ? "text-slate-600" : "text-slate-400")}>
-                      {tier.name}
+                      {tierLabel(tier)}
                     </span>
                   </div>
                 );
@@ -201,8 +204,11 @@ export function ReferralMilestonesWidget() {
               <div className="mt-4 rounded-2xl bg-white px-3 py-3">
                 <div className="flex items-center justify-between text-[12px]">
                   <span className="font-black text-slate-700">
-                    <span className="text-[#020617]">{totalReferrals - currentTier.minReferrals}</span>
-                    <span className="text-slate-400"> / {nextMinimum - currentTier.minReferrals} to {nextTier.name}</span>
+                    {t("referral_to_tier", {
+                      current: totalReferrals - currentTier.minReferrals,
+                      total: nextMinimum - currentTier.minReferrals,
+                      tier: nextTierLabel,
+                    })}
                   </span>
                   {nextTier.bonus > 0 && (
                     <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-700">
@@ -220,7 +226,7 @@ export function ReferralMilestonesWidget() {
               <div className="mt-4 rounded-2xl bg-white px-3 py-3">
                 <p className="text-[14px] font-black text-slate-900">{t("start_earning_rewards")}</p>
                 <p className="mt-1 text-[12px] font-semibold leading-relaxed text-slate-500">
-                  {t("share_link_earn")} <span className="font-black text-[#020617]">{commissionRate}%</span> on every friend's order, plus bonuses up to {formatCurrency(20)}.
+                  {t("share_link_earn_commission", { rate: commissionRate, bonus: formatCurrency(20) })}
                 </p>
               </div>
             )}
@@ -240,7 +246,7 @@ export function ReferralMilestonesWidget() {
               </div>
               <div className="text-right">
                 <p className="text-[9px] font-semibold text-slate-400">{t("use_toward")}</p>
-                <p className="text-[10px] font-black text-[#020617]">subscription</p>
+                <p className="text-[10px] font-black text-[#020617]">{t("subscription")}</p>
               </div>
               <ArrowUpRight className="h-4 w-4 shrink-0 text-[#020617]" />
             </Link>
@@ -252,7 +258,7 @@ export function ReferralMilestonesWidget() {
             to="/affiliate"
             className="flex min-h-[50px] items-center justify-center gap-2 rounded-2xl bg-[#020617] px-4 text-[14px] font-black text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] transition-transform active:scale-[0.98]"
           >
-            <Gift className="h-4 w-4" /> {hasReferrals ? "Invite Friends & Earn" : "Start Referring"}
+            <Gift className="h-4 w-4" /> {hasReferrals ? t("invite_friends_earn") : t("start_referring")}
           </Link>
           <motion.button
             whileTap={prefersReducedMotion ? undefined : { scale: 0.97, transition: springBouncy }}
@@ -261,16 +267,16 @@ export function ReferralMilestonesWidget() {
           >
             {copied ? (
               <>
-                <Check className="h-4 w-4 text-[#020617]" /> Link copied!
+                <Check className="h-4 w-4 text-[#020617]" /> {t("link_copied")}
               </>
             ) : (
               <>
-                <Share2 className="h-4 w-4" strokeWidth={2} /> Share referral link
+                <Share2 className="h-4 w-4" strokeWidth={2} /> {t("share_referral_link")}
               </>
             )}
           </motion.button>
           <p className="text-center text-[11px] font-semibold text-slate-400">
-            {hasReferrals ? "Credit goes to your wallet - use toward next subscription" : `${commissionRate}% commission on every friend's order`}
+            {hasReferrals ? t("credit_goes_wallet_subscription") : t("commission_on_friend_order", { rate: commissionRate })}
           </p>
         </div>
       </div>

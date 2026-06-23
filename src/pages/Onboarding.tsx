@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Target,
   Dumbbell,
@@ -429,21 +428,24 @@ const Onboarding = () => {
       icon: Scale, 
       title: t("lose_weight"), 
       description: t("lose_weight_desc"),
-      color: "text-destructive"
+      color: "text-[#FB6B7A]",
+      bg: "bg-[#FFF0F2]",
     },
     { 
       id: "gain" as Goal, 
       icon: Dumbbell, 
       title: t("build_muscle"), 
       description: t("build_muscle_desc"),
-      color: "text-primary"
+      color: "text-[#7C83F6]",
+      bg: "bg-[#F3F4FF]",
     },
     { 
       id: "maintain" as Goal, 
       icon: Target, 
       title: t("maintain"), 
       description: t("maintain_desc"),
-      color: "text-accent"
+      color: "text-[#22C7A1]",
+      bg: "bg-[#EFFFFA]",
     },
   ];
 
@@ -462,20 +464,20 @@ const Onboarding = () => {
     const offset = CIRC * (1 - loadingProgress / 100);
 
     return (
-      <div className="fixed inset-0 flex flex-col bg-background dark:bg-gray-950" style={{ maxWidth: 430, margin: "0 auto" }}>
+      <div className="fixed inset-0 mx-auto flex max-w-[430px] flex-col bg-[#F6F8FB] text-[#020617]">
         {/* X button */}
-        <div className="px-5 pt-12 flex-shrink-0">
+        <div className="flex-shrink-0 px-5 pt-[calc(env(safe-area-inset-top)+16px)]">
           <button type="button" onClick={() => navigate("/dashboard")}
-            className="hover:opacity-70 transition-opacity">
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5EAF1] bg-white text-[#020617] shadow-[0_8px_20px_rgba(2,6,23,0.05)] transition-opacity hover:opacity-70">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M18 6L6 18M6 6l12 12" className="stroke-foreground dark:stroke-gray-300" strokeWidth="2" strokeLinecap="round" />
+              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center px-8">
+        <div className="flex flex-1 flex-col items-center justify-center px-8">
           {/* Title */}
-          <h1 className="text-[26px] font-extrabold text-foreground dark:text-gray-100 leading-tight text-center mb-16">
+          <h1 className="mb-14 text-center text-[26px] font-extrabold leading-tight text-[#020617]">
             Personalizing your Nutrio experience...
           </h1>
 
@@ -483,7 +485,7 @@ const Onboarding = () => {
           <div className="relative" style={{ width: 240, height: 240 }}>
             <svg width="240" height="240" viewBox="0 0 240 240">
               {/* Background track */}
-              <circle cx="120" cy="120" r={RADIUS} fill="none" className="stroke-muted dark:stroke-gray-700" strokeWidth="14" />
+              <circle cx="120" cy="120" r={RADIUS} fill="none" stroke="#E5EAF1" strokeWidth="14" />
               {/* Progress arc */}
               <circle
                 cx="120" cy="120" r={RADIUS} fill="none"
@@ -496,21 +498,22 @@ const Onboarding = () => {
               />
               <defs>
                 <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="hsl(90,65%,55%)" />
-                  <stop offset="100%" stopColor="hsl(90,65%,42%)" />
+                  <stop offset="0%" stopColor="#22C7A1" />
+                  <stop offset="55%" stopColor="#7C83F6" />
+                  <stop offset="100%" stopColor="#F97316" />
                 </linearGradient>
               </defs>
             </svg>
             {/* Percentage text */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-[40px] font-extrabold text-foreground dark:text-gray-100">{Math.round(loadingProgress)}%</span>
+              <span className="text-[40px] font-extrabold text-[#020617]">{Math.round(loadingProgress)}%</span>
             </div>
           </div>
         </div>
 
         {/* Footer text */}
-        <div className="px-8 pb-12 text-center flex-shrink-0">
-          <p className="text-sm text-muted-foreground dark:text-gray-400 leading-relaxed">
+        <div className="flex-shrink-0 px-8 pb-[calc(env(safe-area-inset-bottom)+28px)] text-center">
+          <p className="text-sm leading-relaxed text-[#64748B]">
             Hang tight! We're crafting a personalized plan just for you.
           </p>
         </div>
@@ -613,42 +616,51 @@ const Onboarding = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-[100dvh] flex items-center justify-center bg-[#F6F8FB]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#22C7A1]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen gradient-hero flex flex-col">
+    <div className="mx-auto flex min-h-[100dvh] max-w-[430px] flex-col overflow-hidden bg-[#F6F8FB] text-[#020617]">
       {/* Header */}
-      <header className="p-4">
-        <div className="container mx-auto flex items-center justify-between">
-          <Logo size="md" />
-          <Badge variant="soft">Step {step} of {totalSteps}</Badge>
+      <header className="shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+14px)]">
+        <div className="flex items-center justify-between">
+          <Logo size="lg" className="!h-14" />
+          <Badge className="rounded-full border border-[#E5EAF1] bg-white px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] text-[#020617] shadow-[0_8px_20px_rgba(2,6,23,0.05)] hover:bg-white">
+            {step}/{totalSteps}
+          </Badge>
         </div>
       </header>
 
       {/* Progress Bar with Percentage */}
-      <div className="container mx-auto px-4 mt-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-muted-foreground">Step {step} of {totalSteps}</span>
-          <span className="text-sm font-medium text-primary">{progressPercent}% Complete</span>
+      <div className="shrink-0 px-5">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#64748B]">Account setup</span>
+          <span className="text-sm font-extrabold text-[#F97316]">{progressPercent}%</span>
         </div>
-        <Progress value={progressPercent} className="h-2" />
-        <div className="flex justify-between mt-4">
+        <div className="h-2 rounded-full bg-[#E5EAF1]">
+          <div
+            className="h-full rounded-full bg-[#22C7A1] transition-all duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+        <div className="mt-4 flex justify-between rounded-[24px] border border-[#E5EAF1] bg-white p-2 shadow-[0_10px_28px_rgba(2,6,23,0.05)]">
           {ONBOARDING_STEPS.map((stepInfo, idx) => {
             const StepIcon = stepInfo.icon;
+            const isDone = idx < step - 1;
+            const isActive = idx === step - 1;
             return (
-              <div key={stepInfo.id} className="flex flex-col items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                  idx < step ? "bg-primary text-primary-foreground" :
-                  idx === step - 1 ? "bg-primary/20 text-primary border-2 border-primary" :
-                  "bg-muted text-muted-foreground"
+              <div key={stepInfo.id} className="flex flex-1 flex-col items-center">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-2xl transition-all ${
+                  isDone ? "bg-[#020617] text-white" :
+                  isActive ? "bg-[#FFF7ED] text-[#F97316] ring-1 ring-[#FED7AA]" :
+                  "bg-[#F6F8FB] text-[#94A3B8]"
                 }`}>
-                  {idx < step ? <Check className="h-5 w-5" /> : <StepIcon className="h-5 w-5" />}
+                  {isDone ? <Check className="h-5 w-5" /> : <StepIcon className="h-5 w-5" />}
                 </div>
-                <span className="text-xs mt-1 hidden sm:block">{stepInfo.label}</span>
+                <span className={`mt-1 hidden text-[10px] font-bold sm:block ${isActive ? "text-[#020617]" : "text-[#94A3B8]"}`}>{stepInfo.label}</span>
               </div>
             );
           })}
@@ -656,16 +668,16 @@ const Onboarding = () => {
       </div>
 
       {/* Content - Native Mobile Centered Design */}
-      <main className="flex-1 container mx-auto px-4 py-4 flex items-center justify-center overflow-y-auto pb-32">
-        <div className="w-full max-w-md animate-fade-in" key={step}>
+      <main className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(192px+env(safe-area-inset-bottom))] pt-5 [-webkit-overflow-scrolling:touch]">
+        <div className="w-full animate-fade-in" key={step}>
           {/* Step 1: Goal Selection */}
           {step === 1 && (
             <div className="space-y-8">
               <div className="text-center">
-                <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                  What's your <span className="text-gradient">main goal</span>?
+                <h1 className="mb-3 text-[28px] font-extrabold leading-tight text-[#020617]">
+                  What's your <span className="text-[#F97316]">main goal</span>?
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="text-sm leading-6 text-[#64748B]">
                   This helps us create a personalized nutrition plan for you
                 </p>
               </div>
@@ -674,25 +686,24 @@ const Onboarding = () => {
                 {goals.map((goal) => (
                   <Card
                     key={goal.id}
-                    variant="interactive"
-                    className={`cursor-pointer transition-all ${
+                    className={`cursor-pointer rounded-[28px] border bg-white shadow-[0_12px_30px_rgba(2,6,23,0.05)] transition-all active:scale-[0.99] ${
                       data.goal === goal.id 
-                        ? "border-2 border-primary shadow-glow" 
-                        : ""
+                        ? "border-[#020617] ring-2 ring-[#020617]/10" 
+                        : "border-[#E5EAF1]"
                     }`}
                     onClick={() => setData({ ...data, goal: goal.id })}
                   >
-                    <CardContent className="p-6 flex items-center gap-4">
-                      <div className={`w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center ${goal.color}`}>
+                    <CardContent className="flex items-center gap-4 p-5">
+                      <div className={`flex h-14 w-14 items-center justify-center rounded-[20px] ${goal.bg} ${goal.color}`}>
                         <goal.icon className="w-7 h-7" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold">{goal.title}</h3>
-                        <p className="text-sm text-muted-foreground">{goal.description}</p>
+                        <h3 className="text-lg font-extrabold text-[#020617]">{goal.title}</h3>
+                        <p className="text-sm leading-5 text-[#64748B]">{goal.description}</p>
                       </div>
                       {data.goal === goal.id && (
-                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                          <Check className="w-5 h-5 text-primary-foreground" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#020617]">
+                          <Check className="h-5 w-5 text-white" />
                         </div>
                       )}
                     </CardContent>
@@ -706,10 +717,10 @@ const Onboarding = () => {
           {step === 2 && (
             <div className="space-y-8">
               <div className="text-center">
-                <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                  Tell us about <span className="text-gradient">yourself</span>
+                <h1 className="mb-3 text-[28px] font-extrabold leading-tight text-[#020617]">
+                  Tell us about <span className="text-[#7C83F6]">yourself</span>
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="text-sm leading-6 text-[#64748B]">
                   We'll use this to calculate your daily calorie needs
                 </p>
               </div>
@@ -721,19 +732,18 @@ const Onboarding = () => {
                 ].map((option) => (
                   <Card
                     key={option.id}
-                    variant="interactive"
-                    className={`cursor-pointer transition-all ${
+                    className={`cursor-pointer rounded-[28px] border bg-white shadow-[0_12px_30px_rgba(2,6,23,0.05)] transition-all active:scale-[0.99] ${
                       data.gender === option.id 
-                        ? "border-2 border-primary shadow-glow" 
-                        : ""
+                        ? "border-[#020617] ring-2 ring-[#020617]/10" 
+                        : "border-[#E5EAF1]"
                     }`}
                     onClick={() => setData({ ...data, gender: option.id })}
                   >
-                    <CardContent className="p-8 text-center">
-                      <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                        <option.icon className="w-8 h-8 text-primary" />
+                    <CardContent className="p-6 text-center">
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#F3F4FF]">
+                        <option.icon className="h-8 w-8 text-[#7C83F6]" />
                       </div>
-                      <h3 className="text-lg font-semibold">{option.title}</h3>
+                      <h3 className="text-lg font-extrabold text-[#020617]">{option.title}</h3>
                     </CardContent>
                   </Card>
                 ))}
@@ -747,7 +757,7 @@ const Onboarding = () => {
               {metricsSubStep === 'age' && (
                 <div>
                   <AccessibleStepper
-                    label={<>How old are <span className="text-gradient">you?</span></>}
+                    label={<>How old are <span className="text-[#F97316]">you?</span></>}
                     subtitle="We use this to personalise your calorie targets"
                     value={parseInt(data.age) || 25}
                     onChange={(v) => setData((prev) => ({ ...prev, age: v.toString() }))}
@@ -762,7 +772,7 @@ const Onboarding = () => {
                   />
                   <div className="mt-6">
                     <Button
-                      className="w-full"
+                      className="h-14 w-full rounded-[20px] bg-[#020617] font-extrabold text-white hover:bg-[#020617]/90"
                       onClick={() => { handleNext(); }}
                       disabled={!data.age}
                     >
@@ -775,7 +785,7 @@ const Onboarding = () => {
               {metricsSubStep === 'height' && (
                 <div>
                   <AccessibleStepper
-                    label={<>What's your <span className="text-gradient">height?</span></>}
+                    label={<>What's your <span className="text-[#38BDF8]">height?</span></>}
                     subtitle="Used to calculate your daily calorie target"
                     value={heightUnit === "cm" ? (parseInt(data.height) || 170) : convertCmToFt(parseInt(data.height) || 170).ft}
                     onChange={(v) => {
@@ -807,10 +817,10 @@ const Onboarding = () => {
                     inputMode="numeric"
                   />
                   <div className="flex gap-2 mt-6">
-                    <Button variant="outline" onClick={handleBack} className="w-12 h-12 flex-shrink-0 p-0">
+                    <Button variant="outline" onClick={handleBack} className="h-14 w-14 flex-shrink-0 rounded-[20px] border-[#E5EAF1] bg-white p-0 text-[#020617]">
                       <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <Button onClick={handleNext} className="flex-1" disabled={!data.height}>
+                    <Button onClick={handleNext} className="h-14 flex-1 rounded-[20px] bg-[#020617] font-extrabold text-white hover:bg-[#020617]/90" disabled={!data.height}>
                       Continue
                     </Button>
                   </div>
@@ -820,7 +830,7 @@ const Onboarding = () => {
               {metricsSubStep === 'weight' && (
                 <div>
                   <AccessibleStepper
-                    label={<>What's your current <span className="text-gradient">weight?</span></>}
+                    label={<>What's your current <span className="text-[#22C7A1]">weight?</span></>}
                     subtitle="Used to calculate your daily calorie target"
                     value={(() => {
                       const v = parseFloat(data.weight) || 80;
@@ -852,10 +862,10 @@ const Onboarding = () => {
                     inputMode="decimal"
                   />
                   <div className="flex gap-2 mt-6">
-                    <Button variant="outline" onClick={handleBack} className="w-12 h-12 flex-shrink-0 p-0">
+                    <Button variant="outline" onClick={handleBack} className="h-14 w-14 flex-shrink-0 rounded-[20px] border-[#E5EAF1] bg-white p-0 text-[#020617]">
                       <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <Button onClick={handleNext} className="flex-1" disabled={!data.weight}>
+                    <Button onClick={handleNext} className="h-14 flex-1 rounded-[20px] bg-[#020617] font-extrabold text-white hover:bg-[#020617]/90" disabled={!data.weight}>
                       Continue
                     </Button>
                   </div>
@@ -865,7 +875,7 @@ const Onboarding = () => {
               {metricsSubStep === 'targets' && (
                 <div>
                   <AccessibleStepper
-                    label={<>What's your <span className="text-gradient">target weight?</span></>}
+                    label={<>What's your <span className="text-[#FB6B7A]">target weight?</span></>}
                     subtitle={
                       data.goal === 'lose' ? 'We recommend losing 0.5–1 kg per week' :
                       data.goal === 'gain' ? 'Healthy weight gain takes time and consistency' :
@@ -901,10 +911,10 @@ const Onboarding = () => {
                     inputMode="decimal"
                   />
                   <div className="flex gap-2 mt-6">
-                    <Button variant="outline" onClick={handleBack} className="w-12 h-12 flex-shrink-0 p-0">
+                    <Button variant="outline" onClick={handleBack} className="h-14 w-14 flex-shrink-0 rounded-[20px] border-[#E5EAF1] bg-white p-0 text-[#020617]">
                       <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <Button onClick={handleNext} className="flex-1" disabled={!data.targetWeight}>
+                    <Button onClick={handleNext} className="h-14 flex-1 rounded-[20px] bg-[#020617] font-extrabold text-white hover:bg-[#020617]/90" disabled={!data.targetWeight}>
                       Continue
                     </Button>
                   </div>
@@ -917,10 +927,10 @@ const Onboarding = () => {
           {step === 4 && (
             <div className="space-y-8">
               <div className="text-center">
-                <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                  Your <span className="text-gradient">activity level</span>
+                <h1 className="mb-3 text-[28px] font-extrabold leading-tight text-[#020617]">
+                  Your <span className="text-[#22C7A1]">activity level</span>
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="text-sm leading-6 text-[#64748B]">
                   How active are you on a typical week?
                 </p>
               </div>
@@ -929,25 +939,24 @@ const Onboarding = () => {
                 {activityLevels.map((level) => (
                   <Card
                     key={level.id}
-                    variant="interactive"
-                    className={`cursor-pointer transition-all ${
+                    className={`cursor-pointer rounded-[24px] border bg-white shadow-[0_10px_26px_rgba(2,6,23,0.045)] transition-all active:scale-[0.99] ${
                       data.activityLevel === level.id 
-                        ? "border-2 border-primary shadow-glow" 
-                        : ""
+                        ? "border-[#020617] ring-2 ring-[#020617]/10" 
+                        : "border-[#E5EAF1]"
                     }`}
                     onClick={() => setData({ ...data, activityLevel: level.id })}
                   >
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <Activity className="w-6 h-6 text-primary" />
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#EFFFFA]">
+                        <Activity className="h-6 w-6 text-[#22C7A1]" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-semibold">{level.title}</h3>
-                        <p className="text-sm text-muted-foreground">{level.description}</p>
+                        <h3 className="font-extrabold text-[#020617]">{level.title}</h3>
+                        <p className="text-sm leading-5 text-[#64748B]">{level.description}</p>
                       </div>
                       {data.activityLevel === level.id && (
-                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                          <Check className="w-4 h-4 text-primary-foreground" />
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#020617]">
+                          <Check className="h-4 w-4 text-white" />
                         </div>
                       )}
                     </CardContent>
@@ -961,25 +970,25 @@ const Onboarding = () => {
           {step === 5 && (
             <div className="flex flex-col h-full">
               {/* Header - Centered */}
-              <div className="text-center mb-6">
-                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <Utensils className="w-10 h-10 text-primary" />
+              <div className="mb-6 text-center">
+                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-[28px] bg-[#FFF7ED]">
+                  <Utensils className="h-10 w-10 text-[#F97316]" />
                 </div>
-                <h1 className="text-2xl font-bold mb-2">
+                <h1 className="mb-2 text-[26px] font-extrabold text-[#020617]">
                   Dietary Preferences
                 </h1>
-                <p className="text-muted-foreground text-sm px-4">
+                <p className="px-4 text-sm leading-6 text-[#64748B]">
                   Select your food preferences and allergies
                 </p>
               </div>
 
               {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto space-y-5 -mx-4 px-4">
+              <div className="-mx-1 flex-1 space-y-5 overflow-y-auto px-1">
                 {/* Food Preferences Section */}
                 <div>
-                  <h3 className="text-base font-semibold mb-3 flex items-center gap-2 px-1">
-                    <span className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
-                      <Leaf className="w-3.5 h-3.5 text-emerald-600" />
+                  <h3 className="mb-3 flex items-center gap-2 px-1 text-base font-extrabold text-[#020617]">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#EFFFFA]">
+                      <Leaf className="h-3.5 w-3.5 text-[#22C7A1]" />
                     </span>
                     Food Preferences
                   </h3>
@@ -987,7 +996,7 @@ const Onboarding = () => {
                   {dietTagsLoading ? (
                     <div className="space-y-2">
                       {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-12 bg-muted rounded-xl animate-pulse" />
+                        <div key={i} className="h-12 animate-pulse rounded-2xl bg-[#E5EAF1]" />
                       ))}
                     </div>
                   ) : dietTags.length > 0 ? (
@@ -1004,37 +1013,37 @@ const Onboarding = () => {
                               setData({ ...data, foodPreferences: newPrefs });
                             }}
                             className={`
-                              w-full p-3.5 rounded-xl border-2 transition-all duration-200
-                              flex items-center gap-3 min-h-[52px]
+                              flex min-h-[56px] w-full items-center gap-3 rounded-[20px] border p-3.5 text-left
+                              transition-all duration-200 active:scale-[0.99]
                               ${isSelected
-                                ? "border-emerald-500 bg-emerald-50/50"
-                                : "border-border/50 bg-card hover:border-emerald-200"
+                                ? "border-[#22C7A1] bg-[#EFFFFA]"
+                                : "border-[#E5EAF1] bg-white"
                               }
                             `}
                           >
                             <div className={`
-                              w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0
-                              ${isSelected ? "border-emerald-500 bg-emerald-500" : "border-muted-foreground/30"}
+                              flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg border-2
+                              ${isSelected ? "border-[#22C7A1] bg-[#22C7A1]" : "border-[#CBD5E1]"}
                             `}>
                               {isSelected && <Check className="w-3 h-3 text-white" />}
                             </div>
-                            <span className="font-medium text-sm">{tag.name}</span>
+                            <span className="text-sm font-extrabold text-[#020617]">{tag.name}</span>
                           </button>
                         );
                       })}
                     </div>
                   ) : (
-                    <div className="p-3 bg-muted rounded-xl text-center">
-                      <p className="text-sm text-muted-foreground">{t("onboarding_no_preferences")}</p>
+                    <div className="rounded-[20px] bg-white p-4 text-center">
+                      <p className="text-sm text-[#64748B]">{t("onboarding_no_preferences")}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Allergies Section */}
                 <div>
-                  <h3 className="text-base font-semibold mb-3 flex items-center gap-2 px-1">
-                    <span className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center">
-                      <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
+                  <h3 className="mb-3 flex items-center gap-2 px-1 text-base font-extrabold text-[#020617]">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#FFF0F2]">
+                      <AlertTriangle className="h-3.5 w-3.5 text-[#FB6B7A]" />
                     </span>
                     Allergies
                   </h3>
@@ -1042,7 +1051,7 @@ const Onboarding = () => {
                   {dietTagsLoading ? (
                     <div className="space-y-2">
                       {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-12 bg-muted rounded-xl animate-pulse" />
+                        <div key={i} className="h-12 animate-pulse rounded-2xl bg-[#E5EAF1]" />
                       ))}
                     </div>
                   ) : allergyTags.length > 0 ? (
@@ -1059,31 +1068,31 @@ const Onboarding = () => {
                               setData({ ...data, allergies: newAllergies });
                             }}
                             className={`
-                              w-full p-3.5 rounded-xl border-2 transition-all duration-200
-                              flex items-center gap-3 min-h-[52px]
+                              flex min-h-[56px] w-full items-center gap-3 rounded-[20px] border p-3.5 text-left
+                              transition-all duration-200 active:scale-[0.99]
                               ${isSelected
-                                ? "border-red-500 bg-red-50/50"
-                                : "border-border/50 bg-card hover:border-red-200"
+                                ? "border-[#FB6B7A] bg-[#FFF0F2]"
+                                : "border-[#E5EAF1] bg-white"
                               }
                             `}
                           >
                             <div className={`
-                              w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0
-                              ${isSelected ? "border-red-500 bg-red-500" : "border-muted-foreground/30"}
+                              flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg border-2
+                              ${isSelected ? "border-[#FB6B7A] bg-[#FB6B7A]" : "border-[#CBD5E1]"}
                             `}>
                               {isSelected && <Check className="w-3 h-3 text-white" />}
                             </div>
-                            <span className="font-medium text-sm">{tag.name}</span>
+                            <span className="text-sm font-extrabold text-[#020617]">{tag.name}</span>
                             {isSelected && (
-                              <span className="ml-auto text-xs text-red-600 font-medium">Avoid</span>
+                              <span className="ml-auto text-xs font-extrabold text-[#FB6B7A]">Avoid</span>
                             )}
                           </button>
                         );
                       })}
                     </div>
                   ) : (
-                    <div className="p-3 bg-muted rounded-xl text-center">
-                      <p className="text-sm text-muted-foreground">{t("onboarding_no_allergies")}</p>
+                    <div className="rounded-[20px] bg-white p-4 text-center">
+                      <p className="text-sm text-[#64748B]">{t("onboarding_no_allergies")}</p>
                     </div>
                   )}
                 </div>
@@ -1094,16 +1103,16 @@ const Onboarding = () => {
 
               {/* Summary - Fixed at bottom */}
               {(data.foodPreferences.length > 0 || data.allergies.length > 0) && (
-                <div className="mt-4 pt-4 border-t border-border/50">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Selected:</p>
+                <div className="mt-4 border-t border-[#E5EAF1] pt-4">
+                  <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[#94A3B8]">Selected:</p>
                   <div className="flex flex-wrap gap-1.5">
                     {data.foodPreferences.map((pref) => (
-                      <Badge key={pref} variant="secondary" className="bg-emerald-100 text-emerald-700 text-xs">
+                      <Badge key={pref} variant="secondary" className="bg-[#EFFFFA] text-xs text-[#047857]">
                         {pref}
                       </Badge>
                     ))}
                     {data.allergies.map((allergy) => (
-                      <Badge key={allergy} variant="secondary" className="bg-red-100 text-red-700 text-xs">
+                      <Badge key={allergy} variant="secondary" className="bg-[#FFF0F2] text-xs text-[#BE123C]">
                         {allergy}
                       </Badge>
                     ))}
@@ -1125,24 +1134,23 @@ const Onboarding = () => {
       />
 
       {/* Footer Navigation - Native Mobile Style */}
-      <footer className="p-4 pb-8 border-t border-border bg-background/95 backdrop-blur-lg safe-bottom-nav">
-        <div className="container mx-auto max-w-md flex justify-between items-center gap-4">
+      <footer className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[430px] border-t border-[#E5EAF1] bg-white/95 px-5 pb-[calc(env(safe-area-inset-bottom)+14px)] pt-4 shadow-[0_-14px_34px_rgba(2,6,23,0.08)] backdrop-blur-xl">
+        <div className="flex items-center justify-between gap-3">
           <Button
             variant="outline"
             size="lg"
             onClick={handleBack}
             disabled={step === 1 || saving}
-            className="flex-1 h-14 rounded-xl font-medium min-h-[56px]"
+            className="h-14 min-h-[56px] flex-1 rounded-[20px] border-[#E5EAF1] bg-white font-extrabold text-[#020617] disabled:opacity-40"
           >
             <ArrowLeft className="w-5 h-5 mr-2" />
             Back
           </Button>
           <Button
-            variant="gradient"
             size="lg"
             onClick={handleNext}
             disabled={!canProceed() || saving}
-            className="flex-1 h-14 rounded-xl font-semibold min-h-[56px] shadow-lg"
+            className="h-14 min-h-[56px] flex-1 rounded-[20px] bg-[#020617] font-extrabold text-white shadow-none hover:bg-[#020617]/90 disabled:bg-[#CBD5E1]"
           >
             {saving ? (
               <>
@@ -1158,11 +1166,11 @@ const Onboarding = () => {
           </Button>
         </div>
         {/* Skip for now button */}
-        <div className="container mx-auto max-w-md mt-4 text-center">
+        <div className="mt-3 text-center">
           <Button
             variant="ghost"
             onClick={handleQuickStart}
-            className="text-primary hover:text-primary/80 font-medium"
+            className="h-9 text-xs font-extrabold text-[#F97316] hover:bg-[#FFF7ED] hover:text-[#F97316]"
           >
             Quick Start — apply recommended defaults for me
           </Button>
@@ -1170,11 +1178,11 @@ const Onboarding = () => {
           <Button
             variant="ghost"
             onClick={handleSkip}
-            className="text-muted-foreground hover:text-foreground"
+            className="h-8 text-xs font-bold text-[#64748B] hover:bg-[#F6F8FB] hover:text-[#020617]"
           >
             Skip for now — I&apos;ll set up later
           </Button>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="mt-1 text-[11px] text-[#94A3B8]">
             You can always update your preferences in Settings
           </p>
         </div>

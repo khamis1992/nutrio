@@ -18,6 +18,17 @@ export interface CustomizationSummary {
   fatAdjustment: number;
 }
 
+export interface MealCustomizationConfig {
+  largePriceAdjustment?: number | null;
+  largeCaloriesIncrease?: number | null;
+  largeProteinIncrease?: number | null;
+  hpPriceAdjustment?: number | null;
+  hpCaloriesIncrease?: number | null;
+  hpProteinIncrease?: number | null;
+}
+
+const toNumber = (value: number | null | undefined) => Number(value || 0);
+
 export function useMealCustomization() {
   const [customization, setCustomization] = useState<MealCustomization>({
     removedIngredients: new Map(),
@@ -46,27 +57,23 @@ export function useMealCustomization() {
   }, []);
 
   const getSummary = useCallback(
-    (basePrice: number | null, baseCalories: number, baseProtein: number, baseCarbs: number, baseFat: number): CustomizationSummary => {
+    (config: MealCustomizationConfig = {}): CustomizationSummary => {
       let priceAdj = 0;
       let calAdj = 0;
       let proteinAdj = 0;
-      let carbsAdj = 0;
-      let fatAdj = 0;
+      const carbsAdj = 0;
+      const fatAdj = 0;
 
-      // Portion size adjustment
       if (customization.portionSize === "large") {
-        priceAdj += (basePrice || 0) * 0.5;
-        calAdj += Math.round(baseCalories * 0.5);
-        proteinAdj += Math.round(baseProtein * 0.5);
-        carbsAdj += Math.round(baseCarbs * 0.5);
-        fatAdj += Math.round(baseFat * 0.5);
+        priceAdj += toNumber(config.largePriceAdjustment);
+        calAdj += Math.round(toNumber(config.largeCaloriesIncrease));
+        proteinAdj += toNumber(config.largeProteinIncrease);
       }
 
-      // HP variant adjustment
       if (customization.hpVariant) {
-        priceAdj += 15;
-        proteinAdj += Math.round(baseProtein * 0.5);
-        calAdj += Math.round(baseProtein * 0.5 * 4); // ~4 cal per gram protein
+        priceAdj += toNumber(config.hpPriceAdjustment);
+        calAdj += Math.round(toNumber(config.hpCaloriesIncrease));
+        proteinAdj += toNumber(config.hpProteinIncrease);
       }
 
       return {
@@ -83,9 +90,12 @@ export function useMealCustomization() {
     [customization]
   );
 
-  const getCustomizationData = useCallback(() => ({
+  const getCustomizationData = useCallback((summary?: CustomizationSummary | null) => ({
     portion_size: customization.portionSize,
     hp_variant: customization.hpVariant,
+    price_adjustment: summary?.priceAdjustment || 0,
+    calorie_adjustment: summary?.calorieAdjustment || 0,
+    protein_adjustment: summary?.proteinAdjustment || 0,
     removed_ingredients: Array.from(customization.removedIngredients.entries()).map(([id, name]) => ({
       ingredient_id: id,
       ingredient_name: name,

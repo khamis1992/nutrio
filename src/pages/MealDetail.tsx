@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useNutritionGoals } from "@/hooks/useNutritionGoals";
 import { useWallet } from "@/hooks/useWallet";
 import { useMealAddons } from "@/hooks/useMealAddons";
 import { useMealCustomization } from "@/hooks/useMealCustomization";
@@ -11,8 +12,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { IngredientList } from "@/components/meal/IngredientList";
 import { PortionSelector } from "@/components/meal/PortionSelector";
 import { HPVariantToggle } from "@/components/meal/HPVariantToggle";
-import { CircularMacroGauge } from "@/components/meal/CircularMacroGauge";
-import { MealActionBar } from "@/components/meal/MealActionBar";
 import { MealDetailSkeleton } from "@/components/meal/MealDetailSkeleton";
 import { ScheduleSheet } from "@/components/meal/ScheduleSheet";
 import { ScheduleSuccessOverlay } from "@/components/meal/ScheduleSuccessOverlay";
@@ -20,10 +19,12 @@ import { BuyMealCreditDialog } from "@/components/meal/BuyMealCreditDialog";
 import { InsufficientBalanceDialog } from "@/components/meal/InsufficientBalanceDialog";
 import { getSmartDefaultMealType } from "@/components/meal/scheduleUtils";
 import { formatCurrency } from "@/lib/currency";
+import { scoreMealForGoal } from "@/lib/goal-engine";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 
-import { Share2, Flame, Clock, Star, MapPin, Beef, Wheat, Droplets, Leaf } from "lucide-react";
+import { Share2, Flame, Clock, Star, MapPin, Beef, Wheat, Droplets, Leaf, CalendarPlus, ArrowUpRight, ShieldCheck, Loader2, MessageSquareText } from "lucide-react";
 import { ChevronLeft } from "lucide-react";
 
 import { format } from "date-fns";
@@ -46,6 +47,14 @@ interface MealDetail {
   prep_time_minutes: number;
   is_vip_exclusive: boolean;
   price: number | null;
+  supports_large: boolean | null;
+  large_calories_increase: number | null;
+  large_protein_increase: number | null;
+  large_price_adjustment: number | null;
+  supports_high_protein: boolean | null;
+  high_protein_calories_increase: number | null;
+  high_protein_protein_increase: number | null;
+  high_protein_price_adjustment: number | null;
   restaurant: {
     id: string;
     name: string;
@@ -61,6 +70,7 @@ const MealDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { activeGoal } = useNutritionGoals(user?.id);
   const { toast } = useToast();
   const { t } = useLanguage();
   const {
@@ -109,6 +119,7 @@ const MealDetail = () => {
   const [scheduling, setScheduling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [restaurantNote, setRestaurantNote] = useState("");
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
     const navigationState = location.state as { scheduledDate?: Date; mealType?: string } | null;
@@ -191,6 +202,16 @@ const MealDetail = () => {
       fetchMealCb();
     }
   }, [id, fetchMealCb]);
+
+  useEffect(() => {
+    if (!meal) return;
+    if (!meal.supports_large && customization.portionSize === "large") {
+      setPortionSize("standard");
+    }
+    if (!meal.supports_high_protein && customization.hpVariant) {
+      setHPVariant(false);
+    }
+  }, [meal, customization.portionSize, customization.hpVariant, setPortionSize, setHPVariant]);
 
   const handleAddToSchedule = async () => {
     if (!user) {
@@ -381,7 +402,7 @@ const MealDetail = () => {
         return;
       }
 
-      const { error } = await supabase.from("meal_schedules").insert({
+      const schedulePayload = {
         user_id: user!.id,
         meal_id: meal.id,
         scheduled_date: format(selectedDate, "yyyy-MM-dd"),
@@ -389,14 +410,24 @@ const MealDetail = () => {
         is_completed: false,
         order_status: "pending",
         delivery_address_id: selectedAddressId,
+        customization_data: getCustomizationData(customizationSummary),
+        restaurant_note: restaurantNote.trim() || null,
         ...(selectedTimeSlot ? { delivery_time_slot: selectedTimeSlot } : {}),
-      });
+      };
+
+      const { data: scheduleRow, error } = await supabase
+        .from("meal_schedules")
+        .insert(schedulePayload as never)
+        .select("id")
+        .single();
 
       if (error) throw error;
 
+      const selectedAddonRows = getSelectedAddonsList();
+
       // Debit wallet for add-ons if any selected
       if (addonsTotal > 0) {
-        const addonNames = getSelectedAddonsList().map(({ addon, quantity }) =>
+        const addonNames = selectedAddonRows.map(({ addon, quantity }) =>
           quantity > 1 ? `${addon.name} x${quantity}` : addon.name
         ).join(", ");
         await supabase.rpc("debit_wallet", {
@@ -408,6 +439,18 @@ const MealDetail = () => {
         });
         refetchWallet();
         clearSelectedAddons();
+      }
+
+      if (scheduleRow?.id && selectedAddonRows.length > 0) {
+        const { error: addonInsertError } = await supabase.from("schedule_addons").insert(
+          selectedAddonRows.map(({ addon, quantity }) => ({
+            schedule_id: scheduleRow.id,
+            addon_id: addon.id,
+            quantity,
+            unit_price: addon.price,
+          }))
+        );
+        if (addonInsertError) throw addonInsertError;
       }
 
       setSuccess(true);
@@ -432,7 +475,9 @@ const MealDetail = () => {
             meal_name: meal.name,
             scheduled_date: format(selectedDate, "yyyy-MM-dd"),
             meal_type: selectedMealType,
-            calories: meal.calories,
+            calories: displayCalories,
+            customization: getCustomizationData(customizationSummary),
+            restaurant_note: restaurantNote.trim() || null,
             action: "view_schedule",
             delivery_address_id: selectedAddressId,
             delivery_address_label: selectedAddressLabel,
@@ -498,290 +543,398 @@ const MealDetail = () => {
     );
   }
 
+  const noMealsLeft = hasActiveSubscription && !isUnlimited && remainingMeals <= 0;
+  const actionLabel = !hasActiveSubscription ? "View plans" : noMealsLeft ? "Buy meal credit" : "Add to schedule";
+  const customizationConfig = {
+    largePriceAdjustment: meal.large_price_adjustment,
+    largeCaloriesIncrease: meal.large_calories_increase,
+    largeProteinIncrease: meal.large_protein_increase,
+    hpPriceAdjustment: meal.high_protein_price_adjustment,
+    hpCaloriesIncrease: meal.high_protein_calories_increase,
+    hpProteinIncrease: meal.high_protein_protein_increase,
+  };
+  const customizationSummary = hasCustomizations
+    ? getSummary(customizationConfig)
+    : null;
+  const hasPartnerCustomizationOptions = Boolean(meal.supports_large || meal.supports_high_protein);
+  const displayCalories = meal.calories + (customizationSummary?.calorieAdjustment || 0);
+  const displayProtein = meal.protein_g + (customizationSummary?.proteinAdjustment || 0);
+  const displayCarbs = meal.carbs_g + (customizationSummary?.carbsAdjustment || 0);
+  const displayFat = meal.fat_g + (customizationSummary?.fatAdjustment || 0);
+  const displayMacroTotal = Math.max(displayProtein + displayCarbs + displayFat, 1);
+  const displayProteinPct = Math.round((displayProtein / displayMacroTotal) * 100);
+  const displayCarbsPct = Math.round((displayCarbs / displayMacroTotal) * 100);
+  const displayFatPct = Math.max(0, 100 - displayProteinPct - displayCarbsPct);
+  const mealGoalFit = scoreMealForGoal({
+    goalType: activeGoal?.goal_type,
+    mealCalories: displayCalories,
+    mealProteinG: displayProtein,
+    dailyCalories: activeGoal?.daily_calorie_target,
+    dailyProteinG: activeGoal?.protein_target_g,
+  });
+
   return (
-    <div ref={scrollRef} className="min-h-screen bg-background overflow-y-auto pb-20">
-      {/* Animated Header */}
+    <div ref={scrollRef} className="min-h-screen overflow-y-auto bg-[#F6F7F5] pb-52">
       <motion.header
         style={{ opacity: headerOpacitySpring }}
-        className="fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50"
+        className="fixed left-0 right-0 top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl"
       >
-        <div className="flex items-center justify-between px-4 h-14">
-          <Button
-            variant="ghost"
-            size="icon"
+        <div className="mx-auto flex h-14 max-w-lg items-center justify-between px-4">
+          <button
             onClick={() => navigate(-1)}
-            className="rounded-full bg-background/50 backdrop-blur"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-950"
+            aria-label="Back"
           >
-            <ChevronLeft className="w-6 h-6" />
-          </Button>
-          <span className="font-semibold truncate max-w-[200px]">{meal.name}</span>
-          <div className="w-10" />
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <span className="max-w-[220px] truncate text-[14px] font-black text-slate-950">{meal.name}</span>
+          <button
+            onClick={shareMeal}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-950"
+            aria-label="Share meal"
+          >
+            <Share2 className="h-4 w-4" />
+          </button>
         </div>
       </motion.header>
 
-      {/* Hero Image Section */}
-      <div className="relative h-[55vh] overflow-hidden">
-        <motion.div
-          style={{ scale: imageScale, opacity: imageOpacity }}
-          className="absolute inset-0"
-        >
-          <img
+      <div className="mx-auto max-w-lg">
+        <section className="relative h-[360px] overflow-hidden bg-slate-200">
+          <motion.img
+            style={{ scale: imageScale, opacity: imageOpacity }}
             src={getMealImage(meal.image_url, meal.id)}
             alt={meal.name}
             loading="eager"
-            className="w-full h-full object-cover"
+            className="h-full w-full object-cover"
           />
-        </motion.div>
-        
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-transparent to-background" />
-        
-        {/* Floating Action Bar */}
-        <div className="absolute top-12 left-4 right-4 flex items-center justify-end">
-          <div className="flex items-center gap-2">
-            {/* Favorite button - disabled until favorite_meals table is available */}
-            {/* <Button
-              variant="secondary"
-              size="icon"
-              onClick={toggleFavorite}
-              className="rounded-full bg-background/80 backdrop-blur shadow-lg"
+          <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/5 to-[#F6F7F5]" />
+          <div className="absolute left-4 right-4 top-[calc(env(safe-area-inset-top)+14px)] flex items-center justify-between">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.16)] backdrop-blur"
+              aria-label="Back"
             >
-              <Heart className="w-5 h-5" />
-            </Button> */}
-            <Button
-              variant="secondary"
-              size="icon"
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
               onClick={shareMeal}
-              className="rounded-full bg-background/80 backdrop-blur shadow-lg"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.16)] backdrop-blur"
+              aria-label="Share meal"
             >
-              <Share2 className="w-5 h-5" />
-            </Button>
+              <Share2 className="h-4 w-4" />
+            </button>
           </div>
-        </div>
-
-        {/* VIP Badge */}
-        {meal.is_vip_exclusive && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-24 right-4"
-          >
-            <Badge className="bg-gradient-to-r from-warning to-yellow-500 text-white border-0 px-3 py-1.5 text-sm font-bold shadow-lg">
-              ⭐ VIP Exclusive
-            </Badge>
-          </motion.div>
-        )}
-      </div>
-
-      {/* Content Container */}
-      <div className="relative -mt-16 px-4 space-y-4">
-        {/* Main Info Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-card rounded-3xl shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-border/30 p-6"
-        >
-          {/* Restaurant Info */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-              {meal.restaurant.logo_url ? (
-                <img src={meal.restaurant.logo_url} alt="" loading="lazy" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-lg">🏪</span>
+          <div className="absolute bottom-8 left-4 right-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {meal.is_vip_exclusive && (
+                <Badge className="rounded-full border-0 bg-amber-400 px-3 py-1 text-[11px] font-black text-slate-950">
+                  VIP Exclusive
+                </Badge>
               )}
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-sm">{meal.restaurant.name}</p>
-              {meal.restaurant.address && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <MapPin className="w-3 h-3" />
-                  {meal.restaurant.address}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-1 text-warning">
-              <Star className="w-4 h-4 fill-current" />
-              <span className="font-semibold text-sm">
-                {meal.rating === 0 || meal.rating === 0.0 ? "New" : `${meal.rating.toFixed(1)}`}
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-[11px] font-black text-slate-950 backdrop-blur">
+                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                {meal.rating === 0 || meal.rating === 0.0 ? "New" : meal.rating.toFixed(1)}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-[11px] font-black text-slate-950 backdrop-blur">
+                <Clock className="h-3 w-3" />
+                {meal.prep_time_minutes} min
               </span>
             </div>
           </div>
+        </section>
 
-          {/* Meal Name */}
-          <h1 className="text-2xl font-bold mb-2">{meal.name}</h1>
-          
-          {/* Description */}
-          {meal.description && (
-            <p className="text-muted-foreground text-sm leading-relaxed mb-4">
-              {meal.description}
-            </p>
+        <main className="relative -mt-8 space-y-4 px-4">
+          <motion.section
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-[32px] bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.1)] ring-1 ring-slate-200/80"
+          >
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-slate-100 ring-1 ring-slate-200">
+                {meal.restaurant.logo_url ? (
+                  <img src={meal.restaurant.logo_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                ) : (
+                  <ShieldCheck className="h-5 w-5 text-slate-500" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-black text-slate-950">{meal.restaurant.name}</p>
+                {meal.restaurant.address && (
+                  <p className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-[11px] font-semibold text-slate-500">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    {meal.restaurant.address}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => navigate(`/restaurant/${meal.restaurant.id}`)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white"
+                aria-label="Open restaurant"
+              >
+                <ArrowUpRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-orange-600">Meal details</p>
+            <h1 className="mt-1 text-[28px] font-black leading-[1.05] tracking-[-0.03em] text-slate-950">{meal.name}</h1>
+            {meal.description && (
+              <p className="mt-3 text-[14px] font-semibold leading-6 text-slate-600">{meal.description}</p>
+            )}
+
+          </motion.section>
+
+          {activeGoal && (
+            <motion.section
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.08 }}
+              className="rounded-[28px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C83F6]">{t("meal_goal_fit")}</p>
+                  <h2 className="mt-1 text-[20px] font-black leading-tight text-[#020617]">{t(mealGoalFit.labelKey)}</h2>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-[#64748B]">
+                    {t("meal_goal_fit_desc", {
+                      calories: Math.round(mealGoalFit.calorieShare * 100),
+                      protein: Math.round(mealGoalFit.proteinShare * 100),
+                    })}
+                  </p>
+                </div>
+                <div className="grid h-[72px] w-[72px] shrink-0 place-items-center rounded-full bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
+                  <div className="text-center">
+                    <p className="text-[24px] font-black leading-none text-[#020617]">{mealGoalFit.score}</p>
+                    <p className="mt-1 text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">{t("score")}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-2xl bg-[#EFFFFA] p-3 ring-1 ring-[#22C7A1]/20">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-[#22C7A1]">{t("calories")}</p>
+                  <p className="mt-1 text-lg font-black text-[#020617]">{displayCalories} / {activeGoal.daily_calorie_target}</p>
+                </div>
+                <div className="rounded-2xl bg-[#F3F4FF] p-3 ring-1 ring-[#7C83F6]/20">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-[#7C83F6]">{t("protein_label")}</p>
+                  <p className="mt-1 text-lg font-black text-[#020617]">{displayProtein}g / {activeGoal.protein_target_g}g</p>
+                </div>
+              </div>
+            </motion.section>
           )}
 
-          {/* Quick Stats */}
-          <div className="flex items-center gap-6 py-4 border-y border-border/50">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Flame className="w-4 h-4 text-primary" />
-              </div>
+          <motion.section
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="rounded-[28px] bg-white p-5 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80"
+          >
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs text-muted-foreground">Calories</p>
-                <p className="font-semibold">{meal.calories}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Nutrition</p>
+                <h2 className="mt-1 text-[22px] font-black leading-tight tracking-normal text-slate-950">Nutrition profile</h2>
+                <p className="mt-1 text-[12px] font-semibold text-slate-500">Calories, macros and fiber</p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black text-slate-500">per meal</span>
+            </div>
+
+            <div className="mt-5 grid grid-cols-[118px_minmax(0,1fr)] gap-5">
+              <div className="relative flex h-[118px] w-[118px] shrink-0 items-center justify-center rounded-full bg-slate-100">
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: `conic-gradient(#020617 0 ${displayProteinPct}%, #94A3B8 ${displayProteinPct}% ${displayProteinPct + displayCarbsPct}%, #0EA5E9 ${displayProteinPct + displayCarbsPct}% 100%)`,
+                  }}
+                />
+                <div className="absolute inset-[10px] rounded-full bg-white" />
+                <div className="relative text-center">
+                  <Flame className="mx-auto mb-1 h-4 w-4 text-orange-500" strokeWidth={2.4} />
+                  <p className="text-[25px] font-black leading-none text-slate-950 tabular-nums">{displayCalories}</p>
+                  <p className="mt-1 text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">kcal</p>
+                </div>
+              </div>
+
+              <div className="grid content-center gap-2.5">
+                {[
+                  { label: "Protein", value: displayProtein, Icon: Beef, dot: "#020617", pct: displayProteinPct },
+                  { label: "Carbs", value: displayCarbs, Icon: Wheat, dot: "#94A3B8", pct: displayCarbsPct },
+                  { label: "Fat", value: displayFat, Icon: Droplets, dot: "#0EA5E9", pct: displayFatPct },
+                ].map(({ label, value, Icon, dot, pct }) => (
+                  <div key={label} className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 ring-1 ring-slate-200">
+                      <Icon className="h-4 w-4" style={{ color: dot }} strokeWidth={2.4} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="truncate text-[13px] font-black text-slate-950">{label}</p>
+                        <p className="text-[12px] font-black text-slate-500">{pct}%</p>
+                      </div>
+                      <p className="mt-0.5 text-[12px] font-bold text-slate-400">
+                        {value}g of {displayMacroTotal}g
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Prep Time</p>
-                <p className="font-semibold">{meal.prep_time_minutes}m</p>
+
+            <div className="mt-5 overflow-hidden rounded-full bg-slate-100">
+              <div className="flex h-2.5 w-full">
+                <div className="bg-[#020617]" style={{ width: `${displayProteinPct}%` }} />
+                <div className="bg-slate-400" style={{ width: `${displayCarbsPct}%` }} />
+                <div className="bg-sky-500" style={{ width: `${displayFatPct}%` }} />
               </div>
             </div>
-            {meal.fiber_g && (
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Leaf className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Fiber</p>
-                  <p className="font-semibold">{meal.fiber_g}g</p>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-3 rounded-[18px] bg-slate-50 p-3 ring-1 ring-slate-200/70">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] ring-1 ring-slate-200">
+                  <Beef className="h-4 w-4" strokeWidth={2.4} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-400">Macros</p>
+                  <p className="mt-0.5 text-[16px] font-black leading-none text-slate-950">{displayMacroTotal}g total</p>
                 </div>
               </div>
-            )}
-          </div>
-        </motion.div>
+              <div className="flex items-center gap-3 rounded-[18px] bg-slate-50 p-3 ring-1 ring-slate-200/70">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-emerald-600 ring-1 ring-slate-200">
+                  <Leaf className="h-4 w-4" strokeWidth={2.4} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-400">Fiber</p>
+                  <p className="mt-0.5 text-[16px] font-black leading-none text-slate-950">{meal.fiber_g ? `${meal.fiber_g}g` : "-"}</p>
+                </div>
+              </div>
+            </div>
+          </motion.section>
 
-        {/* Nutrition Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-card rounded-3xl shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-border/30 p-6"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold">Nutrition Facts</h2>
-            <span className="text-sm text-muted-foreground">Per serving</span>
-          </div>
+          {meal.diet_tags && meal.diet_tags.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {meal.diet_tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="shrink-0 rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-slate-700 ring-1 ring-slate-200">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
 
-          {/* Circular Macros */}
-          <div className="flex justify-around">
-            <CircularMacroGauge
-              value={meal.protein_g}
-              max={50}
-              color="#EF4444"
-              icon={Beef}
-              label="Protein"
-              delay={0.2}
-            />
-            <CircularMacroGauge
-              value={meal.carbs_g}
-              max={80}
-              color="#F59E0B"
-              icon={Wheat}
-              label="Carbs"
-              delay={0.3}
-            />
-            <CircularMacroGauge
-              value={meal.fat_g}
-              max={40}
-              color="#14B8A6"
-              icon={Droplets}
-              label="Fat"
-              delay={0.4}
-            />
-          </div>
-        </motion.div>
-
-        {/* Action Bar - inline below Nutrition Facts */}
-        <MealActionBar
-          meal={meal}
-          onClick={handleAddToSchedule}
-          loading={scheduling}
-          disabled={!hasActiveSubscription}
-          isSuccess={success}
-          hasActiveSubscription={hasActiveSubscription}
-          isUnlimited={isUnlimited}
-          remainingMeals={remainingMeals}
-        />
-
-        {/* Dietary Tags */}
-        {meal.diet_tags && meal.diet_tags.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex flex-wrap gap-2"
-          >
-            {meal.diet_tags.map((tag) => (
-              <Badge key={tag} variant="secondary" className="rounded-full px-3 py-1">
-                {tag}
-              </Badge>
-            ))}
-          </motion.div>
-        )}
-
-        {/* Meal Customization */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.25 }}
-          className="bg-card rounded-3xl shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-border/30 p-6 space-y-5"
-        >
-          <PortionSelector
-            value={customization.portionSize}
-            onChange={setPortionSize}
-            basePrice={meal.price}
-            baseCalories={meal.calories || 0}
-            baseProtein={meal.protein_g || 0}
-            baseCarbs={meal.carbs_g || 0}
-            baseFat={meal.fat_g || 0}
-          />
-          <HPVariantToggle
-            enabled={customization.hpVariant}
-            onChange={setHPVariant}
-            baseProtein={meal.protein_g || 0}
-            basePrice={meal.price}
-          />
-        </motion.div>
-
-        {/* Ingredients (interactive) */}
-        {meal.ingredients && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <IngredientList
-              mealId={meal.id}
-              removedIngredients={removedIngredientIds}
-              onToggle={toggleIngredient}
-            />
-          </motion.div>
-        )}
-
-        {/* Customization Summary */}
-        {hasCustomizations && (() => {
-          const summary = getSummary(meal.price, meal.calories || 0, meal.protein_g || 0, meal.carbs_g || 0, meal.fat_g || 0);
-          return (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-1"
+          {hasPartnerCustomizationOptions && (
+            <motion.section
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="space-y-5 rounded-[28px] bg-white p-5 shadow-[0_14px_36px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/80"
             >
-              <p className="text-sm font-semibold text-primary">Customization Summary</p>
-              {summary.portionSize === 'large' && <p className="text-xs text-muted-foreground">🍽️ Large portion (+{summary.calorieAdjustment} cal, +{formatCurrency(summary.priceAdjustment)})</p>}
-              {summary.hpVariant && <p className="text-xs text-muted-foreground">💪 High Protein (+{summary.proteinAdjustment}g protein, +{formatCurrency(15)})</p>}
-              {summary.removedIngredientNames.length > 0 && <p className="text-xs text-muted-foreground">🚫 Removed: {summary.removedIngredientNames.join(', ')}</p>}
-              <p className="text-xs font-medium text-primary mt-1">Total adjustment: +{formatCurrency(summary.priceAdjustment)}</p>
-            </motion.div>
-          );
-        })()}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Customize</p>
+                <h2 className="text-[20px] font-black text-slate-950">Make it yours</h2>
+              </div>
+              {meal.supports_large && (
+                <PortionSelector
+                  value={customization.portionSize}
+                  onChange={setPortionSize}
+                  baseCalories={meal.calories || 0}
+                  largeCaloriesIncrease={Number(meal.large_calories_increase || 0)}
+                  largeProteinIncrease={Number(meal.large_protein_increase || 0)}
+                  largePriceAdjustment={Number(meal.large_price_adjustment || 0)}
+                />
+              )}
+              {meal.supports_high_protein && (
+                <HPVariantToggle
+                  enabled={customization.hpVariant}
+                  onChange={setHPVariant}
+                  proteinIncrease={Number(meal.high_protein_protein_increase || 0)}
+                  caloriesIncrease={Number(meal.high_protein_calories_increase || 0)}
+                  priceAdjustment={Number(meal.high_protein_price_adjustment || 0)}
+                />
+              )}
+            </motion.section>
+          )}
 
+          {meal.ingredients && (
+            <motion.section
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="rounded-[28px] bg-white p-5 shadow-[0_14px_36px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/80"
+            >
+              <div className="mb-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Ingredients</p>
+                <h2 className="text-[20px] font-black text-slate-950">Remove what you need</h2>
+              </div>
+              <IngredientList
+                mealId={meal.id}
+                removedIngredients={removedIngredientIds}
+                onToggle={toggleIngredient}
+              />
+            </motion.section>
+          )}
 
+          <motion.section
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18 }}
+            className="space-y-4 rounded-[28px] bg-white p-5 shadow-[0_14px_36px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/80"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#020617] text-white">
+                <MessageSquareText className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Restaurant note</p>
+                <h2 className="text-[20px] font-black text-slate-950">Anything to tell the kitchen?</h2>
+                <p className="mt-1 text-[12px] font-semibold leading-relaxed text-slate-500">
+                  Add preparation notes like sauce on the side, no onions, or allergy reminders.
+                </p>
+              </div>
+            </div>
+            <Textarea
+              value={restaurantNote}
+              onChange={(event) => setRestaurantNote(event.target.value.slice(0, 240))}
+              placeholder="Example: sauce on the side, please."
+              className="min-h-[92px] resize-none rounded-[22px] border-slate-200 bg-slate-50 px-4 py-3 text-[14px] font-semibold text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#020617]/20"
+              maxLength={240}
+            />
+            <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
+              <span>Optional</span>
+              <span>{restaurantNote.length}/240</span>
+            </div>
+          </motion.section>
+
+          {customizationSummary && (
+            <motion.section
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-[24px] bg-[#020617] p-4 text-white shadow-[0_14px_36px_rgba(2,6,23,0.18)]"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/50">Customization summary</p>
+              <div className="mt-3 space-y-2 text-[12px] font-bold text-white/80">
+                {customizationSummary.portionSize === "large" && <p>Large portion +{customizationSummary.calorieAdjustment} cal</p>}
+                {customizationSummary.hpVariant && <p>High protein +{customizationSummary.proteinAdjustment}g protein</p>}
+                {customizationSummary.removedIngredientNames.length > 0 && <p>Removed: {customizationSummary.removedIngredientNames.join(", ")}</p>}
+              </div>
+              <p className="mt-3 text-[13px] font-black">Adjustment +{formatCurrency(customizationSummary.priceAdjustment)}</p>
+            </motion.section>
+          )}
+        </main>
       </div>
 
-
+      <div className="fixed bottom-14 left-0 right-0 z-40 border-t border-slate-200/80 bg-white/90 px-4 pb-3 pt-3 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-lg items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-black text-slate-950">{meal.name}</p>
+            <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+              {displayCalories} kcal - {displayProtein}g protein
+            </p>
+          </div>
+          <button
+            onClick={handleAddToSchedule}
+            disabled={scheduling || success}
+            className="flex min-h-[52px] shrink-0 items-center justify-center gap-2 rounded-full bg-[#020617] px-5 text-[14px] font-black text-white shadow-[0_12px_28px_rgba(2,6,23,0.22)] disabled:opacity-60"
+          >
+            {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarPlus className="h-4 w-4" />}
+            {success ? "Scheduled" : actionLabel}
+          </button>
+        </div>
+      </div>
       {/* Schedule Bottom Sheet */}
       <ScheduleSheet
         isOpen={sheetOpen}
@@ -834,3 +987,4 @@ const MealDetail = () => {
 };
 
 export default MealDetail;
+

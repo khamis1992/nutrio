@@ -27,9 +27,9 @@ export const Auth = () => {
 
   if (state.authLoading || state.checkingRole) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#F6F8FB] text-[#020617]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#22C7A1]" />
+        <p className="text-sm font-semibold text-[#64748B]">
           {state.checkingRole ? t("setting_up_account") : t("loading")}
         </p>
       </div>

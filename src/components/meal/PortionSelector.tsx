@@ -1,5 +1,6 @@
-import { useLanguage } from "@/contexts/LanguageContext";
 import { motion } from "framer-motion";
+
+import { useLanguage } from "@/contexts/LanguageContext";
 import { formatCurrency } from "@/lib/currency";
 
 export type PortionSize = "standard" | "large";
@@ -7,30 +8,22 @@ export type PortionSize = "standard" | "large";
 interface PortionSelectorProps {
   value: PortionSize;
   onChange: (size: PortionSize) => void;
-  basePrice: number | null;
   baseCalories: number;
-  baseProtein: number;
-  baseCarbs: number;
-  baseFat: number;
+  largeCaloriesIncrease: number;
+  largeProteinIncrease: number;
+  largePriceAdjustment: number;
 }
 
 export function PortionSelector({
   value,
   onChange,
-  basePrice,
   baseCalories,
-  baseProtein,
-  baseCarbs,
-  baseFat,
+  largeCaloriesIncrease,
+  largeProteinIncrease,
+  largePriceAdjustment,
 }: PortionSelectorProps) {
   const { t } = useLanguage();
   const isLarge = value === "large";
-
-  const priceDiff = basePrice ? basePrice * 0.5 : 0;
-  const calDiff = Math.round(baseCalories * 0.5);
-  const proteinDiff = Math.round(baseProtein * 0.5);
-  const carbsDiff = Math.round(baseCarbs * 0.5);
-  const fatDiff = Math.round(baseFat * 0.5);
 
   const options: { id: PortionSize; label: string; sublabel: string }[] = [
     {
@@ -41,7 +34,7 @@ export function PortionSelector({
     {
       id: "large",
       label: t("customization_large"),
-      sublabel: `${baseCalories + calDiff} kcal · +${formatCurrency(priceDiff)}`,
+      sublabel: `${baseCalories + largeCaloriesIncrease} kcal + ${formatCurrency(largePriceAdjustment)}`,
     },
   ];
 
@@ -55,16 +48,17 @@ export function PortionSelector({
               key={opt.id}
               whileTap={{ scale: 0.97 }}
               onClick={() => onChange(opt.id)}
-              className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all ${
+              className={`flex min-h-[66px] flex-col items-center justify-center gap-1 rounded-[22px] border-2 p-3 text-center transition-all ${
                 isSelected
-                  ? "border-primary bg-primary/8 text-primary"
-                  : "border-border/50 bg-card text-foreground"
+                  ? "border-[#020617] bg-[#020617] text-white shadow-[0_10px_24px_rgba(2,6,23,0.18)]"
+                  : "border-slate-200 bg-white text-slate-950 shadow-[0_8px_18px_rgba(15,23,42,0.04)]"
               }`}
+              aria-pressed={isSelected}
             >
-              <span className={`text-sm font-semibold ${isSelected ? "text-primary" : ""}`}>
-                {opt.label}
+              <span className="text-sm font-black">{opt.label}</span>
+              <span className={`text-[10px] font-bold ${isSelected ? "text-white/65" : "text-slate-400"}`}>
+                {opt.sublabel}
               </span>
-              <span className="text-[10px] text-muted-foreground">{opt.sublabel}</span>
             </motion.button>
           );
         })}
@@ -75,15 +69,12 @@ export function PortionSelector({
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
-          className="bg-primary/5 rounded-xl px-3 py-2 flex items-center gap-3 text-xs text-muted-foreground overflow-hidden"
+          className="flex items-center gap-3 overflow-hidden rounded-[18px] bg-slate-950 px-3 py-2 text-xs font-bold text-white/70"
         >
-          <span className="font-medium text-primary">+50%</span>
-          <span>P: +{proteinDiff}g</span>
-          <span>C: +{carbsDiff}g</span>
-          <span>F: +{fatDiff}g</span>
-          <span className="ml-auto font-semibold text-foreground">
-            +{formatCurrency(priceDiff)}
-          </span>
+          <span className="font-black text-white">Large</span>
+          <span>+{largeCaloriesIncrease} kcal</span>
+          <span>P: +{largeProteinIncrease}g</span>
+          <span className="ml-auto font-black text-white">+{formatCurrency(largePriceAdjustment)}</span>
         </motion.div>
       )}
     </div>

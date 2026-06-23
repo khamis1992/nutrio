@@ -109,23 +109,23 @@ export function AccessibleStepper({
   }, [localInput, min, max, onChange]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 rounded-[30px] border border-[#E5EAF1] bg-white p-5 shadow-[0_14px_34px_rgba(2,6,23,0.06)]">
       <div className="text-center">
         <h1
-          className="text-3xl md:text-4xl font-bold mb-3"
+          className="mb-3 text-[28px] font-extrabold leading-tight text-[#020617]"
           id="stepper-label"
         >
           {label}
         </h1>
         {subtitle && (
-          <p className="text-muted-foreground">{subtitle}</p>
+          <p className="text-sm leading-6 text-[#64748B]">{subtitle}</p>
         )}
       </div>
 
       {unitToggle && (
         <div className="flex justify-center">
           <div
-            className="flex gap-1 p-1 bg-muted rounded-full"
+            className="flex gap-1 rounded-full bg-[#F6F8FB] p-1"
             role="radiogroup"
             aria-label={`${label} unit`}
           >
@@ -136,15 +136,11 @@ export function AccessibleStepper({
                 role="radio"
                 aria-checked={unitToggle.current === u}
                 onClick={() => unitToggle.onToggle(u)}
-                className="px-6 py-2 rounded-full font-semibold text-sm transition-all"
+                className="min-h-10 rounded-full px-6 py-2 text-sm font-extrabold transition-all"
                 style={
                   unitToggle.current === u
-                    ? {
-                        background:
-                          "linear-gradient(135deg, hsl(90,65%,50%) 0%, hsl(90,65%,42%) 100%)",
-                        color: "#fff",
-                      }
-                    : { color: "hsl(var(--muted-foreground))" }
+                    ? { background: "#020617", color: "#fff" }
+                    : { color: "#64748B" }
                 }
               >
                 {u}
@@ -154,7 +150,7 @@ export function AccessibleStepper({
         </div>
       )}
 
-      <div className="flex items-center justify-center gap-4">
+      <div className="flex items-center justify-center gap-3">
         <button
           type="button"
           onClick={onMinus}
@@ -165,10 +161,9 @@ export function AccessibleStepper({
           onPointerCancel={stopLongPress}
           onContextMenu={(e) => e.preventDefault()}
           className={cn(
-            "w-16 h-16 rounded-2xl bg-card border-2 border-border flex items-center justify-center transition-all duration-150 active:scale-95",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+            "flex h-14 w-14 min-h-[56px] min-w-[56px] items-center justify-center rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] transition-all duration-150 active:scale-95",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#020617] focus-visible:ring-offset-2",
             "disabled:opacity-30 disabled:cursor-not-allowed",
-            "min-w-[56px] min-h-[56px]",
           )}
           aria-label={`Decrease ${label}`}
         >
@@ -176,7 +171,7 @@ export function AccessibleStepper({
         </button>
 
         <div className="flex flex-col items-center gap-1">
-          <div className="flex items-baseline justify-center gap-2 px-4">
+          <div className="flex items-baseline justify-center gap-2 px-2">
             <input
               ref={inputRef}
               type="text"
@@ -198,16 +193,16 @@ export function AccessibleStepper({
                   haptics.selection();
                 }
               }}
-              className="font-black text-foreground bg-transparent border-none outline-none text-center caret-primary"
+              className="border-none bg-transparent text-center font-black text-[#020617] outline-none caret-[#F97316]"
               style={{
-                fontSize: 72,
+                fontSize: "clamp(48px, 16vw, 68px)",
                 lineHeight: 1,
-                letterSpacing: "-2px",
+                letterSpacing: 0,
                 width: `${Math.max(3, displayValue.length + 1)}ch`,
               }}
               aria-labelledby="stepper-label"
             />
-            <span className="text-2xl font-semibold text-muted-foreground">
+            <span className="text-xl font-extrabold text-[#64748B]">
               {unit}
             </span>
           </div>
@@ -223,10 +218,9 @@ export function AccessibleStepper({
           onPointerCancel={stopLongPress}
           onContextMenu={(e) => e.preventDefault()}
           className={cn(
-            "w-16 h-16 rounded-2xl bg-card border-2 border-border flex items-center justify-center transition-all duration-150 active:scale-95",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+            "flex h-14 w-14 min-h-[56px] min-w-[56px] items-center justify-center rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] transition-all duration-150 active:scale-95",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#020617] focus-visible:ring-offset-2",
             "disabled:opacity-30 disabled:cursor-not-allowed",
-            "min-w-[56px] min-h-[56px]",
           )}
           aria-label={`Increase ${label}`}
         >
@@ -235,18 +229,18 @@ export function AccessibleStepper({
       </div>
 
       {validationMessage && (
-        <p className="text-center text-sm text-amber-600" role="alert">
+        <p className="text-center text-sm font-bold text-[#F97316]" role="alert">
           {validationMessage}
         </p>
       )}
 
       {isAtMin && value === min && (
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm text-[#64748B]">
           Minimum value reached
         </p>
       )}
       {isAtMax && value === max && (
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm text-[#64748B]">
           Maximum value reached
         </p>
       )}

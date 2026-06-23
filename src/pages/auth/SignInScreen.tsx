@@ -53,7 +53,7 @@ export const SignInScreen = ({
 
   return (
     <div
-      className="fixed inset-0 flex flex-col overflow-hidden bg-[#F7F8F3]"
+      className="fixed inset-0 flex flex-col overflow-hidden bg-[#F6F8FB] text-[#020617]"
       style={{ maxWidth: 430, margin: '0 auto' }}
     >
       {/* Animated background blobs */}
@@ -67,7 +67,7 @@ export const SignInScreen = ({
             animate={{ scale: [1, 1.08, 1], x: [0, 12, 0], y: [0, -10, 0] }}
             transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
             className="absolute -right-24 -top-24 h-[300px] w-[300px] rounded-full blur-3xl"
-            style={{ backgroundColor: 'rgba(16,185,129,0.24)' }}
+            style={{ backgroundColor: 'rgba(34,199,161,0.16)' }}
           />
         </motion.div>
         <motion.div
@@ -78,11 +78,11 @@ export const SignInScreen = ({
           <motion.div
             animate={{ scale: [1, 1.1, 1], x: [0, -14, 0], y: [0, 10, 0] }}
             transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
-            className="absolute -bottom-28 -left-20 h-[280px] w-[280px] rounded-full bg-emerald-200/30 blur-3xl"
+            className="absolute -bottom-28 -left-20 h-[280px] w-[280px] rounded-full bg-[#F3F4FF] blur-3xl"
           />
         </motion.div>
         {/* Dot pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(#0f172a 0.8px, transparent 0.8px)', backgroundSize: '18px 18px' }} />
+        <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'radial-gradient(#020617 0.8px, transparent 0.8px)', backgroundSize: '18px 18px' }} />
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col overflow-y-auto">
@@ -91,14 +91,14 @@ export const SignInScreen = ({
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="flex items-center justify-between px-6 pt-[max(3rem,env(safe-area-inset-top))]"
+          className="flex items-center justify-between px-6 pt-[max(1.25rem,env(safe-area-inset-top))]"
         >
           <button
             type="button"
             onClick={onBack}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)] hover:opacity-70 transition-opacity"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#E5EAF1] bg-white text-[#020617] transition-opacity hover:opacity-70"
           >
-            <ArrowLeft className="w-5 h-5 text-slate-700" />
+            <ArrowLeft className="h-5 w-5" />
           </button>
         </motion.div>
 
@@ -107,14 +107,10 @@ export const SignInScreen = ({
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4, delay: 0.2, ease: [0.34, 1.56, 0.64, 1] }}
-          className="flex items-center justify-center gap-3 mt-6 mb-8"
+          className="mb-5 mt-2 flex items-center justify-center"
         >
-          <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
-            <Logo size="sm" />
-          </div>
-          <div>
-            <p className="text-[16px] font-black tracking-[-0.04em] text-slate-950">NUTRIO</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Fuel better</p>
+          <div className="flex h-28 w-28 items-center justify-center max-[380px]:h-24 max-[380px]:w-24">
+            <Logo size="xl" className="!h-28 max-[380px]:!h-24" />
           </div>
         </motion.div>
 
@@ -124,7 +120,7 @@ export const SignInScreen = ({
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="rounded-[38px] border border-white/80 bg-white/90 p-5 shadow-[0_28px_70px_rgba(15,23,42,0.12)] backdrop-blur-2xl"
+            className="rounded-[34px] border border-[#E5EAF1] bg-white p-5 shadow-[0_16px_34px_rgba(2,6,23,0.06)]"
           >
             <motion.div
               custom={0}
@@ -132,10 +128,10 @@ export const SignInScreen = ({
               initial="hidden"
               animate="visible"
             >
-              <h1 className="text-[32px] font-extrabold text-slate-950 leading-tight mb-1">
+              <h1 className="mb-1 text-[32px] font-extrabold leading-tight text-[#020617]">
                 {t('welcome_back')}
               </h1>
-              <p className="text-[15px] font-semibold text-slate-500 leading-relaxed mb-6">
+              <p className="mb-6 text-[15px] font-semibold leading-relaxed text-[#64748B]">
                 {t('signin_desc')}
               </p>
             </motion.div>
@@ -148,23 +144,23 @@ export const SignInScreen = ({
                 animate="visible"
                 className="space-y-2"
               >
-                <label className="text-[16px] font-semibold text-slate-900">{t('email')}</label>
-                <div className="relative h-16 rounded-[20px] border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <label className="text-[16px] font-semibold text-[#020617]">{t('email')}</label>
+                <div className="relative h-16 rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB]">
+                  <span className="absolute left-3.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-[#EFF9FF] text-[#38BDF8]">
                     <Mail className="w-[18px] h-[18px]" />
                   </span>
                   <input
                     id="email"
                     type="email"
                     placeholder={t('enter_email') ?? 'Enter your email'}
-                    className="absolute inset-0 w-full h-full rounded-[20px] border-0 outline-none pl-16 pr-12 text-[16px] placeholder:text-gray-400 bg-transparent"
+                    className="absolute inset-0 h-full w-full rounded-[20px] border-0 bg-transparent pl-16 pr-12 text-[16px] text-[#020617] outline-none placeholder:text-[#94A3B8]"
                     disabled={loading}
                     {...register('email')}
                   />
                   <button
                     type="button"
                     onClick={() => setValue('email','')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B]"
                     aria-label="Clear email"
                     disabled={loading}
                   >
@@ -181,28 +177,28 @@ export const SignInScreen = ({
                 animate="visible"
                 className="space-y-2"
               >
-                <label className="text-[16px] font-semibold text-slate-900">{t('password')}</label>
-                <div className="relative h-16 rounded-[20px] border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <label className="text-[16px] font-semibold text-[#020617]">{t('password')}</label>
+                <div className="relative h-16 rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB]">
+                  <span className="absolute left-3.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-[#F3F4FF] text-[#7C83F6]">
                     <Lock className="w-[18px] h-[18px]" />
                   </span>
                   <input
                     id="password"
                     type={pwVisible ? 'text' : 'password'}
                     placeholder={t('enter_password') ?? 'Enter your password'}
-                    className="absolute inset-0 w-full h-full rounded-[20px] border-0 outline-none pl-16 pr-12 text-[16px] placeholder:text-gray-400 bg-transparent"
+                    className="absolute inset-0 h-full w-full rounded-[20px] border-0 bg-transparent pl-16 pr-12 text-[16px] text-[#020617] outline-none placeholder:text-[#94A3B8]"
                     disabled={loading}
                     {...register('password')}
                   />
                   <button
                     type="button"
                     onClick={() => setPwVisible(v=>!v)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#64748B]"
                     aria-label="Toggle password visibility"
                     disabled={loading}
                   >
-                    <span className="inline-block w-5 h-5 rounded-full border border-gray-500 relative">
-                      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-gray-600" />
+                    <span className="relative inline-block h-5 w-5 rounded-full border border-[#64748B]">
+                      <span className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#64748B]" />
                     </span>
                   </button>
                 </div>
@@ -226,7 +222,7 @@ export const SignInScreen = ({
                     />
                     <div
                       className={`w-11 h-6 rounded-full transition-colors duration-200 ${
-                        rememberMe ? 'bg-emerald-500' : 'bg-slate-200'
+                        rememberMe ? 'bg-[#22C7A1]' : 'bg-[#E5EAF1]'
                       }`}
                     >
                       <div
@@ -236,14 +232,14 @@ export const SignInScreen = ({
                       />
                     </div>
                   </div>
-                  <span className="text-sm text-slate-500 group-hover:text-slate-900 transition-colors">
+                  <span className="text-sm text-[#64748B] transition-colors group-hover:text-[#020617]">
                     {t('remember_me')}
                   </span>
                 </label>
                 <button
                   type="button"
                   onClick={onSwitchToForgot}
-                  className="text-sm font-semibold hover:underline text-emerald-600"
+                  className="text-sm font-semibold text-[#020617] hover:underline"
                 >
                   {t('forgot_password')}
                 </button>
@@ -255,9 +251,9 @@ export const SignInScreen = ({
                 initial="hidden"
                 animate="visible"
               >
-                <p className="text-sm text-slate-500 text-center pt-2">
+                <p className="pt-2 text-center text-sm text-[#64748B]">
                   {t('dont_have_account')}{' '}
-                  <button type="button" onClick={onSwitchToSignUp} className="font-semibold hover:underline text-emerald-600" disabled={loading}>
+                  <button type="button" onClick={onSwitchToSignUp} className="font-semibold text-[#020617] hover:underline" disabled={loading}>
                     {t('sign_up')}
                   </button>
                 </p>
@@ -266,7 +262,7 @@ export const SignInScreen = ({
                     type="submit"
                     variant="gradient"
                     size="xl"
-                    className="w-full rounded-3xl h-16 text-[17px] font-extrabold"
+                    className="h-16 w-full rounded-3xl bg-[#020617] text-[17px] font-extrabold text-white shadow-none hover:bg-[#111827]"
                     disabled={loading}
                   >
                     {loading ? <><Loader2 className="w-4 h-4 animate-spin" />{t('signing_in')}</> : <><Lock className="w-5 h-5 mr-2" />{t('sign_in')}</>}

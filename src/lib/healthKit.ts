@@ -17,7 +17,7 @@ import { isNative, isIOS, isAndroid } from "@/lib/capacitor";
 
 export type HealthPlatform = "apple_health" | "google_fit" | "none";
 
-export type SyncDataType = "steps" | "heart_rate" | "workouts";
+export type SyncDataType = "steps" | "heart_rate" | "workouts" | "sleep" | "recovery";
 
 export interface HealthSyncConfig {
   platform: HealthPlatform;
@@ -30,6 +30,14 @@ export interface SyncedHealthData {
   steps: number | null;
   heartRate: number | null;
   workoutCount: number | null;
+  activeCalories: number | null;
+  restingHeartRate: number | null;
+  hrv: number | null;
+  sleepMinutes: number | null;
+  deepSleepMinutes: number | null;
+  remSleepMinutes: number | null;
+  respiratoryRate: number | null;
+  spo2: number | null;
   source: HealthPlatform;
   syncedAt: string;
 }
@@ -124,10 +132,14 @@ export const DATA_TYPE_LABELS: Record<SyncDataType, string> = {
   steps: "Sync Steps",
   heart_rate: "Sync Heart Rate",
   workouts: "Sync Workouts",
+  sleep: "Sync Sleep",
+  recovery: "Sync Recovery",
 };
 
 export const DATA_TYPE_ICONS: Record<SyncDataType, string> = {
   steps: "footprints",
   heart_rate: "heart-pulse",
   workouts: "dumbbell",
+  sleep: "moon",
+  recovery: "activity",
 };

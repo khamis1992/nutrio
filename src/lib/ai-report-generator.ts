@@ -13,6 +13,8 @@ interface AIReportContent {
   proteinAssessment: string;
 }
 
+type ReportLocale = "en" | "ar";
+
 function hashData(data: WeeklyReportData): string {
   const keyFields = {
     daysLogged: data.daysLogged,
@@ -44,37 +46,37 @@ function hashData(data: WeeklyReportData): string {
 
 class AIReportGenerator {
 
-  async generateReportContent(data: WeeklyReportData, userId?: string): Promise<{
+  async generateReportContent(data: WeeklyReportData, userId?: string, locale: ReportLocale = "en"): Promise<{
     content: AIReportContent;
     fromCache: boolean;
   }> {
     if (userId) {
       const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
-      const hash = hashData(data);
+      const hash = `${hashData(data)}-${locale}`;
 
       const cached = await this.getCachedReport(userId, weekStart, hash);
       if (cached) {
         return { content: cached, fromCache: true };
       }
 
-      const content = await this.generateWithAI(data);
+      const content = await this.generateWithAI(data, locale);
       await this.setCachedReport(userId, weekStart, hash, content);
       return { content, fromCache: false };
     }
 
-    const content = await this.generateWithAI(data);
+    const content = await this.generateWithAI(data, locale);
     return { content, fromCache: false };
   }
 
-  generateFallbackContent(data: WeeklyReportData): AIReportContent {
+  generateFallbackContent(data: WeeklyReportData, locale: ReportLocale = "en"): AIReportContent {
     return {
-      summary: this.fallbackSummary(data),
+      summary: this.fallbackSummary(data, locale),
       weightAnalysis: this.fallbackWeightAnalysis(data),
       weightCommentary: this.fallbackWeightCommentary(data),
       metabolicCommentary: this.fallbackMetabolicCommentary(data),
       macroCommentary: this.fallbackMacroCommentary(data),
       insights: this.fallbackInsights(data),
-      recommendations: this.fallbackRecommendations(data),
+      recommendations: this.fallbackRecommendations(data, locale),
       proteinAssessment: this.fallbackProteinAssessment(data),
     };
   }
@@ -122,9 +124,12 @@ class AIReportGenerator {
     }
   }
 
-  private async generateWithAI(data: WeeklyReportData): Promise<AIReportContent> {
+  private async generateWithAI(data: WeeklyReportData, locale: ReportLocale): Promise<AIReportContent> {
     const systemPrompt = [
       "You are a supportive nutrition coach writing a weekly lifestyle report.",
+      locale === "ar"
+        ? "Write every user-facing value in natural Arabic. Keep the JSON keys exactly in English."
+        : "Write every user-facing value in English.",
       "",
       "CRITICAL RULES:",
       "- NEVER use medical terminology (no hormones, thyroid, metabolic damage, disease, diagnosis)",
@@ -174,13 +179,13 @@ class AIReportGenerator {
     const parsed = this.parseConsolidatedResponse(aiText);
 
     return {
-      summary: this.cleanText(parsed.summary) || this.fallbackSummary(data),
+      summary: this.cleanText(parsed.summary) || this.fallbackSummary(data, locale),
       weightAnalysis: this.cleanText(parsed.weightAnalysis) || this.fallbackWeightAnalysis(data),
       weightCommentary: this.cleanText(parsed.weightCommentary) || this.fallbackWeightCommentary(data),
       metabolicCommentary: this.cleanText(parsed.metabolicCommentary) || this.fallbackMetabolicCommentary(data),
       macroCommentary: this.cleanText(parsed.macroCommentary) || this.fallbackMacroCommentary(data),
       insights: this.parseInsightsArray(parsed.insights) || this.fallbackInsights(data),
-      recommendations: this.parseRecommendationsArray(parsed.recommendations) || this.fallbackRecommendations(data),
+      recommendations: this.parseRecommendationsArray(parsed.recommendations) || this.fallbackRecommendations(data, locale),
       proteinAssessment: this.cleanText(parsed.proteinAssessment) || this.fallbackProteinAssessment(data),
     };
   }
@@ -256,7 +261,49 @@ class AIReportGenerator {
 
   // ─── FALLBACK METHODS ───
 
-  private fallbackSummary(data: WeeklyReportData): string {
+  private fallbackSummary(data: WeeklyReportData, locale: ReportLocale = "en"): string {
+    if (locale === "ar") {
+      if (data.daysLogged < 3) {
+        return `مرحبا بك في رحلة تتبع التغذية. سجلت ${data.daysLogged} أيام هذا الأسبوع. للحصول على رؤى أدق، حاول تسجيل 3 إلى 4 أيام على الأقل حتى تتضح أنماطك الغذائية.`;
+      }
+
+      const parts: string[] = [];
+
+      if (data.consistencyScore >= 90) {
+        parts.push(`أسبوع ممتاز! انتظامك في التسجيل بنسبة ${data.consistencyScore}% يعكس التزاما قويا بفهم تغذيتك.`);
+      } else if (data.consistencyScore >= 70) {
+        parts.push(`عمل رائع هذا الأسبوع! سجلت ${data.daysLogged} من أصل ${data.totalDays} أيام، وهذا يبني عادة متابعة قوية.`);
+      } else if (data.consistencyScore >= 50) {
+        parts.push(`تقدم جيد! سجلت ${data.daysLogged} أيام هذا الأسبوع، وكل يوم تسجيل يعطيك فهما أفضل لأنماطك.`);
+      } else {
+        parts.push(`سجلت ${data.daysLogged} أيام هذا الأسبوع. بناء عادة التسجيل اليومية يحتاج وقتا، وأنت بدأت الطريق.`);
+      }
+
+      const calorieDiff = data.avgCalories - data.calorieTarget;
+      if (Math.abs(calorieDiff) < 100) {
+        parts.push(`اقتربت جدا من هدف السعرات بمتوسط ${Math.round(data.avgCalories)} سعرة.`);
+      } else if (calorieDiff > 0) {
+        parts.push(`متوسطك ${Math.round(data.avgCalories)} سعرة. إذا كان لديك هدف محدد، فإن ضبط الحصص يساعدك على تحسين المسار.`);
+      } else {
+        parts.push(`متوسطك ${Math.round(data.avgCalories)} سعرة، وهذا أقل من هدفك وقد يحتاج إلى توازن أفضل مع نشاطك اليومي.`);
+      }
+
+      const proteinRatio = data.avgProtein / data.proteinTarget;
+      if (proteinRatio >= 1.0) {
+        parts.push(`البروتين ممتاز عند ${Math.round(data.avgProtein)} جم ويدعم التعافي والشبع بعد الوجبات.`);
+      } else if (proteinRatio >= 0.8) {
+        parts.push(`تقدم البروتين جيد عند ${Math.round(data.avgProtein)} جم، أي ${Math.round(proteinRatio * 100)}% من هدفك.`);
+      } else {
+        parts.push(`متوسط البروتين ${Math.round(data.avgProtein)} جم. إضافة مصدر بروتين في كل وجبة يساعد على الشبع والتعافي.`);
+      }
+
+      if (data.currentStreak >= 3) {
+        parts.push(`حافظ على الزخم مع سلسلة تسجيل ${data.currentStreak} أيام.`);
+      }
+
+      return parts.join(" ");
+    }
+
     if (data.daysLogged < 3) {
       return `Welcome to your nutrition tracking journey! You've logged ${data.daysLogged} days this week. To get personalized insights, try logging at least 3-4 days. Consistent tracking helps you understand your patterns and build better habits.`;
     }
@@ -480,7 +527,42 @@ class AIReportGenerator {
     return insights.slice(0, 4);
   }
 
-  private fallbackRecommendations(data: WeeklyReportData): Array<{ title: string; description: string }> {
+  private fallbackRecommendations(data: WeeklyReportData, locale: ReportLocale = "en"): Array<{ title: string; description: string }> {
+    if (locale === "ar") {
+      const recommendations: Array<{ title: string; description: string }> = [];
+      const proteinRatio = data.avgProtein / data.proteinTarget;
+
+      if (proteinRatio < 0.8) {
+        recommendations.push({
+          title: "عزز البروتين",
+          description: `أنت عند ${Math.round(data.avgProtein)} جم من هدف ${data.proteinTarget} جم. أضف بيضا في الإفطار، زبادي يوناني كسناك، أو لحوما خفيفة في العشاء.`,
+        });
+      }
+
+      if (data.waterAverage < 6) {
+        recommendations.push({
+          title: "تحدي الترطيب",
+          description: `متوسطك الحالي ${data.waterAverage.toFixed(1)} أكواب يوميا. استخدم تذكيرات أو زجاجة محددة العلامات للوصول إلى 8 أكواب.`,
+        });
+      }
+
+      if (data.consistencyScore < 70) {
+        recommendations.push({
+          title: "ابن عادة التسجيل",
+          description: `انتظامك ${data.consistencyScore}%. سجل الوجبات مباشرة بعد الأكل، فهي لا تستغرق إلا دقيقتين.`,
+        });
+      }
+
+      if (recommendations.length < 3) {
+        recommendations.push({
+          title: "خطط مسبقا",
+          description: "تجهيز الوجبات أو اختيارها مسبقا يجعل الالتزام أسهل خلال الأسبوع.",
+        });
+      }
+
+      return recommendations.slice(0, 4);
+    }
+
     const recommendations: Array<{ title: string; description: string }> = [];
 
     const proteinRatio = data.avgProtein / data.proteinTarget;

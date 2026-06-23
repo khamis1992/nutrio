@@ -24,6 +24,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Nutrio reads your steps, workouts, heart rate, sleep, and recovery data to personalize nutrition, readiness, and progress insights.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Nutrio can write nutrition entries you explicitly log, such as meal calories, to Apple Health.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

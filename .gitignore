@@ -45,6 +45,15 @@ coverage/
 *.lock
 *.lockb
 
+# Playwright / browser automation artifacts
+.playwright-mcp/
+app-screenshots/
+
+# Design / promo assets (not source code)
+instagram-images/
+promo-videos/
+public/ig_*
+
 # iOS signing artifacts — NEVER commit
 *.p12
 *.mobileprovision

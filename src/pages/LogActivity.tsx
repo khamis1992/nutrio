@@ -14,6 +14,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isNative } from "@/lib/capacitor";
+import { syncWorkoutSessionsToHealthDailyMetrics } from "@/lib/health-daily-metrics";
 
 // ─── Activity Database ───────────────────────────────────────────────────────
 interface Activity {
@@ -204,6 +205,7 @@ export default function LogActivity() {
       if (error) throw error;
       toast.success(t("log_activity_success_title"), { description: t("log_activity_success_desc").replace("{name}", activity.name).replace("{cal}", String(cal)) });
       await loadSessions();
+      await syncWorkoutSessionsToHealthDailyMetrics(user.id, todayStr);
     } catch {
       toast.error(t("log_activity_failed_title"), { description: t("log_activity_failed_desc") });
     } finally {
@@ -215,6 +217,7 @@ export default function LogActivity() {
     if (!user) return;
     await supabase.from("workout_sessions").delete().eq("id", id).eq("user_id", user.id);
     await loadSessions();
+    await syncWorkoutSessionsToHealthDailyMetrics(user.id, todayStr);
   };
 
   return (

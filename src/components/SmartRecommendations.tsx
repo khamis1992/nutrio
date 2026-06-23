@@ -137,7 +137,7 @@ function LoadingState() {
 
 export function SmartRecommendations() {
   const { recommendations, loading, refresh } = useMealRecommendations();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
 
   if (loading) return <LoadingState />;
 
@@ -189,16 +189,16 @@ export function SmartRecommendations() {
   const secondaryGroups = groups.slice(1, 3);
 
   return (
-    <section className="overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80">
+    <section className="overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80" dir={isRTL ? "rtl" : "ltr"}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
             {t("smart_rec_section_title")}
           </p>
-          <h2 className="mt-1 text-[20px] font-black tracking-normal text-slate-950">Smart picks</h2>
+          <h2 className="mt-1 text-[20px] font-black tracking-normal text-slate-950">{t("smart_picks")}</h2>
         </div>
         <span className="rounded-full bg-[#020617] px-3 py-2 text-[11px] font-black text-white">
-          {primaryGroup.meals.length} picks
+          {t("picks_count", { count: primaryGroup.meals.length })}
         </span>
       </div>
 

@@ -90,6 +90,14 @@ interface Meal {
   is_vip_exclusive: boolean;
   rating: number;
   order_count: number;
+  supports_large?: boolean | null;
+  large_calories_increase?: number | null;
+  large_protein_increase?: number | null;
+  large_price_adjustment?: number | null;
+  supports_high_protein?: boolean | null;
+  high_protein_calories_increase?: number | null;
+  high_protein_protein_increase?: number | null;
+  high_protein_price_adjustment?: number | null;
   diet_tags?: string[];
   category: string;
 }
@@ -142,6 +150,14 @@ const mealSchema = z.object({
   image_url: z.string().url().optional().or(z.literal("")),
   is_available: z.boolean(),
   is_vip_exclusive: z.boolean(),
+  supports_large: z.boolean(),
+  large_calories_increase: z.number().min(0),
+  large_protein_increase: z.number().min(0),
+  large_price_adjustment: z.number().min(0),
+  supports_high_protein: z.boolean(),
+  high_protein_calories_increase: z.number().min(0),
+  high_protein_protein_increase: z.number().min(0),
+  high_protein_price_adjustment: z.number().min(0),
   category: z.string().min(1),
 });
 
@@ -160,6 +176,14 @@ const emptyMeal: MealFormData = {
   image_url: "",
   is_available: true,
   is_vip_exclusive: false,
+  supports_large: false,
+  large_calories_increase: 0,
+  large_protein_increase: 0,
+  large_price_adjustment: 0,
+  supports_high_protein: false,
+  high_protein_calories_increase: 0,
+  high_protein_protein_increase: 0,
+  high_protein_price_adjustment: 0,
   category: "Main Course",
 };
 
@@ -353,6 +377,14 @@ export default function PartnerMenu() {
       image_url: meal.image_url || "",
       is_available: meal.is_available,
       is_vip_exclusive: meal.is_vip_exclusive,
+      supports_large: Boolean(meal.supports_large),
+      large_calories_increase: Number(meal.large_calories_increase || 0),
+      large_protein_increase: Number(meal.large_protein_increase || 0),
+      large_price_adjustment: Number(meal.large_price_adjustment || 0),
+      supports_high_protein: Boolean(meal.supports_high_protein),
+      high_protein_calories_increase: Number(meal.high_protein_calories_increase || 0),
+      high_protein_protein_increase: Number(meal.high_protein_protein_increase || 0),
+      high_protein_price_adjustment: Number(meal.high_protein_price_adjustment || 0),
       category: meal.category || "Main Course",
     });
     setFormErrors({});
@@ -484,6 +516,14 @@ export default function PartnerMenu() {
         image_url: formData.image_url || null,
         is_available: needsApproval ? false : formData.is_available,
         is_vip_exclusive: formData.is_vip_exclusive,
+        supports_large: formData.supports_large,
+        large_calories_increase: formData.supports_large ? formData.large_calories_increase : 0,
+        large_protein_increase: formData.supports_large ? formData.large_protein_increase : 0,
+        large_price_adjustment: formData.supports_large ? formData.large_price_adjustment : 0,
+        supports_high_protein: formData.supports_high_protein,
+        high_protein_calories_increase: formData.supports_high_protein ? formData.high_protein_calories_increase : 0,
+        high_protein_protein_increase: formData.supports_high_protein ? formData.high_protein_protein_increase : 0,
+        high_protein_price_adjustment: formData.supports_high_protein ? formData.high_protein_price_adjustment : 0,
         category: formData.category,
       };
 
@@ -883,6 +923,115 @@ export default function PartnerMenu() {
                 <Label htmlFor="fiber">Fiber (g)</Label>
                 <Input id="fiber" type="number" min="0" step="0.1" value={formData.fiber_g || ""}
                   onChange={(e) => handleInputChange("fiber_g", parseFloat(e.target.value) || 0)} />
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-2xl border bg-muted/20 p-4">
+              <div>
+                <Label className="text-base font-semibold">Customer customization</Label>
+                <p className="text-sm text-muted-foreground">
+                  Enable only the options this meal supports. Disabled options are hidden from customers.
+                </p>
+              </div>
+
+              <div className="space-y-3 rounded-xl border bg-background p-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label htmlFor="supports-large" className="font-semibold">Large portion</Label>
+                    <p className="text-xs text-muted-foreground">Let customers upgrade this meal size.</p>
+                  </div>
+                  <Switch
+                    id="supports-large"
+                    checked={formData.supports_large}
+                    onCheckedChange={(checked) => handleInputChange("supports_large", checked)}
+                  />
+                </div>
+                {formData.supports_large && (
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="large-calories">Extra calories</Label>
+                      <Input
+                        id="large-calories"
+                        type="number"
+                        min="0"
+                        value={formData.large_calories_increase || ""}
+                        onChange={(e) => handleInputChange("large_calories_increase", parseInt(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="large-protein">Extra protein (g)</Label>
+                      <Input
+                        id="large-protein"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={formData.large_protein_increase || ""}
+                        onChange={(e) => handleInputChange("large_protein_increase", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="large-price">Extra price (QAR)</Label>
+                      <Input
+                        id="large-price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.large_price_adjustment || ""}
+                        onChange={(e) => handleInputChange("large_price_adjustment", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 rounded-xl border bg-background p-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label htmlFor="supports-hp" className="font-semibold">High-Protein</Label>
+                    <p className="text-xs text-muted-foreground">Let customers add extra protein to this meal.</p>
+                  </div>
+                  <Switch
+                    id="supports-hp"
+                    checked={formData.supports_high_protein}
+                    onCheckedChange={(checked) => handleInputChange("supports_high_protein", checked)}
+                  />
+                </div>
+                {formData.supports_high_protein && (
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="hp-calories">Extra calories</Label>
+                      <Input
+                        id="hp-calories"
+                        type="number"
+                        min="0"
+                        value={formData.high_protein_calories_increase || ""}
+                        onChange={(e) => handleInputChange("high_protein_calories_increase", parseInt(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="hp-protein">Extra protein (g)</Label>
+                      <Input
+                        id="hp-protein"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={formData.high_protein_protein_increase || ""}
+                        onChange={(e) => handleInputChange("high_protein_protein_increase", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="hp-price">Extra price (QAR)</Label>
+                      <Input
+                        id="hp-price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.high_protein_price_adjustment || ""}
+                        onChange={(e) => handleInputChange("high_protein_price_adjustment", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

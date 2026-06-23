@@ -12,6 +12,22 @@ export interface WaterEntry {
 const DEFAULT_GOAL_ML = 2500;
 const GOAL_STORAGE_KEY = "water_goal_ml";
 
+type AwardXpRpcClient = typeof supabase & {
+  rpc(
+    fn: "award_xp",
+    args: {
+      p_user_id: string;
+      p_xp_amount: number;
+      p_reason?: string;
+      p_action_type?: string;
+      p_source_id?: string;
+      p_metadata?: Record<string, unknown>;
+    },
+  ): Promise<{ data: unknown; error: unknown }>;
+};
+
+const xpRpc = supabase as AwardXpRpcClient;
+
 export function useWaterEntries(userId: string | undefined) {
   const [entries, setEntries] = useState<WaterEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +105,10 @@ export function useWaterEntries(userId: string | undefined) {
       throw new Error("Amount must be greater than 0");
     }
 
+    const previousTotal = entries
+      .filter((entry) => entry.log_date === date)
+      .reduce((sum, entry) => sum + entry.amount_ml, 0);
+
     const { data, error } = await supabase
       .from("water_entries")
       .insert({
@@ -104,8 +124,25 @@ export function useWaterEntries(userId: string | undefined) {
       throw error;
     }
     setEntries((prev) => [data, ...prev]);
+
+    const nextTotal = previousTotal + amountMl;
+    if (previousTotal < goalMl && nextTotal >= goalMl) {
+      try {
+        await xpRpc.rpc("award_xp", {
+          p_user_id: userId,
+          p_xp_amount: 15,
+          p_reason: "Daily water goal reached",
+          p_action_type: "water_goal",
+          p_source_id: date,
+          p_metadata: { goal_ml: goalMl, total_ml: nextTotal },
+        });
+      } catch (xpError) {
+        console.warn("Failed to award water goal XP:", xpError);
+      }
+    }
+
     return data;
-  }, [userId]);
+  }, [entries, goalMl, userId]);
 
   const deleteEntry = useCallback(async (id: string) => {
     if (!userId) return;

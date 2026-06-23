@@ -38,7 +38,7 @@ const cardItem = {
 
 /**
  * Nutrition Ring Dial — premium fitness aesthetic.
- * Three animated SVG arcs (protein emerald, carbs amber, fat sky) draw in
+ * Three animated SVG arcs (protein violet, carbs orange, fat rose) draw in
  * sequence. Center shows total kcal with a flame. Three frosted macro cards
  * stagger in around the dial.
  */
@@ -47,9 +47,9 @@ const NutritionRingDial = () => {
   const R = 50;
   const C = 2 * Math.PI * R;
   const macros = [
-    { label: "Protein", value: "142g", pct: 0.72, color: "#10B981", track: "#ECFDF5", iconBg: "bg-emerald-100 text-emerald-600", delay: 0 },
+    { label: "Protein", value: "142g", pct: 0.72, color: "#7C83F6", track: "#F3F4FF", iconBg: "bg-[#F3F4FF] text-[#7C83F6]", delay: 0 },
     { label: "Carbs", value: "181g", pct: 0.58, color: "#F97316", track: "#FFF7ED", iconBg: "bg-orange-100 text-orange-500", delay: 0.15 },
-    { label: "Fat", value: "64g", pct: 0.45, color: "#0EA5E9", track: "#F0F9FF", iconBg: "bg-sky-100 text-sky-500", delay: 0.3 },
+    { label: "Fat", value: "64g", pct: 0.45, color: "#FB6B7A", track: "#FFF0F2", iconBg: "bg-[#FFF0F2] text-[#FB6B7A]", delay: 0.3 },
   ];
 
   return (
@@ -63,8 +63,8 @@ const NutritionRingDial = () => {
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">today</p>
-            <p className="text-[20px] font-extrabold tracking-[-0.03em] text-slate-950">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#94A3B8]">today</p>
+            <p className="text-[20px] font-extrabold tracking-[-0.03em] text-[#020617]">
               <AnimatedNumber target={1892} className="tabular-nums" /> kcal
             </p>
           </div>
@@ -117,7 +117,7 @@ const NutritionRingDial = () => {
               initial={{ opacity: 0, scale: 0.6 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 1.0, ease: [0.34, 1.56, 0.64, 1] }}
-              className="text-[30px] font-black tracking-[-0.05em] text-slate-950 tabular-nums"
+              className="text-[30px] font-black tracking-[-0.05em] text-[#020617] tabular-nums"
             >
               <AnimatedNumber target={72} duration={1.2} delay={1.0} />%
             </motion.p>
@@ -125,7 +125,7 @@ const NutritionRingDial = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4, delay: 1.15 }}
-              className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400"
+              className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]"
             >
               goal hit
             </motion.p>
@@ -151,8 +151,8 @@ const NutritionRingDial = () => {
             <div className={`mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-2xl ${m.iconBg}`}>
               <HeartPulse className="h-4 w-4" />
             </div>
-            <p className="text-[14px] font-extrabold leading-none text-slate-950">{m.value}</p>
-            <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">{m.label}</p>
+            <p className="text-[14px] font-extrabold leading-none text-[#020617]">{m.value}</p>
+            <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8]">{m.label}</p>
           </motion.div>
         ))}
       </motion.div>
@@ -173,8 +173,8 @@ const NutritionRingDial = () => {
         />
         <div className="relative flex items-center gap-2.5">
           <div>
-            <p className="text-[15px] font-extrabold leading-none text-slate-950">7</p>
-            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">day streak</p>
+            <p className="text-[15px] font-extrabold leading-none text-[#020617]">7</p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8]">day streak</p>
           </div>
         </div>
       </motion.div>
@@ -187,7 +187,7 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
   const reduceMotion = useReducedMotion();
 
   return (
-    <div className="fixed inset-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden bg-[#F7F8F3] text-slate-950">
+    <div className="fixed inset-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden bg-[#F6F8FB] text-[#020617]">
       {/* Background blobs — scale in from small */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <motion.div
@@ -200,7 +200,7 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
             animate={reduceMotion ? undefined : { scale: [1, 1.08, 1], x: [0, 12, 0], y: [0, -10, 0] }}
             transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
             className="absolute -right-24 -top-24 h-[300px] w-[300px] rounded-full blur-3xl"
-            style={{ backgroundColor: "rgba(16,185,129,0.24)" }}
+            style={{ backgroundColor: "rgba(34,199,161,0.16)" }}
           />
         </motion.div>
         <motion.div
@@ -212,10 +212,10 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
           <motion.div
             animate={reduceMotion ? undefined : { scale: [1, 1.1, 1], x: [0, -14, 0], y: [0, 10, 0] }}
             transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
-            className="absolute -bottom-28 -left-20 h-[280px] w-[280px] rounded-full bg-emerald-200/30 blur-3xl"
+            className="absolute -bottom-28 -left-20 h-[280px] w-[280px] rounded-full bg-[#F3F4FF] blur-3xl"
           />
         </motion.div>
-        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: "radial-gradient(#0f172a 0.8px, transparent 0.8px)", backgroundSize: "18px 18px" }} />
+        <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "radial-gradient(#020617 0.8px, transparent 0.8px)", backgroundSize: "18px 18px" }} />
       </div>
 
       {/* Header — drops in from top, logo on LEFT (same as onboarding) */}
@@ -223,27 +223,23 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
         initial={reduceMotion ? { opacity: 0 } : { y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 flex items-center justify-between px-6 pt-[max(3rem,env(safe-area-inset-top))]"
+        className="relative z-10 flex items-center justify-start px-6 pt-[max(1.25rem,env(safe-area-inset-top))]"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center">
           <motion.div
             initial={reduceMotion ? { opacity: 0 } : { scale: 0.6, rotate: -8 }}
             animate={{ scale: 1, rotate: 0, opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
-            className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
+            className="flex h-28 w-28 items-center justify-center max-[380px]:h-24 max-[380px]:w-24"
           >
-            <Logo size="sm" />
+            <Logo size="xl" className="!h-28 max-[380px]:!h-24" />
           </motion.div>
-          <div>
-            <p className="text-[16px] font-black tracking-[-0.04em] text-slate-950">NUTRIO</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Fuel better</p>
-          </div>
         </div>
       </motion.header>
 
       <main className="relative z-10 flex flex-1 flex-col px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {/* Preview illustration — identical to onboarding slide 1 */}
-        <div className="flex flex-1 items-center justify-center py-4">
+        <div className="flex flex-1 items-center justify-center py-1">
           <NutritionRingDial />
         </div>
 
@@ -252,7 +248,7 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
           initial={reduceMotion ? { opacity: 0 } : { y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="rounded-[38px] border border-white/80 bg-white/90 p-5 shadow-[0_28px_70px_rgba(15,23,42,0.12)] backdrop-blur-2xl"
+          className="rounded-[34px] border border-[#E5EAF1] bg-white p-5 shadow-[0_16px_34px_rgba(2,6,23,0.06)]"
         >
           {/* Eyebrow pill row — dark pill + icon circle (same as onboarding) */}
           <motion.div
@@ -262,10 +258,10 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
             animate="visible"
             className="mb-4 flex items-center justify-between"
           >
-            <span className="inline-flex h-9 items-center rounded-full bg-slate-950 px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white">
+            <span className="inline-flex h-9 items-center rounded-full bg-[#020617] px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white">
               {t("eat_smart")}
             </span>
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#EFFFFA] text-[#22C7A1]">
               <UtensilsCrossed className="h-4 w-4" />
             </span>
           </motion.div>
@@ -276,7 +272,7 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
             variants={cardItem}
             initial="hidden"
             animate="visible"
-            className="text-[34px] font-black leading-[0.98] tracking-[-0.065em] text-slate-950"
+            className="text-[34px] font-black leading-[0.98] tracking-[-0.065em] text-[#020617]"
           >
             {t("live_better")}
           </motion.h1>
@@ -287,7 +283,7 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
             variants={cardItem}
             initial="hidden"
             animate="visible"
-            className="mt-4 text-[15px] font-semibold leading-relaxed text-slate-500"
+            className="mt-4 text-[15px] font-semibold leading-relaxed text-[#64748B]"
           >
             {t("personalized_nutrition_tagline")}
           </motion.p>
@@ -304,7 +300,7 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
               type="button"
               variant="gradient"
               size="xl"
-              className="flex h-16 w-full items-center justify-center gap-3 rounded-[24px] text-[17px] font-black tracking-[-0.02em] text-white shadow-[0_18px_38px_rgba(15,23,42,0.18)]"
+              className="flex h-16 w-full items-center justify-center gap-3 rounded-[24px] bg-[#020617] text-[17px] font-black tracking-[-0.02em] text-white shadow-none hover:bg-[#111827]"
               onClick={() => onSwitchView("signup")}
             >
               <UserPlus className="h-5 w-5" strokeWidth={2.8} />
@@ -323,9 +319,9 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
             <button
               type="button"
               onClick={() => onSwitchView("signin")}
-              className="flex h-16 w-full items-center justify-center gap-3 rounded-[24px] border border-slate-200 bg-white text-[16px] font-extrabold text-slate-700 shadow-[0_12px_26px_rgba(15,23,42,0.08)] active:scale-[0.98] transition-all"
+              className="flex h-16 w-full items-center justify-center gap-3 rounded-[24px] border border-[#E5EAF1] bg-[#F6F8FB] text-[16px] font-extrabold text-[#020617] transition-all active:scale-[0.98]"
             >
-              <Lock className="h-5 w-5 text-emerald-600" strokeWidth={2.8} />
+              <Lock className="h-5 w-5 text-[#7C83F6]" strokeWidth={2.8} />
               {t("sign_in")}
             </button>
           </motion.div>
@@ -336,12 +332,12 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
             variants={cardItem}
             initial="hidden"
             animate="visible"
-            className="mt-5 text-[12px] text-center text-slate-400"
+            className="mt-5 text-center text-[12px] text-[#94A3B8]"
           >
             By continuing, you agree to our{" "}
-            <Link to="/privacy" className="text-emerald-600 hover:underline font-semibold">{t("privacy_policy")}</Link>
-            <span className="mx-1.5 text-slate-300">|</span>
-            <Link to="/terms" className="text-emerald-600 hover:underline font-semibold">{t("terms")}</Link>
+            <Link to="/privacy" className="font-semibold text-[#020617] hover:underline">{t("privacy_policy")}</Link>
+            <span className="mx-1.5 text-[#CBD5E1]">|</span>
+            <Link to="/terms" className="font-semibold text-[#020617] hover:underline">{t("terms")}</Link>
           </motion.p>
         </motion.div>
       </main>

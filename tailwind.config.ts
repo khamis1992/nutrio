@@ -21,6 +21,18 @@ export default {
       fontFamily: {
         sans: ["Plus Jakarta Sans", "system-ui", "sans-serif"],
       },
+      fontSize: {
+        xs: ["0.6875rem", { lineHeight: "0.9375rem" }],
+        sm: ["0.8125rem", { lineHeight: "1.125rem" }],
+        base: ["0.875rem", { lineHeight: "1.375rem" }],
+        lg: ["1rem", { lineHeight: "1.5rem" }],
+        xl: ["1.125rem", { lineHeight: "1.625rem" }],
+        "2xl": ["1.375rem", { lineHeight: "1.75rem" }],
+        "3xl": ["1.625rem", { lineHeight: "2rem" }],
+        "4xl": ["2rem", { lineHeight: "2.375rem" }],
+        "5xl": ["2.5rem", { lineHeight: "2.875rem" }],
+        "6xl": ["3rem", { lineHeight: "3.25rem" }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

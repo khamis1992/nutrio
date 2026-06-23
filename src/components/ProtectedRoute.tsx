@@ -9,6 +9,7 @@ import { assetPath } from "@/lib/asset-path";
 
 // Define user roles
 export type UserRole = 
+  | "user"
   | "customer" 
   | "restaurant" 
   | "partner" 
@@ -20,6 +21,7 @@ export type UserRole =
 
 // Role hierarchy for permission checking
 const ROLE_HIERARCHY: Record<UserRole, number> = {
+  user: 1,
   customer: 1,
   restaurant: 2,
   partner: 2,
@@ -326,9 +328,9 @@ export const ProtectedRoute = ({
   // Show loading state
   if (authLoading || checkingRole) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-3">
-        <img src={assetPath("/logo.png")} alt="Nutrio" className="h-12 w-auto object-contain opacity-80" />
-        <Loader2 className="w-7 h-7 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-5">
+        <img src={assetPath("/logo.png")} alt="Nutrio" className="h-28 w-auto object-contain opacity-95" />
+        <Loader2 className="h-7 w-7 animate-spin text-[#22C7A1]" />
       </div>
     );
   }

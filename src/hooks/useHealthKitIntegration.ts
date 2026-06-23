@@ -27,8 +27,38 @@ import {
   PLATFORM_LABELS,
   detectPlatform,
 } from "@/lib/healthKit";
+import type { HealthDailyMetrics } from "@/lib/health-readiness";
 
 const POLL_INTERVAL = 15 * 60 * 1000; // 15 minutes
+
+async function upsertHealthDailyMetrics(userId: string, syncedData: SyncedHealthData) {
+  const metricDate = new Date().toISOString().split("T")[0];
+  const payload: Partial<HealthDailyMetrics> & { user_id: string; metric_date: string } = {
+    user_id: userId,
+    metric_date: metricDate,
+    steps: syncedData.steps ?? 0,
+    workouts_count: syncedData.workoutCount ?? 0,
+    active_calories: syncedData.activeCalories ?? 0,
+    resting_heart_rate: syncedData.restingHeartRate,
+    average_heart_rate: syncedData.heartRate,
+    hrv: syncedData.hrv,
+    sleep_minutes: syncedData.sleepMinutes,
+    deep_sleep_minutes: syncedData.deepSleepMinutes,
+    rem_sleep_minutes: syncedData.remSleepMinutes,
+    respiratory_rate: syncedData.respiratoryRate,
+    spo2: syncedData.spo2,
+    source: syncedData.source,
+    synced_at: syncedData.syncedAt,
+  };
+
+  const { error } = await supabase
+    .from("health_daily_metrics" as never)
+    .upsert(payload as never, { onConflict: "user_id,metric_date" });
+
+  if (error) {
+    console.warn("Failed to save health daily metrics:", error.message);
+  }
+}
 
 export interface HealthKitState {
   platform: HealthPlatform;
@@ -83,6 +113,22 @@ export function useHealthKitIntegration() {
     return false;
   }, []);
 
+  const checkExistingGoogleFitToken = useCallback(async (): Promise<boolean> => {
+    if (!user) return false;
+    const { data } = await supabase
+      .from("user_integrations")
+      .select("access_token, expires_at")
+      .eq("user_id", user.id)
+      .eq("provider", "google_fit")
+      .maybeSingle();
+
+    if (data?.access_token) {
+      const isValid = data.expires_at * 1000 > Date.now();
+      return isValid;
+    }
+    return false;
+  }, [user]);
+
   const requestPermissions = useCallback(async (types: SyncDataType[]): Promise<boolean> => {
     if (!user) return false;
 
@@ -93,13 +139,16 @@ export function useHealthKitIntegration() {
           steps: types.includes("steps"),
           heartRate: types.includes("heart_rate"),
           workouts: types.includes("workouts"),
+          energy: types.includes("workouts"),
+          sleep: types.includes("sleep"),
+          recovery: types.includes("recovery"),
         };
         const granted = await HealthKit.requestPermissions(requested);
         return !!granted;
       } else if (state.platform === "google_fit") {
         const { requestPermissions: requestGFit } = await import("@/services/health/googleFit");
-        const needsActivity = types.includes("steps") || types.includes("workouts");
-        const needsBody = types.includes("heart_rate");
+        const needsActivity = types.includes("steps") || types.includes("workouts") || types.includes("sleep");
+        const needsBody = types.includes("heart_rate") || types.includes("recovery");
         const granted = await requestGFit({
           activity: needsActivity,
           body: needsBody,
@@ -116,23 +165,7 @@ export function useHealthKitIntegration() {
     }
 
     return false;
-  }, [user, state.platform]);
-
-  const checkExistingGoogleFitToken = async (): Promise<boolean> => {
-    if (!user) return false;
-    const { data } = await supabase
-      .from("user_integrations")
-      .select("access_token, expires_at")
-      .eq("user_id", user.id)
-      .eq("provider", "google_fit")
-      .maybeSingle();
-
-    if (data?.access_token) {
-      const isValid = data.expires_at * 1000 > Date.now();
-      return isValid;
-    }
-    return false;
-  };
+  }, [user, state.platform, checkExistingGoogleFitToken]);
 
   const syncData = useCallback(async (): Promise<void> => {
     if (!user) return;
@@ -150,25 +183,39 @@ export function useHealthKitIntegration() {
         steps: null,
         heartRate: null,
         workoutCount: null,
+        activeCalories: null,
+        restingHeartRate: null,
+        hrv: null,
+        sleepMinutes: null,
+        deepSleepMinutes: null,
+        remSleepMinutes: null,
+        respiratoryRate: null,
+        spo2: null,
         source: config.platform,
         syncedAt: new Date().toISOString(),
       };
 
       if (config.platform === "apple_health") {
         const { HealthKit } = await import("@/services/health/healthkit");
-        const [steps, heartRate, workouts] = await Promise.all([
+        const [steps, healthData, workouts] = await Promise.all([
           config.enabledDataTypes.includes("steps")
             ? HealthKit.getStepCount({ start: startOfDay, end: endOfDay })
             : null,
-          config.enabledDataTypes.includes("heart_rate")
-            ? HealthKit.getHeartRate({ start: startOfDay, end: endOfDay })
+          config.enabledDataTypes.some((type) => ["heart_rate", "sleep", "recovery", "workouts"].includes(type))
+            ? HealthKit.getHealthData({ start: startOfDay, end: endOfDay })
             : null,
           config.enabledDataTypes.includes("workouts")
             ? HealthKit.getWorkouts({ start: startOfDay, end: endOfDay })
             : null,
         ]);
         if (steps !== null) syncedData.steps = steps;
-        if (heartRate !== null) syncedData.heartRate = heartRate;
+        if (healthData?.heartRate) syncedData.heartRate = healthData.heartRate;
+        if (healthData?.restingHeartRate) syncedData.restingHeartRate = healthData.restingHeartRate;
+        if (healthData?.hrv) syncedData.hrv = healthData.hrv;
+        if (healthData?.activeEnergy) syncedData.activeCalories = healthData.activeEnergy;
+        if (healthData?.sleepMinutes) syncedData.sleepMinutes = healthData.sleepMinutes;
+        if (healthData?.respiratoryRate) syncedData.respiratoryRate = healthData.respiratoryRate;
+        if (healthData?.spo2) syncedData.spo2 = healthData.spo2;
         if (workouts) syncedData.workoutCount = workouts.length;
       } else if (config.platform === "google_fit") {
         const { data: tokens } = await supabase
@@ -201,12 +248,18 @@ export function useHealthKitIntegration() {
             }
           }
 
-          if (config.enabledDataTypes.includes("heart_rate")) {
+          if (config.enabledDataTypes.some((type) => ["heart_rate", "sleep", "recovery"].includes(type))) {
             const { getHealthData } = await import("@/services/health/googleFit");
-            const healthData = await getHealthData({ start: startOfDay, end: endOfDay });
+            const healthData = await getHealthData(
+              { start: startOfDay, end: endOfDay },
+              { accessToken: tokens.access_token, expiresAt: tokens.expires_at * 1000 }
+            );
             if (healthData?.heartRate) {
               syncedData.heartRate = healthData.heartRate;
             }
+            if (healthData?.steps && syncedData.steps === null) syncedData.steps = healthData.steps;
+            if (healthData?.caloriesBurned) syncedData.activeCalories = healthData.caloriesBurned;
+            if (healthData?.sleepMinutes) syncedData.sleepMinutes = healthData.sleepMinutes;
           }
         }
       }
@@ -219,6 +272,8 @@ export function useHealthKitIntegration() {
         data: syncedData,
         synced_at: new Date().toISOString(),
       });
+
+      await upsertHealthDailyMetrics(user.id, syncedData);
 
       const updatedConfig = markSynced();
       setState((prev) => ({

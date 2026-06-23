@@ -14,7 +14,27 @@ export function CommunityChallengeCard() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [leaderboards, setLeaderboards] = useState<Record<string, LeaderboardEntry[]>>({});
   const challenge = challenges[activeIndex];
-  useEffect(() => { if (!challenge?.id || leaderboards[challenge.id]) return; (async () => { const { data } = await supabase.from("challenge_leaderboard").select("user_name, avatar_url, current_progress, rank").eq("challenge_id", challenge.id).order("rank", { ascending: true }).limit(3); if (data) setLeaderboards((prev) => ({ ...prev, [challenge.id]: data as LeaderboardEntry[] })); })(); }, [challenge?.id]);
+  const activeLeaderboard = challenge?.id ? leaderboards[challenge.id] : undefined;
+
+  useEffect(() => {
+    if (!challenge?.id || challenge.is_local || activeLeaderboard) return;
+
+    void (async () => {
+      const { data } = await supabase
+        .from("challenge_leaderboard")
+        .select("user_name, avatar_url, current_progress, rank")
+        .eq("challenge_id", challenge.id)
+        .order("rank", { ascending: true })
+        .limit(3);
+
+      if (data) {
+        setLeaderboards((current) => ({
+          ...current,
+          [challenge.id]: data as LeaderboardEntry[],
+        }));
+      }
+    })();
+  }, [activeLeaderboard, challenge?.id, challenge?.is_local]);
   const nextChallenge = () => setActiveIndex((prev) => (prev === challenges.length - 1 ? 0 : prev + 1));
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0 });
   const calcCountdown = useCallback(() => { const n = new Date(); const nx = new Date(n.getFullYear(), n.getMonth() + 1, 1); const d = nx.getTime() - n.getTime(); setCountdown({ days: Math.floor(d/86400000), hours: Math.floor((d%86400000)/3600000), minutes: Math.floor((d%3600000)/60000) }); }, []);
@@ -75,8 +95,10 @@ export function CommunityChallengeCard() {
         </div>
 
         <div className="relative mt-4 rounded-xl bg-white p-3 text-slate-900 shadow-sm">
-          <div className="flex items-center justify-between mb-2"><p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">Top 3</p>{challenge.user_rank > 0 && <span className="text-[10px] font-bold text-slate-700">#{challenge.user_rank}</span>}</div>
-          {leaderboard.length>0?(<div className="flex items-center gap-3"><div className="flex items-end gap-1">{leaderboard.map((e,i)=>(<div key={i} className="relative">{e.avatar_url?<img src={e.avatar_url} alt="" className="h-8 w-8 rounded-full border-2 border-white object-cover shadow-sm"/>:<div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center border-2 border-white"><span className="text-[10px] font-bold text-slate-500">{(e.user_name??"?")[0]}</span></div>}<div className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-extrabold text-white ${e.rank===1?"bg-amber-400":e.rank===2?"bg-slate-400":"bg-orange-400"}`}>{e.rank}</div></div>))}</div><div className="h-8 w-px bg-slate-200" /><div className="flex-1">{leaderboard.map((e,i)=>(<div key={i} className="flex items-center justify-between text-[10px]"><span className="font-semibold text-slate-600 truncate max-w-[80px]">{e.user_name??t("community_player")}</span><span className="font-bold text-slate-700">{e.current_progress}/{challenge.target_value}</span></div>))}</div></div>):<p className="text-[12px] text-slate-400 text-center py-2">{t("community_be_first")}</p>}
+          <div className="flex items-center justify-between mb-2"><p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">{challenge.is_local ? "Your week" : "Top 3"}</p>{challenge.user_rank > 0 && !challenge.is_local && <span className="text-[10px] font-bold text-slate-700">#{challenge.user_rank}</span>}</div>
+          {challenge.is_local ? (
+            <p className="text-[12px] font-semibold leading-5 text-slate-500">Personal challenge generated from your Nutrio performance data. Community leaderboard unlocks when admin challenges are active.</p>
+          ) : leaderboard.length>0?(<div className="flex items-center gap-3"><div className="flex items-end gap-1">{leaderboard.map((e,i)=>(<div key={i} className="relative">{e.avatar_url?<img src={e.avatar_url} alt="" className="h-8 w-8 rounded-full border-2 border-white object-cover shadow-sm"/>:<div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center border-2 border-white"><span className="text-[10px] font-bold text-slate-500">{(e.user_name??"?")[0]}</span></div>}<div className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-extrabold text-white ${e.rank===1?"bg-amber-400":e.rank===2?"bg-slate-400":"bg-orange-400"}`}>{e.rank}</div></div>))}</div><div className="h-8 w-px bg-slate-200" /><div className="flex-1">{leaderboard.map((e,i)=>(<div key={i} className="flex items-center justify-between text-[10px]"><span className="font-semibold text-slate-600 truncate max-w-[80px]">{e.user_name??t("community_player")}</span><span className="font-bold text-slate-700">{e.current_progress}/{challenge.target_value}</span></div>))}</div></div>):<p className="text-[12px] text-slate-400 text-center py-2">{t("community_be_first")}</p>}
           {challenge.is_joined&&(<div className="mt-2"><div className="flex items-center justify-between text-[10px] mb-1"><span className="text-slate-400">{t("community_your_progress")}</span><span className="font-bold text-slate-700">{challenge.user_progress}/{challenge.target_value}</span></div><div className="h-1.5 rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#020617] transition-all duration-500" style={{width:`${progressPct}%`}} /></div></div>)}
         </div>
 

@@ -1,13 +1,15 @@
 import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useNutritionGoals } from "@/hooks/useNutritionGoals";
 import { useWallet } from "@/hooks/useWallet";
 import { formatCurrency } from "@/lib/currency";
+import { calculateGoalAlignmentScore } from "@/lib/goal-engine";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
@@ -41,6 +43,8 @@ import {
   Wallet,
   ArrowLeft, ChevronLeft,
   ArrowRight,
+  X,
+  Utensils,
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -51,6 +55,7 @@ import EmptyMealSlot from "@/components/schedule/EmptyMealSlot";
 import ScheduleHeader from "@/components/schedule/ScheduleHeader";
 import WeeklyProgressBar from "@/components/schedule/WeeklyProgressBar";
 import MealDetailSheet from "@/components/schedule/MealDetailSheet";
+import LogMealModal from "@/components/LogMealModal";
 import { MealPlanGenerator } from "@/components/meal/MealPlanGenerator";
 import { SmartSubstitutionBanner } from "@/components/meal/SmartSubstitutionBanner";
 import { useSmartSubstitutions } from "@/hooks/useSmartSubstitutions";
@@ -73,60 +78,72 @@ interface ScheduledMeal {
   };
 }
 
+interface ComboMeal {
+  id: string;
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  image_url: string | null;
+  meal_type: string | null;
+  restaurant_id: string | null;
+}
+
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 
 const MEAL_TYPE_CONFIG = {
   breakfast: {
     icon: Coffee,
     label: "breakfast",
-    gradient: "from-amber-400 to-orange-500",
-    bgGradient: "bg-gradient-to-br from-amber-50 to-orange-50",
-    textColor: "text-amber-600",
-    bgColor: "bg-amber-100",
-    borderColor: "border-amber-200",
-    ringColor: "ring-amber-400",
-    shadowColor: "shadow-amber-500/20",
-    nutritionBg: "bg-gradient-to-br from-amber-50 to-orange-50",
-    nutritionBorder: "border-amber-100",
+    gradient: "from-[#F97316] to-[#FB6B7A]",
+    bgGradient: "bg-[#FFF7ED]",
+    textColor: "text-[#F97316]",
+    bgColor: "bg-[#FFF7ED]",
+    borderColor: "border-[#F97316]/20",
+    ringColor: "ring-[#F97316]",
+    shadowColor: "shadow-[#F97316]/20",
+    nutritionBg: "bg-[#FFF7ED]",
+    nutritionBorder: "border-[#F97316]/20",
   },
   lunch: {
     icon: Sun,
     label: "lunch",
-    gradient: "from-emerald-400 to-teal-500",
-    bgGradient: "bg-gradient-to-br from-emerald-50 to-teal-50",
-    textColor: "text-emerald-600",
-    bgColor: "bg-emerald-100",
-    borderColor: "border-emerald-200",
-    ringColor: "ring-emerald-400",
-    shadowColor: "shadow-emerald-500/20",
-    nutritionBg: "bg-gradient-to-br from-emerald-50 to-teal-50",
-    nutritionBorder: "border-emerald-100",
+    gradient: "from-[#22C7A1] to-[#38BDF8]",
+    bgGradient: "bg-[#EFFFFA]",
+    textColor: "text-[#22C7A1]",
+    bgColor: "bg-[#EFFFFA]",
+    borderColor: "border-[#22C7A1]/20",
+    ringColor: "ring-[#22C7A1]",
+    shadowColor: "shadow-[#22C7A1]/20",
+    nutritionBg: "bg-[#EFFFFA]",
+    nutritionBorder: "border-[#22C7A1]/20",
   },
   dinner: {
     icon: Moon,
     label: "dinner",
-    gradient: "from-indigo-400 to-purple-500",
-    bgGradient: "bg-gradient-to-br from-indigo-50 to-purple-50",
-    textColor: "text-indigo-600",
-    bgColor: "bg-indigo-100",
-    borderColor: "border-indigo-200",
-    ringColor: "ring-indigo-400",
-    shadowColor: "shadow-indigo-500/20",
-    nutritionBg: "bg-gradient-to-br from-indigo-50 to-purple-50",
-    nutritionBorder: "border-indigo-100",
+    gradient: "from-[#7C83F6] to-[#38BDF8]",
+    bgGradient: "bg-[#F3F4FF]",
+    textColor: "text-[#7C83F6]",
+    bgColor: "bg-[#F3F4FF]",
+    borderColor: "border-[#7C83F6]/20",
+    ringColor: "ring-[#7C83F6]",
+    shadowColor: "shadow-[#7C83F6]/20",
+    nutritionBg: "bg-[#F3F4FF]",
+    nutritionBorder: "border-[#7C83F6]/20",
   },
   snack: {
     icon: Apple,
     label: "snack",
-    gradient: "from-pink-400 to-rose-500",
-    bgGradient: "bg-gradient-to-br from-pink-50 to-rose-50",
-    textColor: "text-pink-600",
-    bgColor: "bg-pink-100",
-    borderColor: "border-pink-200",
-    ringColor: "ring-pink-400",
-    shadowColor: "shadow-pink-500/20",
-    nutritionBg: "bg-gradient-to-br from-pink-50 to-rose-50",
-    nutritionBorder: "border-pink-100",
+    gradient: "from-[#FB6B7A] to-[#F97316]",
+    bgGradient: "bg-[#FFF0F2]",
+    textColor: "text-[#FB6B7A]",
+    bgColor: "bg-[#FFF0F2]",
+    borderColor: "border-[#FB6B7A]/20",
+    ringColor: "ring-[#FB6B7A]",
+    shadowColor: "shadow-[#FB6B7A]/20",
+    nutritionBg: "bg-[#FFF0F2]",
+    nutritionBorder: "border-[#FB6B7A]/20",
   },
 };
 
@@ -155,12 +172,15 @@ const Schedule = () => {
   const { NextIcon } = getNavArrows(isRTL);
   const DAYS = isRTL ? DAYS_AR : DAYS_EN;
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedComboParam = searchParams.get("combo") || "";
   const { user } = useAuth();
   const { profile } = useProfile();
+  const { activeGoal } = useNutritionGoals(user?.id);
   const { settings, loading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
   const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
-  const { remainingMeals, isUnlimited, hasActiveSubscription, subscription, remainingSnacks, snacksPerMonth, refetch: refetchSubscription } = useSubscription();
+  const { remainingMeals, isUnlimited, hasActiveSubscription, subscription, remainingSnacks, snacksPerMonth, incrementMealUsage, incrementSnackUsage, refetch: refetchSubscription } = useSubscription();
   const { wallet, refresh: refetchWallet } = useWallet();
 
   const pricePerMeal = subscription?.price_per_meal ?? 50;
@@ -213,6 +233,9 @@ const Schedule = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [schedules, setSchedules] = useState<ScheduledMeal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [comboMeals, setComboMeals] = useState<ComboMeal[]>([]);
+  const [comboLoading, setComboLoading] = useState(false);
+  const [comboApplying, setComboApplying] = useState(false);
 
   const { unavailableMeals, dismissMeal, performSubstitution, hasUnavailable } = useSmartSubstitutions({
     userId: user?.id,
@@ -230,6 +253,7 @@ const Schedule = () => {
 
   const [selectedMeal, setSelectedMeal] = useState<ScheduledMeal | null>(null);
   const [showMealSheet, setShowMealSheet] = useState(false);
+  const [logMealOpen, setLogMealOpen] = useState(false);
 
   const [showTimeSlotDialog, setShowTimeSlotDialog] = useState(false);
   const [showModifyModal, setShowModifyModal] = useState(false);
@@ -334,6 +358,148 @@ const Schedule = () => {
     }
     prevShowWizard.current = showWizard;
   }, [showWizard, fetchSchedules, settings.features.meal_scheduling]);
+
+  useEffect(() => {
+    if (!selectedComboParam) {
+      setComboMeals([]);
+      return;
+    }
+
+    const mealIds = Array.from(new Set(selectedComboParam.split(",").map((id) => id.trim()).filter(Boolean))).slice(0, 4);
+    if (!mealIds.length) {
+      setComboMeals([]);
+      return;
+    }
+
+    let cancelled = false;
+    setComboLoading(true);
+
+    supabase
+      .from("meals")
+      .select("id,name,calories,protein_g,carbs_g,fat_g,image_url,meal_type,restaurant_id")
+      .in("id", mealIds)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.error("Error loading selected combo:", error);
+          setComboMeals([]);
+          return;
+        }
+
+        const mealMap = (data || []).reduce<Record<string, ComboMeal>>((acc, meal) => {
+          acc[meal.id] = {
+            id: meal.id,
+            name: meal.name,
+            calories: meal.calories || 0,
+            protein_g: meal.protein_g || 0,
+            carbs_g: meal.carbs_g || 0,
+            fat_g: meal.fat_g || 0,
+            image_url: meal.image_url,
+            meal_type: meal.meal_type,
+            restaurant_id: meal.restaurant_id,
+          };
+          return acc;
+        }, {});
+
+        setComboMeals(mealIds.map((id) => mealMap[id]).filter(Boolean));
+      })
+      .finally(() => {
+        if (!cancelled) setComboLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedComboParam]);
+
+  const clearSelectedCombo = useCallback(() => {
+    setComboMeals([]);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("combo");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const applySelectedCombo = useCallback(async () => {
+    if (!user || comboMeals.length === 0) return;
+    if (!hasActiveSubscription) {
+      toast({
+        title: "Subscription required",
+        description: "Activate your plan before scheduling this combo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const dateKey = format(selectedDate, "yyyy-MM-dd");
+    const usedTypes = new Set(
+      schedules
+        .filter((schedule) => schedule.scheduled_date === dateKey)
+        .map((schedule) => schedule.meal_type)
+    );
+    const fallbackTypes = [...MEAL_TYPES];
+    const rows = comboMeals
+      .map((meal) => {
+        const preferredType = MEAL_TYPES.includes(meal.meal_type as (typeof MEAL_TYPES)[number])
+          ? (meal.meal_type as (typeof MEAL_TYPES)[number])
+          : undefined;
+        const mealType = preferredType && !usedTypes.has(preferredType)
+          ? preferredType
+          : fallbackTypes.find((type) => !usedTypes.has(type));
+
+        if (mealType) usedTypes.add(mealType);
+
+        return mealType ? {
+          user_id: user.id,
+          meal_id: meal.id,
+          restaurant_id: meal.restaurant_id,
+          scheduled_date: dateKey,
+          meal_type: mealType,
+          delivery_time_slot: MEAL_TYPE_TIMES[mealType],
+          order_status: "pending",
+        } : null;
+      })
+      .filter(Boolean);
+
+    if (!rows.length) {
+      toast({
+        title: "No open slots",
+        description: "Choose another day or remove a meal before adding this combo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setComboApplying(true);
+    try {
+      const { error } = await supabase.from("meal_schedules").insert(rows);
+      if (error) throw error;
+
+      for (const row of rows) {
+        if (row?.meal_type === "snack") {
+          await incrementSnackUsage();
+        } else {
+          await incrementMealUsage();
+        }
+      }
+
+      await refetchSubscription();
+      await fetchSchedules();
+      clearSelectedCombo();
+      toast({
+        title: "Combo added",
+        description: `${rows.length} meal${rows.length === 1 ? "" : "s"} scheduled for ${format(selectedDate, "MMM d")}.`,
+      });
+    } catch (err) {
+      console.error("Error applying combo:", err);
+      toast({
+        title: "Could not schedule combo",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setComboApplying(false);
+    }
+  }, [clearSelectedCombo, comboMeals, fetchSchedules, hasActiveSubscription, incrementMealUsage, incrementSnackUsage, refetchSubscription, schedules, selectedDate, toast, user]);
 
   const toggleMealCompletion = async (scheduleId: string, isCompleted: boolean, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -529,6 +695,19 @@ const Schedule = () => {
 
   const displayMeals = getMealsForDay(selectedDate);
   const dailyNutrition = getDailyNutrition(selectedDate);
+  const scheduleCaloriePct = activeGoal?.daily_calorie_target
+    ? Math.round((dailyNutrition.calories / Math.max(activeGoal.daily_calorie_target, 1)) * 100)
+    : 0;
+  const scheduleProteinPct = activeGoal?.protein_target_g
+    ? Math.round((dailyNutrition.protein / Math.max(activeGoal.protein_target_g, 1)) * 100)
+    : 0;
+  const scheduleGoalScore = activeGoal
+    ? calculateGoalAlignmentScore({
+      caloriePct: scheduleCaloriePct,
+      proteinPct: scheduleProteinPct,
+      consistencyPct: dailyNutrition.total > 0 ? 100 : 0,
+    })
+    : 0;
 
   const currentWeekEnd = addDays(currentWeekStart, 6);
   const thisWeekSchedules = schedules.filter(s => {
@@ -544,29 +723,29 @@ const Schedule = () => {
 
   if (!settingsLoading && !settings.features.meal_scheduling) {
     return (
-      <div className="relative min-h-screen overflow-hidden bg-[#F8FAFC] pb-20 dark:from-gray-900 dark:to-black">
-        <div className="sticky top-0 z-10 border-b border-slate-100/60" style={{ paddingTop: "env(safe-area-inset-top, 0px)", backgroundColor: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)" }}>
+      <div className="relative min-h-screen overflow-hidden bg-[#F6F8FB] pb-20">
+        <div className="sticky top-0 z-10 border-b border-[#E5EAF1]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", backgroundColor: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)" }}>
           <div className="flex items-center justify-between h-[44px] px-2 max-w-lg mx-auto">
             <button
               onClick={() => navigate("/dashboard")}
               className="flex items-center gap-0.5 active:opacity-60 transition-opacity cursor-pointer"
             >
-              <ArrowLeft className="h-[24px] w-[24px] text-emerald-600" />
-              <span className="text-[17px] text-emerald-600 font-medium">Back</span>
+              <ArrowLeft className="h-[24px] w-[24px] text-[#020617]" />
+              <span className="text-[17px] font-medium text-[#020617]">Back</span>
             </button>
-            <h1 className="text-[17px] font-semibold text-slate-900">{t("schedule")}</h1>
+            <h1 className="text-[17px] font-semibold text-[#020617]">{t("schedule")}</h1>
             <div className="w-11" />
           </div>
         </div>
         <div className="flex flex-col items-center justify-center min-h-[70vh] px-6">
-          <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 flex items-center justify-center mb-6 shadow-xl shadow-amber-500/10">
-            <AlertTriangle className="h-12 w-12 text-amber-500" />
+          <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-[#FFF7ED] shadow-xl shadow-[#F97316]/10">
+            <AlertTriangle className="h-12 w-12 text-[#F97316]" />
           </div>
-          <h2 className="text-2xl font-bold mb-3 text-gray-900 dark:text-white">{t("scheduling_unavailable")}</h2>
-          <p className="text-muted-foreground text-center text-sm mb-8 max-w-xs leading-relaxed">{t("scheduling_disabled_desc")}</p>
+          <h2 className="mb-3 text-2xl font-bold text-[#020617]">{t("scheduling_unavailable")}</h2>
+          <p className="mb-8 max-w-xs text-center text-sm leading-relaxed text-[#64748B]">{t("scheduling_disabled_desc")}</p>
           <Button
             onClick={() => navigate("/dashboard")}
-            className="rounded-2xl px-8 h-14 text-base font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-lg shadow-emerald-500/25 cursor-pointer"
+            className="h-14 cursor-pointer rounded-2xl bg-[#020617] px-8 text-base font-semibold text-white shadow-lg shadow-[rgba(2,6,23,0.20)] hover:bg-[#020617]/90"
           >
             {t("go_back")}
           </Button>
@@ -586,10 +765,10 @@ const Schedule = () => {
   const weekProgressPct = weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#F8FAFC] pb-24">
+    <div className="relative min-h-screen overflow-hidden bg-[#F8FAFC]">
       {/* Scroll progress bar — native iOS style sub-bar */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-0.5 bg-emerald-500 z-50 origin-left"
+        className="fixed left-0 right-0 top-0 z-50 h-0.5 origin-left bg-[#22C7A1]"
         style={{ scaleX: weekProgressPct / 100 }}
         aria-hidden
       />
@@ -611,7 +790,7 @@ const Schedule = () => {
       />
 
       {/* ── Content Area ─────────────────────────────── */}
-      <div className="relative z-10 mx-auto max-w-[430px] px-3 pb-[120px] pt-4">
+      <div className="relative z-10 mx-auto max-w-[430px] px-3 pb-[88px] pt-4">
 
         {/* ── Weekly Stats ─────────────────────────────── */}
         <WeeklyProgressBar
@@ -621,6 +800,39 @@ const Schedule = () => {
           isUnlimited={isUnlimited}
           hasActiveSubscription={hasActiveSubscription}
         />
+
+        {activeGoal && (
+          <section className="mb-4 rounded-[26px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">{t("schedule_goal_fit")}</p>
+                <h2 className="mt-1 text-[18px] font-black leading-tight text-[#020617]">{t("schedule_goal_fit_desc")}</h2>
+              </div>
+              <div className="grid h-[64px] w-[64px] shrink-0 place-items-center rounded-full bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
+                <div className="text-center">
+                  <p className="text-[22px] font-black leading-none text-[#020617]">{scheduleGoalScore}</p>
+                  <p className="mt-1 text-[8px] font-black uppercase tracking-wide text-[#94A3B8]">{t("score")}</p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-2xl bg-[#EFFFFA] p-3 ring-1 ring-[#22C7A1]/20">
+                <p className="text-[10px] font-black uppercase tracking-wide text-[#22C7A1]">{t("schedule_goal_calories")}</p>
+                <p className="mt-1 text-lg font-black text-[#020617]">{dailyNutrition.calories} / {activeGoal.daily_calorie_target}</p>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+                  <div className="h-full rounded-full bg-[#22C7A1]" style={{ width: `${Math.min(scheduleCaloriePct, 100)}%` }} />
+                </div>
+              </div>
+              <div className="rounded-2xl bg-[#F3F4FF] p-3 ring-1 ring-[#7C83F6]/20">
+                <p className="text-[10px] font-black uppercase tracking-wide text-[#7C83F6]">{t("schedule_goal_protein")}</p>
+                <p className="mt-1 text-lg font-black text-[#020617]">{dailyNutrition.protein}g / {activeGoal.protein_target_g}g</p>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+                  <div className="h-full rounded-full bg-[#7C83F6]" style={{ width: `${Math.min(scheduleProteinPct, 100)}%` }} />
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {!loading && hasActiveSubscription && (() => {
           const totalSlots = 7 * 4;
@@ -636,25 +848,25 @@ const Schedule = () => {
               animate={{ opacity: 1, y: 0 }}
               onClick={() => setShowMealPlanGenerator(true)}
               whileTap={{ scale: 0.98 }}
-              className="mb-4 mt-2 flex w-full items-center gap-3 rounded-[24px] bg-white p-4 text-left shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 transition active:bg-white/80"
+              className="mb-4 mt-2 flex w-full items-center gap-3 rounded-[24px] bg-white p-4 text-left shadow-[0_12px_32px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1] transition active:bg-[#F6F8FB]"
               dir={isRTL ? "rtl" : "ltr"}
             >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
                 <CalendarPlus className="h-6 w-6" strokeWidth={2.4} />
               </div>
 
               <div className="min-w-0 flex-1">
                 <div className="mb-0.5 flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-amber-500" strokeWidth={2.5} />
-                  <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">
+                  <Sparkles className="h-3.5 w-3.5 text-[#F97316]" strokeWidth={2.5} />
+                  <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#7C83F6]">
                     {isWeekEmpty ? "Smart planner" : `${openSlots} open slots`}
                   </span>
                 </div>
-                <p className="truncate text-[15px] font-black text-slate-950">{t("schedule_fill_week_title")}</p>
-                <p className="truncate text-[12px] font-semibold text-slate-500">{t("schedule_fill_week_desc")}</p>
+                <p className="truncate text-[15px] font-black text-[#020617]">{t("schedule_fill_week_title")}</p>
+                <p className="truncate text-[12px] font-semibold text-[#64748B]">{t("schedule_fill_week_desc")}</p>
               </div>
 
-              <span className="flex h-10 shrink-0 items-center rounded-full bg-slate-950 px-4 text-[13px] font-black text-white">
+              <span className="flex h-10 shrink-0 items-center rounded-full bg-[#020617] px-4 text-[13px] font-black text-white">
                 {t("schedule_fill_my_week")}
               </span>
             </motion.button>
@@ -668,6 +880,88 @@ const Schedule = () => {
           onSubstitute={performSubstitution}
         />
 
+        {(comboLoading || comboMeals.length > 0) && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 rounded-[28px] bg-white p-4 shadow-[0_16px_40px_rgba(2,6,23,0.08)] ring-1 ring-[#E5EAF1]"
+            dir={isRTL ? "rtl" : "ltr"}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#020617] text-white">
+                <Utensils className="h-5 w-5" strokeWidth={2.4} />
+              </div>
+              <div className={`min-w-0 flex-1 ${isRTL ? "text-right" : "text-left"}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">Selected combo</p>
+                    <h3 className="mt-0.5 text-[17px] font-black text-[#020617]">Add to {format(selectedDate, "EEE, MMM d")}</h3>
+                  </div>
+                  <button
+                    onClick={clearSelectedCombo}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1] active:scale-95"
+                    aria-label="Remove selected combo"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {comboLoading ? (
+                  <div className="mt-4 space-y-2">
+                    {[0, 1, 2].map((item) => (
+                      <div key={item} className="h-12 animate-pulse rounded-[16px] bg-[#F6F8FB]" />
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 space-y-2">
+                      {comboMeals.map((meal) => (
+                        <div key={meal.id} className="flex items-center gap-3 rounded-[18px] bg-[#F6F8FB] p-2 ring-1 ring-[#E5EAF1]">
+                          {meal.image_url ? (
+                            <img src={meal.image_url} alt={meal.name} className="h-12 w-12 rounded-[16px] object-cover" />
+                          ) : (
+                            <div className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-white text-[#64748B]">
+                              <Utensils className="h-5 w-5" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-black text-[#020617]">{meal.name}</p>
+                            <p className="mt-0.5 truncate text-[11px] font-bold text-[#64748B]">
+                              {meal.calories} kcal - {meal.protein_g}g protein
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      {[
+                        { label: "kcal", value: comboMeals.reduce((sum, meal) => sum + meal.calories, 0), tone: "text-[#F97316] bg-[#FFF7ED]" },
+                        { label: "protein", value: `${comboMeals.reduce((sum, meal) => sum + meal.protein_g, 0)}g`, tone: "text-[#7C83F6] bg-[#F3F4FF]" },
+                        { label: "carbs", value: `${comboMeals.reduce((sum, meal) => sum + meal.carbs_g, 0)}g`, tone: "text-[#22C7A1] bg-[#EFFFFA]" },
+                      ].map((stat) => (
+                        <div key={stat.label} className={`rounded-[18px] p-3 ${stat.tone}`}>
+                          <p className="text-[18px] font-black leading-none">{stat.value}</p>
+                          <p className="mt-1 text-[9px] font-black uppercase tracking-[0.1em] opacity-70">{stat.label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={applySelectedCombo}
+                      disabled={comboApplying}
+                      className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#020617] text-[14px] font-black text-white shadow-[0_10px_24px_rgba(2,6,23,0.18)] disabled:opacity-60"
+                    >
+                      {comboApplying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarPlus className="h-4 w-4" />}
+                      Add combo to schedule
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* ── Quick Add Banner ─────────────────────────── */}
         {displayMeals.length === 0 && hasActiveSubscription && !isUnlimited && remainingMeals <= 0 && (
           <motion.div
@@ -677,16 +971,16 @@ const Schedule = () => {
           >
             <button
               onClick={() => setShowBuyCredit(true)}
-              className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 border border-amber-200 dark:border-amber-800 rounded-2xl active:scale-[0.98] transition-all cursor-pointer"
+              className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-[#F97316]/20 bg-[#FFF7ED] p-4 transition-all active:scale-[0.98]"
             >
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F97316] shadow-lg shadow-[#F97316]/25">
                 <Wallet className="h-5 w-5 text-white" />
               </div>
               <div className={`flex-1 ${isRTL ? "text-right" : "text-left"}`}>
-                <p className="text-sm font-bold text-slate-900">{t("schedule_out_of_credits")}</p>
-                <p className="text-xs text-slate-500">{t("schedule_buy_extra")}</p>
+                <p className="text-sm font-bold text-[#020617]">{t("schedule_out_of_credits")}</p>
+                <p className="text-xs text-[#64748B]">{t("schedule_buy_extra")}</p>
               </div>
-              <NextIcon className="h-5 w-5 text-slate-400" />
+              <NextIcon className="h-5 w-5 text-[#94A3B8]" />
             </button>
           </motion.div>
         )}
@@ -695,15 +989,15 @@ const Schedule = () => {
           <div className="space-y-3 pt-2">
             {[0, 1, 2, 3].map((i) => (
               <div key={i}>
-                <div className="mb-2 h-4 w-24 animate-pulse rounded-full bg-slate-200/60" />
-                <div className="mb-2 overflow-hidden rounded-[24px] border border-white/80 bg-white/90 backdrop-blur-xl">
+                <div className="mb-2 h-4 w-24 animate-pulse rounded-full bg-[#E5EAF1]" />
+                <div className="mb-2 overflow-hidden rounded-[24px] border border-[#E5EAF1] bg-white/90 backdrop-blur-xl">
                   <div className="flex items-center gap-3 p-4 animate-pulse">
-                    <div className="h-12 w-12 rounded-[16px] bg-slate-200/80" />
+                    <div className="h-12 w-12 rounded-[16px] bg-[#E5EAF1]" />
                     <div className="flex-1 space-y-2">
-                      <div className="h-4 w-32 bg-slate-200/80 rounded" />
-                      <div className="h-3 w-20 bg-slate-200/60 rounded" />
+                      <div className="h-4 w-32 rounded bg-[#E5EAF1]" />
+                      <div className="h-3 w-20 rounded bg-[#E5EAF1]" />
                     </div>
-                    <div className="h-8 w-8 rounded-full bg-slate-200/60" />
+                    <div className="h-8 w-8 rounded-full bg-[#E5EAF1]" />
                   </div>
                 </div>
               </div>
@@ -726,7 +1020,7 @@ const Schedule = () => {
               if (typeMeals.length > 0) {
                 return (
                   <section key={mealType} className="mb-3">
-                    <p className="mb-3 px-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-slate-500" dir={isRTL ? "rtl" : "ltr"}>
+                    <p className="mb-3 px-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#64748B]" dir={isRTL ? "rtl" : "ltr"}>
                       {sectionLabel}
                     </p>
                     <div className="space-y-2">
@@ -742,7 +1036,7 @@ const Schedule = () => {
                               setSelectedMeal(schedule);
                               setShowMealSheet(true);
                             }}
-                            className="relative cursor-pointer rounded-[24px] bg-white p-3.5 shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)] active:bg-white/80"
+                            className="relative cursor-pointer rounded-[24px] bg-white p-3.5 shadow-[0_12px_32px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(2,6,23,0.09)] active:bg-[#F6F8FB]"
                             dir={isRTL ? "rtl" : "ltr"}
                           >
                             <div className="flex items-center gap-3">
@@ -756,7 +1050,7 @@ const Schedule = () => {
                                     }`}
                                   />
                                   {schedule.is_completed && (
-                                    <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/30">
+                                    <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#22C7A1] shadow-lg shadow-[#22C7A1]/30">
                                       <Check className="h-3 w-3 text-white" strokeWidth={3} />
                                     </div>
                                   )}
@@ -770,23 +1064,23 @@ const Schedule = () => {
                               )}
 
                               <div className={`min-w-0 flex-1 ${isRTL ? "text-right" : "text-left"}`}>
-                                <h3 className={`truncate text-[16px] font-bold text-slate-900 ${
-                                  schedule.is_completed ? "text-slate-400" : ""
+                                <h3 className={`truncate text-[16px] font-bold text-[#020617] ${
+                                  schedule.is_completed ? "text-[#94A3B8]" : ""
                                 }`}>
                                   {schedule.meal?.name}
                                 </h3>
                                 <div className="mt-2 grid grid-cols-3 gap-1.5">
                                   {[
                                     { Icon: Clock, value: schedule.delivery_time_slot || timeLabel, label: "time", tone: "text-sky-700" },
-                                    { Icon: Flame, value: schedule.meal.calories, label: "kcal", tone: "text-orange-700" },
+                                    { Icon: Flame, value: schedule.meal.calories, label: "kcal", tone: "text-[#F97316]" },
                                     { Icon: Beef, value: `${schedule.meal.protein_g}g`, label: t("protein_label"), tone: "text-[#020617]" },
                                   ].map(({ Icon, value, label, tone }) => (
-                                    <div key={`${label}-${value}`} className="min-w-0 rounded-[14px] bg-slate-50/80 px-2 py-2 ring-1 ring-slate-200/80 backdrop-blur">
+                                    <div key={`${label}-${value}`} className="min-w-0 rounded-[14px] bg-[#F6F8FB] px-2 py-2 ring-1 ring-[#E5EAF1] backdrop-blur">
                                       <div className={`flex min-w-0 items-center gap-1 ${tone}`}>
                                         <Icon className="h-3 w-3 shrink-0" strokeWidth={2.4} />
                                         <span className="truncate text-[11px] font-black leading-none">{value}</span>
                                       </div>
-                                      <p className="mt-1 truncate text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">{label}</p>
+                                      <p className="mt-1 truncate text-[8px] font-black uppercase tracking-[0.08em] text-[#94A3B8]">{label}</p>
                                     </div>
                                   ))}
                                 </div>
@@ -796,18 +1090,23 @@ const Schedule = () => {
                                 onClick={(e) => toggleMealCompletion(schedule.id, schedule.is_completed, e)}
                                 whileTap={{ scale: 0.85 }}
                                 disabled={togglingMealId === schedule.id}
-                                className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full transition-all ${
+                                className={`flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-[12px] font-black transition-all ${
                                   schedule.is_completed
-                                    ? "bg-emerald-500 shadow-lg shadow-emerald-500/30"
-                                    : "border-2 border-slate-200"
+                                    ? "bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20"
+                                    : "bg-[#020617] text-white shadow-lg shadow-[rgba(2,6,23,0.15)]"
                                 } disabled:opacity-60`}
-                                aria-label="Toggle completion"
+                                aria-label={schedule.is_completed ? "Undo log" : "Log meal"}
                               >
                                 {togglingMealId === schedule.id ? (
-                                  <Loader2 className="h-3 w-3 text-white animate-spin" />
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : schedule.is_completed ? (
-                                  <Check className="h-3 w-3 text-white" strokeWidth={3} />
-                                ) : null}
+                                  <>
+                                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                                    Logged
+                                  </>
+                                ) : (
+                                  "Log"
+                                )}
                               </motion.button>
                             </div>
                           </motion.div>
@@ -824,7 +1123,7 @@ const Schedule = () => {
 
               return (
                 <section key={mealType} className="mb-3">
-                  <p className="mb-3 px-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-slate-500" dir={isRTL ? "rtl" : "ltr"}>
+                  <p className="mb-3 px-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#64748B]" dir={isRTL ? "rtl" : "ltr"}>
                     {sectionLabel}
                   </p>
                   <div className="space-y-2">
@@ -906,9 +1205,21 @@ const Schedule = () => {
           setShowMealSheet(false);
         }}
         onReschedule={() => setShowModifyModal(true)}
+        onOpenManualLog={() => {
+          setShowMealSheet(false);
+          setLogMealOpen(true);
+        }}
         onDelete={(id) => {
           setDeleteTargetId(id);
           setDeleteConfirmOpen(true);
+        }}
+      />
+
+      <LogMealModal
+        open={logMealOpen}
+        onOpenChange={setLogMealOpen}
+        onMealLogged={() => {
+          window.dispatchEvent(new CustomEvent("nutrio:meal-progress-changed"));
         }}
       />
 
@@ -917,7 +1228,7 @@ const Schedule = () => {
         <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden">
           <DialogHeader className="px-6 pt-6 pb-0">
             <DialogTitle className="flex items-center gap-2 text-lg font-bold">
-              <Clock className="h-5 w-5 text-emerald-500" />
+              <Clock className="h-5 w-5 text-[#38BDF8]" />
               {t("schedule_delivery")}
             </DialogTitle>
           </DialogHeader>
@@ -936,24 +1247,24 @@ const Schedule = () => {
         <DialogContent className="max-w-sm rounded-3xl p-0 overflow-hidden mx-4">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 flex items-center justify-center shrink-0">
-                <Wallet className="w-7 h-7 text-amber-600" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#FFF7ED]">
+                <Wallet className="h-7 w-7 text-[#F97316]" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-900">{t("schedule_buy_extra_title")}</h3>
-                <p className="text-xs text-slate-400 font-medium">Add 1 credit to your plan</p>
+                <h3 className="text-lg font-black text-[#020617]">{t("schedule_buy_extra_title")}</h3>
+                <p className="text-xs font-medium text-[#94A3B8]">Add 1 credit to your plan</p>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 space-y-3 mb-5">
+            <div className="mb-5 space-y-3 rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">{t("schedule_price_per_credit")}</span>
-                <span className="font-bold text-amber-600 text-lg">{formatCurrency(pricePerMeal)}</span>
+                <span className="text-[#64748B]">{t("schedule_price_per_credit")}</span>
+                <span className="text-lg font-bold text-[#F97316]">{formatCurrency(pricePerMeal)}</span>
               </div>
-              <div className="h-px bg-amber-200/50" />
+              <div className="h-px bg-[#E5EAF1]" />
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">{t("schedule_wallet_balance")}</span>
-                <span className={`font-bold ${(wallet?.balance || 0) >= pricePerMeal ? "text-emerald-600" : "text-red-500"}`}>
+                <span className="text-[#64748B]">{t("schedule_wallet_balance")}</span>
+                <span className={`font-bold ${(wallet?.balance || 0) >= pricePerMeal ? "text-[#22C7A1]" : "text-[#FB6B7A]"}`}>
                   {formatCurrency(wallet?.balance || 0)}
                 </span>
               </div>
@@ -970,7 +1281,7 @@ const Schedule = () => {
               {(wallet?.balance || 0) < pricePerMeal ? (
                 <Button
                   onClick={() => navigate("/wallet")}
-                  className="flex-1 h-12 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white rounded-2xl font-semibold shadow-lg shadow-amber-500/25 cursor-pointer"
+                  className="h-12 flex-1 cursor-pointer rounded-2xl bg-[#020617] font-semibold text-white shadow-lg shadow-[rgba(2,6,23,0.20)] hover:bg-[#020617]/90"
                 >
                   Top Up Wallet
                 </Button>
@@ -978,7 +1289,7 @@ const Schedule = () => {
                 <Button
                   onClick={handleBuyMealCredit}
                   disabled={buyLoading}
-                  className="flex-1 h-12 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white rounded-2xl font-semibold shadow-lg shadow-amber-500/25 cursor-pointer"
+                  className="h-12 flex-1 cursor-pointer rounded-2xl bg-[#020617] font-semibold text-white shadow-lg shadow-[rgba(2,6,23,0.20)] hover:bg-[#020617]/90"
                 >
                   {buyLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : `Pay ${formatCurrency(pricePerMeal)}`}
                 </Button>
@@ -1003,8 +1314,8 @@ const Schedule = () => {
         <AlertDialogContent className="rounded-3xl">
           <AlertDialogHeader>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-100 to-rose-100 dark:from-red-900/30 dark:to-rose-900/30 flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-red-500" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF0F2]">
+                <AlertTriangle className="h-6 w-6 text-[#FB6B7A]" />
               </div>
               <div>
                 <AlertDialogTitle className="text-lg font-black">{t("cancel_meal") || "Remove Meal"}</AlertDialogTitle>
@@ -1020,7 +1331,7 @@ const Schedule = () => {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => { if (deleteTargetId) deleteMeal(deleteTargetId); setDeleteTargetId(null); }}
-              className="flex-1 h-12 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white rounded-2xl font-semibold cursor-pointer"
+              className="h-12 flex-1 cursor-pointer rounded-2xl bg-[#FB6B7A] font-semibold text-white hover:bg-[#FB6B7A]/90"
             >
               {t("remove") || "Remove"}
             </AlertDialogAction>

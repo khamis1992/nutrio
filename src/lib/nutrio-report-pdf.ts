@@ -851,11 +851,15 @@ export class NutrioReportPDF {
       y += 38;
     } else {
       // Summary stats row
-      const totals = d.mealPlan.reduce((t, day) => ({ cal: t.cal + day.dailyCalories, prot: t.prot + day.dailyProtein, price: t.price + day.dailyPrice }), { cal: 0, prot: 0, price: 0 });
+      const totals = d.mealPlan.reduce((t, day) => ({
+        cal: t.cal + day.dailyCalories,
+        prot: t.prot + day.dailyProtein,
+        meals: t.meals + [day.breakfast, day.lunch, day.dinner, day.snack].filter(Boolean).length,
+      }), { cal: 0, prot: 0, meals: 0 });
       const mpStats = [
         { label: "Avg Calories",  val: `${Math.round(totals.cal / 7)} kcal/day`,   color: C.green  },
         { label: "Avg Protein",   val: `${Math.round(totals.prot / 7)}g/day`,       color: C.teal   },
-        { label: "Est. Cost",     val: `QAR ${totals.price.toFixed(0)}/week`,        color: C.amber  },
+        { label: "Meals",         val: `${totals.meals} planned`,                    color: C.amber  },
       ];
       const sw = (CW - 6) / 3;
       mpStats.forEach((s, i) => {
@@ -886,7 +890,7 @@ export class NutrioReportPDF {
         this.doc.setFont("helvetica", "bold");
         this.doc.text(`${day.day}  —  ${day.date}`, MX + 5, y + 7);
         this.doc.setFontSize(7);
-        this.doc.text(`${day.dailyCalories} kcal  |  ${day.dailyProtein}g protein  |  QAR ${day.dailyPrice.toFixed(0)}`, W - MX - 3, y + 7, { align: "right" });
+        this.doc.text(`${day.dailyCalories} kcal  |  ${day.dailyProtein}g protein`, W - MX - 3, y + 7, { align: "right" });
         y += 12;
 
         const meals = [

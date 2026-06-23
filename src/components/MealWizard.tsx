@@ -683,74 +683,6 @@ const MealWizard = ({
                   </div>
                 )}
 
-                {selectedMealEntries.length > 0 && (
-                  <div className="mb-4 rounded-[24px] border border-emerald-100 bg-[#F0FCF7] p-3 shadow-[0_10px_28px_rgba(16,184,111,0.08)]">
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-[12px] font-black uppercase tracking-[0.12em] text-emerald-700">Selected</p>
-                      <p className="text-[12px] font-extrabold text-slate-500">
-                        {selectedMealEntries.length} meal{selectedMealEntries.length === 1 ? "" : "s"}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {selectedMealEntries.map(({ type, meal, config }) => {
-                        const isCurrent = type === currentMealType;
-                        const SelectedIcon = config.icon;
-                        return (
-                          <div
-                            key={type}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => handleEditMeal(type)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                handleEditMeal(type);
-                              }
-                            }}
-                            className={`flex min-w-[260px] items-center gap-2 rounded-[18px] border bg-white p-2 text-left transition active:scale-95 ${
-                              isCurrent
-                                ? "border-emerald-300 ring-2 ring-emerald-100"
-                                : "border-white/70"
-                            }`}
-                          >
-                            {meal.image_url ? (
-                              <img
-                                src={meal.image_url}
-                                alt={meal.name}
-                                className="h-12 w-12 shrink-0 rounded-[14px] object-cover"
-                              />
-                            ) : (
-                              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] ${config.bgGradient}`}>
-                                <SelectedIcon className={`h-5 w-5 ${config.textColor}`} />
-                              </div>
-                            )}
-                            <div className="min-w-0 flex-1 pr-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-700">
-                                  {config.label}
-                                </span>
-                                <Check className="h-3.5 w-3.5 text-emerald-600" strokeWidth={3} />
-                              </div>
-                              <p className="mt-1 truncate text-[13px] font-black leading-tight text-slate-950">{meal.name}</p>
-                            </div>
-                            <button
-                              type="button"
-                              aria-label={`Remove ${config.label}`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                handleRemoveMeal(type);
-                              }}
-                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-rose-500 transition active:bg-rose-50 active:scale-95"
-                            >
-                              <Trash2 className="h-[18px] w-[18px]" strokeWidth={2.2} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
                 {loading ? (
                   <div className="space-y-3">
                     {[1, 2, 3].map((i) => (
@@ -769,15 +701,26 @@ const MealWizard = ({
                 ) : meals.length > 0 ? (
                   <div className="space-y-3">
                     {meals.map((meal) => {
-                      const isSelected = selectedMeals[currentMealType]?.id === meal.id;
+                      const selectedEntryIndex = selectedMealEntries.findIndex((entry) => entry.meal.id === meal.id);
+                      const selectedEntry = selectedEntryIndex >= 0 ? selectedMealEntries[selectedEntryIndex] : null;
+                      const isSelected = Boolean(selectedEntry);
+                      const selectedOrder = selectedEntryIndex + 1;
                       return (
-                        <motion.button
+                        <motion.div
                           key={meal.id}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => handleSelectMeal(meal)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              handleSelectMeal(meal);
+                            }
+                          }}
                           whileTap={{ scale: 0.98 }}
                           className={`w-full rounded-[24px] border p-3 text-left transition-all ${
                             isSelected
-                              ? "border-emerald-400 bg-[#F0FCF7] shadow-[0_14px_34px_rgba(16,184,111,0.16)] ring-2 ring-emerald-100"
+                              ? "border-[#020617] bg-white shadow-[0_16px_38px_rgba(2,6,23,0.13)] ring-2 ring-[#020617]/10"
                               : "border-slate-100 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)] active:border-emerald-100"
                           }`}
                         >
@@ -795,8 +738,8 @@ const MealWizard = ({
                                 </div>
                               )}
                               {isSelected && (
-                                <div className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 shadow-lg ring-2 ring-white">
-                                  <Check className="h-4 w-4 text-white" />
+                                <div className="absolute -left-2 -top-2 flex h-9 w-9 items-center justify-center rounded-full bg-[#020617] text-[15px] font-black text-white shadow-[0_10px_20px_rgba(2,6,23,0.24)] ring-4 ring-white">
+                                  {selectedOrder || 1}
                                 </div>
                               )}
                             </div>
@@ -807,9 +750,9 @@ const MealWizard = ({
                                   {meal.name}
                                 </h3>
                                 {isSelected && (
-                                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-black text-emerald-700">
+                                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-[#020617]">
                                     <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                                    Selected for {config.label}
+                                    #{selectedOrder || 1} for {selectedEntry?.config.label || config.label}
                                   </div>
                                 )}
                                 {meal.description && (
@@ -827,15 +770,27 @@ const MealWizard = ({
                                   <p className="truncate text-[11px] font-black leading-none text-[#020617]">{meal.protein_g}g</p>
                                   <p className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">protein</p>
                                 </div>
-                                <span className={`ml-auto inline-flex h-8 items-center justify-center rounded-full px-3 text-[12px] font-black ${
-                                  isSelected ? "bg-emerald-500 text-white" : "bg-slate-950 text-white"
-                                }`}>
-                                  {isSelected ? "Selected" : "Add"}
-                                </span>
+                                {isSelected ? (
+                                  <button
+                                    type="button"
+                                    aria-label={`Remove ${selectedEntry?.config.label || config.label}`}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleRemoveMeal(selectedEntry?.type || currentMealType);
+                                    }}
+                                    className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full bg-rose-50 text-rose-500 ring-1 ring-rose-100 transition active:scale-95"
+                                  >
+                                    <Trash2 className="h-4 w-4" strokeWidth={2.3} />
+                                  </button>
+                                ) : (
+                                  <span className="ml-auto inline-flex h-8 items-center justify-center rounded-full bg-slate-950 px-3 text-[12px] font-black text-white">
+                                    Add
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
-                        </motion.button>
+                        </motion.div>
                       );
                     })}
                   </div>

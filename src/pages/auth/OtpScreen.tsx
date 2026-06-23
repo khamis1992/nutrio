@@ -48,7 +48,7 @@ export const OtpScreen = ({
 
   return (
     <div
-      className="fixed inset-0 flex flex-col bg-white"
+      className="fixed inset-0 flex flex-col bg-[#F6F8FB] text-[#020617]"
       style={{ maxWidth: 430, margin: "0 auto" }}
     >
       <div className="flex-1 px-6 pt-6 pb-4">
@@ -56,16 +56,16 @@ export const OtpScreen = ({
         <button
           type="button"
           onClick={onBack}
-          className="mb-6 flex items-center justify-center hover:opacity-70 transition-opacity"
+          className="mb-6 flex h-10 w-10 items-center justify-center rounded-full border border-[#E5EAF1] bg-white transition-opacity hover:opacity-70"
         >
-          <ArrowLeft className="w-6 h-6 text-slate-600" />
+          <ArrowLeft className="h-5 w-5 text-[#020617]" />
         </button>
 
         {/* Title */}
-        <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight mb-2">
+        <h1 className="mb-2 text-[26px] font-extrabold leading-tight text-[#020617]">
           {t("enter_otp_code")}
         </h1>
-        <p className="text-sm text-gray-400 leading-relaxed mb-10">
+        <p className="mb-10 text-sm font-semibold leading-relaxed text-[#64748B]">
           {t("otp_sent_desc")}
         </p>
 
@@ -97,8 +97,8 @@ export const OtpScreen = ({
                 ref={(el) => {
                   if (isActive && el) el.focus();
                 }}
-                className="w-[72px] h-[72px] rounded-2xl bg-gray-100 text-center text-[28px] font-bold text-[#1a1a1a] border-2 transition-all focus:outline-none"
-                style={{ borderColor: isActive ? "hsl(var(--primary))" : "transparent" }}
+                className="h-[72px] w-[72px] rounded-2xl border-2 bg-white text-center text-[28px] font-bold text-[#020617] transition-all focus:outline-none"
+                style={{ borderColor: isActive ? "#020617" : "#E5EAF1" }}
                 aria-label={`${t("otp_digit")} ${i + 1}`}
               />
             );
@@ -113,16 +113,16 @@ export const OtpScreen = ({
         {/* Countdown + resend */}
         <div className="text-center mb-8">
           {otpCountdown > 0 ? (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm font-semibold text-[#64748B]">
               {t("resend_code_in")}{" "}
-              <span className="font-semibold text-primary">{otpCountdown}</span>
+              <span className="font-semibold text-[#020617]">{otpCountdown}</span>
               {" "}{t("seconds")}
             </p>
           ) : (
             <button
               type="button"
               onClick={onResend}
-              className="text-sm font-semibold text-primary"
+              className="text-sm font-semibold text-[#020617]"
             >
               {t("resend_code")}
             </button>
@@ -131,7 +131,7 @@ export const OtpScreen = ({
             <button
               type="button"
               disabled
-              className="block mx-auto mt-1 text-sm text-gray-300 cursor-not-allowed"
+              className="mx-auto mt-1 block cursor-not-allowed text-sm text-[#94A3B8]"
             >
               {t("resend_code")}
             </button>
@@ -140,7 +140,7 @@ export const OtpScreen = ({
       </div>
 
       {/* Custom numeric keypad */}
-      <div className="bg-gray-50 border-t border-gray-100">
+      <div className="border-t border-[#E5EAF1] bg-white">
         {KEYPAD_ROWS.map((row, ri) => (
           <div key={ri} className="flex">
             {row.map((key) => (
@@ -148,14 +148,14 @@ export const OtpScreen = ({
                 key={key}
                 type="button"
                 onClick={() => onOtpKey(key)}
-                className="flex-1 flex items-center justify-center transition-colors active:bg-gray-200"
-                style={{ height: 72, fontSize: key === "back" ? 14 : 26, fontWeight: 500, color: "#1a1a1a" }}
+                className="flex-1 flex items-center justify-center transition-colors active:bg-[#F6F8FB]"
+                style={{ height: 72, fontSize: key === "back" ? 14 : 26, fontWeight: 500, color: "#020617" }}
                 aria-label={key === "back" ? t("backspace") : key === "*" ? t("asterisk") : `${t("number")} ${key}`}
               >
                 {key === "back" ? (
                   <svg width="24" height="18" viewBox="0 0 24 18" fill="none" role="img" aria-label={t("backspace")}>
-                    <path d="M9 1L1 9L9 17M1 9H23" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M23 1H10L2 9L10 17H23V1Z" fill="#1a1a1a" fillOpacity="0.08" />
+                    <path d="M9 1L1 9L9 17M1 9H23" stroke="#020617" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M23 1H10L2 9L10 17H23V1Z" fill="#020617" fillOpacity="0.08" />
                   </svg>
                 ) : key === "*" ? (
                   <span style={{ fontSize: 32 }}>*</span>
@@ -173,7 +173,7 @@ export const OtpScreen = ({
             type="button"
             variant="gradient"
             size="xl"
-            className="w-full rounded-2xl font-bold"
+            className="w-full rounded-2xl bg-[#020617] font-bold text-white shadow-none hover:bg-[#111827]"
             disabled={otpLoading || filledCount < 4}
             onClick={onVerify}
           >

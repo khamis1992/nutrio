@@ -170,5 +170,5 @@ export function useMealRecommendations() {
     return generateAllRecommendations(candidates, orders, healthGoals, todayLogs);
   }, [candidates, orders, healthGoals, todayLogs]);
 
-  return { recommendations, loading, refresh: fetchData };
+  return { recommendations, candidates, loading, refresh: fetchData };
 }

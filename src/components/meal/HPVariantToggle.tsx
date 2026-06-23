@@ -1,49 +1,60 @@
 import { motion } from "framer-motion";
-import { useLanguage } from "@/contexts/LanguageContext";
+
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { formatCurrency } from "@/lib/currency";
 
 interface HPVariantToggleProps {
   enabled: boolean;
   onChange: (enabled: boolean) => void;
-  baseProtein: number;
-  basePrice: number | null;
+  proteinIncrease: number;
+  caloriesIncrease: number;
+  priceAdjustment: number;
 }
 
-export function HPVariantToggle({ enabled, onChange, baseProtein, basePrice }: HPVariantToggleProps) {
+export function HPVariantToggle({
+  enabled,
+  onChange,
+  proteinIncrease,
+  caloriesIncrease,
+  priceAdjustment,
+}: HPVariantToggleProps) {
   const { t } = useLanguage();
-  const extraProtein = Math.round(baseProtein * 0.5);
-  const extraPrice = 15; // QAR
 
   return (
-    <div className="flex items-center justify-between px-3.5 py-3 rounded-xl border-2 border-border/50 bg-card transition-all">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 text-xs px-2 py-0.5 font-bold">
-            HP
-          </Badge>
-          <div>
-            <p className="text-sm font-semibold">{t("customization_high_protein")}</p>
-            <p className="text-[10px] text-muted-foreground">
-              +{extraProtein}g {t("protein", "protein")} · +{formatCurrency(extraPrice)}
-            </p>
-          </div>
+    <button
+      type="button"
+      onClick={() => onChange(!enabled)}
+      aria-pressed={enabled}
+      className={`flex w-full items-center justify-between rounded-[22px] border-2 px-3.5 py-3 text-left transition-all ${
+        enabled
+          ? "border-[#020617] bg-[#020617] text-white shadow-[0_10px_24px_rgba(2,6,23,0.18)]"
+          : "border-slate-200 bg-white text-slate-950 shadow-[0_8px_18px_rgba(15,23,42,0.04)]"
+      }`}
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <Badge className={`shrink-0 border-0 px-2 py-0.5 text-xs font-black ${enabled ? "bg-white text-[#020617]" : "bg-[#020617] text-white"}`}>
+          HP
+        </Badge>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black">{t("customization_high_protein")}</p>
+          <p className={`truncate text-[10px] font-bold ${enabled ? "text-white/65" : "text-slate-400"}`}>
+            +{proteinIncrease}g {t("protein", "protein")} · +{caloriesIncrease} kcal · +{formatCurrency(priceAdjustment)}
+          </p>
         </div>
       </div>
 
-      {/* Toggle switch */}
-      <button
-        onClick={() => onChange(!enabled)}
-        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
-          enabled ? "bg-primary" : "bg-muted"
+      <span
+        className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${
+          enabled ? "bg-white/20 ring-1 ring-white/20" : "bg-slate-100"
         }`}
       >
-        <motion.div
-          animate={{ x: enabled ? 20 : 2 }}
+        <motion.span
+          animate={{ x: enabled ? 25 : 3 }}
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm"
+          className={`absolute top-1 h-6 w-6 rounded-full shadow-sm ${enabled ? "bg-white" : "bg-slate-300"}`}
         />
-      </button>
-    </div>
+      </span>
+    </button>
   );
 }
