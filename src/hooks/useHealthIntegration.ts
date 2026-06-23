@@ -60,9 +60,9 @@ export function useHealthIntegration() {
   // Check platform on mount
   useEffect(() => {
     if (isNative) {
-      if (isIOS()) {
+      if (isIOS) {
         setPlatform("ios");
-      } else if (isAndroid()) {
+      } else if (isAndroid) {
         setPlatform("android");
       }
     } else {

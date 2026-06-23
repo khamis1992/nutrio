@@ -16,6 +16,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { BarcodeScanner, type ScannedProduct } from "./BarcodeScanner";
 import { trackEvent, AnalyticsEvents } from "@/lib/analytics";
 import { getQatarNow } from "@/lib/dateUtils";
+import { useHealthIntegration } from "@/hooks/useHealthIntegration";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface FoodItem {
@@ -130,6 +131,7 @@ interface LogMealDialogProps {
 // ─── Component ───────────────────────────────────────────────────────────────
 export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogMealDialogProps) {
   const { t } = useLanguage();
+  const { writeMealToHealth, platform: healthPlatform } = useHealthIntegration();
 
   const [tab, setTab] = useState<Tab>("Recent");
   const [searchQuery, setSearchQuery] = useState("");
@@ -433,6 +435,23 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         });
       } catch (counterError) {
         console.warn("Failed to increment meals logged:", counterError);
+      }
+
+      // Write nutrition data to Apple Health / Google Fit if connected
+      if (healthPlatform !== "web") {
+        try {
+          await writeMealToHealth({
+            name: name || `Meal (${calories} cal)`,
+            calories,
+            protein,
+            carbs,
+            fat,
+            timestamp: new Date(),
+          });
+        } catch (healthErr) {
+          // Non-critical: silently fail if health write is unavailable
+          console.warn("Failed to write meal to Health app:", healthErr);
+        }
       }
     }
   };
