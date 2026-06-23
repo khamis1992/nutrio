@@ -69,6 +69,30 @@ export const customerRoutes = (
         </ProtectedRoute>
       }
     />
+    <Route
+      path="/dashboard/nutrition"
+      element={
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/dashboard/activity"
+      element={
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/dashboard/progress"
+      element={
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      }
+    />
     <Route path="/meals" element={<ProtectedRoute><Meals /></ProtectedRoute>} />
     <Route path="/restaurant/:id" element={<ProtectedRoute><RestaurantDetail /></ProtectedRoute>} />
     <Route path="/meals/:id" element={<ProtectedRoute><MealDetail /></ProtectedRoute>} />

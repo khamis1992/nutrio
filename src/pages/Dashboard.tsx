@@ -1,7 +1,7 @@
 import { getNavArrows } from "@/lib/rtl";
 import { forwardRef, useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -344,6 +344,7 @@ const DASHBOARD_COLORS = {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const prefersReducedMotion = useReducedMotion();
   const { user } = useAuth();
   const { profile, loading: profileLoading, error: profileError } = useProfile();
@@ -371,7 +372,13 @@ const Dashboard = () => {
   const { summary: weeklySummary, loading: weeklyLoading } = useWeeklySummary(user?.id);
   const { recommendations: smartRecommendations, loading: smartRecommendationsLoading } = useSmartRecommendations(user?.id);
   const { candidates: mealRecommendationCandidates } = useMealRecommendations();
-  const [activeTab, setActiveTab] = useState<TabKey>("today");
+  const activeTab: TabKey = location.pathname.endsWith("/nutrition")
+    ? "nutrition"
+    : location.pathname.endsWith("/activity")
+      ? "activity"
+      : location.pathname.endsWith("/progress")
+        ? "progress"
+        : "today";
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [progressKey, setProgressKey] = useState(0);
@@ -883,14 +890,16 @@ const Dashboard = () => {
   const hydrationPct = Math.min(100, Math.round(waterPct));
   const weeklyLoggedDays = weeklySummary?.consistency?.daysLogged ?? 0;
   const weeklyConsistencyPct = weeklySummary?.consistency?.percentage ?? Math.round((weeklyLoggedDays / 7) * 100);
+  const hasFoodLogged = calConsumed > 0 || todayProgress.protein > 0 || todayProgress.carbs > 0 || todayProgress.fat > 0;
+  const hasGoalAlignmentData = hasFoodLogged || weeklyLoggedDays >= 3;
   const goalAlignmentScore = calculateGoalAlignmentScore({
     caloriePct: dailyPct,
     proteinPct: proteinTarget > 0 ? Math.round((todayProgress.protein / proteinTarget) * 100) : 0,
     consistencyPct: weeklyConsistencyPct,
   });
-  const goalAlignmentLabel = t(getGoalAlignmentLabelKey(goalAlignmentScore));
+  const goalAlignmentLabel = hasGoalAlignmentData ? t(getGoalAlignmentLabelKey(goalAlignmentScore)) : t("goal_alignment_needs_tracking");
+  const goalAlignmentDescription = hasGoalAlignmentData ? t("goal_alignment_desc") : t("goal_alignment_tracking_desc");
   const nutritionScore = Math.round((dailyPct * 0.38) + (proteinPct * 0.32) + (hydrationPct * 0.2) + (weeklyConsistencyPct * 0.1));
-  const hasFoodLogged = calConsumed > 0 || todayProgress.protein > 0 || todayProgress.carbs > 0 || todayProgress.fat > 0;
   const hasHydrationLogged = waterToday > 0 || hydrationPct > 0;
   const hasWeeklyContext = Boolean(weeklySummary) || weeklyLoggedDays > 0;
   const aiConfidence = hasFoodLogged && activeGoal
@@ -1004,6 +1013,21 @@ const Dashboard = () => {
           synced_at: new Date().toISOString(),
         }
       : null;
+  const hasMetricSignal = (metrics: HealthDailyMetrics | null | undefined) => Boolean(metrics && [
+    metrics.steps,
+    metrics.workouts_count,
+    metrics.active_calories,
+    metrics.resting_heart_rate,
+    metrics.average_heart_rate,
+    metrics.hrv,
+    metrics.sleep_minutes,
+    metrics.deep_sleep_minutes,
+    metrics.rem_sleep_minutes,
+    metrics.respiratory_rate,
+    metrics.spo2,
+    metrics.skin_temperature,
+  ].some((value) => typeof value === "number" && value > 0));
+  const hasReadinessData = hasMetricSignal(activityHealthMetrics) || healthRangeMetrics.some((metrics) => hasMetricSignal(metrics));
   const recoveryReadiness = calculateRecoveryReadiness(activityHealthMetrics);
   const bodyLoad = calculateBodyLoad(activityHealthMetrics);
   const nutritionPerformance = calculateNutritionPerformance({
@@ -1051,7 +1075,7 @@ const Dashboard = () => {
       : { label: t("movement"), title: workoutCount > 0 ? t("sessions_logged_count", { count: workoutCount }) : t("log_workout"),
           detail: workoutCount > 0 ? t("cal_burned", { amount: totalBurned }) : t("keep_activity_streak"),
           Icon: Activity, tone: "bg-[#EFFFFA] text-[#22C7A1] ring-[#22C7A1]/20",
-          action: () => setActiveTab("activity") },
+          action: () => navigate("/dashboard/activity") },
   ];
 
   const coachInsights = [
@@ -1075,11 +1099,11 @@ const Dashboard = () => {
   const showLegacyNutritionTab = false;
   const showLegacyProgressTab = false;
 
-  const tabs: { key: TabKey; label: string; icon: LucideIcon }[] = [
-    { key: "today", label: t("today"), icon: ConciergeBell },
-    { key: "nutrition", label: t("nutrition"), icon: Apple },
-    { key: "activity", label: t("activity"), icon: Activity },
-    { key: "progress", label: t("progress"), icon: TrendingUp },
+  const tabs: { key: TabKey; label: string; icon: LucideIcon; path: string }[] = [
+    { key: "today", label: t("today"), icon: ConciergeBell, path: "/dashboard" },
+    { key: "nutrition", label: t("nutrition"), icon: Apple, path: "/dashboard/nutrition" },
+    { key: "activity", label: t("activity"), icon: Activity, path: "/dashboard/activity" },
+    { key: "progress", label: t("progress"), icon: TrendingUp, path: "/dashboard/progress" },
   ];
 
   // ════════════════════════════════════════════════════════════════════
@@ -1243,11 +1267,11 @@ const Dashboard = () => {
 
           {/* ── Tab Bar ────────────────────────────────────────────── */}
           <div className="flex gap-1 pb-2">
-            {tabs.map(({ key, label, icon: Icon }) => (
+            {tabs.map(({ key, label, icon: Icon, path }) => (
               <button
                 key={key}
                 type="button"
-                onClick={() => setActiveTab(key)}
+                onClick={() => navigate(path)}
                 className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold transition-all ${
                   activeTab === key
                     ? "bg-[#020617] text-white shadow-[0_4px_12px_rgba(2,6,23,0.18)]"
@@ -1359,13 +1383,15 @@ const Dashboard = () => {
                     <h2 className="mt-1 text-[17px] font-black leading-tight text-[#020617]">
                       {t(activeGoal.goal_type === "muscle_gain" ? "goal_muscle_gain" : activeGoal.goal_type === "maintenance" ? "goal_maintenance" : activeGoal.goal_type === "general_health" ? "goal_general_health" : "goal_weight_loss")}
                     </h2>
-                    <p className="mt-1 text-[11px] font-bold leading-relaxed text-[#64748B]">{t("goal_alignment_desc")}</p>
+                    <p className="mt-1 text-[11px] font-bold leading-relaxed text-[#64748B]">{goalAlignmentDescription}</p>
                   </div>
-                  <div className="h-[70px] w-[70px] shrink-0 rounded-full bg-[#F6F8FB] p-1.5 ring-1 ring-[#E5EAF1]">
-                    <div className="grid h-full w-full place-items-center rounded-full bg-white">
-                      <span className="text-[20px] font-black text-[#020617]">{goalAlignmentScore}</span>
-                      <span className="-mt-4 text-[9px] font-bold text-[#94A3B8]">/100</span>
-                    </div>
+                  <div className={cn(
+                    "shrink-0 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] ring-1",
+                    hasGoalAlignmentData
+                      ? "bg-[#EEF2FF] text-[#7C83F6] ring-[#7C83F6]/20"
+                      : "bg-[#F6F8FB] text-[#64748B] ring-[#E5EAF1]"
+                  )}>
+                    {goalAlignmentLabel}
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1378,8 +1404,8 @@ const Dashboard = () => {
                     <p className="text-sm font-black text-[#7C83F6]">{activeGoal.protein_target_g}g</p>
                   </div>
                   <div className="rounded-2xl bg-[#F6F8FB] px-2 py-2 ring-1 ring-[#E5EAF1]">
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-[#94A3B8]">{t("status")}</p>
-                    <p className="truncate text-sm font-black text-[#020617]">{goalAlignmentLabel}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-[#94A3B8]">{t("tracked")}</p>
+                    <p className="truncate text-sm font-black text-[#020617]">{weeklyLoggedDays}/7</p>
                   </div>
                 </div>
               </button>
@@ -1396,22 +1422,8 @@ const Dashboard = () => {
                   <h2 className="mt-1 text-[18px] font-black leading-tight text-[#020617]">{nutritionPerformance.label}</h2>
                   <p className="mt-1 text-[12px] font-bold leading-5 text-[#64748B]">{nutritionPerformance.summary}</p>
                 </div>
-                <div className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-[#F6F8FB] p-1.5 ring-1 ring-[#E5EAF1]">
-                  <svg className="absolute h-full w-full -rotate-90" viewBox="0 0 80 80" aria-hidden="true">
-                    <circle cx="40" cy="40" r="32" fill="none" stroke="#E5EAF1" strokeWidth="7" />
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r="32"
-                      fill="none"
-                      stroke="#22C7A1"
-                      strokeWidth="7"
-                      strokeLinecap="round"
-                      strokeDasharray={2 * Math.PI * 32}
-                      strokeDashoffset={(2 * Math.PI * 32) - (nutritionPerformance.score / 100) * (2 * Math.PI * 32)}
-                    />
-                  </svg>
-                  <span className="text-[20px] font-black text-[#020617]">{nutritionPerformance.score}</span>
+                <div className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[18px] bg-[#ECFEFF] text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
+                  <Drumstick className="h-5 w-5" strokeWidth={2.3} />
                 </div>
               </div>
               <div className="mt-3 rounded-[18px] bg-[#F6F8FB] px-3 py-2.5 ring-1 ring-[#E5EAF1]">
@@ -2377,6 +2389,7 @@ const Dashboard = () => {
               </div>
             </section>
 
+            {hasReadinessData && (
             <section className="rounded-[30px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -2452,7 +2465,9 @@ const Dashboard = () => {
                 {t("open_recovery_insights")}
               </button>
             </section>
+            )}
 
+            {!hasReadinessData ? (
             <section className="rounded-[30px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -2533,6 +2548,30 @@ const Dashboard = () => {
                 {t("last_synced")}: {lastSyncTimestamp ? formatLastSync() : t("never_synced")}
               </p>
             </section>
+            ) : (
+            <section className="rounded-[24px] bg-white p-3 shadow-[0_10px_24px_rgba(15,23,42,0.05)] ring-1 ring-[#E5EAF1]">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#7C83F6]/20">
+                    {healthPlatform === "apple_health" ? <Apple className="h-4.5 w-4.5" /> : <Smartphone className="h-4.5 w-4.5" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">{t("health_apps")}</p>
+                    <p className="truncate text-[13px] font-black text-[#020617]">
+                      {healthIsNativePlatform ? healthPlatformLabel : t("using_nutrio_activity_logs")}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/settings")}
+                  className="shrink-0 rounded-full bg-[#F6F8FB] px-3 py-2 text-[11px] font-black text-[#020617] ring-1 ring-[#E5EAF1] transition active:scale-[0.98]"
+                >
+                  {t("manage")}
+                </button>
+              </div>
+            </section>
+            )}
 
             <section className="rounded-[30px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
               <div className="flex items-center justify-between">

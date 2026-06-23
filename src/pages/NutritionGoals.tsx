@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Flame, Target, Utensils } from "lucide-react";
+import { ArrowLeft, ChevronRight, Flame, Target, TrendingUp, Utensils } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GoalsManagement } from "@/components/GoalsManagement";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -22,8 +22,8 @@ const NutritionGoals = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-extrabold text-[#020617]">{t("goals")}</h1>
-            <p className="truncate text-xs font-medium text-[#94A3B8]">{t("nutrition_goals_desc")}</p>
+            <h1 className="truncate text-base font-extrabold text-[#020617]">{t("nutrition_plan_title")}</h1>
+            <p className="truncate text-xs font-medium text-[#94A3B8]">{t("nutrition_plan_subtitle")}</p>
           </div>
         </div>
       </div>
@@ -34,11 +34,11 @@ const NutritionGoals = () => {
             <div className="min-w-0">
               <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#F3F4FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">
                 <Target className="h-3.5 w-3.5" />
-                {t("goals")}
+                {t("nutrition_plan_title")}
               </div>
-              <h2 className="text-[22px] font-black leading-tight tracking-[-0.04em] text-[#020617]">{t("goal_review_update")}</h2>
+              <h2 className="text-[22px] font-black leading-tight tracking-[-0.04em] text-[#020617]">{t("goal_setup_title")}</h2>
               <p className="mt-2 max-w-[17rem] text-[13px] font-semibold leading-5 text-[#64748B]">
-                {t("goal_system_role_desc")}
+                {t("nutrition_plan_subtitle")}
               </p>
             </div>
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
@@ -62,6 +62,16 @@ const NutritionGoals = () => {
               <p className="mt-1 text-[12px] font-black leading-4 text-[#020617]">{t("goal_impact_meals")}</p>
             </div>
           </div>
+
+          <Button
+            type="button"
+            onClick={() => navigate("/progress?tab=goals")}
+            className="mt-4 h-12 w-full rounded-2xl bg-[#020617] text-[13px] font-black text-white shadow-none active:scale-[0.98]"
+          >
+            <TrendingUp className="mr-2 h-4 w-4 rtl:ml-2 rtl:mr-0" />
+            {t("view_goal_progress")}
+            <ChevronRight className="ml-2 h-4 w-4 rtl:ml-0 rtl:mr-2 rtl:rotate-180" />
+          </Button>
         </section>
 
         <GoalsManagement />

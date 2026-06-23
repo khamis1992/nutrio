@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
@@ -15,53 +15,45 @@ interface DailyWaterSummary {
   logs: WaterIntake[];
 }
 
+async function fetchWaterIntake(userId: string): Promise<DailyWaterSummary> {
+  const today = format(new Date(), "yyyy-MM-dd");
+
+  const { data: logs, error } = await supabase
+    .from("water_intake")
+    .select("id, log_date, glasses")
+    .eq("user_id", userId)
+    .eq("log_date", today);
+
+  if (error) throw error;
+
+  const total = (logs || []).reduce((sum, log) => sum + (log.glasses || 0), 0);
+  const target = 8;
+
+  return {
+    total,
+    target,
+    percentage: Math.min(100, Math.round((total / target) * 100)),
+    logs: logs || [],
+  };
+}
+
 export function useWaterIntake(userId: string | undefined) {
-  const [dailySummary, setDailySummary] = useState<DailyWaterSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const queryKey = ["waterIntake", userId];
 
-  const fetchTodayIntake = useCallback(async () => {
-    if (!userId) return;
+  const { data: dailySummary = null, isLoading: loading, refetch } = useQuery({
+    queryKey,
+    queryFn: () => fetchWaterIntake(userId!),
+    enabled: !!userId,
+    staleTime: 60 * 1000,
+  });
 
-    try {
-      setLoading(true);
-      const today = format(new Date(), "yyyy-MM-dd");
-
-      // Fetch today's water intake logs
-      const { data: logs, error } = await supabase
-        .from("water_intake")
-        .select("id, log_date, glasses")
-        .eq("user_id", userId)
-        .eq("log_date", today);
-
-      if (error) throw error;
-
-      // Calculate total glasses
-      const total = (logs || []).reduce((sum: number, log: WaterIntake) => sum + (log.glasses || 0), 0);
-
-      // Default target: 8 glasses per day
-      const target = 8;
-      const percentage = Math.min(100, Math.round((total / target) * 100));
-
-      setDailySummary({
-        total,
-        target,
-        percentage,
-        logs: logs || [],
-      });
-    } catch (error) {
-      console.error("Error fetching water intake:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  const addWater = useCallback(async (glasses: number) => {
+  const addWater = async (glasses: number) => {
     if (!userId) return;
 
     try {
       const today = format(new Date(), "yyyy-MM-dd");
-      
-      // Check if entry exists for today
+
       const { data: existing } = await supabase
         .from("water_intake")
         .select("id, glasses")
@@ -70,29 +62,23 @@ export function useWaterIntake(userId: string | undefined) {
         .maybeSingle();
 
       if (existing) {
-        // Update existing
         await supabase
           .from("water_intake")
           .update({ glasses: existing.glasses + glasses })
           .eq("id", existing.id);
       } else {
-        // Insert new
         await supabase
           .from("water_intake")
-          .insert({
-            user_id: userId,
-            log_date: today,
-            glasses: glasses,
-          });
+          .insert({ user_id: userId, log_date: today, glasses });
       }
 
-      await fetchTodayIntake();
+      await queryClient.invalidateQueries({ queryKey });
     } catch (error) {
       console.error("Error adding water intake:", error);
     }
-  }, [userId, fetchTodayIntake]);
+  };
 
-  const removeWater = useCallback(async (id: string) => {
+  const removeWater = async (id: string) => {
     if (!userId) return;
 
     try {
@@ -102,13 +88,13 @@ export function useWaterIntake(userId: string | undefined) {
         .eq("id", id)
         .eq("user_id", userId);
 
-      await fetchTodayIntake();
+      await queryClient.invalidateQueries({ queryKey });
     } catch (error) {
       console.error("Error removing water intake:", error);
     }
-  }, [userId, fetchTodayIntake]);
+  };
 
-  const decrementWater = useCallback(async () => {
+  const decrementWater = async () => {
     if (!userId) return;
 
     try {
@@ -125,16 +111,13 @@ export function useWaterIntake(userId: string | undefined) {
           .from("water_intake")
           .update({ glasses: Math.max(0, existing.glasses - 1) })
           .eq("id", existing.id);
-        await fetchTodayIntake();
+
+        await queryClient.invalidateQueries({ queryKey });
       }
     } catch (error) {
       console.error("Error decrementing water intake:", error);
     }
-  }, [userId, fetchTodayIntake]);
-
-  useEffect(() => {
-    fetchTodayIntake();
-  }, [fetchTodayIntake]);
+  };
 
   return {
     dailySummary,
@@ -142,6 +125,6 @@ export function useWaterIntake(userId: string | undefined) {
     addWater,
     removeWater,
     decrementWater,
-    refresh: fetchTodayIntake,
+    refresh: refetch,
   };
 }

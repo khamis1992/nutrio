@@ -124,7 +124,7 @@ export function disconnectAll(): void {
 
 export const PLATFORM_LABELS: Record<HealthPlatform, string> = {
   apple_health: "Apple Health",
-  google_fit: "Google Fit",
+  google_fit: "Google Fit / Health Connect",
   none: "None",
 };
 

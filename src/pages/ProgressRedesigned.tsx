@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Activity,
   Apple,
@@ -32,7 +32,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { formatLocaleDate } from "@/lib/dateUtils";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useNutritionGoals } from "@/hooks/useNutritionGoals";
@@ -190,9 +189,10 @@ interface ProgressRedesignedProps {
 
 export default function ProgressRedesigned({ embedded = false }: ProgressRedesignedProps) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
-  const { activeGoal, setGoal, updateGoalTargets, goals, loading: goalsLoading } = useNutritionGoals(user?.id);
+  const { activeGoal, goals, loading: goalsLoading } = useNutritionGoals(user?.id);
   const { summary: weeklySummary, loading: summaryLoading } = useWeeklySummary(user?.id);
   const { streaks, loading: streaksLoading } = useStreak(user?.id);
   const { todayProgress } = useTodayProgress(user?.id, new Date(), 0);
@@ -202,10 +202,11 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
   const { toast } = useToast();
   const { t, isRTL, language } = useLanguage();
   useEffect(() => { document.title = `${t("progress_title")} — Nutrio`; }, [t]);
-  const [activeTab, setActiveTab] = useState<"today" | "week" | "goals">("today");
-  const [showGoalPicker, setShowGoalPicker] = useState(false);
-  const [showWeightInput, setShowWeightInput] = useState(false);
-  const [newWeight, setNewWeight] = useState("");
+  const queryTab = searchParams.get("tab");
+  const activeQueryTab: "today" | "week" | "goals" =
+    queryTab === "week" || queryTab === "goals" ? queryTab : "today";
+  const [embeddedActiveTab, setEmbeddedActiveTab] = useState<"today" | "week" | "goals">("today");
+  const activeTab = embedded ? embeddedActiveTab : activeQueryTab;
   const [showWeekDetails, setShowWeekDetails] = useState(false);
   const {
     proposals: coachProposals,
@@ -216,10 +217,25 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
   } = useClientGoalProposals(user?.id);
   const { recommendations: smartRecs, loading: smartRecsLoading, refresh: refreshRecs } = useSmartRecommendations(user?.id);
   const { weightChartData: weightHistory } = useWeightChartData(user?.id);
-  const [isApplyingSuggestion, setIsApplyingSuggestion] = useState(false);
-  const [isLoggingWeight, setIsLoggingWeight] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(format(new Date(), "yyyy-MM-dd"));
+
+  const handleTabChange = (tabKey: "today" | "week" | "goals") => {
+    if (embedded) {
+      setEmbeddedActiveTab(tabKey);
+      return;
+    }
+
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (tabKey === "today") {
+        next.delete("tab");
+      } else {
+        next.set("tab", tabKey);
+      }
+      return next;
+    }, { replace: true });
+  };
 
   const currentWeight = profile?.current_weight_kg ?? 75;
   const goalWeight = activeGoal?.target_weight_kg ?? currentWeight;
@@ -247,15 +263,6 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
       default: return Math.round((progressPct + proteinPct + consistencyPct) / 3);
     }
   }, [goalType, progressPct, weeklySummary]);
-
-  const goalRingLabel = useMemo(() => {
-    switch (goalType) {
-      case "weight_loss": return t("progress_to_target");
-      case "muscle_gain": return t("progress_protein_goal");
-      case "maintenance": return t("progress_on_track");
-      default: return t("progress_wellness");
-    }
-  }, [goalType, t]);
 
   const goalRightMetric = useMemo(() => {
     switch (goalType) {
@@ -347,79 +354,11 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
     return t("progress_coach_balanced", { protein, carbs: activeGoal?.carbs_target_g ?? 200, fat: activeGoal?.fat_target_g ?? 65 });
   }, [goalType, activeGoal, weeklySummary, t]);
 
-  const handleGoalChange = async (newGoalType: string) => {
-    if (newGoalType === goalType) {
-      setShowGoalPicker(false);
-      return;
-    }
-    try {
-      await setGoal({
-        goal_type: newGoalType as "weight_loss" | "muscle_gain" | "general_health" | "maintenance",
-        target_weight_kg: activeGoal?.target_weight_kg ?? null,
-        target_date: activeGoal?.target_date ?? null,
-        daily_calorie_target: activeGoal?.daily_calorie_target ?? 2000,
-        protein_target_g: activeGoal?.protein_target_g ?? 120,
-        carbs_target_g: activeGoal?.carbs_target_g ?? 200,
-        fat_target_g: activeGoal?.fat_target_g ?? 65,
-        fiber_target_g: activeGoal?.fiber_target_g ?? 25,
-        is_active: true,
-      });
-      toast({ description: `${t("goal_updated")}: ${t(goalTypeLabelKey[newGoalType] ?? "goal_weight_loss")}` });
-      setShowGoalPicker(false);
-    } catch {
-      toast({ description: "Failed to change goal. Try again.", variant: "destructive" });
-    }
-  };
-
-  const isGoalLoss = goalType === "weight_loss";
-  const targetLabel = isGoalLoss ? `−${weightDiff.toFixed(0)} kg target` : `+${weightDiff.toFixed(0)} kg target`;
 
   const waterGlasses = waterSummary?.total ?? 0;
   const waterTarget = 8;
   const showWeightForecastCard = false;
   const showBodyMetricsCard = false;
-
-  const handleLogWeight = async () => {
-    const w = parseFloat(newWeight);
-    if (!w || w <= 0 || !user?.id) return;
-    setIsLoggingWeight(true);
-    try {
-      await supabase.from("progress_logs").upsert({
-        user_id: user.id,
-        log_date: format(new Date(), "yyyy-MM-dd"),
-        weight_kg: w,
-      }, { onConflict: "user_id,log_date" });
-      await supabase.from("profiles").update({ current_weight_kg: w }).eq("user_id", user.id);
-      await supabase.from("weight_entries").insert({
-        user_id: user.id,
-        weight_kg: w,
-        log_date: format(new Date(), "yyyy-MM-dd"),
-      });
-      toast({ description: `Weight logged: ${w} kg` });
-      setNewWeight("");
-      setShowWeightInput(false);
-      window.location.reload();
-    } catch {
-      toast({ description: "Failed to log weight", variant: "destructive" });
-    } finally {
-      setIsLoggingWeight(false);
-    }
-  };
-
-  const handleApplySuggestion = async () => {
-    if (!activeGoal || !updateGoalTargets) return;
-    setIsApplyingSuggestion(true);
-    try {
-      const currentProtein = activeGoal.protein_target_g;
-      const newProtein = goalType === "muscle_gain" ? currentProtein + 10 : currentProtein;
-      await updateGoalTargets({ protein_target_g: newProtein });
-      toast({ description: `Protein target updated to ${newProtein}g` });
-    } catch {
-      toast({ description: "Failed to update targets", variant: "destructive" });
-    } finally {
-      setIsApplyingSuggestion(false);
-    }
-  };
 
   const handleWaterAdd = async () => {
     if (!user?.id) return;
@@ -516,7 +455,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
             return (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tabKey)}
+                onClick={() => handleTabChange(tabKey)}
                 className={`rounded-full text-[14px] font-extrabold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${activeTab === tabKey ? 'bg-[#020617] text-white shadow-[0_10px_22px_rgba(2,6,23,0.16)]' : 'text-slate-500'}`}
                 type="button"
               >
@@ -728,7 +667,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
 
                         <button
                           type="button"
-                          onClick={() => setActiveTab("goals")}
+                          onClick={() => handleTabChange("goals")}
                           className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3 text-[14px] font-black text-[#020617] shadow-[0_8px_20px_rgba(0,0,0,0.12)] active:scale-[0.98] transition-transform"
                         >
                           <Target className="h-4 w-4" />
@@ -1533,32 +1472,16 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
 
         {activeTab === "goals" && (
           <>
+            <section className="mb-4 rounded-[26px] border border-slate-100 bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.055)]">
+              <div className="min-w-0">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">{t("goal_progress_title")}</p>
+                  <h2 className="mt-1 text-[22px] font-black leading-tight tracking-[-0.04em] text-[#020617]">{t("goal_progress_heading")}</h2>
+                  <p className="mt-1.5 text-[13px] font-semibold leading-5 text-slate-500">{t("goal_progress_subtitle")}</p>
+              </div>
+            </section>
+
             {/* Goals Hero Card - same spirit as Today card */}
             <section className="mb-5">
-              {/* Goal type selector pills */}
-              <div className="mb-3 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-                {Object.entries(goalTypeLabelKey).map(([key, labelKey]) => {
-                  const Icon = goalTypeIcon[key] ?? Leaf;
-                  const isActive = goalType === key;
-                  const goalColors: Record<string, string> = { weight_loss: PROGRESS_COLORS.carbs, muscle_gain: PROGRESS_COLORS.protein, maintenance: PROGRESS_COLORS.calories, general: PROGRESS_COLORS.fat };
-                  const activeColor = goalColors[key] ?? PROGRESS_COLORS.calories;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => handleGoalChange(key)}
-                      className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-extrabold transition-all active:scale-95 ${
-                        isActive ? 'text-white shadow-md' : 'bg-slate-100 text-slate-500'
-                      }`}
-                      style={isActive ? { backgroundColor: activeColor } : {}}
-                    >
-                      <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
-                      {t(labelKey)}
-                    </button>
-                  );
-                })}
-              </div>
-
               {/* Main goal card - white card */}
               {(() => {
                 const goalColors2: Record<string, string> = { weight_loss: PROGRESS_COLORS.carbs, muscle_gain: PROGRESS_COLORS.protein, maintenance: PROGRESS_COLORS.calories, general: PROGRESS_COLORS.fat };
@@ -1684,32 +1607,24 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 </div>
 
                 {/* ── Weight input strip ── */}
-                {(goalType === 'weight_loss' || goalType === 'muscle_gain') && (
-                  <div className="flex items-center gap-2 px-5 py-3">
-                    <Scale className="h-4 w-4 shrink-0 text-slate-400" />
-                    <input
-                      type="number"
-                      value={showWeightInput ? newWeight : currentWeight.toFixed(1)}
-                      onFocus={() => { setShowWeightInput(true); setNewWeight(String(currentWeight)); }}
-                      onChange={(e) => setNewWeight(e.target.value)}
-                      placeholder={`${currentWeight}`}
-                      step="0.1"
-                      className="flex-1 min-w-0 rounded-[10px] border border-slate-200 bg-slate-50 px-3 py-2 text-[15px] font-black text-slate-900 outline-none focus:border-slate-300"
-                    />
-                    <span className="text-[12px] font-bold text-slate-500">{t("progress_kg_unit")}</span>
-                    {showWeightInput && (
-                      <button
-                        type="button"
-                        onClick={handleLogWeight}
-                        disabled={isLoggingWeight}
-                        className="shrink-0 rounded-[10px] px-4 py-2 text-[12px] font-black text-white active:scale-95 disabled:opacity-60"
-                        style={{ backgroundColor: goalColor }}
-                      >
-                        {isLoggingWeight ? '...' : t("progress_save")}
-                      </button>
-                    )}
-                  </div>
-                )}
+                <div className="grid grid-cols-2 gap-2 px-5 py-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/body-metrics")}
+                    className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-slate-50 text-[12px] font-black text-slate-800 ring-1 ring-slate-200 active:scale-95"
+                  >
+                    <Scale className="h-4 w-4 text-slate-500" strokeWidth={2.4} />
+                    {t("update_weight")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/nutrition-goals")}
+                    className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#020617] text-[12px] font-black text-white active:scale-95"
+                  >
+                    <Target className="h-4 w-4" strokeWidth={2.4} />
+                    {t("edit_goal")}
+                  </button>
+                </div>
 
               </article>
                 );

@@ -347,17 +347,6 @@ export function useClientGoalProposals(clientId: string | undefined) {
     fetchProposals();
   }, [fetchProposals]);
 
-  // Refresh progress every 60 seconds for accepted goals
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const accepted = proposals.filter((p) => p.status === "accepted");
-      if (accepted.length > 0) {
-        computeProgress(accepted);
-      }
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [proposals, computeProgress]);
-
   return {
     proposals,
     progress,

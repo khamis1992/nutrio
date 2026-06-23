@@ -1,14 +1,18 @@
 /**
- * Google Fit Integration Service
- * Fetches workout data from Google Fit API
+ * Android health integration service.
+ *
+ * Google Fit APIs are deprecated for new development, so native Android reads
+ * use Health Connect through @capgo/capacitor-health. The older Google Fit
+ * REST/OAuth helpers remain as a web/legacy fallback.
  * 
  * Supports:
- * - Native Android (via @capacitor/google-fit plugin)
- * - Web (via Google Fit REST API)
+ * - Native Android via Health Connect
+ * - Legacy web OAuth via Google Fit REST API
  */
 
 import { isNative, isAndroid, isWeb } from "@/lib/capacitor";
 import { WorkoutData } from "@/hooks/useHealthIntegration";
+import type { HealthDataType, HealthPlugin } from "@capgo/capacitor-health";
 
 export interface GoogleFitAuth {
   accessToken: string;
@@ -22,6 +26,84 @@ const GOOGLE_FIT_SCOPES = [
   "https://www.googleapis.com/auth/fitness.sleep.read",
   "https://www.googleapis.com/auth/fitness.location.read",
 ];
+
+async function getHealthConnectPlugin(): Promise<HealthPlugin | null> {
+  if (!isNative || !isAndroid) return null;
+  try {
+    const { Health } = await import("@capgo/capacitor-health");
+    return Health;
+  } catch {
+    return null;
+  }
+}
+
+const HEALTH_CONNECT_TYPES = {
+  steps: "steps",
+  calories: "calories",
+  heartRate: "heartRate",
+  restingHeartRate: "restingHeartRate",
+  hrv: "heartRateVariability",
+  sleep: "sleep",
+  respiratoryRate: "respiratoryRate",
+  spo2: "oxygenSaturation",
+  workouts: "workouts",
+} as const satisfies Record<string, HealthDataType>;
+
+function average(values: number[]): number | undefined {
+  if (!values.length) return undefined;
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+async function readAverage(plugin: HealthPlugin, dataType: HealthDataType, start: Date, end: Date) {
+  try {
+    const { samples } = await plugin.readSamples({
+      dataType,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      limit: 500,
+      ascending: true,
+    });
+    return average(samples.map((sample) => sample.value).filter((value) => Number.isFinite(value)));
+  } catch {
+    return undefined;
+  }
+}
+
+async function readSum(plugin: HealthPlugin, dataType: HealthDataType, start: Date, end: Date) {
+  try {
+    const { samples } = await plugin.queryAggregated({
+      dataType,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      bucket: "day",
+      aggregation: "sum",
+    });
+    return Math.round(samples.reduce((sum, sample) => sum + sample.value, 0));
+  } catch {
+    return 0;
+  }
+}
+
+async function readSleepMinutes(plugin: HealthPlugin, start: Date, end: Date) {
+  try {
+    const { samples } = await plugin.readSamples({
+      dataType: HEALTH_CONNECT_TYPES.sleep,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      limit: 200,
+      ascending: true,
+    });
+    return Math.round(samples.reduce((sum, sample) => {
+      if (sample.sleepState === "awake") return sum;
+      if (sample.value > 0) return sum + sample.value;
+      const startMs = new Date(sample.startDate).getTime();
+      const endMs = new Date(sample.endDate).getTime();
+      return sum + Math.max(0, Math.round((endMs - startMs) / 60000));
+    }, 0));
+  } catch {
+    return undefined;
+  }
+}
 
 // Workout type mapping from Google Fit to our format
 const WORKOUT_TYPE_MAP: Record<number, string> = {
@@ -62,10 +144,12 @@ export async function isAvailable(): Promise<boolean> {
     return false;
   }
   
+  const plugin = await getHealthConnectPlugin();
+  if (!plugin) return false;
+
   try {
-    // Check if Google Fit plugin is available
-    const { GoogleFit } = await import("@capacitor-community/google-fit");
-    return await GoogleFit.isAvailable();
+    const availability = await plugin.isAvailable();
+    return availability.available;
   } catch {
     return false;
   }
@@ -80,15 +164,30 @@ export async function requestPermissions(requested: {
   location?: boolean;
 }): Promise<{ activity: boolean; body: boolean; location: boolean } | null> {
   if (isAndroid && isNative) {
+    const plugin = await getHealthConnectPlugin();
+    if (!plugin) return null;
+
     try {
-      const { GoogleFit } = await import("@capacitor-community/google-fit");
-      const result = await GoogleFit.requestPermissions({
-        readPermissions: Object.keys(requested),
-      });
+      const read: HealthDataType[] = [];
+      if (requested.activity) {
+        read.push(HEALTH_CONNECT_TYPES.steps, HEALTH_CONNECT_TYPES.calories, HEALTH_CONNECT_TYPES.workouts);
+      }
+      if (requested.body) {
+        read.push(
+          HEALTH_CONNECT_TYPES.heartRate,
+          HEALTH_CONNECT_TYPES.restingHeartRate,
+          HEALTH_CONNECT_TYPES.hrv,
+          HEALTH_CONNECT_TYPES.sleep,
+          HEALTH_CONNECT_TYPES.respiratoryRate,
+          HEALTH_CONNECT_TYPES.spo2
+        );
+      }
+
+      const result = await plugin.requestAuthorization({ read, write: [] });
       return {
-        activity: result.activity ?? false,
-        body: result.body ?? false,
-        location: result.location ?? false,
+        activity: requested.activity ? result.readAuthorized.some((type) => ["steps", "calories", "workouts"].includes(type)) : false,
+        body: requested.body ? result.readAuthorized.some((type) => ["heartRate", "restingHeartRate", "heartRateVariability", "sleep"].includes(type)) : false,
+        location: false,
       };
     } catch {
       return null;
@@ -192,6 +291,32 @@ export async function getWorkouts(
   startTime: Date,
   endTime: Date
 ): Promise<WorkoutData[]> {
+  if (isAndroid && isNative) {
+    const plugin = await getHealthConnectPlugin();
+    if (!plugin) return [];
+
+    try {
+      const result = await plugin.queryWorkouts({
+        startDate: startTime.toISOString(),
+        endDate: endTime.toISOString(),
+        limit: 100,
+        ascending: true,
+      });
+      return result.workouts.map((workout) => ({
+        id: `health-connect-${workout.platformId ?? `${workout.workoutType}-${workout.startDate}`}`,
+        type: workout.workoutType,
+        startTime: workout.startDate,
+        endTime: workout.endDate,
+        calories: Math.round(workout.totalEnergyBurned ?? 0),
+        duration: Math.round(workout.duration / 60),
+        source: "google_fit",
+      }));
+    } catch (error) {
+      console.error("Failed to fetch Health Connect workouts:", error);
+      return [];
+    }
+  }
+
   const startMillis = startTime.getTime();
   const endMillis = endTime.getTime();
   
@@ -291,12 +416,50 @@ export async function getHealthData(dateRange: {
   steps?: number;
   heartRate?: number;
   restingHeartRate?: number;
+  hrv?: number;
   caloriesBurned?: number;
   activeMinutes?: number;
   sleepMinutes?: number;
+  respiratoryRate?: number;
+  spo2?: number;
   workouts?: WorkoutData[];
   date: string;
 } | null> {
+  if (isAndroid && isNative) {
+    const plugin = await getHealthConnectPlugin();
+    if (!plugin) return null;
+
+    try {
+      const [steps, caloriesBurned, heartRate, restingHeartRate, hrv, sleepMinutes, respiratoryRate, spo2, workouts] = await Promise.all([
+        readSum(plugin, HEALTH_CONNECT_TYPES.steps, dateRange.start, dateRange.end),
+        readSum(plugin, HEALTH_CONNECT_TYPES.calories, dateRange.start, dateRange.end),
+        readAverage(plugin, HEALTH_CONNECT_TYPES.heartRate, dateRange.start, dateRange.end),
+        readAverage(plugin, HEALTH_CONNECT_TYPES.restingHeartRate, dateRange.start, dateRange.end),
+        readAverage(plugin, HEALTH_CONNECT_TYPES.hrv, dateRange.start, dateRange.end),
+        readSleepMinutes(plugin, dateRange.start, dateRange.end),
+        readAverage(plugin, HEALTH_CONNECT_TYPES.respiratoryRate, dateRange.start, dateRange.end),
+        readAverage(plugin, HEALTH_CONNECT_TYPES.spo2, dateRange.start, dateRange.end),
+        getWorkouts({ accessToken: "", expiresAt: 0 }, dateRange.start, dateRange.end),
+      ]);
+
+      return {
+        steps,
+        caloriesBurned,
+        heartRate,
+        restingHeartRate,
+        hrv,
+        sleepMinutes,
+        respiratoryRate,
+        spo2,
+        workouts,
+        date: dateRange.start.toISOString().split("T")[0],
+      };
+    } catch (error) {
+      console.error("Failed to fetch Health Connect health data:", error);
+      return null;
+    }
+  }
+
   if (!auth?.accessToken) {
     console.warn("Google Fit web integration requires OAuth setup");
     return null;
@@ -397,6 +560,31 @@ export async function writeNutritionData(_data: {
   fat: number;
   timestamp: Date;
 }): Promise<boolean> {
+  if (isAndroid && isNative) {
+    const plugin = await getHealthConnectPlugin();
+    if (!plugin) return false;
+
+    try {
+      await plugin.saveSample({
+        dataType: "calories",
+        value: _data.calories,
+        unit: "kilocalorie",
+        startDate: _data.timestamp.toISOString(),
+        endDate: _data.timestamp.toISOString(),
+        metadata: {
+          source: "nutrio",
+          meal: _data.name,
+          protein_g: String(_data.protein),
+          carbs_g: String(_data.carbs),
+          fat_g: String(_data.fat),
+        },
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // Would require write permissions and OAuth
   console.warn("Google Fit write requires OAuth setup");
   return false;

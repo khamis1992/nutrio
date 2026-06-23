@@ -218,48 +218,43 @@ export function useHealthKitIntegration() {
         if (healthData?.spo2) syncedData.spo2 = healthData.spo2;
         if (workouts) syncedData.workoutCount = workouts.length;
       } else if (config.platform === "google_fit") {
-        const { data: tokens } = await supabase
-          .from("user_integrations")
-          .select("access_token, expires_at")
-          .eq("user_id", user.id)
-          .eq("provider", "google_fit")
-          .maybeSingle();
+        const { getHealthData, getWorkouts } = await import("@/services/health/googleFit");
+        const healthData = await getHealthData({ start: startOfDay, end: endOfDay });
 
-        if (tokens?.access_token) {
-          if (config.enabledDataTypes.includes("workouts") || config.enabledDataTypes.includes("steps")) {
-            const { getWorkouts } = await import("@/services/health/googleFit");
-            const workouts = await getWorkouts(
-              { accessToken: tokens.access_token, expiresAt: tokens.expires_at * 1000 },
-              startOfDay,
-              endOfDay
-            );
-            if (config.enabledDataTypes.includes("workouts")) {
-              syncedData.workoutCount = workouts.length;
-            }
-            if (config.enabledDataTypes.includes("steps")) {
-              const walkingWorkouts = workouts.filter((w) =>
-                w.type.toLowerCase().includes("walk")
-              );
-              if (walkingWorkouts.length > 0) {
-                syncedData.steps = Math.round(
-                  walkingWorkouts.reduce((sum, w) => sum + w.duration, 0) * 100
-                );
-              }
-            }
-          }
+        if (healthData) {
+          if (typeof healthData.steps === "number") syncedData.steps = healthData.steps;
+          if (typeof healthData.caloriesBurned === "number") syncedData.activeCalories = healthData.caloriesBurned;
+          if (healthData.heartRate) syncedData.heartRate = healthData.heartRate;
+          if (healthData.restingHeartRate) syncedData.restingHeartRate = healthData.restingHeartRate;
+          if (healthData.hrv) syncedData.hrv = healthData.hrv;
+          if (healthData.sleepMinutes) syncedData.sleepMinutes = healthData.sleepMinutes;
+          if (healthData.respiratoryRate) syncedData.respiratoryRate = healthData.respiratoryRate;
+          if (healthData.spo2) syncedData.spo2 = healthData.spo2;
+          if (healthData.workouts) syncedData.workoutCount = healthData.workouts.length;
+        }
 
-          if (config.enabledDataTypes.some((type) => ["heart_rate", "sleep", "recovery"].includes(type))) {
-            const { getHealthData } = await import("@/services/health/googleFit");
-            const healthData = await getHealthData(
+        if (config.enabledDataTypes.includes("workouts") && syncedData.workoutCount === null) {
+          const workouts = await getWorkouts({ accessToken: "", expiresAt: 0 }, startOfDay, endOfDay);
+          syncedData.workoutCount = workouts.length;
+        }
+
+        if (!healthData) {
+          const { data: tokens } = await supabase
+            .from("user_integrations")
+            .select("access_token, expires_at")
+            .eq("user_id", user.id)
+            .eq("provider", "google_fit")
+            .maybeSingle();
+
+          if (tokens?.access_token) {
+            const legacyHealthData = await getHealthData(
               { start: startOfDay, end: endOfDay },
               { accessToken: tokens.access_token, expiresAt: tokens.expires_at * 1000 }
             );
-            if (healthData?.heartRate) {
-              syncedData.heartRate = healthData.heartRate;
-            }
-            if (healthData?.steps && syncedData.steps === null) syncedData.steps = healthData.steps;
-            if (healthData?.caloriesBurned) syncedData.activeCalories = healthData.caloriesBurned;
-            if (healthData?.sleepMinutes) syncedData.sleepMinutes = healthData.sleepMinutes;
+            if (legacyHealthData?.steps && syncedData.steps === null) syncedData.steps = legacyHealthData.steps;
+            if (legacyHealthData?.caloriesBurned) syncedData.activeCalories = legacyHealthData.caloriesBurned;
+            if (legacyHealthData?.heartRate) syncedData.heartRate = legacyHealthData.heartRate;
+            if (legacyHealthData?.sleepMinutes) syncedData.sleepMinutes = legacyHealthData.sleepMinutes;
           }
         }
       }
