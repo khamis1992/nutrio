@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateCoachComplianceBreakdown } from "@/lib/coach-compliance";
+import { WATER_GLASS_ML } from "@/lib/water-service";
 
 export interface ClientCompliance {
   id: string;
@@ -139,7 +140,7 @@ export function useCoachClients(coachId: string | undefined) {
         supabase.from("profiles").select("user_id, full_name, avatar_url").in("user_id", clientIds),
         supabase.from("meal_schedules").select("user_id, order_status").in("user_id", clientIds).gte("scheduled_date", weekAgoStr).lte("scheduled_date", todayStr),
         supabase.from("progress_logs").select("user_id, calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g, log_date").in("user_id", clientIds).gte("log_date", weekAgoStr),
-        supabase.from("water_intake").select("user_id, glasses, log_date").in("user_id", clientIds).gte("log_date", weekAgoStr).lte("log_date", todayStr),
+        supabase.from("water_entries").select("user_id, amount_ml, log_date").in("user_id", clientIds).gte("log_date", weekAgoStr).lte("log_date", todayStr),
         supabase.from("nutrition_goals").select("user_id, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g").in("user_id", clientIds).eq("is_active", true),
         supabase.from("user_streaks").select("user_id, streak_type, current_streak").in("user_id", clientIds).eq("streak_type", "logging"),
         supabase.from("body_measurements").select("user_id, weight_kg, log_date").in("user_id", clientIds).gte("log_date", weekAgoStr).order("log_date", { ascending: true }),
@@ -231,7 +232,7 @@ export function useCoachClients(coachId: string | undefined) {
           })),
           ((c as any)._waterLogs || []).map((log: any) => ({
             log_date: log.log_date,
-            glasses: log.glasses,
+            glasses: (log.amount_ml || 0) / WATER_GLASS_ML,
           })),
           {
             daily_calorie_target: (c as any)._goalCalories || 2000,

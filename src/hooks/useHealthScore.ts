@@ -14,7 +14,9 @@ export interface HealthScore {
   overall_score: number;
   category: "green" | "orange" | "red";
   metrics_used: {
-    weight_logs_count: number;
+    body_measurements_count?: number;
+    /** Backward-compatible key returned by older score calculations. */
+    weight_logs_count?: number;
     target_meals: number;
     actual_meals: number;
     target_protein: number;

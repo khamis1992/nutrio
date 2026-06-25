@@ -32,17 +32,17 @@ export function useBodyMetrics(userId: string | undefined) {
       if (!userId) return [];
       
       const { data, error } = await supabase
-        .from("user_body_metrics")
-        .select("*")
+        .from("body_measurements")
+        .select("id, user_id, log_date, weight_kg, waist_cm, body_fat_percent, muscle_mass_percent, notes, created_at")
         .eq("user_id", userId)
-        .order("recorded_at", { ascending: false });
+        .order("log_date", { ascending: false });
 
       if (error) {
         console.error("Error fetching body metrics:", error);
         throw error;
       }
 
-      return data as BodyMetrics[];
+      return (data || []).map(toBodyMetrics);
     },
     enabled: !!userId,
   });
@@ -56,10 +56,10 @@ export function useBodyMetricsHistory(userId: string | undefined, weeks: number 
       if (!userId) return [];
       
       const { data, error } = await supabase
-        .from("user_body_metrics")
-        .select("*")
+        .from("body_measurements")
+        .select("id, user_id, log_date, weight_kg, waist_cm, body_fat_percent, muscle_mass_percent, notes, created_at")
         .eq("user_id", userId)
-        .order("recorded_at", { ascending: false })
+        .order("log_date", { ascending: false })
         .limit(weeks);
 
       if (error) {
@@ -67,7 +67,7 @@ export function useBodyMetricsHistory(userId: string | undefined, weeks: number 
         throw error;
       }
 
-      return data as BodyMetrics[];
+      return (data || []).map(toBodyMetrics);
     },
     enabled: !!userId,
   });
@@ -81,10 +81,10 @@ export function useLatestBodyMetrics(userId: string | undefined) {
       if (!userId) return null;
       
       const { data, error } = await supabase
-        .from("user_body_metrics")
-        .select("*")
+        .from("body_measurements")
+        .select("id, user_id, log_date, weight_kg, waist_cm, body_fat_percent, muscle_mass_percent, notes, created_at")
         .eq("user_id", userId)
-        .order("recorded_at", { ascending: false })
+        .order("log_date", { ascending: false })
         .limit(1)
         .single();
 
@@ -97,7 +97,7 @@ export function useLatestBodyMetrics(userId: string | undefined) {
         throw error;
       }
 
-      return data as BodyMetrics;
+      return toBodyMetrics(data);
     },
     enabled: !!userId,
   });
@@ -115,10 +115,11 @@ export function useLogBodyMetrics() {
       userId: string;
       data: BodyMetricsInput;
     }) => {
-      const { error } = await supabase.from("user_body_metrics").upsert(
+      const logDate = data.recorded_at || new Date().toISOString().split("T")[0];
+      const { error } = await supabase.from("body_measurements").upsert(
         {
           user_id: userId,
-          recorded_at: data.recorded_at || new Date().toISOString().split("T")[0],
+          log_date: logDate,
           weight_kg: data.weight_kg,
           waist_cm: data.waist_cm,
           body_fat_percent: data.body_fat_percent,
@@ -126,7 +127,7 @@ export function useLogBodyMetrics() {
           notes: data.notes,
         },
         {
-          onConflict: "user_id,recorded_at",
+          onConflict: "user_id,log_date",
         }
       );
 
@@ -134,6 +135,10 @@ export function useLogBodyMetrics() {
         console.error("Error logging body metrics:", error);
         throw error;
       }
+
+      await supabase
+        .from("profiles")
+        .upsert({ user_id: userId, current_weight_kg: data.weight_kg }, { onConflict: "user_id" });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
@@ -167,8 +172,15 @@ export function useUpdateBodyMetrics() {
       data: Partial<BodyMetricsInput>;
     }) => {
       const { error } = await supabase
-        .from("user_body_metrics")
-        .update(data)
+        .from("body_measurements")
+        .update({
+          log_date: data.recorded_at,
+          weight_kg: data.weight_kg,
+          waist_cm: data.waist_cm,
+          body_fat_percent: data.body_fat_percent,
+          muscle_mass_percent: data.muscle_mass_percent,
+          notes: data.notes,
+        })
         .eq("id", id);
 
       if (error) {
@@ -194,7 +206,7 @@ export function useDeleteBodyMetrics() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("user_body_metrics")
+        .from("body_measurements")
         .delete()
         .eq("id", id);
 
@@ -223,20 +235,20 @@ export function useWeightChange(userId: string | undefined) {
       
       // Get first and latest measurements
       const { data: latest, error: latestError } = await supabase
-        .from("user_body_metrics")
-        .select("weight_kg, recorded_at")
+        .from("body_measurements")
+        .select("weight_kg, log_date")
         .eq("user_id", userId)
-        .order("recorded_at", { ascending: false })
+        .order("log_date", { ascending: false })
         .limit(1)
         .single();
 
       if (latestError || !latest) return null;
 
       const { data: first, error: firstError } = await supabase
-        .from("user_body_metrics")
-        .select("weight_kg, recorded_at")
+        .from("body_measurements")
+        .select("weight_kg, log_date")
         .eq("user_id", userId)
-        .order("recorded_at", { ascending: true })
+        .order("log_date", { ascending: true })
         .limit(1)
         .single();
 
@@ -246,7 +258,7 @@ export function useWeightChange(userId: string | undefined) {
       const weeks = Math.max(
         1,
         Math.ceil(
-          (new Date(latest.recorded_at).getTime() - new Date(first.recorded_at).getTime()) /
+          (new Date(latest.log_date).getTime() - new Date(first.log_date).getTime()) /
             (1000 * 60 * 60 * 24 * 7)
         )
       );
@@ -262,4 +274,29 @@ export function useWeightChange(userId: string | undefined) {
     },
     enabled: !!userId,
   });
+}
+
+function toBodyMetrics(row: {
+  id: string;
+  user_id: string;
+  log_date: string;
+  weight_kg: number | null;
+  waist_cm: number | null;
+  body_fat_percent: number | null;
+  muscle_mass_percent: number | null;
+  notes: string | null;
+  created_at: string | null;
+}): BodyMetrics {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    recorded_at: row.log_date,
+    weight_kg: row.weight_kg || 0,
+    waist_cm: row.waist_cm ?? undefined,
+    body_fat_percent: row.body_fat_percent ?? undefined,
+    muscle_mass_percent: row.muscle_mass_percent ?? undefined,
+    notes: row.notes ?? undefined,
+    created_at: row.created_at || row.log_date,
+    updated_at: row.created_at || row.log_date,
+  };
 }

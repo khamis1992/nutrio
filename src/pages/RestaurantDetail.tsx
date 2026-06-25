@@ -191,7 +191,9 @@ const RestaurantDetail = () => {
         const { data: mealsData, error: mealsError } = await supabase
           .from("meals")
           .select("*")
-          .eq("restaurant_id", id);
+          .eq("restaurant_id", id)
+          .eq("approval_status", "approved")
+          .eq("is_available", true);
 
         if (!mealsError && mealsData) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

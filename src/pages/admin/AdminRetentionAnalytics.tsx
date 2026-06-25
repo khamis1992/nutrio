@@ -96,7 +96,7 @@ export default function AdminRetentionAnalytics() {
 
       // Fetch unique users with metrics
       const { data: metricsData } = await supabase
-        .from("user_body_metrics")
+        .from("body_measurements")
         .select("user_id");
 
       const uniqueUsers = new Set(metricsData?.map(m => m.user_id)).size;

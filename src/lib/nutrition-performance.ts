@@ -6,6 +6,10 @@ export interface NutritionPerformanceInput {
   calorieTarget: number;
   proteinConsumed: number;
   proteinTarget: number;
+  carbsGap: number;
+  carbsTarget: number;
+  fatGap: number;
+  fatTarget: number;
   waterPercent: number;
   mealsLogged: number;
   mealsPlanned: number;
@@ -28,6 +32,7 @@ export interface NutritionPerformanceResult {
     calories: number;
     query: string;
     category: string;
+    focus: "protein" | "carbs" | "hydration" | "calories" | "balanced";
   };
 }
 
@@ -111,14 +116,41 @@ export function calculateNutritionPerformance(input: NutritionPerformanceInput):
   );
   const mealProtein = clamp(Math.round(Math.max(25, Math.min(input.proteinGap || 25, 45))), 20, 50);
   const category = mealCalories < 350 ? "snacks" : new Date().getHours() >= 17 ? "dinner" : "lunch";
-  const query = input.proteinGap > 20 ? "high-protein" : input.remainingCalories < 350 ? "light" : "balanced";
+  const proteinGapRatio = input.proteinTarget > 0 ? input.proteinGap / input.proteinTarget : 0;
+  const carbsGapRatio = input.carbsTarget > 0 ? input.carbsGap / input.carbsTarget : 0;
+  const fatGapRatio = input.fatTarget > 0 ? input.fatGap / input.fatTarget : 0;
+  const focus =
+    input.waterPercent < 70 && input.remainingCalories < 350
+      ? "hydration"
+      : proteinGapRatio >= 0.18 && proteinGapRatio >= carbsGapRatio
+        ? "protein"
+        : carbsGapRatio >= 0.22 && carbsGapRatio >= fatGapRatio
+          ? "carbs"
+          : input.remainingCalories > input.calorieTarget * 0.35
+            ? "calories"
+            : "balanced";
+  const query = focus === "protein"
+    ? "high-protein"
+    : focus === "carbs"
+      ? "carbs"
+      : focus === "hydration"
+        ? "light fresh"
+        : focus === "calories"
+          ? "balanced bowl"
+          : "balanced";
 
   const label = score >= 82 ? "Strong fuel" : score >= 65 ? "Almost on track" : score >= 45 ? "Needs support" : "Start fueling";
   const summary = score >= 82
     ? "Your nutrition supports today’s activity."
     : score >= 65
       ? "A small adjustment can finish the day well."
-      : "Focus the next meal on protein, hydration, and calories.";
+      : focus === "carbs"
+        ? "Focus the next meal on smart carbs and steady energy."
+        : focus === "hydration"
+          ? "Focus the next meal on hydration and lighter foods."
+          : focus === "calories"
+            ? "Focus the next meal on balanced calories."
+            : "Focus the next meal on protein, hydration, and calories.";
 
   return {
     score,
@@ -126,13 +158,20 @@ export function calculateNutritionPerformance(input: NutritionPerformanceInput):
     summary,
     primaryReason: reasons[0] || "Calories, protein, hydration, and meal timing are aligned.",
     reasons: reasons.slice(0, 3),
-    actionLabel: input.proteinGap > 20 ? "Find protein meal" : "Find matching meal",
+    actionLabel: focus === "protein"
+      ? "Find protein meal"
+      : focus === "carbs"
+        ? "Find carb meal"
+        : focus === "hydration"
+          ? "Find light meal"
+          : "Find matching meal",
     actionPath: `/meals?category=${category}&q=${encodeURIComponent(query)}&source=nutrition-performance`,
     mealNeed: {
       protein: mealProtein,
       calories: mealCalories,
       query,
       category,
+      focus,
     },
   };
 }
@@ -146,6 +185,7 @@ export function findNutritionMatchedMeal(
   const preferredType = performance.mealNeed.category;
   const calorieBudget = performance.mealNeed.calories;
   const proteinNeed = performance.mealNeed.protein;
+  const focus = performance.mealNeed.focus;
 
   const scored = candidates
     .filter((meal) => meal.is_available !== false)
@@ -153,21 +193,32 @@ export function findNutritionMatchedMeal(
     .map((meal) => {
       const calories = meal.calories ?? 0;
       const protein = meal.protein_g ?? 0;
+      const carbs = meal.carbs_g ?? 0;
       const calorieFit = Math.max(0, 1 - Math.abs(calories - calorieBudget) / Math.max(calorieBudget, 1));
       const proteinFit = Math.min(protein / Math.max(proteinNeed, 1), 1.25);
+      const carbEnergyFit = calories > 0 ? Math.min(carbs / Math.max(calories / 10, 1), 1.25) : 0;
+      const lightHydrationFit = Math.max(0, 1 - Math.max(calories - 380, 0) / 300);
       const typeFit = meal.meal_type?.toLowerCase() === preferredType ? 1 : 0;
       const density = calories > 0 ? protein / calories : 0;
       const rating = Math.min(meal.rating || 0, 5) / 5;
 
       const matchScore = Math.round(
-        calorieFit * 30 +
-        Math.min(proteinFit, 1) * 35 +
+        calorieFit * 28 +
+        (focus === "protein" ? Math.min(proteinFit, 1) * 34 : Math.min(proteinFit, 1) * 18) +
+        (focus === "carbs" ? Math.min(carbEnergyFit, 1) * 30 : 0) +
+        (focus === "hydration" ? lightHydrationFit * 26 : 0) +
         typeFit * 16 +
-        Math.min(density * 120, 1) * 12 +
+        Math.min(density * 120, 1) * (focus === "protein" ? 12 : 6) +
         rating * 7
       );
 
-      const matchReason = `${Math.round(protein)}g protein / ${Math.round(calories)} kcal`;
+      const matchReason = focus === "carbs"
+        ? `${Math.round(carbs)}g carbs / ${Math.round(calories)} kcal`
+        : focus === "hydration"
+          ? `Light option / ${Math.round(calories)} kcal`
+          : focus === "calories"
+            ? `${Math.round(calories)} kcal / ${Math.round(protein)}g protein`
+            : `${Math.round(protein)}g protein / ${Math.round(calories)} kcal`;
       return { ...meal, matchScore, matchReason };
     })
     .sort((a, b) => b.matchScore - a.matchScore);

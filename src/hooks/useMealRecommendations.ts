@@ -46,6 +46,7 @@ export function useMealRecommendations() {
           "id, name, image_url, calories, protein_g, carbs_g, fat_g, price, meal_type, restaurant_id, ingredients, is_available, rating"
         )
         .eq("is_available", true)
+        .eq("approval_status", "approved")
         .order("rating", { ascending: false })
         .limit(100);
 
@@ -60,7 +61,9 @@ export function useMealRecommendations() {
         const { data: rData, error: rError } = await supabase
           .from("restaurants")
           .select("id, name, logo_url, rating, total_orders")
-          .in("id", [...new Set(restaurantIds)]);
+          .in("id", [...new Set(restaurantIds)])
+          .eq("approval_status", "approved")
+          .eq("is_active", true);
         if (!rError) restaurantsData = (rData as Record<string, unknown>[]) || [];
       }
 
@@ -76,27 +79,29 @@ export function useMealRecommendations() {
         ])
       );
 
-      const typedCandidates: MealCandidate[] = (mealsData || []).map((m) => {
-        const r = m.restaurant_id ? restaurantMap.get(m.restaurant_id) : null;
-        return {
-          id: m.id as string,
-          name: m.name as string,
-          image_url: (m.image_url as string | null) || null,
-          calories: (m.calories as number | null) ?? null,
-          protein_g: (m.protein_g as number | null) ?? null,
-          carbs_g: (m.carbs_g as number | null) ?? null,
-          fat_g: (m.fat_g as number | null) ?? null,
-          price: (m.price as number | null) ?? null,
-          meal_type: (m.meal_type as string | null) || null,
-          restaurant_id: (m.restaurant_id as string | null) || null,
-          restaurant_name: r?.name || "Restaurant",
-          restaurant_logo_url: r?.logo_url || null,
-          rating: r?.rating || 0,
-          total_orders: r?.total_orders || 0,
-          is_available: (m.is_available as boolean | null) ?? true,
-          ingredients: (m.ingredients as string | null) || null,
-        };
-      });
+      const typedCandidates: MealCandidate[] = (mealsData || [])
+        .filter((m) => Boolean(m.restaurant_id && restaurantMap.has(m.restaurant_id)))
+        .map((m) => {
+          const r = restaurantMap.get(m.restaurant_id!);
+          return {
+            id: m.id as string,
+            name: m.name as string,
+            image_url: (m.image_url as string | null) || null,
+            calories: (m.calories as number | null) ?? null,
+            protein_g: (m.protein_g as number | null) ?? null,
+            carbs_g: (m.carbs_g as number | null) ?? null,
+            fat_g: (m.fat_g as number | null) ?? null,
+            price: (m.price as number | null) ?? null,
+            meal_type: (m.meal_type as string | null) || null,
+            restaurant_id: (m.restaurant_id as string | null) || null,
+            restaurant_name: r?.name || "Restaurant",
+            restaurant_logo_url: r?.logo_url || null,
+            rating: r?.rating || 0,
+            total_orders: r?.total_orders || 0,
+            is_available: (m.is_available as boolean | null) ?? true,
+            ingredients: (m.ingredients as string | null) || null,
+          };
+        });
 
       // Fetch user orders (last 30)
       const { data: ordersData, error: ordersError } = await supabase

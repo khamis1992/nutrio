@@ -9,6 +9,8 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useNutritionGoals } from "@/hooks/useNutritionGoals";
 import { useWallet } from "@/hooks/useWallet";
 import { formatCurrency } from "@/lib/currency";
+import { findCoachMealSuggestion, getCoachMealScheduleFields } from "@/lib/coach-meal-schedule";
+import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 import { calculateGoalAlignmentScore } from "@/lib/goal-engine";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -458,7 +460,7 @@ const Schedule = () => {
           order_status: "pending",
         } : null;
       })
-      .filter(Boolean);
+      .filter((row): row is NonNullable<typeof row> => Boolean(row));
 
     if (!rows.length) {
       toast({
@@ -471,7 +473,23 @@ const Schedule = () => {
 
     setComboApplying(true);
     try {
-      const { error } = await supabase.from("meal_schedules").insert(rows);
+      const rowsWithCoachContext = await Promise.all(
+        rows.map(async (row) => {
+          const coachSuggestion = await findCoachMealSuggestion({
+            userId: user.id,
+            scheduledDate: row.scheduled_date,
+            mealType: row.meal_type,
+            selectedMealId: row.meal_id,
+          });
+
+          return {
+            ...row,
+            ...getCoachMealScheduleFields(coachSuggestion),
+          };
+        })
+      );
+
+      const { error } = await supabase.from("meal_schedules").insert(rowsWithCoachContext);
       if (error) throw error;
 
       for (const row of rows) {
@@ -540,6 +558,7 @@ const Schedule = () => {
       }
 
       setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, is_completed: !isCompleted } : s));
+      await syncCommunityChallengeProgressQuietly(user.id);
 
       window.dispatchEvent(new CustomEvent("nutrio:meal-progress-changed"));
 

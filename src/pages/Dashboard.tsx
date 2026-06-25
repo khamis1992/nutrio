@@ -8,6 +8,7 @@ import {
   Activity,
   AlertCircle,
   Apple,
+  ArrowUpRight,
   Bell,
   Bike,
   Calendar,
@@ -137,7 +138,6 @@ import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { BodyCorrelationWidget } from "@/components/dashboard/BodyCorrelationWidget";
 import { SubscriptionNudge } from "@/components/SubscriptionNudge";
 import { RewardUnlockSheet } from "@/components/rewards/RewardUnlockSheet";
-import ProgressRedesigned from "@/pages/ProgressRedesigned";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -159,6 +159,7 @@ import { useTodayProgress } from "@/hooks/useTodayProgress";
 import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
 import { useMealRecommendations } from "@/hooks/useMealRecommendations";
 import { DailyPerformanceSnapshotSync } from "@/hooks/useDailyPerformanceSnapshot";
+import ProgressRedesigned from "@/pages/ProgressRedesigned";
 import { getQatarNow, getQatarDay, formatLocaleDate } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -408,7 +409,9 @@ const Dashboard = () => {
   const [waterGoal, setWaterGoal] = useState(2500);
   const [stepsToday, setStepsToday] = useState(0);
   const [stepsGoal, setStepsGoal] = useState(6000);
+  const [hasActiveCoach, setHasActiveCoach] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
+  const [progressPreloaded, setProgressPreloaded] = useState(false);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
   const [recentNotifications, setRecentNotifications] = useState<RecentNotification[]>([]);
   const [notifsLoading, setNotifsLoading] = useState(false);
@@ -436,6 +439,26 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
+    if (!user?.id || progressPreloaded || activeTab === "progress") return;
+    const preload = () => setProgressPreloaded(true);
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const idleId = idleWindow.requestIdleCallback
+      ? idleWindow.requestIdleCallback(preload, { timeout: 1800 })
+      : window.setTimeout(preload, 900);
+
+    return () => {
+      if (idleWindow.cancelIdleCallback && typeof idleId === "number") {
+        idleWindow.cancelIdleCallback(idleId);
+      } else {
+        window.clearTimeout(idleId);
+      }
+    };
+  }, [activeTab, progressPreloaded, user?.id]);
+
+  useEffect(() => {
     if (!user?.id) return;
     supabase
       .from("water_entries")
@@ -452,6 +475,29 @@ const Dashboard = () => {
       if (stored) setWaterGoal(parseInt(stored, 10));
     }
   }, [user?.id, todayStr]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setHasActiveCoach(false);
+      return;
+    }
+
+    supabase
+      .from("coach_client_assignments")
+      .select("id")
+      .eq("client_id", user.id)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Failed to check active coach assignment:", error);
+          setHasActiveCoach(false);
+          return;
+        }
+        setHasActiveCoach(Boolean(data));
+      });
+  }, [user?.id]);
 
   const loadWorkoutSummary = useCallback(async () => {
     if (!user?.id) return;
@@ -1035,6 +1081,10 @@ const Dashboard = () => {
     calorieTarget: dailyCalories,
     proteinConsumed: todayProgress.protein,
     proteinTarget: proteinTarget,
+    carbsGap,
+    carbsTarget,
+    fatGap,
+    fatTarget,
     waterPercent: waterPct,
     mealsLogged: todayMeals.filter((item) => Boolean(item.meal)).length,
     mealsPlanned: Math.max(3, plannedMeals.length),
@@ -1044,6 +1094,35 @@ const Dashboard = () => {
     readiness: recoveryReadiness,
   });
   const nutritionMatchedMeal = findNutritionMatchedMeal(mealRecommendationCandidates, nutritionPerformance);
+  const nutritionFocusVisuals = {
+    protein: {
+      Icon: Drumstick,
+      iconClass: "bg-[#F3F4FF] text-[#7C83F6] ring-[#7C83F6]/20",
+      fallbackClass: "bg-[#F3F4FF] text-[#7C83F6] ring-[#7C83F6]/20",
+    },
+    carbs: {
+      Icon: Wheat,
+      iconClass: "bg-[#FFF7ED] text-[#F97316] ring-[#FDBA74]/35",
+      fallbackClass: "bg-[#FFF7ED] text-[#F97316] ring-[#FDBA74]/35",
+    },
+    hydration: {
+      Icon: Droplets,
+      iconClass: "bg-[#EFF9FF] text-[#38BDF8] ring-[#38BDF8]/20",
+      fallbackClass: "bg-[#EFF9FF] text-[#38BDF8] ring-[#38BDF8]/20",
+    },
+    calories: {
+      Icon: Flame,
+      iconClass: "bg-[#FFF0F2] text-[#FB6B7A] ring-[#FB6B7A]/20",
+      fallbackClass: "bg-[#FFF0F2] text-[#FB6B7A] ring-[#FB6B7A]/20",
+    },
+    balanced: {
+      Icon: Apple,
+      iconClass: "bg-[#ECFEFF] text-[#22C7A1] ring-[#22C7A1]/20",
+      fallbackClass: "bg-[#ECFEFF] text-[#22C7A1] ring-[#22C7A1]/20",
+    },
+  } as const;
+  const nutritionFocusVisual = nutritionFocusVisuals[nutritionPerformance.mealNeed.focus];
+  const NutritionFocusIcon = nutritionFocusVisual.Icon;
   const readinessFoodTipKey = buildReadinessFoodTip(recoveryReadiness, bodyLoad);
   const readinessScoreDisplay = recoveryReadiness.score === null ? "--" : recoveryReadiness.score;
   const readinessTrend = healthRangeMetrics.map((item) => calculateRecoveryReadiness(item).score ?? 0);
@@ -1064,10 +1143,10 @@ const Dashboard = () => {
     waterPct < 80
       ? { label: t("hydration"), title: t("ml_left", { amount: Math.max(0, waterGoal - waterToday) }), detail: t("close_water_ring"),
           Icon: Droplets, tone: "bg-sky-50 text-[#38BDF8] ring-[#38BDF8]/20",
-          action: () => navigate("/water-tracker") }
+          action: () => navigate("/tracker") }
       : { label: t("hydration"), title: t("water_on_track"), detail: t("water_logged_today", { amount: waterToday }),
           Icon: Droplets, tone: "bg-sky-50 text-[#38BDF8] ring-[#38BDF8]/20",
-          action: () => navigate("/water-tracker") },
+          action: () => navigate("/tracker") },
     proteinGap > 25
       ? { label: t("protein_label"), title: t("protein_gap", { amount: Math.round(proteinGap) }), detail: t("pick_high_protein_meal"),
           Icon: Drumstick, tone: "bg-[#F3F4FF] text-[#7C83F6] ring-[#7C83F6]/20",
@@ -1075,7 +1154,7 @@ const Dashboard = () => {
       : { label: t("movement"), title: workoutCount > 0 ? t("sessions_logged_count", { count: workoutCount }) : t("log_workout"),
           detail: workoutCount > 0 ? t("cal_burned", { amount: totalBurned }) : t("keep_activity_streak"),
           Icon: Activity, tone: "bg-[#EFFFFA] text-[#22C7A1] ring-[#22C7A1]/20",
-          action: () => navigate("/dashboard/activity") },
+          action: () => navigate("/tracker") },
   ];
 
   const coachInsights = [
@@ -1095,6 +1174,7 @@ const Dashboard = () => {
       Icon: primarySmartRecommendation?.category === "hydration" ? Droplets : primarySmartRecommendation?.category === "activity" ? Activity : Drumstick,
       tone: primarySmartRecommendation?.priority === "high" ? "bg-orange-50 text-orange-700 ring-orange-100" : "bg-slate-50 text-slate-700 ring-slate-200" },
   ];
+  const aiRecommendationItems = smartRecommendations.slice(0, 3);
 
   const showLegacyNutritionTab = false;
   const showLegacyProgressTab = false;
@@ -1333,15 +1413,36 @@ const Dashboard = () => {
                   {[
                     { label: t("cal_label_short"), value: `${animatedCalories}`, Icon: Flame, color: "text-[#22C7A1]" },
                     { label: t("meals_label_short"), value: `${animatedBalance}`, Icon: Crown, color: "text-[#FB6B7A]" },
-                    { label: t("water_label_short"), value: `${Math.round(waterPct)}%`, Icon: Droplets, color: "text-[#38BDF8]" },
+                    { label: t("water_tracking_label"), value: `${Math.round(waterPct)}%`, Icon: Droplets, color: "text-[#38BDF8]", path: "/water-tracker" },
                     { label: t("steps_label_short"), value: `${stepsToday}`, Icon: Footprints, color: "text-[#7C83F6]" },
-                  ].map(({ label, value, Icon, color }) => (
-                    <div key={label} className="rounded-xl bg-[#F6F8FB] px-1.5 py-2 text-center ring-1 ring-[#E5EAF1]/80">
-                      <Icon className={`mx-auto h-3.5 w-3.5 ${color}`} strokeWidth={2} />
-                      <p className="mt-1 text-[11px] font-black leading-none text-[#020617]">{value}</p>
-                      <p className="mt-0.5 text-[8px] font-bold uppercase tracking-wider text-[#94A3B8]">{label}</p>
-                    </div>
-                  ))}
+                  ].map(({ label, value, Icon, color, path }) => {
+                    const content = (
+                      <>
+                        {path ? (
+                          <ArrowUpRight className="absolute end-1.5 top-1.5 h-3 w-3 text-[#38BDF8]" strokeWidth={2.8} />
+                        ) : null}
+                        <Icon className={`mx-auto h-3.5 w-3.5 ${color}`} strokeWidth={2} />
+                        <p className="mt-1 text-[11px] font-black leading-none text-[#020617]">{value}</p>
+                        <p className={`mt-0.5 text-[8px] font-bold uppercase tracking-wider ${path ? "text-[#38BDF8]" : "text-[#94A3B8]"}`}>{label}</p>
+                      </>
+                    );
+
+                    return path ? (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => navigate(path)}
+                        className="relative rounded-xl bg-[#EFF9FF] px-1.5 py-2 text-center ring-1 ring-[#BAE6FD] transition active:scale-95"
+                        aria-label={label}
+                      >
+                        {content}
+                      </button>
+                    ) : (
+                      <div key={label} className="rounded-xl bg-[#F6F8FB] px-1.5 py-2 text-center ring-1 ring-[#E5EAF1]/80">
+                        {content}
+                      </div>
+                    );
+                  })}
                 </div>
 
               {/* Subscription tile — spans 1 */}
@@ -1374,7 +1475,7 @@ const Dashboard = () => {
             {activeGoal && (
               <button
                 type="button"
-                onClick={() => navigate("/nutrition-goals")}
+                onClick={() => navigate("/progress?tab=goals")}
                 className="w-full rounded-[22px] border border-[#E5EAF1] bg-white p-4 text-start shadow-[0_10px_24px_rgba(2,6,23,0.05)] transition active:scale-[0.99]"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -1422,8 +1523,8 @@ const Dashboard = () => {
                   <h2 className="mt-1 text-[18px] font-black leading-tight text-[#020617]">{nutritionPerformance.label}</h2>
                   <p className="mt-1 text-[12px] font-bold leading-5 text-[#64748B]">{nutritionPerformance.summary}</p>
                 </div>
-                <div className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[18px] bg-[#ECFEFF] text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
-                  <Drumstick className="h-5 w-5" strokeWidth={2.3} />
+                <div className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[18px] ring-1 ${nutritionFocusVisual.iconClass}`}>
+                  <NutritionFocusIcon className="h-5 w-5" strokeWidth={2.3} />
                 </div>
               </div>
               <div className="mt-3 rounded-[18px] bg-[#F6F8FB] px-3 py-2.5 ring-1 ring-[#E5EAF1]">
@@ -1438,8 +1539,8 @@ const Dashboard = () => {
                       className="h-12 w-12 shrink-0 rounded-[16px] object-cover ring-1 ring-[#E5EAF1]"
                     />
                   ) : (
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[#FFF7ED] text-[#F97316] ring-1 ring-[#FED7AA]">
-                      <Utensils className="h-5 w-5" strokeWidth={2.2} />
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] ring-1 ${nutritionFocusVisual.fallbackClass}`}>
+                      <NutritionFocusIcon className="h-5 w-5" strokeWidth={2.2} />
                     </div>
                   )}
                   <div className="min-w-0">
@@ -1462,7 +1563,7 @@ const Dashboard = () => {
               {[
                 { label: t("order"), Icon: ConciergeBell, action: () => navigate("/meals"), bg: "bg-[#22C7A1] text-white" },
                 { label: t("log"), Icon: Plus, action: () => setLogMealOpen(true), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
-                { label: t("tracker"), Icon: Utensils, action: () => navigate("/tracker"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
+                { label: "Coaches", Icon: Medal, action: () => navigate(hasActiveCoach ? "/coach-programs" : "/coaches"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
                 { label: t("community"), Icon: Users, action: () => navigate("/community"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
               ].map(({ label, Icon, action, bg }) => (
                 <motion.button
@@ -1795,32 +1896,132 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="rounded-[24px] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
+            <div className="rounded-[24px] bg-white p-3 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-600">{t("ai_insight")}</p>
                   <h2 className="mt-0.5 text-[17px] font-black tracking-normal text-slate-950">{t("todays_read")}</h2>
                 </div>
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-orange-50 text-orange-600 ring-1 ring-orange-100">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-orange-50 text-orange-600 ring-1 ring-orange-100">
                   <Apple className="h-4.5 w-4.5" strokeWidth={2.1} />
                 </div>
               </div>
               <div className="mt-3 space-y-2">
-                {coachInsights.map(({ label, title, detail, Icon, tone }) => (
-                  <div key={label} className="rounded-[18px] bg-slate-50 p-3 ring-1 ring-slate-200/80">
+                {coachInsights.slice(0, 1).map(({ label, title, detail, Icon, tone }) => (
+                  <div key={label} className="rounded-[16px] bg-slate-50 p-2.5 ring-1 ring-slate-200/80">
                     <div className="flex items-start gap-3">
-                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] ring-1 ${tone}`}>
-                        <Icon className="h-4.5 w-4.5" strokeWidth={2.1} />
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] ring-1 ${tone}`}>
+                        <Icon className="h-4 w-4" strokeWidth={2.1} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">{label}</p>
                         <p className="mt-0.5 text-[13px] font-black leading-tight tracking-[-0.02em] text-slate-950">{title}</p>
-                        <p className="mt-1 text-[11px] font-semibold leading-snug text-slate-500">{detail}</p>
+                        <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-snug text-slate-500">{detail}</p>
                       </div>
                     </div>
                   </div>
                 ))}
+                <div className="grid grid-cols-2 gap-2">
+                  {coachInsights.slice(1).map(({ label, title, detail, Icon, tone }) => (
+                    <div key={label} className="min-w-0 rounded-[16px] bg-slate-50 p-2.5 ring-1 ring-slate-200/80">
+                      <div className="flex items-center gap-2">
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] ring-1 ${tone}`}>
+                          <Icon className="h-4 w-4" strokeWidth={2.1} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-[8px] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</p>
+                          <p className="truncate text-[12px] font-black leading-tight text-slate-950">{title}</p>
+                        </div>
+                      </div>
+                      <p className="mt-1 line-clamp-1 text-[10px] font-semibold leading-snug text-slate-500">{detail}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
+              {(smartRecommendationsLoading || aiRecommendationItems.length > 0) && (
+                <div className="mt-2 border-t border-slate-100 pt-2">
+                  <div className="mb-1.5 flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{t("next_best_actions")}</p>
+                    <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-black text-slate-600 ring-1 ring-slate-200">
+                      {smartRecommendationsLoading ? "..." : aiRecommendationItems.length}
+                    </span>
+                  </div>
+                  {smartRecommendationsLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2].map((item) => (
+                        <div key={item} className="h-[44px] animate-pulse rounded-[14px] bg-slate-50 ring-1 ring-slate-100" />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {aiRecommendationItems.map((rec) => {
+                        const recIconMap: Record<string, LucideIcon> = {
+                          nutrition: Apple,
+                          hydration: Droplets,
+                          activity: Activity,
+                          sleep: Moon,
+                          general: Star,
+                          blood: AlertCircle,
+                        };
+                        const recToneMap: Record<string, string> = {
+                          nutrition: "bg-[#EFFFFA] text-[#22C7A1] ring-[#22C7A1]/20",
+                          hydration: "bg-sky-50 text-[#38BDF8] ring-[#38BDF8]/20",
+                          activity: "bg-orange-50 text-[#F97316] ring-orange-100",
+                          sleep: "bg-[#F3F4FF] text-[#7C83F6] ring-[#7C83F6]/20",
+                          general: "bg-slate-50 text-slate-600 ring-slate-200",
+                          blood: "bg-[#FFF0F2] text-[#FB6B7A] ring-[#FB6B7A]/20",
+                        };
+                        const priorityTone = rec.priority === "high"
+                          ? "bg-[#FFF0F2] text-[#FB6B7A] ring-[#FB6B7A]/20"
+                          : rec.priority === "medium"
+                            ? "bg-[#FFF7ED] text-[#F97316] ring-[#F97316]/20"
+                            : "bg-slate-50 text-slate-500 ring-slate-200";
+                        const RecIcon = recIconMap[rec.category] || Star;
+                        const progressPct = rec.progress ? Math.min(100, Math.round((rec.progress.value / rec.progress.max) * 100)) : null;
+                        const accent = rec.priority === "high" ? "#FB6B7A" : rec.priority === "medium" ? "#F97316" : "#94A3B8";
+
+                        return (
+                          <button
+                            key={rec.id}
+                            type="button"
+                            onClick={() => {
+                              if (rec.action_link) navigate(rec.action_link);
+                            }}
+                            className="w-full rounded-[15px] bg-slate-50 p-2 text-start ring-1 ring-slate-200/80 transition active:scale-[0.99]"
+                          >
+                            <div className="flex items-start gap-2">
+                              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] ring-1 ${recToneMap[rec.category] || recToneMap.general}`}>
+                                <RecIcon className="h-4 w-4" strokeWidth={2.1} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="min-w-0 flex-1 truncate text-[12px] font-black leading-tight text-slate-950">{rec.title}</p>
+                                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase ring-1 ${priorityTone}`}>
+                                    {rec.priority === "high" ? t("priority_high") : rec.priority === "medium" ? t("priority_medium") : t("priority_low")}
+                                  </span>
+                                </div>
+                                <p className="mt-0.5 line-clamp-1 text-[10px] font-semibold leading-snug text-slate-500">{rec.description}</p>
+                                {rec.progress && progressPct !== null && (
+                                  <div className="mt-1.5">
+                                    <div className="mb-1 flex items-center justify-between text-[9px]">
+                                      <span className="font-black text-slate-500" dir="ltr">{rec.progress.value}/{rec.progress.max} {rec.progress.unit}</span>
+                                      <span className="font-black" style={{ color: accent }}>{progressPct}%</span>
+                                    </div>
+                                    <div className="h-1 overflow-hidden rounded-full bg-slate-100">
+                                      <div className="h-full rounded-full" style={{ width: `${progressPct}%`, backgroundColor: accent }} />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              <NextIcon className="mt-2 h-3.5 w-3.5 shrink-0 text-slate-300" strokeWidth={2.4} />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               <Link to="/ai-report" className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#020617] px-4 text-[12px] font-black text-white shadow-[0_8px_20px_rgba(2,6,23,0.16)] transition active:scale-[0.98]">
                 {t("open_ai_report")} <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px]" dir="ltr">{aiOverallScore}/100</span> <NextIcon className="h-3.5 w-3.5" strokeWidth={2.4} />
               </Link>
@@ -2249,7 +2450,7 @@ const Dashboard = () => {
                   initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
                   animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
                   className="cursor-pointer rounded-[20px] bg-[#EFF9FF] p-3 ring-1 ring-[#38BDF8]/20"
-                  onClick={() => navigate("/water-tracker")}>
+                  onClick={() => navigate("/tracker")}>
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <Droplets className="h-4 w-4 text-[#38BDF8]" strokeWidth={2} />
                     <p className="text-[10px] font-semibold text-slate-400">{t("water")}</p>
@@ -2265,7 +2466,7 @@ const Dashboard = () => {
                   initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
                   animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
                   className="cursor-pointer rounded-[20px] bg-orange-50 p-3 ring-1 ring-orange-100"
-                  onClick={() => navigate("/step-counter")}>
+                  onClick={() => navigate("/tracker")}>
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <Footprints className="h-4 w-4 text-orange-500" strokeWidth={2} />
                     <p className="text-[10px] font-semibold text-slate-400">{t("steps")}</p>
@@ -2788,7 +2989,11 @@ const Dashboard = () => {
         {/* ══════════════════════════════════════════════════════════════
             TAB: PROGRESS — Weight, consistency, level, streak, badges
             ══════════════════════════════════════════════════════════════ */}
-        {activeTab === "progress" && <ProgressRedesigned embedded />}
+        {(activeTab === "progress" || progressPreloaded) && (
+          <div className={activeTab === "progress" ? "block" : "hidden"} aria-hidden={activeTab !== "progress"}>
+            <ProgressRedesigned embedded />
+          </div>
+        )}
 
         {showLegacyProgressTab && activeTab === "progress" && (
           <motion.div

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 
 export interface CommunityChallenge {
   id: string;
@@ -127,6 +128,30 @@ export function useCommunityChallenges() {
     void fetch();
   }, [fetch]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`community-challenges:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "challenge_participants",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          void fetch();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [fetch, user?.id]);
+
   const joinChallenge = useCallback(async (challengeId: string) => {
     if (!user?.id) return;
     const challenge = challenges.find((item) => item.id === challengeId);
@@ -141,6 +166,7 @@ export function useCommunityChallenges() {
         console.error("joinChallenge error:", error);
         return;
       }
+      await syncCommunityChallengeProgressQuietly(user.id);
       await fetch();
     } catch (err) {
       console.error("joinChallenge error:", err);

@@ -42,17 +42,16 @@ export function WeeklyMetricsForm({ onSuccess, onCancel }: WeeklyMetricsFormProp
       const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
 
       const { error } = await supabase
-        .from("user_body_metrics")
+        .from("body_measurements")
         .upsert({
           user_id: user.id,
           weight_kg: weightKg,
           waist_cm: formData.waist_cm ? parseFloat(formData.waist_cm) : null,
           body_fat_percent: formData.body_fat_percent ? parseFloat(formData.body_fat_percent) : null,
           muscle_mass_percent: formData.muscle_mass_percent ? parseFloat(formData.muscle_mass_percent) : null,
-          week_start: weekStart.toISOString().split("T")[0],
-          recorded_at: new Date().toISOString(),
+          log_date: weekStart.toISOString().split("T")[0],
         }, {
-          onConflict: "user_id,week_start"
+          onConflict: "user_id,log_date"
         });
 
       if (error) throw error;

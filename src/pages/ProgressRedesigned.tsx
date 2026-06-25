@@ -10,13 +10,16 @@ import {
   CalendarCheck,
   Check,
   ChevronRight,
+  Clock3,
   Crown,
   Droplet,
   Dumbbell,
   Flame,
+  Footprints,
   Info,
   Leaf,
   Lock,
+  MapPin,
   Minus,
   Plus,
   Scale,
@@ -41,10 +44,10 @@ import { useTodayProgress } from "@/hooks/useTodayProgress";
 import { useWaterIntake } from "@/hooks/useWaterIntake";
 import { useWeightChartData } from "@/hooks/useWeightChartData";
 import { useClientGoalProposals } from "@/hooks/useClientGoalProposals";
-import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useWeekdayData } from "@/hooks/useWeekdayData";
+import { useHealthDailyMetrics } from "@/hooks/useHealthDailyMetrics";
 import { cn } from "@/lib/utils";
 
 type RingMetric = {
@@ -198,10 +201,13 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
   const { todayProgress } = useTodayProgress(user?.id, new Date(), 0);
   const { dailySummary: waterSummary, addWater: addWaterIntake } = useWaterIntake(user?.id);
   const { days: weekdayData } = useWeekdayData(user?.id, activeGoal?.daily_calorie_target ?? 2000);
+  const { rangeMetrics: healthRangeMetrics } = useHealthDailyMetrics(user?.id);
   const calorieTarget = activeGoal?.daily_calorie_target ?? 2000;
   const { toast } = useToast();
   const { t, isRTL, language } = useLanguage();
-  useEffect(() => { document.title = `${t("progress_title")} — Nutrio`; }, [t]);
+  useEffect(() => {
+    if (!embedded) document.title = `${t("progress_title")} — Nutrio`;
+  }, [embedded, t]);
   const queryTab = searchParams.get("tab");
   const activeQueryTab: "today" | "week" | "goals" =
     queryTab === "week" || queryTab === "goals" ? queryTab : "today";
@@ -215,7 +221,6 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
     acceptGoal: acceptCoachGoal,
     rejectGoal: rejectCoachGoal,
   } = useClientGoalProposals(user?.id);
-  const { recommendations: smartRecs, loading: smartRecsLoading, refresh: refreshRecs } = useSmartRecommendations(user?.id);
   const { weightChartData: weightHistory } = useWeightChartData(user?.id);
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -357,6 +362,39 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
 
   const waterGlasses = waterSummary?.total ?? 0;
   const waterTarget = 8;
+  const healthMetricsByDate = useMemo(() => {
+    return new Map(healthRangeMetrics.map((item) => [item.metric_date, item]));
+  }, [healthRangeMetrics]);
+  const weeklyActivityRows = useMemo(() => {
+    const todayKey = format(new Date(), "yyyy-MM-dd");
+    return weekdayData.map((day) => {
+      const health = healthMetricsByDate.get(day.date);
+      const steps = health?.steps ?? 0;
+      const activeCalories = health?.active_calories ?? day.workoutCalories;
+      const workoutMinutes = day.workoutMinutes;
+      const distanceKm = Number(((steps * 0.000762) || 0).toFixed(1));
+
+      return {
+        ...day,
+        steps,
+        activeCalories,
+        workoutMinutes,
+        distanceKm,
+        isToday: day.date === todayKey,
+      };
+    });
+  }, [healthMetricsByDate, weekdayData]);
+  const weeklyActivityTotals = useMemo(() => {
+    return weeklyActivityRows.reduce(
+      (total, day) => ({
+        steps: total.steps + day.steps,
+        workoutMinutes: total.workoutMinutes + day.workoutMinutes,
+        activeCalories: total.activeCalories + day.activeCalories,
+        distanceKm: total.distanceKm + day.distanceKm,
+      }),
+      { steps: 0, workoutMinutes: 0, activeCalories: 0, distanceKm: 0 }
+    );
+  }, [weeklyActivityRows]);
   const showWeightForecastCard = false;
   const showBodyMetricsCard = false;
 
@@ -488,8 +526,6 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
           const loggedDates = new Set(
             weekdayData.filter((d) => d.calories > 0).map((d) => d.date)
           );
-
-          const smartRecItems = smartRecs.slice(0, 3);
 
           return (
             <>
@@ -722,117 +758,116 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                 </section>
               ) : null}
 
-              {/* Smart Recommendations */}
               <section className="mb-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-[14px] font-black text-slate-900">{t("progress_smart_recommendations")}</h3>
+                {(() => {
+                  const weekStart = weeklyActivityRows[0]?.date ? new Date(`${weeklyActivityRows[0].date}T00:00:00`) : new Date();
+                  const weekEnd = weeklyActivityRows[6]?.date ? new Date(`${weeklyActivityRows[6].date}T00:00:00`) : new Date();
+                  const todayActivity = weeklyActivityRows.find((day) => day.isToday) ?? weeklyActivityRows[0];
+                  const hasActivityData = weeklyActivityTotals.steps > 0 || weeklyActivityTotals.workoutMinutes > 0 || weeklyActivityTotals.activeCalories > 0;
 
-                </div>
-
-                {smartRecsLoading ? (
-                  <div className="space-y-2.5">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="motion-safe:animate-pulse rounded-[14px] border border-slate-100 bg-white p-4 shadow-[0_6px_16px_rgba(15,23,42,0.04)]">
-                        <div className="flex items-start gap-3">
-                          <div className="h-9 w-9 rounded-full bg-slate-200" />
-                          <div className="flex-1 space-y-2">
-                            <div className="h-3 w-2/3 rounded-full bg-slate-200" />
-                            <div className="h-2.5 w-full rounded-full bg-slate-100" />
-                            <div className="h-1.5 w-1/2 rounded-full bg-slate-100" />
-                          </div>
+                  return (
+                    <article className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[19px] font-black leading-none tracking-[-0.03em] text-[#020617]">{t("progress_this_week")}</p>
+                          <p className="mt-1 text-[11px] font-semibold text-[#94A3B8]">
+                            {formatLocaleDate(weekStart, language, { month: "short", day: "numeric" })} - {formatLocaleDate(weekEnd, language, { month: "short", day: "numeric", year: "numeric" })}
+                          </p>
+                        </div>
+                        <div className="rounded-full bg-[#EFFFFA] px-3 py-1 text-[11px] font-black text-[#22C7A1]">
+                          {t("progress_today_focus")}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : smartRecItems.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {smartRecItems.map((r) => {
-                      const catIcons: Record<string, LucideIcon> = {
-                        nutrition: Apple,
-                        hydration: Droplet,
-                        activity: Zap,
-                        sleep: Star,
-                        general: Sparkles,
-                      };
-                      const catColors: Record<string, string> = {
-                        nutrition: "bg-[#EFFFFA] text-[#22C7A1] ring-[#22C7A1]/20",
-                        hydration: "bg-sky-50 text-sky-600 ring-sky-100",
-                        activity: "bg-orange-50 text-orange-600 ring-orange-100",
-                        sleep: "bg-violet-50 text-violet-600 ring-violet-100",
-                        general: "bg-[#F3F4FF] text-[#7C83F6] ring-[#7C83F6]/20",
-                      };
-                      const priorityLabels: Record<string, string> = {
-                        high: t("priority_high"),
-                        medium: t("priority_medium"),
-                        low: t("priority_low"),
-                      };
-                      const priorityBadge: Record<string, string> = {
-                        high: "bg-rose-50 text-rose-600 ring-rose-100",
-                        medium: "bg-amber-50 text-amber-700 ring-amber-100",
-                        low: "bg-slate-100 text-slate-600 ring-slate-200",
-                      };
-                      const CatIcon = catIcons[r.category] || Sparkles;
-                      const iconColors = catColors[r.category] || "bg-slate-50 text-slate-600 ring-slate-100";
-                      const badgeColors = priorityBadge[r.priority] || "bg-slate-100 text-slate-600 ring-slate-200";
-                      const progress = r.progress;
-                      const progressPct = progress
-                        ? Math.min(100, Math.round((progress.value / progress.max) * 100))
-                        : 0;
-                      const accentColor = r.priority === "high" ? "#f43f5e" : r.priority === "medium" ? "#f59e0b" : "#64748b";
 
-                      return (
-                        <button
-                          key={r.id}
-                          type="button"
-                          dir={isRTL ? "rtl" : "ltr"}
-                          className="w-full rounded-[24px] border border-slate-100 bg-white p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-transform active:scale-[0.99]"
-                          onClick={() => {
-                            if (r.action_link) navigate(r.action_link);
-                          }}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-[18px] ring-1 ${iconColors}`}>
-                              <CatIcon className="h-5 w-5" />
+                      {todayActivity ? (
+                        <div className="mb-2 rounded-[16px] border border-[#22C7A1]/30 bg-[#EFFFFA] px-3 py-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#22C7A1]">{t("progress_today")}</p>
+                              <p className="text-[13px] font-black text-[#020617]">
+                                {todayActivity.steps.toLocaleString()} {t("steps").toLowerCase()}
+                              </p>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="mb-1 flex items-start gap-2">
-                                <p className="min-w-0 flex-1 text-[14px] font-black leading-5 tracking-normal text-slate-950">{r.title}</p>
-                                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase ring-1 ${badgeColors}`}>
-                                  {priorityLabels[r.priority] || r.priority}
-                                </span>
-                              </div>
-                              <p className="line-clamp-2 text-[12px] font-semibold leading-relaxed text-slate-500">{r.description}</p>
-                              {progress && (
-                                <div className="mt-3">
-                                  <div className="mb-1.5 flex items-center justify-between text-[10px]">
-                                    <span className="font-black text-slate-500" dir="ltr">{progress.value}/{progress.max} {progress.unit}</span>
-                                    <span className="font-black" style={{ color: accentColor }}>{progressPct}%</span>
-                                  </div>
-                                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                                    <div
-                                      className="h-full rounded-full"
-                                      style={{ width: `${progressPct}%`, backgroundColor: accentColor }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                              <div className="mt-3 flex min-h-7 items-center justify-between">
-                                {r.action_text && r.action_link ? (
-                                  <span className="text-[11px] font-black text-orange-600">{r.action_text}</span>
-                                ) : (
-                                  <span className="text-[11px] font-bold text-slate-400">{t("view_recommendation")}</span>
-                                )}
-                                <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-50 text-slate-400">
-                                  <ChevronRight className={cn("h-4 w-4", isRTL && "rotate-180")} strokeWidth={2.6} />
-                                </span>
-                              </div>
+                            <div className="grid grid-cols-3 gap-2 text-center" dir="ltr">
+                              <span className="rounded-full bg-white px-2 py-1 text-[11px] font-black text-[#020617]">{todayActivity.workoutMinutes}m</span>
+                              <span className="rounded-full bg-white px-2 py-1 text-[11px] font-black text-[#F97316]">{todayActivity.activeCalories}</span>
+                              <span className="rounded-full bg-white px-2 py-1 text-[11px] font-black text-[#020617]">{todayActivity.distanceKm.toFixed(1)}</span>
                             </div>
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
+                        </div>
+                      ) : null}
+
+                      <div className="overflow-hidden rounded-[18px] border border-[#E5EAF1]">
+                        {weeklyActivityRows.map((day) => {
+                          const dayDate = new Date(`${day.date}T00:00:00`);
+                          const dayLabel = formatLocaleDate(dayDate, language, { weekday: "short" });
+
+                          return (
+                            <div
+                              key={day.date}
+                              className={cn(
+                                "grid grid-cols-[46px_1fr] items-center gap-2 border-b border-[#E5EAF1] px-3 py-2 last:border-b-0",
+                                day.isToday ? "bg-[#EFFFFA]" : "bg-[#F6F8FB]"
+                              )}
+                            >
+                              <div className="min-w-0">
+                                <p className={cn("text-[11px] font-extrabold", day.isToday ? "text-[#22C7A1]" : "text-[#94A3B8]")}>{dayLabel}</p>
+                                {day.isToday ? (
+                                  <p className="mt-0.5 text-[8px] font-black uppercase tracking-wide text-[#22C7A1]">{t("progress_today")}</p>
+                                ) : null}
+                              </div>
+                              <div className="grid grid-cols-4 items-center gap-1 text-[12px] font-black text-[#020617]" dir="ltr">
+                                <span className="flex items-center justify-end gap-1">
+                                  <Footprints className="h-3.5 w-3.5 text-[#020617]" />
+                                  {day.steps.toLocaleString()}
+                                </span>
+                                <span className="flex items-center justify-end gap-1">
+                                  <Clock3 className="h-3.5 w-3.5 text-[#020617]" />
+                                  {day.workoutMinutes}m
+                                </span>
+                                <span className="flex items-center justify-end gap-1 text-[#F97316]">
+                                  <Flame className="h-3.5 w-3.5" />
+                                  {day.activeCalories}
+                                </span>
+                                <span className="flex items-center justify-end gap-1">
+                                  <MapPin className="h-3.5 w-3.5 text-[#020617]" />
+                                  {day.distanceKm.toFixed(1)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-2 rounded-[16px] bg-[#F6F8FB] px-3 py-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#64748B]">{t("steps_total")}</p>
+                          {!hasActivityData ? (
+                            <p className="text-[10px] font-bold text-[#94A3B8]">{t("progress_activity_week_hint")}</p>
+                          ) : null}
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-1 text-[12px] font-black text-[#020617]" dir="ltr">
+                          <span className="flex items-center justify-end gap-1">
+                            <Footprints className="h-3.5 w-3.5" />
+                            {weeklyActivityTotals.steps.toLocaleString()}
+                          </span>
+                          <span className="flex items-center justify-end gap-1">
+                            <Clock3 className="h-3.5 w-3.5" />
+                            {weeklyActivityTotals.workoutMinutes}m
+                          </span>
+                          <span className="flex items-center justify-end gap-1 text-[#F97316]">
+                            <Flame className="h-3.5 w-3.5" />
+                            {weeklyActivityTotals.activeCalories}
+                          </span>
+                          <span className="flex items-center justify-end gap-1">
+                            <MapPin className="h-3.5 w-3.5" />
+                            {weeklyActivityTotals.distanceKm.toFixed(1)}
+                          </span>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })()}
               </section>
 
               {/* Weight Forecast */}
@@ -1618,7 +1653,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate("/nutrition-goals")}
+                    onClick={() => navigate("/progress?tab=goals")}
                     className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#020617] text-[12px] font-black text-white active:scale-95"
                   >
                     <Target className="h-4 w-4" strokeWidth={2.4} />

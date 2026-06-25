@@ -19,6 +19,7 @@ import { BuyMealCreditDialog } from "@/components/meal/BuyMealCreditDialog";
 import { InsufficientBalanceDialog } from "@/components/meal/InsufficientBalanceDialog";
 import { getSmartDefaultMealType } from "@/components/meal/scheduleUtils";
 import { formatCurrency } from "@/lib/currency";
+import { findCoachMealSuggestion, getCoachMealScheduleFields } from "@/lib/coach-meal-schedule";
 import { scoreMealForGoal } from "@/lib/goal-engine";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -150,6 +151,8 @@ const MealDetail = () => {
         .from("meals")
         .select("*")
         .eq("id", id!)
+        .eq("approval_status", "approved")
+        .eq("is_available", true)
         .single();
 
       if (mealError) throw mealError;
@@ -402,10 +405,18 @@ const MealDetail = () => {
         return;
       }
 
+      const scheduledDate = format(selectedDate, "yyyy-MM-dd");
+      const coachSuggestion = await findCoachMealSuggestion({
+        userId: user!.id,
+        scheduledDate,
+        mealType: selectedMealType,
+        selectedMealId: meal.id,
+      });
+
       const schedulePayload = {
         user_id: user!.id,
         meal_id: meal.id,
-        scheduled_date: format(selectedDate, "yyyy-MM-dd"),
+        scheduled_date: scheduledDate,
         meal_type: selectedMealType,
         is_completed: false,
         order_status: "pending",
@@ -413,6 +424,7 @@ const MealDetail = () => {
         customization_data: getCustomizationData(customizationSummary),
         restaurant_note: restaurantNote.trim() || null,
         ...(selectedTimeSlot ? { delivery_time_slot: selectedTimeSlot } : {}),
+        ...getCoachMealScheduleFields(coachSuggestion),
       };
 
       const { data: scheduleRow, error } = await supabase
@@ -460,7 +472,9 @@ const MealDetail = () => {
       // Show success toast notification
       toast({
         title: "Meal Scheduled! 🎉",
-        description: `${meal.name} has been added to your schedule for ${format(selectedDate, "MMM d, yyyy")}.`,
+        description: coachSuggestion?.status === "replaced"
+          ? `${meal.name} replaces your coach's ${coachSuggestion.suggestedMealName} suggestion.`
+          : `${meal.name} has been added to your schedule for ${format(selectedDate, "MMM d, yyyy")}.`,
       });
 
       // Create in-app notification
@@ -473,8 +487,11 @@ const MealDetail = () => {
           data: {
             meal_id: meal.id,
             meal_name: meal.name,
-            scheduled_date: format(selectedDate, "yyyy-MM-dd"),
+            scheduled_date: scheduledDate,
             meal_type: selectedMealType,
+            coach_program_id: coachSuggestion?.coachProgramId,
+            program_meal_id: coachSuggestion?.programMealId,
+            coach_replacement_status: coachSuggestion?.status,
             calories: displayCalories,
             customization: getCustomizationData(customizationSummary),
             restaurant_note: restaurantNote.trim() || null,

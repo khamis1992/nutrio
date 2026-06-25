@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchAndSaveGoogleFitWorkouts } from "@/lib/google-fit-workout-service";
 import {
   getConfig,
   saveConfig,
@@ -218,7 +219,7 @@ export function useHealthKitIntegration() {
         if (healthData?.spo2) syncedData.spo2 = healthData.spo2;
         if (workouts) syncedData.workoutCount = workouts.length;
       } else if (config.platform === "google_fit") {
-        const { getHealthData, getWorkouts } = await import("@/services/health/googleFit");
+        const { getHealthData } = await import("@/services/health/googleFit");
         const healthData = await getHealthData({ start: startOfDay, end: endOfDay });
 
         if (healthData) {
@@ -234,7 +235,7 @@ export function useHealthKitIntegration() {
         }
 
         if (config.enabledDataTypes.includes("workouts") && syncedData.workoutCount === null) {
-          const workouts = await getWorkouts({ accessToken: "", expiresAt: 0 }, startOfDay, endOfDay);
+          const workouts = await fetchAndSaveGoogleFitWorkouts(user.id, startOfDay, endOfDay);
           syncedData.workoutCount = workouts.length;
         }
 

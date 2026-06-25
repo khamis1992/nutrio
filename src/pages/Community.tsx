@@ -1,11 +1,13 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Bell, ChevronRight } from "lucide-react";
+import { Bell } from "lucide-react";
 import { getNavArrows } from "@/lib/rtl";
+import { CommunityCoachInvite } from "@/components/community/CommunityCoachInvite";
 import { CommunityChallengeCard } from "@/components/community/CommunityChallengeCard";
 import { DashboardErrorBoundary } from "@/components/DashboardErrorBoundary";
 import { pageVariants } from "@/lib/animations";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { CommunityExperienceHub } from "@/components/community/CommunityExperienceHub";
 import { PopularCombos } from "@/components/community/PopularCombos";
 import { ReferralMilestonesWidget } from "@/components/dashboard/ReferralMilestonesWidget";
 
@@ -63,40 +65,17 @@ export default function Community() {
       </div>
 
       <div className="mx-auto max-w-[430px] px-4 py-4">
-        <motion.div
-          whileTap={{ scale: 0.988 }}
-          onClick={() => navigate("/coaches")}
-          className="mb-5 cursor-pointer overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
-        >
-          <div className="flex items-center gap-4">
-            <div className="flex -space-x-3">
-              <img
-                alt="coach-1"
-                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=120&auto=format&fit=crop"
-                className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-sm"
-              />
-              <img
-                alt="coach-2"
-                src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=120&auto=format&fit=crop"
-                className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-sm"
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-black text-slate-950">
-                {t("community_need_guidance")}
-              </p>
-              <p className="mt-1 text-[12px] font-semibold text-slate-500">
-                {t("community_match_coach")}
-              </p>
-            </div>
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white shadow-[0_10px_22px_rgba(2,6,23,0.14)]">
-              <ChevronRight className="h-5 w-5" />
-            </span>
-          </div>
-        </motion.div>
+        <CommunityCoachInvite />
+
+        <SectionLabel label={t("community_hub")} />
+        <div className="mb-5 overflow-hidden rounded-[28px] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <DashboardErrorBoundary name="community experience">
+            <CommunityExperienceHub />
+          </DashboardErrorBoundary>
+        </div>
 
         <SectionLabel label={t("community_active_events")} />
-        <div className="mb-5 overflow-hidden rounded-[28px] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+        <div id="community-challenges" className="mb-5 scroll-mt-24 overflow-hidden rounded-[28px] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
           <DashboardErrorBoundary name="community challenges">
             <CommunityChallengeCard />
           </DashboardErrorBoundary>

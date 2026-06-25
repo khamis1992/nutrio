@@ -3,15 +3,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { OneTapReorder } from "@/components/OneTapReorder";
 import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   ArrowLeft, 
-  Package,
   Clock,
   CheckCircle2,
   XCircle,
@@ -45,25 +42,6 @@ interface Meal {
   restaurant_id: string;
 }
 
-interface OrderItem {
-  id: string;
-  quantity: number;
-  meal_id: string;
-  meal?: Meal;
-}
-
-interface Order {
-  id: string;
-  created_at: string;
-  estimated_delivery_time?: string;
-  status: string;
-  meal_id: string | null;
-  notes: string | null;
-  restaurant_id: string | null;
-  restaurant?: Restaurant;
-  order_items: OrderItem[];
-}
-
 interface ScheduledMeal {
   id: string;
   scheduled_date: string;
@@ -73,24 +51,6 @@ interface ScheduledMeal {
   created_at: string;
   meal_id: string;
   meal?: Meal & { restaurant?: Restaurant };
-}
-
-// Raw types from Supabase (with possible nulls)
-interface RawOrder {
-  id: string;
-  created_at: string;
-  estimated_delivery_time: string | null;
-  status: string | null;
-  meal_id: string | null;
-  notes: string | null;
-  restaurant_id: string | null;
-}
-
-interface RawOrderItem {
-  id: string;
-  order_id: string;
-  quantity: number;
-  meal_id: string | null;
 }
 
 interface RawScheduledMeal {
@@ -120,20 +80,13 @@ const OrderHistory = () => {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
-  const [reordering, setReordering] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(() => {
     const tab = searchParams.get("tab");
-    if (tab === "orders" || tab === "completed" || tab === "scheduled") return tab;
+    if (tab === "completed" || tab === "scheduled") return tab;
     return "scheduled";
   });
   const [refreshing, setRefreshing] = useState(false);
-  
-  // Orders state
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
-  const [ordersPage, setOrdersPage] = useState(0);
-  const [ordersHasMore, setOrdersHasMore] = useState(true);
   
   // Scheduled meals state
   const [scheduledMeals, setScheduledMeals] = useState<ScheduledMeal[]>([]);
@@ -148,103 +101,6 @@ const OrderHistory = () => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
   const minPullDistance = 80;
-
-  // Fetch orders with manual relationship joining
-  const fetchOrders = useCallback(async (page: number, append: boolean = false) => {
-    if (!user) return;
-    
-    setOrdersLoading(true);
-    try {
-      const pageSize = 10;
-      const from = page * pageSize;
-      const to = from + pageSize - 1;
-
-      // Fetch orders
-      const { data: ordersData, error: ordersError } = await supabase
-        .from("orders")
-        .select("id, created_at, estimated_delivery_time, status, notes, restaurant_id, meal_id")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      if (ordersError) throw ordersError;
-      
-      if (!ordersData || ordersData.length === 0) {
-        setOrdersHasMore(false);
-        setOrdersLoading(false);
-        return;
-      }
-
-      // Get unique restaurant IDs (filter out nulls)
-      const restaurantIds = [...new Set(
-        (ordersData as RawOrder[])
-          .map(o => o.restaurant_id)
-          .filter((id): id is string => id !== null)
-      )];
-      
-      // Fetch restaurants
-      let restaurantsData: Restaurant[] = [];
-      if (restaurantIds.length > 0) {
-        const { data: restaurants } = await supabase
-          .from("restaurants")
-          .select("id, name, logo_url")
-          .in("id", restaurantIds);
-        restaurantsData = restaurants || [];
-      }
-
-      // Fetch order items for these orders
-      const orderIds = (ordersData as RawOrder[]).map(o => o.id);
-      const { data: orderItemsData } = await supabase
-        .from("order_items")
-        .select("id, order_id, quantity, meal_id")
-        .in("order_id", orderIds);
-
-      // Get unique meal IDs from order items (filter out nulls)
-      const mealIds = [...new Set(
-        (orderItemsData || [] as RawOrderItem[])
-          .map(oi => oi.meal_id)
-          .filter((id): id is string => id !== null)
-      )];
-      
-      // Fetch meals
-      let mealsData: Meal[] = [];
-      if (mealIds.length > 0) {
-        const { data: meals } = await supabase
-          .from("meals")
-          .select("id, name, image_url, calories, restaurant_id")
-          .in("id", mealIds);
-        mealsData = meals || [];
-      }
-
-      // Transform and combine data
-      const transformedOrders: Order[] = (ordersData as RawOrder[]).map(order => ({
-        id: order.id,
-        created_at: order.created_at,
-        estimated_delivery_time: order.estimated_delivery_time || undefined,
-        status: order.status || "pending",
-        meal_id: order.meal_id,
-        notes: order.notes,
-        restaurant_id: order.restaurant_id,
-        restaurant: restaurantsData.find(r => r.id === order.restaurant_id),
-        order_items: (orderItemsData || [] as RawOrderItem[])
-          .filter(oi => oi.order_id === order.id)
-          .map(oi => ({
-            id: oi.id,
-            quantity: oi.quantity,
-            meal_id: oi.meal_id || "",
-            meal: mealsData.find(m => m.id === oi.meal_id),
-          })),
-      }));
-
-      setOrders(prev => append ? [...prev, ...transformedOrders] : transformedOrders);
-      setOrdersPage(page);
-      setOrdersHasMore(ordersData.length === pageSize);
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-    } finally {
-      setOrdersLoading(false);
-    }
-  }, [user]);
 
   // Fetch scheduled meals with manual relationship joining
   const fetchScheduledMeals = useCallback(async (page: number, append: boolean = false) => {
@@ -365,10 +221,7 @@ const OrderHistory = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([
-      fetchOrders(0, false),
-      fetchScheduledMeals(0, false)
-    ]);
+    await fetchScheduledMeals(0, false);
     setRefreshing(false);
     toast({
       title: t("refreshed_toast"),
@@ -377,45 +230,29 @@ const OrderHistory = () => {
   };
 
   // Cancel order function
-  const handleCancelOrder = async (orderId: string, orderType: 'scheduled' | 'order') => {
+  const handleCancelOrder = async (orderId: string) => {
     if (!confirm("Are you sure you want to cancel this order?")) return;
     
     setCancelling(orderId);
     try {
-      if (orderType === 'scheduled') {
-        const { data, error } = await supabase.rpc("cancel_meal_schedule", {
-          p_schedule_id: orderId,
-          p_reason: null,
-        });
-        
-        // Handle specific error for "preparing" status
-        if (error) {
-          const errorMessage = error.message || "";
-          if (errorMessage.includes('preparing')) {
-            throw new Error("Cannot cancel order - it's already being prepared. Please contact the restaurant for assistance.");
-          }
-          throw error;
+      const { data, error } = await supabase.rpc("cancel_meal_schedule", {
+        p_schedule_id: orderId,
+        p_reason: null,
+      });
+      
+      if (error) {
+        const errorMessage = error.message || "";
+        if (errorMessage.includes('preparing')) {
+          throw new Error("Cannot cancel order - it's already being prepared. Please contact the restaurant for assistance.");
         }
-        
-        if (!data?.success) throw new Error("Cancellation failed. Please try again.");
-
-        // Update local state
-        setScheduledMeals(prev => prev.map(meal => 
-          meal.id === orderId ? { ...meal, order_status: 'cancelled' } : meal
-        ));
-      } else {
-        const { error } = await supabase
-          .from("orders")
-          .update({ status: 'cancelled' })
-          .eq("id", orderId);
-        
-        if (error) throw error;
-        
-        // Update local state
-        setOrders(prev => prev.map(order => 
-          order.id === orderId ? { ...order, status: 'cancelled' } : order
-        ));
+        throw error;
       }
+      
+      if (!data?.success) throw new Error("Cancellation failed. Please try again.");
+
+      setScheduledMeals(prev => prev.map(meal => 
+        meal.id === orderId ? { ...meal, order_status: 'cancelled' } : meal
+      ));
       
       toast({
         title: t("order_cancelled_toast"),
@@ -436,10 +273,9 @@ const OrderHistory = () => {
   // Initial fetch
   useEffect(() => {
     if (user) {
-      fetchOrders(0, false);
       fetchScheduledMeals(0, false);
     }
-  }, [user, fetchOrders, fetchScheduledMeals]);
+  }, [user, fetchScheduledMeals]);
 
 // Real-time subscription for scheduled meals status updates
   useEffect(() => {
@@ -496,90 +332,15 @@ const OrderHistory = () => {
     }
   }, [profile, navigate]);
 
-  const loadMoreOrders = () => {
-    if (!ordersLoading && ordersHasMore) {
-      fetchOrders(ordersPage + 1, true);
-    }
-  };
-
   const loadMoreScheduled = () => {
     if (!scheduledLoading && scheduledHasMore) {
       fetchScheduledMeals(scheduledPage + 1, true);
     }
   };
 
-  const handleReorder = async (order: Order) => {
-    if (!user) return;
-    
-    setReordering(order.id);
-
-    try {
-      // Create new order with same items (subscription-based, no price)
-      const tomorrow = new Date();
-      tomorrow.setHours(0, 0, 0, 0);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const { data: newOrder, error: orderError } = await supabase
-        .from("orders")
-        .insert({
-          user_id: user.id,
-          restaurant_id: order.restaurant?.id,
-          estimated_delivery_time: format(tomorrow, "yyyy-MM-dd'T'HH:mm:ss"),
-          total_amount: 0, // Subscription-based, no charge
-          status: "pending",
-          meal_id: order.meal_id,
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Create order items
-      const orderItems = order.order_items
-        .filter(item => item.meal)
-        .map(item => ({
-          order_id: newOrder.id,
-          meal_id: item.meal!.id,
-          meal_name: item.meal!.name,
-          quantity: item.quantity,
-          unit_price: 0, // Subscription-based
-          subtotal: 0, // Subscription-based
-        }));
-
-      if (orderItems.length > 0) {
-        const { error: itemsError } = await supabase
-          .from("order_items")
-          .insert(orderItems);
-
-        if (itemsError) throw itemsError;
-      }
-
-      toast({
-        title: t("order_placed_toast"),
-        description: t("reorder_placed_desc"),
-      });
-
-      // Refresh orders
-      fetchOrders(0, false);
-    } catch (error) {
-      console.error("Error reordering:", error);
-      toast({
-        title: t("error"),
-        description: "Failed to place reorder. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setReordering(null);
-    }
-  };
-
   const getStatusInfo = (status: string) => {
     const config = statusConfig[status] || statusConfig.pending;
     return { ...config, label: t(config.labelKey) };
-  };
-
-  const getTotalCalories = (items: OrderItem[]) => {
-    return items.reduce((sum, item) => sum + ((item.meal?.calories || 0) * item.quantity), 0);
   };
 
   const today = new Date();
@@ -589,7 +350,7 @@ const OrderHistory = () => {
   const completedMeals = scheduledMeals.filter(m => m.is_completed);
   const upcomingProgress = 0;
 
-  const loading = ordersLoading || scheduledLoading;
+  const loading = scheduledLoading;
 
   // ── Scheduled meal card (native style) ──────────────────────────────────
   const renderScheduledMeals = (meals: ScheduledMeal[]) => {
@@ -679,7 +440,7 @@ const OrderHistory = () => {
                   </button>
                   <button
                     className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-red-50 text-sm font-extrabold text-red-600 transition-all active:scale-[0.98] disabled:opacity-50"
-                    onClick={(e) => { e.stopPropagation(); handleCancelOrder(schedule.id, 'scheduled'); }}
+                    onClick={(e) => { e.stopPropagation(); handleCancelOrder(schedule.id); }}
                     disabled={cancelling === schedule.id}
                   >
                     {cancelling === schedule.id ? (
@@ -776,11 +537,10 @@ const OrderHistory = () => {
         ) : (
           <>
             {/* iOS-style segment control */}
-            <div className="mb-4 grid grid-cols-3 gap-1 rounded-full bg-white p-1 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+            <div className="mb-4 grid grid-cols-2 gap-1 rounded-full bg-white p-1 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
               {[
                 { id: "scheduled", label: t("upcoming_tab"), count: upcomingMeals.length },
                 { id: "completed", label: t("completed_tab"), count: completedMeals.length },
-                { id: "orders",    label: t("orders_tab"),    count: orders.length },
               ].map(({ id, label, count }) => (
                 <button
                   key={id}
@@ -863,137 +623,6 @@ const OrderHistory = () => {
                     disabled={scheduledLoading}
                   >
                     {scheduledLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("load_more_btn")}
-                  </button>
-                )}
-              </>
-            )}
-
-            {/* Orders tab */}
-            {activeTab === "orders" && (
-              <>
-                {orders.length === 0 ? (
-                  <EmptyState
-                    icon={<ShoppingBag className="w-9 h-9" />}
-                    title={t("no_data")}
-                    description={t("no_data_desc_orders")}
-                    actionLabel={t("browse_meals_btn")}
-                    actionHref="/meals"
-                    actionClassName="rounded-full bg-[#020617] px-5 py-2.5 text-white shadow-[0_10px_22px_rgba(2,6,23,0.16)] hover:bg-slate-800"
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    {orders.map((order) => {
-                      const statusInfo = getStatusInfo(order.status);
-                      const StatusIcon = statusInfo.icon;
-                      const totalCalories = getTotalCalories(order.order_items);
-
-                      return (
-                        <div key={order.id} className="bg-card/95 rounded-3xl border border-border/70 shadow-md overflow-hidden">
-                          <div className="p-4">
-                            {/* Restaurant row */}
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="w-14 h-14 rounded-2xl bg-muted overflow-hidden shrink-0 shadow-sm">
-                                {order.restaurant?.logo_url ? (
-                                  <img src={order.restaurant.logo_url} alt={order.restaurant.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <Package className="h-6 w-6 text-muted-foreground/50" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-base text-foreground truncate">
-                                  {order.restaurant?.name || "Restaurant"}
-                                </h3>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {format(new Date(order.created_at), "MMM d, yyyy 'at' h:mm a")}
-                                </p>
-                              </div>
-                              <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${statusInfo.color}`}>
-                                <StatusIcon className="h-3 w-3" />
-                                {statusInfo.label}
-                              </span>
-                            </div>
-
-                            {/* Order items */}
-                            {order.order_items.length > 0 && (
-                              <div className="space-y-2 mb-3">
-                                {order.order_items.map((item) => (
-                                  <div key={item.id} className="flex items-center gap-3 p-2.5 rounded-2xl bg-muted/50">
-                                    <div className="w-11 h-11 rounded-xl bg-muted overflow-hidden shrink-0">
-                                      {item.meal?.image_url ? (
-                                        <img src={item.meal.image_url} alt={item.meal.name} className="w-full h-full object-cover" />
-                                      ) : (
-                                        <div className="w-full h-full flex items-center justify-center">
-                                          <UtensilsCrossed className="h-4 w-4 text-muted-foreground/50" />
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-semibold truncate text-foreground">
-                                        {item.meal?.name || "Unknown meal"}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
-                                    </div>
-                                    <span className="rounded-full bg-[#020617]/5 px-2 py-0.5 text-xs font-semibold text-[#020617]">
-                                      Included
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Meta chips */}
-                            <div className="flex items-center gap-2 pt-3 border-t border-border/60 flex-wrap">
-                              <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                                <Calendar className="h-3 w-3" />
-                                {format(new Date(order.estimated_delivery_time || order.created_at), "MMM d")}
-                              </span>
-                              {totalCalories > 0 && (
-                                <span className="flex items-center gap-1 text-xs text-warning font-semibold bg-warning/10 px-2 py-1 rounded-full">
-                                  <Flame className="h-3 w-3" />
-                                  {totalCalories} cal
-                                </span>
-                              )}
-                              <span className="ml-auto rounded-full bg-[#020617]/5 px-2 py-1 text-xs font-semibold text-[#020617]">
-                                {t("subscription")}
-                              </span>
-                            </div>
-
-                            {/* Reorder */}
-                            {(order.status === "delivered" || order.status === "completed") && (
-                              <div className="mt-3">
-                                <OneTapReorder
-                                  orderId={order.id}
-                                  items={order.order_items.map((item) => ({
-                                    meal_id: item.meal_id,
-                                    meal_name: item.meal?.name || "Unknown Meal",
-                                    quantity: item.quantity,
-                                    price: 0,
-                                    image_url: item.meal?.image_url,
-                                    restaurant_id: order.restaurant_id || undefined,
-                                    restaurant_name: order.restaurant?.name,
-                                  }))}
-                                  orderTotal={0}
-                                  variant="outline"
-                                  size="default"
-                                  className="w-full rounded-2xl"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                {ordersHasMore && (
-                  <button
-                    className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-white text-sm font-extrabold text-slate-600 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition-all active:scale-[0.98] disabled:opacity-40"
-                    onClick={loadMoreOrders}
-                    disabled={ordersLoading}
-                  >
-                    {ordersLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${t("load_more_btn")} (${ordersPage * 10}+ ${t("orders_label")})`}
                   </button>
                 )}
               </>

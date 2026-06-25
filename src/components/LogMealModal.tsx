@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { BarcodeScanner, type ScannedProduct } from "./BarcodeScanner";
 import { FoodPhotoLogSheet } from "./FoodPhotoLogSheet";
+import { logMealItems } from "@/lib/meal-log-service";
 
 interface FoodItem {
   id: string;
@@ -98,59 +99,21 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
   // Handle "Select items to add"
   const handleAddSelected = async () => {
     if (selectedItems.length === 0) return;
+    if (!user?.id) return;
     setLoading(true);
     try {
-      const now = new Date();
-      const today = now.toISOString().split("T")[0];
-
-      // Update progress_logs
-      const { data: existingProgress } = await supabase
-        .from("progress_logs")
-        .select("id, calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
-        .eq("user_id", user?.id)
-        .eq("log_date", today)
-        .maybeSingle();
-
-      const totalCalories = selectedItems.reduce((sum, item) => sum + item.calories, 0);
-      const totalProtein = selectedItems.reduce((sum, item) => sum + item.protein_g, 0);
-      const totalCarbs = selectedItems.reduce((sum, item) => sum + item.carbs_g, 0);
-      const totalFat = selectedItems.reduce((sum, item) => sum + item.fat_g, 0);
-
-      if (existingProgress) {
-        await supabase
-          .from("progress_logs")
-          .update({
-            calories_consumed: existingProgress.calories_consumed + totalCalories,
-            protein_consumed_g: existingProgress.protein_consumed_g + totalProtein,
-            carbs_consumed_g: existingProgress.carbs_consumed_g + totalCarbs,
-            fat_consumed_g: existingProgress.fat_consumed_g + totalFat,
-          })
-          .eq("id", existingProgress.id);
-      } else {
-        await supabase
-          .from("progress_logs")
-          .insert({
-            user_id: user?.id,
-            log_date: today,
-            calories_consumed: totalCalories,
-            protein_consumed_g: totalProtein,
-            carbs_consumed_g: totalCarbs,
-            fat_consumed_g: totalFat,
-          });
-      }
-
-      // Add to meal_history
-      await supabase.from("meal_history").insert(
-        selectedItems.map((item) => ({
-          user_id: user?.id,
+      await logMealItems({
+        userId: user.id,
+        source: "log_meal_modal",
+        items: selectedItems.map((item) => ({
           name: item.name,
           calories: item.calories,
           protein_g: item.protein_g,
           carbs_g: item.carbs_g,
           fat_g: item.fat_g,
           image_url: item.image_url,
-        }))
-      );
+        })),
+      });
 
       toast.success(t("meal_logged"));
       onMealLogged();

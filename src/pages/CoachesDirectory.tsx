@@ -48,11 +48,11 @@ function CoachAvatar({ coach, size = "md" }: { coach: Pick<CoachProfile, "full_n
   const sizeClass = size === "lg" ? "h-16 w-16" : "h-14 w-14";
 
   return (
-    <div className={cn("shrink-0 overflow-hidden rounded-2xl bg-slate-50 ring-1 ring-slate-100", sizeClass)}>
+    <div className={cn("shrink-0 overflow-hidden rounded-[18px] bg-[#F6F8FB] ring-1 ring-[#E5EAF1]", sizeClass)}>
       {coach.avatar_url ? (
         <img src={coach.avatar_url} alt="" className="h-full w-full object-cover" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-xl font-black text-slate-700">
+        <div className="flex h-full w-full items-center justify-center text-xl font-black text-[#020617]">
           {(coach.full_name || "C")[0].toUpperCase()}
         </div>
       )}
@@ -62,12 +62,12 @@ function CoachAvatar({ coach, size = "md" }: { coach: Pick<CoachProfile, "full_n
 
 function EmptyState({ onApply }: { onApply: () => void }) {
   return (
-    <div className="rounded-[30px] bg-white p-8 text-center shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-50 text-slate-700">
+    <div className="rounded-[28px] bg-white p-8 text-center shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#F6F8FB] text-[#020617]">
         <Users className="h-8 w-8" />
       </div>
-      <h3 className="mt-5 text-lg font-black text-slate-950">No coaches yet</h3>
-      <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+      <h3 className="mt-5 text-lg font-black text-[#020617]">No coaches yet</h3>
+      <p className="mt-2 text-sm font-semibold leading-6 text-[#94A3B8]">
         Coaches will appear here once they join the platform.
       </p>
       <button
@@ -203,12 +203,25 @@ export default function CoachesDirectory() {
         const activeId = [...myActiveCoach][0];
         setMyCoach(activeId);
         setMyCoachProfile(sorted.find((coach) => coach.id === activeId) || null);
+
+        if (myPending.size > 0) {
+          const { error } = await supabase
+            .from("coach_client_assignments")
+            .update({ status: "revoked" })
+            .eq("client_id", user.id)
+            .eq("status", "pending")
+            .neq("coach_id", activeId);
+
+          if (error) {
+            console.error("Error cancelling stale coach requests:", error);
+          }
+        }
+        setPendingRequests(new Set());
+      } else {
+        setMyCoach(null);
+        setMyCoachProfile(null);
+        setPendingRequests(new Set(myPending));
       }
-      setPendingRequests((prev) => {
-        const merged = new Set(myPending);
-        for (const id of prev) merged.add(id);
-        return merged;
-      });
     } catch (err) {
       console.error("Error fetching coaches:", err);
     } finally {
@@ -259,14 +272,25 @@ export default function CoachesDirectory() {
 
   useEffect(() => {
     try {
-      sessionStorage.setItem("coach_pending_requests", JSON.stringify([...pendingRequests]));
+      if (pendingRequests.size > 0 && !myCoach) {
+        sessionStorage.setItem("coach_pending_requests", JSON.stringify([...pendingRequests]));
+      } else {
+        sessionStorage.removeItem("coach_pending_requests");
+      }
     } catch {
       // sessionStorage can be unavailable in private contexts.
     }
-  }, [pendingRequests]);
+  }, [myCoach, pendingRequests]);
 
-  const handleRequestCoach = async (coachId: string) => {
+  const handleRequestCoach = async (coach: CoachProfile) => {
     if (!user) return;
+    const coachId = coach.id;
+
+    if (myCoach && myCoach !== coachId) {
+      await handleReplaceCoach(coach);
+      return;
+    }
+
     setRequesting(coachId);
     setPendingRequests((prev) => {
       const next = new Set(prev);
@@ -281,7 +305,14 @@ export default function CoachesDirectory() {
         .eq("coach_id", coachId)
         .maybeSingle();
 
-      if (existing) {
+      if (existing?.status === "active" || existing?.status === "pending") {
+        if (existing.status === "active") {
+          setMyCoach(coachId);
+          setMyCoachProfile(coach);
+          setPendingRequests(new Set());
+        } else {
+          setPendingRequests(new Set([coachId]));
+        }
         toast({
           title: "Already requested",
           description: existing.status === "active" ? "This coach is already connected." : "Your request is pending.",
@@ -289,16 +320,35 @@ export default function CoachesDirectory() {
         return;
       }
 
-      await supabase.from("coach_client_assignments").insert({
+      const { error: cancelError } = await supabase
+        .from("coach_client_assignments")
+        .update({ status: "revoked" })
+        .eq("client_id", user.id)
+        .eq("status", "pending")
+        .neq("coach_id", coachId);
+
+      if (cancelError) throw cancelError;
+
+      const assignmentPayload = {
         coach_id: coachId,
         client_id: user.id,
         status: "pending",
-      });
+      };
+
+      const { error: requestError } = existing
+        ? await supabase
+            .from("coach_client_assignments")
+            .update({ status: "pending" })
+            .eq("id", existing.id)
+        : await supabase.from("coach_client_assignments").insert(assignmentPayload);
+
+      if (requestError) throw requestError;
 
       toast({
         title: "Request sent!",
         description: "Your coach will review and accept your request.",
       });
+      setPendingRequests(new Set([coachId]));
     } catch {
       setPendingRequests((prev) => {
         const next = new Set(prev);
@@ -306,6 +356,33 @@ export default function CoachesDirectory() {
         return next;
       });
       toast({ title: "Failed", description: "Could not send request. Try again.", variant: "destructive" });
+    } finally {
+      setRequesting(null);
+    }
+  };
+
+  const handleReplaceCoach = async (coach: CoachProfile) => {
+    if (!user || myCoach === coach.id) return;
+
+    setRequesting(coach.id);
+    try {
+      const { error: replaceError } = await supabase.rpc("replace_client_coach", {
+        p_new_coach_id: coach.id,
+      });
+
+      if (replaceError) throw replaceError;
+
+      setMyCoach(coach.id);
+      setMyCoachProfile(coach);
+      setPendingRequests(new Set());
+      toast({
+        title: "Coach replaced",
+        description: `${coach.full_name} is now your active coach.`,
+      });
+      fetchCoaches();
+    } catch (err) {
+      console.error("Error replacing coach:", err);
+      toast({ title: "Failed", description: "Could not replace your coach. Try again.", variant: "destructive" });
     } finally {
       setRequesting(null);
     }
@@ -347,106 +424,72 @@ export default function CoachesDirectory() {
   }, [activeSpecialty, coaches, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-white pb-28">
-      <div className="sticky top-0 z-30 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#F6F8FB] pb-28">
+      <div className="sticky top-0 z-30 border-b border-[#E5EAF1] bg-[#F6F8FB]/95 backdrop-blur-xl">
         <div className="mx-auto max-w-[430px] px-4 pb-3 pt-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate(-1)}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]"
               aria-label="Back"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Nutrio coaching</p>
-              <h1 className="text-[24px] font-black leading-tight text-slate-950">Find a Coach</h1>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#94A3B8]">Nutrio coaching</p>
+              <h1 className="text-[24px] font-black leading-tight text-[#020617]">Find a Coach</h1>
             </div>
           </div>
         </div>
       </div>
 
       <main className="mx-auto max-w-[430px] px-4 py-4">
-        <section className="overflow-hidden rounded-[32px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+        <section className="overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1 text-[11px] font-black text-slate-700 ring-1 ring-slate-100">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#F6F8FB] px-3 py-1 text-[11px] font-black text-[#020617] ring-1 ring-[#E5EAF1]">
                 <Sparkles className="h-3.5 w-3.5" />
                 Human support
               </div>
-              <h2 className="mt-3 text-[27px] font-black leading-tight tracking-[-0.03em] text-slate-950">
+              <h2 className="mt-3 text-[27px] font-black leading-tight tracking-[-0.03em] text-[#020617]">
                 Match with nutrition guidance that fits your routine.
               </h2>
-              <p className="mt-2 text-[13px] font-semibold leading-6 text-slate-500">
+              <p className="mt-2 text-[13px] font-semibold leading-6 text-[#94A3B8]">
                 Compare verified coaches, request a connection, and start with programs built around your goals.
               </p>
             </div>
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-amber-50 text-amber-600 ring-1 ring-amber-100">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-[#FFF7ED] text-[#F97316] ring-1 ring-[#F97316]/20">
               <Award className="h-6 w-6" />
             </div>
           </div>
 
           <div className="mt-5 grid grid-cols-3 gap-2">
-            <div className="flex min-h-[66px] flex-col items-center justify-center rounded-2xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
-              <p className="text-[20px] font-black leading-none text-slate-950">{coaches.length}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">coaches</p>
+            <div className="flex min-h-[66px] flex-col items-center justify-center rounded-[18px] bg-[#F6F8FB] p-3 text-center ring-1 ring-[#E5EAF1]">
+              <p className="text-[20px] font-black leading-none text-[#020617]">{coaches.length}</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-[#64748B]">coaches</p>
             </div>
-            <div className="flex min-h-[66px] flex-col items-center justify-center rounded-2xl bg-sky-50 p-3 text-center ring-1 ring-sky-100">
-              <p className="text-[20px] font-black leading-none text-slate-950">{acceptingCount}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-sky-700">accepting</p>
+            <div className="flex min-h-[66px] flex-col items-center justify-center rounded-[18px] bg-[#EFF9FF] p-3 text-center ring-1 ring-[#38BDF8]/20">
+              <p className="text-[20px] font-black leading-none text-[#020617]">{acceptingCount}</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-[#38BDF8]">accepting</p>
             </div>
-            <div className="flex min-h-[66px] flex-col items-center justify-center rounded-2xl bg-orange-50 p-3 text-center ring-1 ring-orange-100">
-              <p className="text-[20px] font-black leading-none text-slate-950">{totalClients}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-orange-700">clients</p>
+            <div className="flex min-h-[66px] flex-col items-center justify-center rounded-[18px] bg-[#FFF7ED] p-3 text-center ring-1 ring-[#F97316]/20">
+              <p className="text-[20px] font-black leading-none text-[#020617]">{totalClients}</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-[#F97316]">clients</p>
             </div>
           </div>
         </section>
 
-        {hasCoach && myCoachProfile && (
-          <section className="mt-4 rounded-[30px] bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.10)] ring-1 ring-slate-200">
-            <div className="flex items-start gap-3">
-              <CoachAvatar coach={myCoachProfile} size="lg" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="truncate text-[16px] font-black text-slate-950">{myCoachProfile.full_name}</h3>
-                  <ShieldCheck className="h-4 w-4 shrink-0 text-slate-700" />
-                </div>
-                <p className="mt-0.5 text-[12px] font-black uppercase tracking-[0.12em] text-slate-600">Your coach</p>
-                {myCoachProfile.bio && (
-                  <p className="mt-2 line-clamp-2 text-[12px] font-semibold leading-5 text-slate-600">{myCoachProfile.bio}</p>
-                )}
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                onClick={() => navigate("/coach-programs")}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#020617] px-3 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] active:scale-[0.98]"
-              >
-                <TrendingUp className="h-4 w-4" />
-                Programs
-              </button>
-              <button
-                onClick={() => navigate("/profile")}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-3 text-[13px] font-black text-slate-700 ring-1 ring-slate-200 active:scale-[0.98]"
-              >
-                <MessageCircle className="h-4 w-4" />
-                Manage
-              </button>
-            </div>
-          </section>
-        )}
-
-        <section className="mt-4 rounded-[28px] bg-white p-3 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-          <div className="flex min-h-12 items-center gap-2 rounded-[22px] bg-slate-50 px-3 ring-1 ring-slate-100">
-            <Search className="h-4 w-4 shrink-0 text-slate-400" />
+        <section className="mt-4 rounded-[28px] bg-white p-3 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="flex min-h-12 items-center gap-2 rounded-[22px] bg-[#F6F8FB] px-3 ring-1 ring-[#E5EAF1]">
+            <Search className="h-4 w-4 shrink-0 text-[#94A3B8]" />
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search coach, goal, or specialty"
-              className="min-w-0 flex-1 bg-transparent text-[14px] font-bold text-slate-800 outline-none placeholder:text-slate-400"
+              className="min-w-0 flex-1 bg-transparent text-[14px] font-bold text-[#020617] outline-none placeholder:text-[#94A3B8]"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-400" aria-label="Clear search">
+              <button onClick={() => setSearchQuery("")} className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#94A3B8]" aria-label="Clear search">
                 <X className="h-4 w-4" />
               </button>
             )}
@@ -461,7 +504,7 @@ export default function CoachesDirectory() {
                   "min-h-10 shrink-0 rounded-full px-4 text-[12px] font-black transition-all",
                   activeSpecialty === specialty
                     ? "bg-[#020617] text-white shadow-[0_10px_20px_rgba(2,6,23,0.16)]"
-                    : "bg-slate-50 text-slate-600 ring-1 ring-slate-100"
+                    : "bg-[#F6F8FB] text-[#64748B] ring-1 ring-[#E5EAF1]"
                 )}
               >
                 {specialty}
@@ -472,13 +515,13 @@ export default function CoachesDirectory() {
 
         <div className="mt-5 flex items-center justify-between">
           <div>
-            <h2 className="text-[18px] font-black text-slate-950">Available coaches</h2>
-            <p className="text-[12px] font-semibold text-slate-500">
+            <h2 className="text-[18px] font-black text-[#020617]">Available coaches</h2>
+            <p className="text-[12px] font-semibold text-[#94A3B8]">
               {loading ? "Loading matches" : `${filteredCoaches.length} of ${coaches.length} shown`}
             </p>
           </div>
           {hasCoach && (
-            <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-black text-slate-700 ring-1 ring-slate-100">
+            <span className="rounded-full bg-[#F6F8FB] px-3 py-1.5 text-[11px] font-black text-[#020617] ring-1 ring-[#E5EAF1]">
               Connected
             </span>
           )}
@@ -486,23 +529,24 @@ export default function CoachesDirectory() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-700" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#020617]" />
           </div>
         ) : coaches.length === 0 ? (
           <div className="mt-4">
             <EmptyState onApply={() => navigate("/become-coach")} />
           </div>
         ) : filteredCoaches.length === 0 ? (
-          <div className="mt-4 rounded-[28px] bg-white p-7 text-center shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-            <Search className="mx-auto h-6 w-6 text-slate-300" />
-            <h3 className="mt-3 text-base font-black text-slate-950">No matches found</h3>
-            <p className="mt-1 text-sm font-semibold text-slate-500">Try another specialty or clear the search.</p>
+          <div className="mt-4 rounded-[28px] bg-white p-7 text-center shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
+            <Search className="mx-auto h-6 w-6 text-[#94A3B8]" />
+            <h3 className="mt-3 text-base font-black text-[#020617]">No matches found</h3>
+            <p className="mt-1 text-sm font-semibold text-[#94A3B8]">Try another specialty or clear the search.</p>
           </div>
         ) : (
           <div className="mt-4 space-y-4">
             {filteredCoaches.map((coach, index) => {
               const isConnected = myCoach === coach.id;
-              const isPending = pendingRequests.has(coach.id);
+              const isPending = !myCoach && pendingRequests.has(coach.id);
+              const canReplace = Boolean(myCoach && !isConnected);
               const availability = coachAvailabilities.get(coach.id);
               const coachTags = [
                 ...coach.specialties,
@@ -515,22 +559,22 @@ export default function CoachesDirectory() {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.04, type: "spring", stiffness: 260, damping: 26 }}
-                  className="overflow-hidden rounded-[30px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
+                  className="overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]"
                 >
                   <div className="flex items-start gap-3">
                     <CoachAvatar coach={coach} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="truncate text-[16px] font-black text-slate-950">{coach.full_name}</h3>
-                        {coach.verified && <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-700" />}
+                        <h3 className="truncate text-[16px] font-black text-[#020617]">{coach.full_name}</h3>
+                        {coach.verified && <CheckCircle2 className="h-4 w-4 shrink-0 text-[#020617]" />}
                       </div>
 
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700 ring-1 ring-amber-100">
-                          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] px-2 py-1 text-[11px] font-black text-[#F97316] ring-1 ring-[#F97316]/20">
+                          <Star className="h-3.5 w-3.5 fill-[#F97316] text-[#F97316]" />
                           {coach.rating > 0 ? coach.rating : "New"}
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[11px] font-black text-slate-600 ring-1 ring-slate-100">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#F6F8FB] px-2 py-1 text-[11px] font-black text-[#64748B] ring-1 ring-[#E5EAF1]">
                           <Users className="h-3.5 w-3.5" />
                           {coach.clientCount} client{coach.clientCount !== 1 ? "s" : ""}
                         </span>
@@ -538,8 +582,8 @@ export default function CoachesDirectory() {
                           <span className={cn(
                             "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-black ring-1",
                             availability.isAccepting
-                              ? "bg-slate-50 text-slate-700 ring-slate-100"
-                              : "bg-slate-50 text-slate-500 ring-slate-100"
+                              ? "bg-[#F6F8FB] text-[#020617] ring-[#E5EAF1]"
+                              : "bg-[#F6F8FB] text-[#94A3B8] ring-[#E5EAF1]"
                           )}>
                             <Clock className="h-3.5 w-3.5" />
                             {availability.isAccepting ? "Accepting" : "Unavailable"}
@@ -550,32 +594,34 @@ export default function CoachesDirectory() {
                   </div>
 
                   {coach.bio && (
-                    <p className="mt-3 line-clamp-2 text-[13px] font-semibold leading-6 text-slate-500">{coach.bio}</p>
+                    <p className="mt-3 line-clamp-2 text-[13px] font-semibold leading-6 text-[#94A3B8]">{coach.bio}</p>
                   )}
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     {(coachTags.length > 0 ? coachTags : specialtyFallbacks.slice(0, 2)).map((tag) => (
-                      <span key={tag} className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-black capitalize text-slate-700 ring-1 ring-slate-100">
+                      <span key={tag} className="rounded-full bg-[#F6F8FB] px-3 py-1.5 text-[11px] font-black capitalize text-[#020617] ring-1 ring-[#E5EAF1]">
                         {tag}
                       </span>
                     ))}
                     {availability?.clientRange && (
-                      <span className="rounded-full bg-sky-50 px-3 py-1.5 text-[11px] font-black text-sky-700 ring-1 ring-sky-100">
+                      <span className="rounded-full bg-[#EFF9FF] px-3 py-1.5 text-[11px] font-black text-[#38BDF8] ring-1 ring-[#38BDF8]/20">
                         {availability.clientRange} active clients
                       </span>
                     )}
                   </div>
 
                   <button
-                    onClick={() => !isConnected && !isPending && handleRequestCoach(coach.id)}
+                    onClick={() => !isConnected && !isPending && handleRequestCoach(coach)}
                     disabled={requesting === coach.id || isConnected || isPending}
                     className={cn(
                       "mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full text-[14px] font-black transition-all active:scale-[0.98] disabled:cursor-not-allowed",
                       isConnected
-                        ? "bg-slate-50 text-slate-700 ring-1 ring-slate-200"
+                        ? "bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1]"
                         : isPending
-                          ? "bg-amber-50 text-amber-700 ring-1 ring-amber-100"
-                          : "bg-[#020617] text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)]"
+                          ? "bg-[#FFF7ED] text-[#F97316] ring-1 ring-[#F97316]/20"
+                          : canReplace
+                            ? "bg-[#FFF7ED] text-[#F97316] ring-1 ring-[#F97316]/20"
+                            : "bg-[#020617] text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)]"
                     )}
                   >
                     {requesting === coach.id ? (
@@ -590,6 +636,11 @@ export default function CoachesDirectory() {
                         <Clock className="h-4 w-4" />
                         {t("pending_status")}
                       </>
+                    ) : canReplace ? (
+                      <>
+                        <UserPlus className="h-4 w-4" />
+                        Replace coach
+                      </>
                     ) : (
                       <>
                         <UserPlus className="h-4 w-4" />
@@ -603,14 +654,14 @@ export default function CoachesDirectory() {
           </div>
         )}
 
-        <section className="mt-6 rounded-[30px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+        <section className="mt-6 rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
           <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-slate-700 ring-1 ring-slate-100">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1]">
               <UserPlus className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-[15px] font-black text-slate-950">Are you a nutrition professional?</h3>
-              <p className="mt-1 text-[12px] font-semibold leading-5 text-slate-500">
+              <h3 className="text-[15px] font-black text-[#020617]">Are you a nutrition professional?</h3>
+              <p className="mt-1 text-[12px] font-semibold leading-5 text-[#94A3B8]">
                 Apply to guide Nutrio clients with coaching, accountability, and meal planning.
               </p>
             </div>

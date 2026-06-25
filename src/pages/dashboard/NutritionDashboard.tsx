@@ -124,14 +124,19 @@ export default function NutritionDashboard() {
 
       const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
       const { data: weightData, error: weightError } = await supabase
-        .from("weight_logs")
-        .select("id, weight_kg, logged_at")
+        .from("body_measurements")
+        .select("id, weight_kg, log_date")
         .eq("user_id", user.id)
-        .gte("logged_at", thirtyDaysAgo)
-        .order("logged_at", { ascending: true });
+        .not("weight_kg", "is", null)
+        .gte("log_date", thirtyDaysAgo.split("T")[0])
+        .order("log_date", { ascending: true });
 
       if (weightError) throw weightError;
-      setWeightLogs(weightData || []);
+      setWeightLogs((weightData || []).map((entry) => ({
+        id: entry.id,
+        weight_kg: entry.weight_kg || 0,
+        logged_at: entry.log_date,
+      })));
 
       const { data: adjustmentData, error: adjustmentError } = await supabase
         .from("ai_nutrition_adjustments")

@@ -121,13 +121,21 @@ export default function BodyProgressDashboard() {
       // Fetch body metrics (last 12 weeks)
       const twelveWeeksAgo = subWeeks(new Date(), 12).toISOString();
       const { data: metricsData } = await supabase
-        .from("user_body_metrics")
-        .select("*")
+        .from("body_measurements")
+        .select("id, weight_kg, waist_cm, body_fat_percent, muscle_mass_percent, log_date")
         .eq("user_id", user.id)
-        .gte("recorded_at", twelveWeeksAgo)
-        .order("recorded_at", { ascending: true });
+        .gte("log_date", twelveWeeksAgo.split("T")[0])
+        .order("log_date", { ascending: true });
 
-      setBodyMetrics(metricsData || []);
+      setBodyMetrics((metricsData || []).map((metric) => ({
+        id: metric.id,
+        weight_kg: metric.weight_kg || 0,
+        waist_cm: metric.waist_cm,
+        body_fat_percent: metric.body_fat_percent,
+        muscle_mass_percent: metric.muscle_mass_percent,
+        recorded_at: metric.log_date,
+        week_start: metric.log_date,
+      })));
 
       // Fetch latest health score
       const { data: scoreData } = await supabase

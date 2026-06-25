@@ -33,6 +33,7 @@ import { aiReportGenerator } from "@/lib/ai-report-generator";
 import { aiReportPDF } from "@/lib/ai-report-pdf";
 import type { AIReportContent } from "@/lib/ai-report-generator";
 import { supabase } from "@/integrations/supabase/client";
+import { WATER_GLASS_ML } from "@/lib/water-service";
 import type { WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
 import { format, subDays } from "date-fns";
 import { toast } from "sonner";
@@ -327,8 +328,8 @@ export default function AIReportPage() {
           .gte("log_date", weekStart.toISOString().split("T")[0])
           .lte("log_date", weekEnd.toISOString().split("T")[0])
           .order("log_date"),
-        supabase.from("water_intake")
-          .select("log_date, glasses")
+        supabase.from("water_entries")
+          .select("log_date, amount_ml")
           .eq("user_id", user.id)
           .gte("log_date", weekStart.toISOString().split("T")[0])
           .lte("log_date", weekEnd.toISOString().split("T")[0]),
@@ -339,7 +340,9 @@ export default function AIReportPage() {
         const date = subDays(weekEnd, i);
         const dateStr = date.toISOString().split("T")[0];
         const log = (dailyLogs || []).find((l: any) => l.log_date === dateStr);
-        const wLog = (waterLogs || []).find((w: any) => w.log_date === dateStr);
+        const dayWaterMl = (waterLogs || [])
+          .filter((w: any) => w.log_date === dateStr)
+          .reduce((sum: number, w: any) => sum + (w.amount_ml || 0), 0);
         dailyData.unshift({
           date: dateStr,
           calories: log?.calories_consumed || 0,
@@ -347,7 +350,7 @@ export default function AIReportPage() {
           carbs: log?.carbs_consumed_g || 0,
           fat: log?.fat_consumed_g || 0,
           weight: log?.weight_kg || null,
-          water: wLog?.glasses || 0,
+          water: Number((dayWaterMl / WATER_GLASS_ML).toFixed(1)),
         });
       }
 

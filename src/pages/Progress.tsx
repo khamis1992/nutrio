@@ -30,6 +30,7 @@ import { ProfessionalWeeklyReport } from "@/components/progress/ProfessionalWeek
 import { WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
 import { professionalWeeklyReportPDF } from "@/lib/professional-weekly-report-pdf";
 import { generateWeeklyMealPlan, loadMealPlanImages } from "@/lib/meal-plan-generator";
+import { WATER_GLASS_ML } from "@/lib/water-service";
 
 // Hooks
 import { useWeeklySummary } from "@/hooks/useWeeklySummary";
@@ -115,8 +116,8 @@ const ProgressNative = () => {
         .order('log_date');
 
       const { data: waterLogs } = await supabase
-        .from('water_intake')
-        .select('log_date, glasses')
+        .from('water_entries')
+        .select('log_date, amount_ml')
         .eq('user_id', user.id)
         .gte('log_date', weekStart.toISOString().split('T')[0])
         .lte('log_date', weekEnd.toISOString().split('T')[0]);
@@ -126,7 +127,9 @@ const ProgressNative = () => {
         const date = subDays(weekEnd, i);
         const dateStr = date.toISOString().split('T')[0];
         const log = dailyLogs?.find((l: { log_date: string }) => l.log_date === dateStr);
-        const waterLog = waterLogs?.find((w: { log_date: string }) => w.log_date === dateStr);
+        const waterMl = (waterLogs || [])
+          .filter((w: { log_date: string; amount_ml?: number | null }) => w.log_date === dateStr)
+          .reduce((sum, w) => sum + (w.amount_ml || 0), 0);
         
         data.unshift({
           date: dateStr,
@@ -135,7 +138,7 @@ const ProgressNative = () => {
           carbs: log?.carbs_consumed_g || 0,
           fat: log?.fat_consumed_g || 0,
           weight: log?.weight_kg || null,
-          water: waterLog?.glasses || 0,
+          water: Number((waterMl / WATER_GLASS_ML).toFixed(1)),
         });
       }
       setDailyData(data);
@@ -179,8 +182,8 @@ const ProgressNative = () => {
         .order('log_date');
 
       const { data: waterLogs } = await supabase
-        .from('water_intake')
-        .select('log_date, glasses')
+        .from('water_entries')
+        .select('log_date, amount_ml')
         .eq('user_id', user.id)
         .gte('log_date', weekStart.toISOString().split('T')[0])
         .lte('log_date', weekEnd.toISOString().split('T')[0]);
@@ -202,7 +205,9 @@ const ProgressNative = () => {
         const date = subDays(weekEnd, i);
         const dateStr = date.toISOString().split('T')[0];
         const log = dailyLogs?.find((l: { log_date: string }) => l.log_date === dateStr);
-        const waterLog = waterLogs?.find((w: { log_date: string }) => w.log_date === dateStr);
+        const waterMl = (waterLogs || [])
+          .filter((w: { log_date: string; amount_ml?: number | null }) => w.log_date === dateStr)
+          .reduce((sum, w) => sum + (w.amount_ml || 0), 0);
         
         dailyData.unshift({
           date: dateStr,
@@ -211,7 +216,7 @@ const ProgressNative = () => {
           carbs: log?.carbs_consumed_g || 0,
           fat: log?.fat_consumed_g || 0,
           weight: log?.weight_kg || null,
-          water: waterLog?.glasses || 0,
+          water: Number((waterMl / WATER_GLASS_ML).toFixed(1)),
         });
       }
 

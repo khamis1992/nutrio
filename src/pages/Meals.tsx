@@ -23,7 +23,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
-import { SmartRecommendations } from "@/components/SmartRecommendations";
+import { SmartMealPicks } from "@/components/SmartRecommendations";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
@@ -391,7 +391,9 @@ const Meals = () => {
           const { data: mealsData, error: mealsError } = await supabase
             .from("meals")
             .select("restaurant_id")
-            .in("restaurant_id", ids);
+            .in("restaurant_id", ids)
+            .eq("approval_status", "approved")
+            .eq("is_available", true);
 
           if (mealsError) {
             console.error("Error fetching meal counts:", mealsError);
@@ -507,7 +509,7 @@ const Meals = () => {
   return (
     <div className="min-h-full bg-[#F6F7F4]" dir={isRTL ? "rtl" : "ltr"}>
       <div className="sticky top-0 z-30 border-b border-white/70 bg-[#F6F7F4]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-[480px] items-center justify-between px-4 py-3">
           <Link
             to="/dashboard"
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition active:scale-95"
@@ -534,7 +536,7 @@ const Meals = () => {
         </div>
       </div>
 
-      <main className="mx-auto max-w-7xl px-4 pb-10 pt-5 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-[480px] px-4 pb-10 pt-5">
         {fetchError && (
           <div className="mb-5 flex items-start gap-3 rounded-[18px] bg-red-50 p-4 text-red-700 ring-1 ring-red-100">
             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" strokeWidth={2} />
@@ -609,7 +611,7 @@ const Meals = () => {
         </section>
 
         <section className="rounded-[24px] bg-white p-3 shadow-[0_14px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="grid gap-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" strokeWidth={2.25} />
               <input
@@ -621,7 +623,7 @@ const Meals = () => {
               />
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide lg:pb-0">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {categoryTabs.map((category) => {
                 const Icon = category.icon;
                 const active = selectedCategory === category.id;
@@ -675,7 +677,7 @@ const Meals = () => {
         ) : (
           <>
             <section className="mt-5">
-              <SmartRecommendations />
+              <SmartMealPicks />
             </section>
 
             <section className="mt-8">
@@ -688,7 +690,7 @@ const Meals = () => {
                   {t("picks_count", { count: featuredRestaurants.length })}
                 </span>
               </div>
-              <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-4 scrollbar-hide sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+              <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-4 scrollbar-hide">
                 {featuredRestaurants.map((restaurant) => (
                   <div key={`featured-${restaurant.name}`} className="snap-start">
                     <FeatureCard restaurant={restaurant} goalType={activeGoal?.goal_type} t={t} />
@@ -712,7 +714,7 @@ const Meals = () => {
                 </span>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4">
                 {visibleRestaurants.map((restaurant) => (
                   <RestaurantCard
                     key={restaurant.name}

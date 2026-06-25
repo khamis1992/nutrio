@@ -11,7 +11,7 @@
  */
 
 import { isNative, isAndroid, isWeb } from "@/lib/capacitor";
-import { WorkoutData } from "@/hooks/useHealthIntegration";
+import type { WorkoutData } from "@/lib/health-types";
 import type { HealthDataType, HealthPlugin } from "@capgo/capacitor-health";
 
 export interface GoogleFitAuth {
@@ -315,6 +315,10 @@ export async function getWorkouts(
       console.error("Failed to fetch Health Connect workouts:", error);
       return [];
     }
+  }
+
+  if (!auth.accessToken) {
+    return [];
   }
 
   const startMillis = startTime.getTime();

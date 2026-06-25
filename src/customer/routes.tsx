@@ -40,9 +40,7 @@ const RecoveryDetail = lazy(() => import("@/pages/recovery/RecoveryDetail"));
 const MyBookings = lazy(() => import("@/pages/recovery/MyBookings"));
 const Community = lazy(() => import("@/pages/Community"));
 const LogActivity = lazy(() => import("@/pages/LogActivity"));
-const NutritionGoals = lazy(() => import("@/pages/NutritionGoals"));
 const BodyMetrics = lazy(() => import("@/pages/BodyMetrics"));
-const SmartRecommendationsPage = lazy(() => import("@/pages/recommendations/SmartMealRecommendations"));
 const CoachesDirectory = lazy(() => import("@/pages/CoachesDirectory"));
 const Recipes = lazy(() => import("@/pages/Recipes"));
 const RecipeNew = lazy(() => import("@/pages/RecipeNew"));
@@ -174,11 +172,7 @@ export const customerRoutes = (
     />
     <Route
       path="/nutrition-goals"
-      element={
-        <ProtectedRoute>
-          <NutritionGoals />
-        </ProtectedRoute>
-      }
+      element={<Navigate to="/progress?tab=goals" replace />}
     />
     <Route
       path="/body-metrics"
@@ -380,11 +374,7 @@ export const customerRoutes = (
     />
     <Route
       path="/recommendations"
-      element={
-        <ProtectedRoute>
-          <SmartRecommendationsPage />
-        </ProtectedRoute>
-      }
+      element={<Navigate to="/meals" replace />}
     />
     <Route
       path="/coaches"

@@ -25,52 +25,27 @@ export function TransformationJourney({ userId }: { userId: string }) {
   useEffect(() => {
     if (!userId) return;
     const load = async () => {
-      const { data } = await supabase
-        .from("profile")
-        .select("*")
-        .eq("user_id", userId)
-        .limit(0);
-
       const today = new Date();
       const startDate = new Date(today);
       startDate.setMonth(startDate.getMonth() - 6);
       const start = startDate.toISOString().split("T")[0];
 
-      const { data: logs } = await supabase
-        .from("progress_logs")
-        .select("log_date, protein_consumed_g")
+      const { data: measurements } = await supabase
+        .from("body_measurements")
+        .select("log_date, weight_kg")
         .eq("user_id", userId)
         .gte("log_date", start)
+        .not("weight_kg", "is", null)
         .order("log_date", { ascending: true });
 
-      // Use a separate query for weight if weight_logs table exists
-      const { data: weights } = await supabase
-        .from("progress_logs")
-        .select("log_date, protein_consumed_g")
-        .eq("user_id", userId);
-
-      // Try fetching weight from profiles over time (we'll simulate monthly snapshots)
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("weight, target_weight")
-        .eq("user_id", userId)
-        .single();
-
-      if (profile) {
-        const currentWeight = profile.weight || 75;
-        const targetWeight = profile.target_weight || currentWeight;
-        const monthlyRate = (currentWeight - targetWeight) / Math.max(6, 1);
-        const months: WeightLog[] = [];
-        for (let i = 7; i >= 0; i--) {
-          const d = new Date(today);
-          d.setMonth(d.getMonth() - i);
-          months.push({
-            log_date: d.toISOString().split("T")[0],
-            weight_kg: Math.round((targetWeight + monthlyRate * i) * 10) / 10,
-          });
-        }
-        setWeightLogs(months);
-      }
+      setWeightLogs(
+        (measurements ?? [])
+          .filter((measurement) => typeof measurement.weight_kg === "number")
+          .map((measurement) => ({
+            log_date: measurement.log_date,
+            weight_kg: Number(measurement.weight_kg),
+          }))
+      );
       setLoading(false);
     };
     load();
@@ -80,6 +55,22 @@ export function TransformationJourney({ userId }: { userId: string }) {
     return (
       <div className="rounded-[20px] bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.03)] ring-1 ring-slate-200/60">
         <div className="h-48 animate-pulse rounded-xl bg-slate-100" />
+      </div>
+    );
+  }
+
+  if (weightLogs.length === 0) {
+    return (
+      <div className="rounded-[20px] bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.03)] ring-1 ring-slate-200/60">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-slate-100 text-slate-500">
+            <Scale className="h-[16px] w-[16px]" strokeWidth={2.2} />
+          </div>
+          <div>
+            <p className="text-[14px] font-extrabold tracking-[-0.01em] text-slate-950">Transformation Journey</p>
+            <p className="text-[11px] font-medium text-slate-500">Log body metrics to build your trend.</p>
+          </div>
+        </div>
       </div>
     );
   }

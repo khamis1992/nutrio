@@ -682,7 +682,7 @@ const Profile = () => {
             title={t("goals")}
             subtitle={t("goals_subtitle")}
             value={calorieTarget > 0 ? `${calorieTarget} ${t("cal_unit")}` : "-"}
-            onClick={() => navigate("/nutrition-goals")}
+            onClick={() => navigate("/progress?tab=goals")}
           />
           <ActionRow
             icon={<Activity className="h-5 w-5" />}

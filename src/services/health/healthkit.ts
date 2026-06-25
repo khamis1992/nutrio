@@ -7,7 +7,7 @@
  */
 
 import { isNative, isIOS } from "@/lib/capacitor";
-import { WorkoutData } from "@/hooks/useHealthIntegration";
+import type { WorkoutData } from "@/lib/health-types";
 import type { HealthDataType, HealthPlugin } from "@capgo/capacitor-health";
 
 async function getPlugin(): Promise<HealthPlugin | null> {

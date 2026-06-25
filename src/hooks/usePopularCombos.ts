@@ -31,7 +31,7 @@ type MealRow = {
   carbs_g?: number | null;
   fat_g?: number | null;
   meal_type: string | null;
-  restaurants?: { name: string | null } | null;
+  restaurants?: { name: string | null; is_active?: boolean | null; approval_status?: string | null } | null;
 };
 
 type ScheduleComboRow = {
@@ -92,8 +92,8 @@ function makeCombo(meals: MealRow[], favoriteCounts: Record<string, number>, rev
     title: main.name,
     author: restaurantName(main),
     image: main.image_url || "",
-    likes: favoriteCounts[main.id] || 0,
-    comments: reviewCounts[main.id] || 0,
+    likes: validMeals.reduce((sum, meal) => sum + (favoriteCounts[meal.id] || 0), 0),
+    comments: validMeals.reduce((sum, meal) => sum + (reviewCounts[meal.id] || 0), 0),
     tags: tags.length ? tags : ["Balanced"],
     comboMeals: validMeals.map(toComboItem),
   };
@@ -138,9 +138,12 @@ async function fetchScheduleDerivedCombos(): Promise<PopularCombo[]> {
   const mealIds = Array.from(new Set(topComboKeys.flatMap((key) => key.split(","))));
   const { data: meals, error: mealsError } = await supabase
     .from("meals")
-    .select("id,name,image_url,calories,protein_g,carbs_g,fat_g,meal_type,restaurants:restaurant_id(name)")
+    .select("id,name,image_url,calories,protein_g,carbs_g,fat_g,meal_type,restaurants:restaurant_id(name,is_active,approval_status)")
     .in("id", mealIds)
-    .eq("is_available", true);
+    .eq("is_available", true)
+    .eq("approval_status", "approved")
+    .eq("restaurants.is_active", true)
+    .eq("restaurants.approval_status", "approved");
 
   if (mealsError || !meals?.length) return [];
 
@@ -148,8 +151,7 @@ async function fetchScheduleDerivedCombos(): Promise<PopularCombo[]> {
     acc[meal.id] = meal;
     return acc;
   }, {});
-  const mainIds = topComboKeys.map((key) => key.split(",")[0]).filter(Boolean);
-  const { favoriteCounts, reviewCounts } = await fetchEngagement(mainIds);
+  const { favoriteCounts, reviewCounts } = await fetchEngagement(mealIds);
 
   return topComboKeys
     .map((key) => makeCombo(key.split(",").map((id) => mealMap[id]).filter(Boolean), favoriteCounts, reviewCounts))
@@ -159,8 +161,11 @@ async function fetchScheduleDerivedCombos(): Promise<PopularCombo[]> {
 async function fetchNutritionGeneratedCombos(): Promise<PopularCombo[]> {
   const { data: meals, error } = await supabase
     .from("meals")
-    .select("id,name,image_url,calories,protein_g,carbs_g,fat_g,meal_type,restaurants:restaurant_id(name)")
+    .select("id,name,image_url,calories,protein_g,carbs_g,fat_g,meal_type,restaurants:restaurant_id(name,is_active,approval_status)")
     .eq("is_available", true)
+    .eq("approval_status", "approved")
+    .eq("restaurants.is_active", true)
+    .eq("restaurants.approval_status", "approved")
     .order("created_at", { ascending: false })
     .limit(24);
 
@@ -171,8 +176,8 @@ async function fetchNutritionGeneratedCombos(): Promise<PopularCombo[]> {
   const balanced = rows.filter((meal) => (meal.protein_g || 0) >= 15 && (meal.protein_g || 0) < 30);
   const light = rows.filter((meal) => (meal.calories || 0) > 0 && (meal.calories || 0) <= 450);
   const mains = highProtein.length ? highProtein : rows;
-  const mainIds = mains.slice(0, 4).map((meal) => meal.id);
-  const { favoriteCounts, reviewCounts } = await fetchEngagement(mainIds);
+  const engagementMealIds = Array.from(new Set(rows.map((meal) => meal.id)));
+  const { favoriteCounts, reviewCounts } = await fetchEngagement(engagementMealIds);
 
   return mains.slice(0, 4).map((main, index) => {
     const side = balanced.find((meal) => meal.id !== main.id) || rows[(index + 1) % rows.length];

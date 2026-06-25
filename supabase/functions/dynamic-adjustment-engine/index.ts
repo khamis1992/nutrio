@@ -14,7 +14,7 @@ interface WeightLog {
   id: string;
   user_id: string;
   weight_kg: number;
-  logged_at: string;
+  log_date: string;
 }
 
 interface WeeklyAdherence {
@@ -43,14 +43,14 @@ function calculateWeightVelocity(weightLogs: WeightLog[]): number {
   
   // Sort by date
   const sorted = [...weightLogs].sort((a, b) => 
-    new Date(a.logged_at).getTime() - new Date(b.logged_at).getTime()
+    new Date(a.log_date).getTime() - new Date(b.log_date).getTime()
   );
   
   const oldest = sorted[0];
   const newest = sorted[sorted.length - 1];
   
   const weightChange = newest.weight_kg - oldest.weight_kg;
-  const daysDiff = (new Date(newest.logged_at).getTime() - new Date(oldest.logged_at).getTime()) / (1000 * 60 * 60 * 24);
+  const daysDiff = (new Date(newest.log_date).getTime() - new Date(oldest.log_date).getTime()) / (1000 * 60 * 60 * 24);
   const weeksDiff = daysDiff / 7;
   
   return weeksDiff > 0 ? weightChange / weeksDiff : 0;
@@ -61,7 +61,7 @@ function detectPlateau(weightLogs: WeightLog[]): boolean {
   if (weightLogs.length < 4) return false;
   
   const sorted = [...weightLogs].sort((a, b) => 
-    new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()
+    new Date(b.log_date).getTime() - new Date(a.log_date).getTime()
   );
   
   // Check last 4 logs
@@ -311,16 +311,17 @@ serve(async (req) => {
       );
     }
 
-    // Fetch weight logs for last N weeks
+    // Fetch canonical body measurements for last N weeks
     const weeksAgo = new Date();
     weeksAgo.setDate(weeksAgo.getDate() - (weeks_of_history * 7));
     
-    const { data: weightLogs, error: weightError } = await supabaseClient
-      .from("weight_logs")
-      .select("id, weight_kg, logged_at")
+    const { data: bodyMeasurements, error: weightError } = await supabaseClient
+      .from("body_measurements")
+      .select("id, user_id, weight_kg, log_date")
       .eq("user_id", user_id)
-      .gte("logged_at", weeksAgo.toISOString())
-      .order("logged_at", { ascending: false });
+      .gte("log_date", weeksAgo.toISOString().split("T")[0])
+      .not("weight_kg", "is", null)
+      .order("log_date", { ascending: false });
 
     if (weightError) {
       console.error("Error fetching weight logs:", weightError);
@@ -339,11 +340,11 @@ serve(async (req) => {
     }
 
     // Calculate metrics
-    const weightVelocity = weightLogs && weightLogs.length >= 2
-      ? calculateWeightVelocity(weightLogs)
+    const weightVelocity = bodyMeasurements && bodyMeasurements.length >= 2
+      ? calculateWeightVelocity(bodyMeasurements)
       : 0;
     
-    const isPlateau = weightLogs ? detectPlateau(weightLogs) : false;
+    const isPlateau = bodyMeasurements ? detectPlateau(bodyMeasurements) : false;
     
     const avgAdherence = adherenceData
       ? calculateAverageAdherence(adherenceData)
@@ -434,7 +435,7 @@ serve(async (req) => {
           weight_velocity: weightVelocity,
           is_plateau: isPlateau,
           average_adherence: avgAdherence,
-          weight_logs_count: weightLogs?.length || 0,
+          body_measurements_count: bodyMeasurements?.length || 0,
         },
         applied: applied,
         message: applied 

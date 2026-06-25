@@ -15,8 +15,9 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { BarcodeScanner, type ScannedProduct } from "./BarcodeScanner";
 import { trackEvent, AnalyticsEvents } from "@/lib/analytics";
-import { getQatarNow } from "@/lib/dateUtils";
 import { useHealthIntegration } from "@/hooks/useHealthIntegration";
+import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
+import { logMealItems } from "@/lib/meal-log-service";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface FoodItem {
@@ -384,76 +385,20 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const logMeal = async (
     name: string, calories: number, protein: number, carbs: number, fat: number, saveToHistory = true
   ) => {
-    const now = getQatarNow();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const { data: existing } = await supabase
-      .from("progress_logs")
-      .select("id, calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
-      .eq("user_id", userId)
-      .eq("log_date", today)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase.from("progress_logs").update({
-        calories_consumed: (existing.calories_consumed || 0) + calories,
-        protein_consumed_g: (existing.protein_consumed_g || 0) + protein,
-        carbs_consumed_g: (existing.carbs_consumed_g || 0) + carbs,
-        fat_consumed_g: (existing.fat_consumed_g || 0) + fat,
-      }).eq("id", existing.id);
-    } else {
-      await supabase.from("progress_logs").insert({
-        user_id: userId, log_date: today,
-        calories_consumed: calories,
-        protein_consumed_g: protein,
-        carbs_consumed_g: carbs,
-        fat_consumed_g: fat,
-      });
-    }
-
-    if (saveToHistory && calories > 0) {
-      await supabase.from("meal_history").insert({
-        user_id: userId,
+    if (!saveToHistory || calories <= 0) return;
+    await logMealItems({
+      userId,
+      source: "meal_log",
+      track: trackEvent,
+      writeMealToHealth: healthPlatform !== "web" ? writeMealToHealth : undefined,
+      items: [{
         name: name || `Meal (${calories} cal)`,
-        calories, protein_g: protein, carbs_g: carbs, fat_g: fat,
-      });
-
-      // Award XP for logging a meal
-      try {
-        await supabase.rpc('award_xp_for_meal_log', {
-          p_user_id: userId,
-          p_xp_amount: 10,
-        });
-        trackEvent("xp_earned", { amount: 10, source: "meal_log" });
-      } catch (xpError) {
-        console.warn("Failed to award XP:", xpError);
-      }
-
-      // Increment meals logged counter
-      try {
-        await supabase.rpc('increment_meals_logged', {
-          p_user_id: userId,
-        });
-      } catch (counterError) {
-        console.warn("Failed to increment meals logged:", counterError);
-      }
-
-      // Write nutrition data to Apple Health / Google Fit if connected
-      if (healthPlatform !== "web") {
-        try {
-          await writeMealToHealth({
-            name: name || `Meal (${calories} cal)`,
-            calories,
-            protein,
-            carbs,
-            fat,
-            timestamp: new Date(),
-          });
-        } catch (healthErr) {
-          // Non-critical: silently fail if health write is unavailable
-          console.warn("Failed to write meal to Health app:", healthErr);
-        }
-      }
-    }
+        calories,
+        protein_g: protein,
+        carbs_g: carbs,
+        fat_g: fat,
+      }],
+    });
   };
 
   // ── Add selected items ─────────────────────────────────────────────────────
@@ -505,6 +450,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
             p_fiber_g: 0,
           });
         }
+        await syncCommunityChallengeProgressQuietly(userId);
 
         // Remove them from local state immediately
         setScheduledItems((prev) =>

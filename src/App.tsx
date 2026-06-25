@@ -56,6 +56,7 @@ const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminExports = lazy(() => import("./pages/admin/AdminExports"));
 const AdminPayouts = lazy(() => import("./pages/admin/AdminPayouts"));
+const AdminCustomerWallets = lazy(() => import("./pages/admin/AdminCustomerWallets"));
 const AdminAffiliatePayouts = lazy(() => import("./pages/admin/AdminAffiliatePayouts"));
 const AdminAffiliateApplications = lazy(() => import("./pages/admin/AdminAffiliateApplications"));
 const AdminMilestones = lazy(() => import("./pages/admin/AdminMilestones"));
@@ -69,6 +70,7 @@ const AdminIPManagement = lazy(() => import("./pages/admin/AdminIPManagement"));
 const AdminFreezeManagement = lazy(() => import("./pages/admin/AdminFreezeManagement"));
 const AdminRetentionAnalytics = lazy(() => import("./pages/admin/AdminRetentionAnalytics"));
 const AdminStreakRewards = lazy(() => import("./pages/admin/AdminStreakRewards"));
+const AdminCommunityChallenges = lazy(() => import("./pages/admin/AdminCommunityChallenges"));
 const AdminProfitDashboard = lazy(() => import("./pages/admin/AdminProfitDashboard"));
 const AdminMealApprovals = lazy(() => import("./pages/admin/AdminMealApprovals"));
 const AdminPremiumAnalytics = lazy(() => import("./pages/admin/AdminPremiumAnalytics"));
@@ -387,6 +389,14 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route
+              path="/admin/customer-wallets"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminCustomerWallets />
+                </ProtectedRoute>
+              }
+            />
             <Route 
               path="/admin/affiliate-payouts" 
               element={
@@ -424,6 +434,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminStreakRewards />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/community-challenges"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminCommunityChallenges />
                 </ProtectedRoute>
               }
             />

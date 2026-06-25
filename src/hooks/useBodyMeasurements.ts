@@ -4,10 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 export interface BodyMeasurement {
   id: string;
   user_id: string;
-  weight_kg: number;
+  weight_kg: number | null;
   waist_cm: number | null;
   hip_cm: number | null;
   body_fat_percent: number | null;
+  muscle_mass_percent: number | null;
+  notes: string | null;
   log_date: string;
 }
 
@@ -34,7 +36,7 @@ export function useBodyMeasurements(clientId: string | undefined) {
     try {
       const { data, error } = await supabase
         .from("body_measurements")
-        .select("id, user_id, weight_kg, waist_cm, hip_cm, body_fat_percent, log_date")
+        .select("id, user_id, weight_kg, waist_cm, hip_cm, body_fat_percent, muscle_mass_percent, notes, log_date")
         .eq("user_id", clientId)
         .order("log_date", { ascending: false })
         .limit(30);
@@ -76,22 +78,29 @@ export function useBodyMeasurements(clientId: string | undefined) {
     waist_cm?: number | null;
     hip_cm?: number | null;
     body_fat_percent?: number | null;
+    muscle_mass_percent?: number | null;
     notes?: string | null;
   }) => {
     if (!clientId) return;
     try {
       const { error } = await supabase
         .from("body_measurements")
-        .insert({
+        .upsert({
           user_id: clientId,
           log_date: measurement.log_date,
           weight_kg: measurement.weight_kg ?? null,
           waist_cm: measurement.waist_cm ?? null,
           hip_cm: measurement.hip_cm ?? null,
           body_fat_percent: measurement.body_fat_percent ?? null,
+          muscle_mass_percent: measurement.muscle_mass_percent ?? null,
           notes: measurement.notes ?? null,
-        });
+        }, { onConflict: "user_id,log_date" });
       if (error) throw error;
+      if (measurement.weight_kg && measurement.weight_kg > 0) {
+        await supabase
+          .from("profiles")
+          .upsert({ user_id: clientId, current_weight_kg: measurement.weight_kg }, { onConflict: "user_id" });
+      }
       await fetchMeasurements();
     } catch (error) {
       console.error("Error adding body measurement:", error);

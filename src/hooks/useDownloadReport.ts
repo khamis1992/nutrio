@@ -7,6 +7,7 @@ import type { WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
 import { professionalWeeklyReportPDF } from "@/lib/professional-weekly-report-pdf";
 import { generateWeeklyMealPlan, loadMealPlanImages } from "@/lib/meal-plan-generator";
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from "@/lib/nutrition-calculator";
+import { WATER_GLASS_ML } from "@/lib/water-service";
 
 export function useDownloadReport(
   userId: string | undefined,
@@ -46,8 +47,8 @@ export function useDownloadReport(
         .order('log_date');
 
       const { data: waterLogs } = await supabase
-        .from('water_intake')
-        .select('log_date, glasses')
+        .from('water_entries')
+        .select('log_date, amount_ml')
         .eq('user_id', userId)
         .gte('log_date', weekStart.toISOString().split('T')[0])
         .lte('log_date', weekEnd.toISOString().split('T')[0]);
@@ -86,7 +87,9 @@ export function useDownloadReport(
         const date = subDays(weekEnd, i);
         const dateStr = date.toISOString().split('T')[0];
         const log = dailyLogs?.find((l: Record<string, unknown>) => l.log_date === dateStr);
-        const waterLog = waterLogs?.find((w: Record<string, unknown>) => w.log_date === dateStr);
+        const waterMl = (waterLogs || [])
+          .filter((w: Record<string, unknown>) => w.log_date === dateStr)
+          .reduce((sum: number, w: Record<string, unknown>) => sum + ((w.amount_ml as number) || 0), 0);
         
         reportDailyData.unshift({
           date: dateStr,
@@ -95,7 +98,7 @@ export function useDownloadReport(
           carbs: log?.carbs_consumed_g || 0,
           fat: log?.fat_consumed_g || 0,
           weight: log?.weight_kg || null,
-          water: waterLog?.glasses || 0,
+          water: Number((waterMl / WATER_GLASS_ML).toFixed(1)),
         });
       }
 
@@ -159,8 +162,10 @@ export function useDownloadReport(
       const dailyWater = Array.from({ length: 7 }, (_, i) => {
         const d = subDays(weekEnd, 6 - i);
         const dateStr = d.toISOString().split('T')[0];
-        const waterLog = waterLogs?.find((w: Record<string, unknown>) => w.log_date === dateStr);
-        return { date: dateStr, waterMl: (waterLog?.glasses || 0) * 250 };
+        const waterMl = (waterLogs || [])
+          .filter((w: Record<string, unknown>) => w.log_date === dateStr)
+          .reduce((sum: number, w: Record<string, unknown>) => sum + ((w.amount_ml as number) || 0), 0);
+        return { date: dateStr, waterMl };
       });
 
       const heightCm = profile?.height_cm || null;

@@ -8,8 +8,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
-import { getQatarNow } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
+import { logMealItems } from "@/lib/meal-log-service";
 import {
   Camera as CameraIcon,
   GalleryHorizontal,
@@ -211,78 +211,18 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
     setView("logging");
 
     try {
-      const today = getQatarNow().toDate().toISOString().split("T")[0];
-
-      // Log each detected item
-      for (let i = 0; i < detectedItems.length; i++) {
-        const item = detectedItems[i];
-        const qty = quantities.get(i) ?? 1;
-        const cals = Math.round(item.calories * qty);
-        const prot = Math.round(item.protein_g * qty);
-        const carb = Math.round(item.carbs_g * qty);
-        const fat = Math.round(item.fat_g * qty);
-
-        // Insert into meal_history
-        await supabase.from("meal_history").insert({
-          user_id: user.id,
-          name: item.name,
-          calories: cals,
-          protein_g: prot,
-          carbs_g: carb,
-          fat_g: fat,
-        });
-      }
-
-      // Upsert progress_logs (accumulate macros)
-      const { data: existing } = await supabase
-        .from("progress_logs")
-        .select("id, calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
-        .eq("user_id", user.id)
-        .eq("log_date", today)
-        .maybeSingle();
-
-      if (existing) {
-        await supabase
-          .from("progress_logs")
-          .update({
-            calories_consumed: (existing.calories_consumed ?? 0) + totals.calories,
-            protein_consumed_g: (existing.protein_consumed_g ?? 0) + totals.protein,
-            carbs_consumed_g: (existing.carbs_consumed_g ?? 0) + totals.carbs,
-            fat_consumed_g: (existing.fat_consumed_g ?? 0) + totals.fat,
-          })
-          .eq("id", existing.id);
-      } else {
-        await supabase.from("progress_logs").insert({
-          user_id: user.id,
-          log_date: today,
-          calories_consumed: totals.calories,
-          protein_consumed_g: totals.protein,
-          carbs_consumed_g: totals.carbs,
-          fat_consumed_g: totals.fat,
-        });
-      }
-
-      // Award XP and track analytics
-      try {
-        await supabase.rpc("award_xp_for_meal_log", {
-          p_user_id: user.id,
-          p_xp_amount: 10 * detectedItems.length,
-        });
-        trackEvent("xp_earned", { amount: 10 * detectedItems.length, source: "food_photo_log" });
-      } catch (xpError) {
-        console.warn("Failed to award XP:", xpError);
-      }
-
-      try {
-        await supabase.rpc("increment_meals_logged", { p_user_id: user.id });
-      } catch (counterError) {
-        console.warn("Failed to increment meals logged:", counterError);
-      }
-
-      trackEvent("meal_logged", {
+      await logMealItems({
+        userId: user.id,
         source: "food_photo",
-        items: detectedItems.length,
-        total_calories: totals.calories,
+        track: trackEvent,
+        items: detectedItems.map((item, index) => ({
+          name: item.name,
+          calories: item.calories,
+          protein_g: item.protein_g,
+          carbs_g: item.carbs_g,
+          fat_g: item.fat_g,
+          quantity: quantities.get(index) ?? 1,
+        })),
       });
 
       toast.success(`Logged ${detectedItems.length} food items!`, {

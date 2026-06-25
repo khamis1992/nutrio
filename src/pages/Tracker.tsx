@@ -6,7 +6,7 @@ import { useWaterEntries } from "@/hooks/useWaterEntries";
 import { useBodyMeasurements } from "@/hooks/useBodyMeasurements";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Minus, Plus, Pencil, Loader2, ArrowLeft, Footprints, Weight, Activity, BarChart3, ArrowUp, CheckCircle2, Droplets, X } from "lucide-react";
+import { Pencil, Loader2, ArrowLeft, Footprints, Weight, Activity, BarChart3, ArrowUp, CheckCircle2, Droplets, X } from "lucide-react";
 import { TrackerInsights } from "@/components/TrackerInsights";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -48,10 +48,7 @@ export default function Tracker() {
   const {
     totalMl: waterMl,
     goalMl: waterTargetMl,
-    entries: waterEntries,
-    loading: waterLoading,
     fetchEntries: fetchWaterEntries,
-    deleteEntry: deleteWaterEntry,
   } = useWaterEntries(user?.id);
 
   useEffect(() => { fetchWaterEntries(today); }, [fetchWaterEntries, today]);
@@ -66,11 +63,6 @@ export default function Tracker() {
   const [heightInput, setHeightInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showActivityPrompt, setShowActivityPrompt] = useState(false);
-
-  const handleRemoveWater = async () => {
-    const lastEntry = waterEntries[0];
-    if (lastEntry) await deleteWaterEntry(lastEntry.id);
-  };
 
   useEffect(() => {
     const stored = localStorage.getItem(`tracker_steps_${user?.id}_${today}`);
@@ -227,7 +219,7 @@ export default function Tracker() {
 
               </div>
               <div className="grid grid-cols-2 gap-px bg-slate-100">
-                <div className="bg-white px-5 py-4">
+                <Link to="/water-tracker" className="block bg-white px-5 py-4 transition active:scale-[0.99]">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t("water")}</p>
@@ -249,9 +241,9 @@ export default function Tracker() {
                       style={{ width: `${Math.min(100, waterPct)}%` }}
                     />
                   </div>
-                </div>
+                </Link>
 
-                <div className="bg-white px-5 py-4">
+                <Link to="/step-counter" className="block bg-white px-5 py-4 transition active:scale-[0.99]">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t("steps")}</p>
@@ -272,92 +264,9 @@ export default function Tracker() {
                       style={{ width: `${Math.min(100, stepsPct)}%` }}
                     />
                   </div>
-                </div>
+                </Link>
               </div>
             </section>
-
-            {/* Water Card */}
-            <div className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#EFF9FF] flex items-center justify-center shrink-0 ring-1 ring-[#38BDF8]/20">
-                    <Droplets className="h-[18px] w-[18px] text-[#38BDF8]" />
-                  </div>
-                  <span className="text-[13px] font-bold text-slate-700">{t("water")}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleRemoveWater}
-                    disabled={waterLoading || waterMl === 0}
-                    className="w-8 h-8 rounded-full ring-1 ring-[#E5EAF1] text-slate-400 flex items-center justify-center disabled:opacity-30"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <Link
-                    to="/water-tracker"
-                    className="w-8 h-8 rounded-full bg-[#020617] text-white flex items-center justify-center shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-              <div className="flex items-baseline gap-1 mb-0.5">
-                <span className="text-[26px] font-extrabold text-slate-900 tracking-[-0.03em] leading-none">
-                  {waterMl.toLocaleString()}
-                </span>
-                <span className="text-[13px] font-semibold text-slate-400">mL</span>
-              </div>
-              <p className="text-[11px] text-slate-400 mb-3">/ {waterTargetMl.toLocaleString()} mL goal</p>
-              <div className="h-[6px] w-full overflow-hidden rounded-full bg-slate-100">
-                <div
-                    className="h-full rounded-full bg-[#38BDF8] transition-all duration-500"
-                  style={{ width: `${Math.min(100, waterPct)}%` }}
-                />
-              </div>
-              <p className="text-[11px] text-slate-600 font-semibold mt-1.5">{waterPct}% of daily goal</p>
-            </div>
-
-            {/* Steps Card */}
-            <div className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#F3F4FF] flex items-center justify-center shrink-0 ring-1 ring-[#7C83F6]/20">
-                    <Footprints className="h-[18px] w-[18px] text-[#7C83F6]" />
-                  </div>
-                  <span className="text-[13px] font-bold text-slate-700">{t("steps")}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled
-                    className="w-8 h-8 rounded-full ring-1 ring-slate-200 text-slate-300 flex items-center justify-center disabled:opacity-40"
-                    aria-label="Remove steps"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <Link
-                    to="/step-counter"
-                    className="w-8 h-8 rounded-full bg-[#020617] text-white flex items-center justify-center shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
-                    aria-label={t("add_steps")}
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-              <div className="flex items-baseline gap-1 mb-0.5">
-                <span className="text-[26px] font-extrabold text-slate-900 tracking-[-0.03em] leading-none">
-                  {steps.toLocaleString()}
-                </span>
-                <span className="text-[13px] font-semibold text-slate-400">{t("steps")}</span>
-              </div>
-              <p className="text-[11px] text-slate-400 mb-3">/ {STEP_GOAL.toLocaleString()} goal</p>
-              <div className="h-[6px] w-full overflow-hidden rounded-full bg-slate-100">
-                <div
-                    className="h-full rounded-full bg-[#7C83F6] transition-all duration-500"
-                  style={{ width: `${Math.min(100, stepsPct)}%` }}
-                />
-              </div>
-              <p className="text-[11px] text-slate-600 font-semibold mt-1.5">{Math.min(100, stepsPct)}% of daily goal</p>
-            </div>
 
             {/* Weight Card */}
             <div className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">

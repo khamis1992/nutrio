@@ -54,11 +54,11 @@ export function useBodyMetricsCorrelation(userId: string | undefined) {
           .gte("log_date", weekRequests[weeks - 1].weekStart)
           .lte("log_date", weekRequests[0].weekEnd),
         supabase
-          .from("user_body_metrics")
-          .select("recorded_at, muscle_mass_percent, body_fat_percent, weight_kg")
+          .from("body_measurements")
+          .select("log_date, muscle_mass_percent, body_fat_percent, weight_kg")
           .eq("user_id", userId)
-          .gte("recorded_at", subWeeks(today, weeks + 1).toISOString())
-          .order("recorded_at", { ascending: false }),
+          .gte("log_date", format(subWeeks(today, weeks + 1), "yyyy-MM-dd"))
+          .order("log_date", { ascending: false }),
       ]);
 
       const weekData: WeeklyDataPoint[] = weekRequests.map((w) => {
@@ -72,7 +72,7 @@ export function useBodyMetricsCorrelation(userId: string | undefined) {
         const avgFat = weekLogs.reduce((s, l) => s + (l.fat_consumed_g || 0), 0) / n;
 
         const weekMetrics = (metrics || []).filter(
-          (m) => m.recorded_at >= `${w.weekStart}T00:00:00` && m.recorded_at <= `${w.weekEnd}T23:59:59`
+          (m) => m.log_date >= w.weekStart && m.log_date <= w.weekEnd
         );
 
         const latestMetric = weekMetrics[0];

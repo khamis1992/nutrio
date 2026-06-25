@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { syncCommunityChallengeProgressQuietly } from '@/lib/community-challenge-service';
 import { captureError } from '@/lib/sentry';
 
 interface MealCompletionResult {
@@ -81,6 +82,7 @@ export function useMealCompletion(): UseMealCompletionReturn {
             description: 'Your nutrition has been logged.',
           });
         }
+        await syncCommunityChallengeProgressQuietly(userData.user.id);
         return { success: true };
       } else {
         throw new Error(result.error || 'Failed to complete meal');
@@ -137,6 +139,7 @@ export function useMealCompletion(): UseMealCompletionReturn {
             description: 'Meal completion has been undone.',
           });
         }
+        await syncCommunityChallengeProgressQuietly(userData.user.id);
         return { success: true };
       } else {
         throw new Error(result.error || 'Failed to uncomplete meal');

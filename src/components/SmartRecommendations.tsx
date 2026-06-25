@@ -135,7 +135,7 @@ function LoadingState() {
   );
 }
 
-export function SmartRecommendations() {
+export function SmartMealPicks() {
   const { recommendations, loading, refresh } = useMealRecommendations();
   const { t, isRTL } = useLanguage();
 
@@ -193,7 +193,7 @@ export function SmartRecommendations() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
-            {t("smart_rec_section_title")}
+            {t("smart_next_meal")}
           </p>
           <h2 className="mt-1 text-[20px] font-black tracking-normal text-slate-950">{t("smart_picks")}</h2>
         </div>
@@ -243,3 +243,5 @@ export function SmartRecommendations() {
     </section>
   );
 }
+
+export const SmartRecommendations = SmartMealPicks;

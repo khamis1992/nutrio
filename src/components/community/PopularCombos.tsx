@@ -33,7 +33,7 @@ export function PopularCombos() {
   useEffect(() => {
     if (!user || combos.length === 0) return;
 
-    const mealIds = combos.map((combo) => combo.comboMeals[0]?.meal_id).filter(Boolean);
+    const mealIds = Array.from(new Set(combos.flatMap((combo) => combo.comboMeals.map((meal) => meal.meal_id)).filter(Boolean)));
     if (!mealIds.length) return;
 
     supabase
@@ -42,36 +42,47 @@ export function PopularCombos() {
       .eq("user_id", user.id)
       .in("meal_id", mealIds)
       .then(({ data }) => {
-        setLikedIds(new Set((data || []).map((row) => `combo-${row.meal_id}`)));
+        const favoriteMealIds = new Set((data || []).map((row) => row.meal_id));
+        setLikedIds(
+          new Set(
+            combos
+              .filter((combo) => combo.comboMeals.length > 0 && combo.comboMeals.every((meal) => favoriteMealIds.has(meal.meal_id)))
+              .map((combo) => combo.id),
+          ),
+        );
       });
   }, [combos, user]);
 
   const handleLike = async (comboId: string) => {
     if (!user) {
-      toast.error("Sign in");
+      toast.error(t("sign_in_required"));
       return;
     }
     if (likingId) return;
 
-    const mealId = comboId.replace("combo-", "");
+    const combo = combos.find((item) => item.id === comboId);
+    if (!combo) return;
+    const mealIds = combo.comboMeals.map((meal) => meal.meal_id);
     setLikingId(comboId);
 
     try {
       if (likedIds.has(comboId)) {
-        await supabase.from("favorites").delete().eq("user_id", user.id).eq("meal_id", mealId);
+        await supabase.from("favorites").delete().eq("user_id", user.id).in("meal_id", mealIds);
         setLikedIds((prev) => {
           const next = new Set(prev);
           next.delete(comboId);
           return next;
         });
-        toast.success("Removed");
+        toast.success(t("removed"));
       } else {
-        await supabase.from("favorites").upsert({ user_id: user.id, meal_id: mealId }, { onConflict: "user_id,meal_id" });
+        await supabase
+          .from("favorites")
+          .upsert(mealIds.map((mealId) => ({ user_id: user.id, meal_id: mealId })), { onConflict: "user_id,meal_id" });
         setLikedIds((prev) => new Set(prev).add(comboId));
-        toast.success("Added");
+        toast.success(t("added"));
       }
     } catch {
-      toast.error("Error");
+      toast.error(t("error"));
     } finally {
       setLikingId(null);
     }
@@ -79,7 +90,7 @@ export function PopularCombos() {
 
   const handleSelectCombo = (combo: (typeof combos)[0]) => {
     if (!user) {
-      toast.error("Sign in");
+      toast.error(t("sign_in_required"));
       return;
     }
     navigate(`/schedule?combo=${combo.comboMeals.map((meal) => meal.meal_id).join(",")}`);
@@ -222,7 +233,7 @@ export function PopularCombos() {
                         handleSelectCombo(combo);
                       }}
                     >
-                      Select combo <ChevronRight className="h-3.5 w-3.5" />
+                      {t("community_try_combo")} <ChevronRight className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </motion.div>

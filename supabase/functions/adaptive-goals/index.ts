@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 interface ProgressData {
-  weight_logs: Array<{ date: string; weight: number }>;
+  body_measurements: Array<{ date: string; weight: number }>;
   calorie_logs: Array<{ date: string; calories: number; target: number }>;
   adherence_rate: number;
   weeks_logged: number;
@@ -51,7 +51,7 @@ const calculateBMR = (gender: string, weight: number, height: number, age: numbe
 // Smart adjustment algorithm
 async function analyzeProgress(data: ProgressData): Promise<AdjustmentRecommendation> {
   const { 
-    weight_logs, 
+    body_measurements, 
     adherence_rate, 
     weeks_logged, 
     current_calories, 
@@ -67,12 +67,12 @@ async function analyzeProgress(data: ProgressData): Promise<AdjustmentRecommenda
   let weightChange = 0;
   let weeklyWeightChange = 0;
   
-  if (weight_logs.length >= 2) {
-    const firstWeight = weight_logs[0].weight;
-    const lastWeight = weight_logs[weight_logs.length - 1].weight;
+  if (body_measurements.length >= 2) {
+    const firstWeight = body_measurements[0].weight;
+    const lastWeight = body_measurements[body_measurements.length - 1].weight;
     weightChange = lastWeight - firstWeight;
     
-    const daysTracked = weight_logs.length;
+    const daysTracked = body_measurements.length;
     const weeksTracked = daysTracked / 7;
     weeklyWeightChange = weeksTracked > 0 ? weightChange / weeksTracked : 0;
   }
@@ -228,21 +228,21 @@ async function analyzeProgress(data: ProgressData): Promise<AdjustmentRecommenda
 
 // Predict weight 4 weeks in the future
 async function predictFutureWeight(
-  weightLogs: Array<{ date: string; weight: number }>,
+  bodyMeasurements: Array<{ date: string; weight: number }>,
   currentCalories: number,
   targetCalories: number,
   goal: string
 ): Promise<WeightPrediction[]> {
-  if (weightLogs.length < 7) {
+  if (bodyMeasurements.length < 7) {
     return []; // Not enough data
   }
   
   // Simple trend-based prediction
-  const recentLogs = weightLogs.slice(-14); // Last 2 weeks
+  const recentLogs = bodyMeasurements.slice(-14); // Last 2 weeks
   const weightChange = recentLogs[recentLogs.length - 1].weight - recentLogs[0].weight;
   const weeklyChange = weightChange / 2;
   
-  const currentWeight = weightLogs[weightLogs.length - 1].weight;
+  const currentWeight = bodyMeasurements[bodyMeasurements.length - 1].weight;
   const predictions: WeightPrediction[] = [];
   
   for (let i = 1; i <= 4; i++) {
@@ -273,10 +273,19 @@ async function storeWeeklyAdherence(
   // Calculate adherence stats
   const { data: logs } = await supabase
     .from("progress_logs")
-    .select("calories_consumed, weight_kg, log_date")
+    .select("calories_consumed, log_date")
     .eq("user_id", userId)
     .gte("log_date", weekStart.toISOString().split('T')[0])
     .lte("log_date", weekEnd.toISOString().split('T')[0]);
+
+  const { data: bodyMeasurements } = await supabase
+    .from("body_measurements")
+    .select("weight_kg, log_date")
+    .eq("user_id", userId)
+    .gte("log_date", weekStart.toISOString().split('T')[0])
+    .lte("log_date", weekEnd.toISOString().split('T')[0])
+    .not("weight_kg", "is", null)
+    .order("log_date", { ascending: true });
   
   const { data: profile } = await supabase
     .from("profiles")
@@ -294,7 +303,7 @@ async function storeWeeklyAdherence(
     ? Math.round(logs.reduce((sum: number, log: any) => sum + (log.calories_consumed || 0), 0) / logs.length)
     : 0;
   
-  const weights = logs?.filter((log: any) => log.weight_kg).map((log: any) => log.weight_kg);
+  const weights = bodyMeasurements?.filter((row: any) => row.weight_kg).map((row: any) => row.weight_kg);
   const weightStart = weights?.length > 0 ? weights[0] : null;
   const weightEnd = weights?.length > 0 ? weights[weights.length - 1] : null;
   
@@ -365,9 +374,9 @@ serve(async (req) => {
       );
     }
 
-    // Fetch weight logs (last 12 weeks)
-    const { data: weightLogs } = await supabase
-      .from("progress_logs")
+    // Fetch canonical body measurements (last 12 weeks)
+    const { data: bodyMeasurements } = await supabase
+      .from("body_measurements")
       .select("log_date, weight_kg")
       .eq("user_id", user_id)
       .not("weight_kg", "is", null)
@@ -401,10 +410,10 @@ serve(async (req) => {
       : 0;
 
     const progressData: ProgressData = {
-      weight_logs: weightLogs?.map((w: any) => ({ date: w.log_date, weight: w.weight_kg })) ?? [],
+      body_measurements: bodyMeasurements?.map((w: any) => ({ date: w.log_date, weight: w.weight_kg })) ?? [],
       calorie_logs: calorieLogs?.map((c: any) => ({ date: c.log_date, calories: c.calories_consumed, target: profile.daily_calorie_target })) ?? [],
       adherence_rate: avgAdherence,
-      weeks_logged: Math.floor((weightLogs?.length || 0) / 7),
+      weeks_logged: Math.floor((bodyMeasurements?.length || 0) / 7),
       current_calories: profile.daily_calorie_target ?? 2000,
       current_protein: profile.protein_target_g ?? 150,
       current_carbs: profile.carbs_target_g ?? 200,
@@ -419,7 +428,7 @@ serve(async (req) => {
     
     // Generate predictions
     const predictions = await predictFutureWeight(
-      progressData.weight_logs,
+      progressData.body_measurements,
       profile.daily_calorie_target ?? 2000,
       recommendation.new_calories,
       profile.health_goal ?? 'maintain'
@@ -445,8 +454,8 @@ serve(async (req) => {
             fat: recommendation.new_fat
           },
           reason: recommendation.reason,
-          weight_change_kg: progressData.weight_logs.length >= 2 
-            ? progressData.weight_logs[progressData.weight_logs.length - 1].weight - progressData.weight_logs[0].weight
+          weight_change_kg: progressData.body_measurements.length >= 2 
+            ? progressData.body_measurements[progressData.body_measurements.length - 1].weight - progressData.body_measurements[0].weight
             : null,
           adherence_rate: avgAdherence,
           plateau_detected: recommendation.plateau_detected,

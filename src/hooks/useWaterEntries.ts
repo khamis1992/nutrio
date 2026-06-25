@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { addWaterEntry, deleteWaterEntry, fetchWaterEntriesForDate, fetchWaterMonthTotals } from "@/lib/water-service";
 
 export interface WaterEntry {
   id: string;
@@ -52,14 +52,7 @@ export function useWaterEntries(userId: string | undefined) {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("water_entries")
-        .select("id, log_date, amount_ml, created_at")
-        .eq("user_id", userId)
-        .eq("log_date", date)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await fetchWaterEntriesForDate(userId, date);
       setEntries(data || []);
     } catch (err) {
       console.error("Error fetching water entries:", err);
@@ -71,24 +64,8 @@ export function useWaterEntries(userId: string | undefined) {
   const fetchMonthTotals = useCallback(
     async (year: number, month: number): Promise<Record<string, number>> => {
       if (!userId) return {};
-      const start = `${year}-${String(month).padStart(2, "0")}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const end = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-
       try {
-        const { data, error } = await supabase
-          .from("water_entries")
-          .select("log_date, amount_ml")
-          .eq("user_id", userId)
-          .gte("log_date", start)
-          .lte("log_date", end);
-
-        if (error) throw error;
-        const totals: Record<string, number> = {};
-        for (const row of data || []) {
-          totals[row.log_date] = (totals[row.log_date] || 0) + row.amount_ml;
-        }
-        return totals;
+        return fetchWaterMonthTotals(userId, year, month);
       } catch (err) {
         console.error("Error fetching month totals:", err);
         return {};
@@ -109,20 +86,7 @@ export function useWaterEntries(userId: string | undefined) {
       .filter((entry) => entry.log_date === date)
       .reduce((sum, entry) => sum + entry.amount_ml, 0);
 
-    const { data, error } = await supabase
-      .from("water_entries")
-      .insert({
-        user_id: userId,
-        log_date: date,
-        amount_ml: amountMl,
-      })
-      .select("id, log_date, amount_ml, created_at")
-      .single();
-
-    if (error) {
-      console.error("Error adding water entry:", error);
-      throw error;
-    }
+    const data = await addWaterEntry(userId, date, amountMl);
     setEntries((prev) => [data, ...prev]);
 
     const nextTotal = previousTotal + amountMl;
@@ -148,11 +112,7 @@ export function useWaterEntries(userId: string | undefined) {
     if (!userId) return;
 
     try {
-      await supabase
-        .from("water_entries")
-        .delete()
-        .eq("id", id)
-        .eq("user_id", userId);
+      await deleteWaterEntry(userId, id);
 
       setEntries((prev) => prev.filter((e) => e.id !== id));
     } catch (err) {

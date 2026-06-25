@@ -4,10 +4,10 @@
  */
 
 import { useState, useCallback } from "react";
-import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { WorkoutData } from "./useHealthIntegration";
+import { fetchAndSaveGoogleFitWorkouts, isGoogleFitConnected } from "@/lib/google-fit-workout-service";
+import type { WorkoutData } from "@/lib/health-types";
 
 // Google Fit API helper
 const GOOGLE_FIT_SCOPES = [
@@ -40,30 +40,6 @@ async function generateCodeChallenge(codeVerifier: string): Promise<string> {
   return base64urlEncode(hash);
 }
 
-const WORKOUT_TYPE_MAP: Record<number, string> = {
-  0: "Unknown",
-  1: "Running",
-  2: "Cycling",
-  3: "Walking",
-  4: "Hiking",
-  5: "Swimming",
-  7: "Yoga",
-  8: "Pilates",
-  9: "Strength Training",
-  10: "CrossFit",
-  11: "HIIT",
-  12: "Dance",
-  17: "Boxing",
-  18: "Rowing",
-  19: "Elliptical",
-  20: "Stair Climb",
-};
-
-interface GoogleFitAuth {
-  accessToken: string;
-  expiresAt: number;
-}
-
 export function useGoogleFitWorkouts() {
   const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
@@ -73,22 +49,9 @@ export function useGoogleFitWorkouts() {
   const checkConnection = useCallback(async () => {
     if (!user) return false;
     
-    const { data } = await supabase
-      .from("user_integrations")
-      .select("provider, access_token, expires_at")
-      .eq("user_id", user.id)
-      .eq("provider", "google_fit")
-      .maybeSingle();
-    
-    if (data?.access_token) {
-      // Check if token is valid
-      const isValid = (data.expires_at * 1000) > Date.now();
-      setIsConnected(isValid);
-      return isValid;
-    }
-    
-    setIsConnected(false);
-    return false;
+    const connected = await isGoogleFitConnected(user.id);
+    setIsConnected(connected);
+    return connected;
   }, [user]);
 
   // Refresh access token using refresh token
@@ -201,149 +164,13 @@ export function useGoogleFitWorkouts() {
     setIsLoading(true);
     
     try {
-      // Get stored token
-      const { data: tokenData } = await supabase
-        .from("user_integrations")
-        .select("access_token, expires_at")
-        .eq("user_id", user.id)
-        .eq("provider", "google_fit")
-        .maybeSingle();
-      
-      if (!tokenData?.access_token) {
-
-        return [];
-      }
-      
-      // Check if token is expired and try to refresh
-      if (tokenData.expires_at * 1000 < Date.now()) {
-
-        const refreshed = await refreshToken();
-        if (!refreshed) {
-
-          return [];
-        }
-        // Re-fetch the new token
-        const { data: newTokenData } = await supabase
-          .from("user_integrations")
-          .select("access_token, expires_at")
-          .eq("user_id", user.id)
-          .eq("provider", "google_fit")
-          .maybeSingle();
-        
-        if (!newTokenData?.access_token) return [];
-        
-        tokenData.access_token = newTokenData.access_token;
-        tokenData.expires_at = newTokenData.expires_at;
-      }
-      
-      const auth: GoogleFitAuth = {
-        accessToken: tokenData.access_token,
-        expiresAt: tokenData.expires_at * 1000,
-      };
-      
-      const startMillis = startDate.getTime();
-      const endMillis = endDate.getTime();
-      
-      // Call Google Fit API
-      const response = await fetch(
-        "https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${auth.accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            aggregateBy: [
-              { dataTypeName: "com.google.activity.segment" },
-              { dataTypeName: "com.google.calories.expended" },
-              { dataTypeName: "com.google.duration" },
-            ],
-            startTimeMillis: startMillis,
-            endTimeMillis: endMillis,
-            bucketByActivityType: { activityType: 1 },
-          }),
-        }
-      );
-      
-      if (!response.ok) {
-        console.error("Google Fit API error:", await response.text());
-        return [];
-      }
-      
-      const data = await response.json();
-      const workouts: WorkoutData[] = [];
-      
-      if (data.bucket) {
-        for (const bucket of data.bucket) {
-          if (!bucket.dataset) continue;
-          
-          const activityDataset = bucket.dataset.find(
-            (d: Record<string, unknown>) => d.point && (d.point as unknown[]).length > 0 && (d.dataSourceId as string)?.includes("activity")
-          );
-          
-          if (!activityDataset?.point?.[0]) continue;
-          
-          const point = activityDataset.point[0];
-          const activityType = point.value?.[0]?.intVal || 0;
-          
-          // Skip unknown/empty activities
-          if (activityType === 0) continue;
-          
-          // Get duration
-          const durationDataset = bucket.dataset.find(
-            (d: Record<string, unknown>) => (d.dataSourceId as string)?.includes("duration")
-          );
-          const duration = durationDataset?.point?.[0]?.value?.[0]?.intVal || 0;
-          
-          // Get calories
-          const caloriesDataset = bucket.dataset.find(
-            (d: Record<string, unknown>) => (d.dataSourceId as string)?.includes("calories")
-          );
-          const calories = caloriesDataset?.point?.[0]?.value?.[0]?.fpVal || 0;
-          
-          const startTimeDate = new Date(bucket.startTimeMillis);
-          const endTimeDate = new Date(bucket.endTimeMillis);
-          
-          const workout: WorkoutData = {
-            id: `google-fit-${bucket.startTimeMillis}`,
-            type: WORKOUT_TYPE_MAP[activityType] || "Workout",
-            startTime: startTimeDate.toISOString(),
-            endTime: endTimeDate.toISOString(),
-            calories: Math.round(calories),
-            duration: Math.round(duration / 60000),
-            source: 'google_fit',
-          };
-          
-          workouts.push(workout);
-          
-          // Also save to workout_sessions table
-          try {
-            await supabase.from("workout_sessions").upsert({
-              user_id: user!.id,
-              session_date: format(startTimeDate, "yyyy-MM-dd"),
-              workout_type: workout.type,
-              duration_minutes: workout.duration,
-              calories_burned: workout.calories,
-              source: 'google_fit',
-              created_at: startTimeDate.toISOString(),
-            }, {
-              onConflict: 'user_id, session_date, workout_type',
-            });
-          } catch (saveError) {
-            console.warn("Failed to save Google Fit workout to DB:", saveError);
-          }
-        }
-      }
-      
-      return workouts;
+      return await fetchAndSaveGoogleFitWorkouts(user.id, startDate, endDate);
     } catch (error) {
       console.error("Failed to fetch Google Fit workouts:", error);
       return [];
     } finally {
       setIsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Disconnect Google Fit

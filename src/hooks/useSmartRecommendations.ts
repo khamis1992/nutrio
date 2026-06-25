@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLatestAbnormalMarkers } from "@/services/blood-work";
 import { getAbnormalMarkerTags, type HealthTag } from "@/lib/meal-health-tagger";
+import { WATER_GLASS_ML } from "@/lib/water-service";
 
 interface SmartRecommendation {
   id: string;
@@ -41,8 +42,8 @@ export function useSmartRecommendations(userId: string | undefined) {
           .gte("log_date", weekAgo)
           .order("log_date", { ascending: false }),
         supabase
-          .from("water_intake")
-          .select("glasses, log_date")
+          .from("water_entries")
+          .select("amount_ml, log_date")
           .eq("user_id", userId)
           .gte("log_date", weekAgo),
         supabase
@@ -88,8 +89,13 @@ export function useSmartRecommendations(userId: string | undefined) {
       const calorieDiff = avgCalories - calorieTarget;
       const proteinRatio = proteinTarget > 0 ? avgProtein / proteinTarget : 0;
 
-      const totalWater = waterLogs.reduce((s: number, w: Record<string, unknown>) => s + ((w.glasses as number) || 0), 0);
-      const avgWater = waterLogs.length > 0 ? totalWater / waterLogs.length : 0;
+      const waterByDate = new Map<string, number>();
+      for (const entry of waterLogs as Array<{ log_date: string; amount_ml: number | null }>) {
+        waterByDate.set(entry.log_date, (waterByDate.get(entry.log_date) || 0) + ((entry.amount_ml || 0) / WATER_GLASS_ML));
+      }
+      const totalWater = [...waterByDate.values()].reduce((sum, glasses) => sum + glasses, 0);
+      const waterDays = waterByDate.size;
+      const avgWater = waterDays > 0 ? totalWater / waterDays : 0;
 
       const loggingStreak = streaks.find((s: Record<string, unknown>) => s.streak_type === "logging");
       const currentStreak = loggingStreak?.current_streak || 0;
@@ -197,7 +203,7 @@ export function useSmartRecommendations(userId: string | undefined) {
         });
       }
 
-      if (avgWater < 5 && waterLogs.length >= 2) {
+      if (avgWater < 5 && waterDays >= 2) {
         recs.push({
           id: "hydration",
           category: "hydration",

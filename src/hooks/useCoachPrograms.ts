@@ -55,6 +55,8 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
   const [programExercises, setProgramExercises] = useState<ProgramExercise[]>([]);
   const [mealInfos, setMealInfos] = useState<MealInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadedKey, setLoadedKey] = useState("");
+  const requestKey = coachId && clientId ? `${coachId}:${clientId}` : "";
 
   const notifyClient = useCallback(async (title: string, message: string, data: Record<string, unknown> = {}) => {
     if (!isCoach || !clientId) return;
@@ -78,10 +80,13 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
       setProgramMeals([]);
       setProgramExercises([]);
       setMealInfos([]);
+      setLoadedKey("");
       setLoading(false);
       return;
     }
+    const activeRequestKey = `${coachId}:${clientId}`;
     try {
+      setLoading(true);
       const { data } = await supabase
         .from("coach_programs")
         .select("*")
@@ -127,6 +132,7 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
     } catch (err) {
       console.error("Error fetching programs:", err);
     } finally {
+      setLoadedKey(activeRequestKey);
       setLoading(false);
     }
   }, [coachId, clientId]);
@@ -362,7 +368,7 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
     programMeals,
     programExercises,
     mealInfos,
-    loading,
+    loading: loading || Boolean(requestKey && loadedKey !== requestKey),
     createProgram,
     updateProgram,
     assignMeal,
