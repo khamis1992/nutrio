@@ -429,6 +429,7 @@ export default function CoachesDirectory() {
         <div className="mx-auto max-w-[430px] px-4 pb-3 pt-4">
           <div className="flex items-center gap-3">
             <button
+              data-testid="coaches-back-btn"
               onClick={() => navigate(-1)}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]"
               aria-label="Back"
@@ -483,13 +484,14 @@ export default function CoachesDirectory() {
           <div className="flex min-h-12 items-center gap-2 rounded-[22px] bg-[#F6F8FB] px-3 ring-1 ring-[#E5EAF1]">
             <Search className="h-4 w-4 shrink-0 text-[#94A3B8]" />
             <input
+              data-testid="coaches-search-input"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search coach, goal, or specialty"
               className="min-w-0 flex-1 bg-transparent text-[14px] font-bold text-[#020617] outline-none placeholder:text-[#94A3B8]"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#94A3B8]" aria-label="Clear search">
+              <button data-testid="coaches-search-clear" onClick={() => setSearchQuery("")} className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#94A3B8]" aria-label="Clear search">
                 <X className="h-4 w-4" />
               </button>
             )}
@@ -499,6 +501,7 @@ export default function CoachesDirectory() {
             {specialtyOptions.map((specialty) => (
               <button
                 key={specialty}
+                data-testid={`coaches-specialty-${specialty.toLowerCase().replace(/\s+/g, "-")}`}
                 onClick={() => setActiveSpecialty(specialty)}
                 className={cn(
                   "min-h-10 shrink-0 rounded-full px-4 text-[12px] font-black transition-all",
@@ -611,6 +614,7 @@ export default function CoachesDirectory() {
                   </div>
 
                   <button
+                    data-testid={`coaches-request-${coach.id}`}
                     onClick={() => !isConnected && !isPending && handleRequestCoach(coach)}
                     disabled={requesting === coach.id || isConnected || isPending}
                     className={cn(
@@ -667,6 +671,7 @@ export default function CoachesDirectory() {
             </div>
           </div>
           <button
+            data-testid="coaches-become-coach-btn"
             onClick={() => navigate("/become-coach")}
             className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-[#020617] text-[14px] font-black text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] active:scale-[0.98]"
           >

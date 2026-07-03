@@ -520,11 +520,12 @@ export default function DeliveryTracking() {
 
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/70 bg-[#F6F7F4]/85 px-5 pb-3 pt-[env(safe-area-inset-top,20px)] backdrop-blur-xl">
-        <button onClick={() => navigate(-1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200/80 transition active:scale-95">
+        <button data-testid="delivery-back-btn" onClick={() => navigate(-1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200/80 transition active:scale-95">
           <ChevronLeft className="w-5 h-5" />
         </button>
         <h1 className="text-xl font-bold text-slate-950">My Orders</h1>
         <button
+          data-testid="delivery-refresh-btn"
           onClick={handleRefresh}
           disabled={refreshing}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100 transition-all active:scale-95 disabled:opacity-40"
@@ -538,6 +539,7 @@ export default function DeliveryTracking() {
         {TABS.map((tab) => (
           <button
             key={tab}
+            data-testid={`delivery-tab-${tab.toLowerCase()}`}
             onClick={() => setActiveTab(tab)}
             className={`relative rounded-[16px] px-4 py-2 text-sm font-extrabold whitespace-nowrap transition-all ${
               activeTab === tab
@@ -571,6 +573,7 @@ export default function DeliveryTracking() {
             {filtered.map(renderCard)}
             {activeTab === "All" && ordersHasMore && (
               <button
+                data-testid="delivery-load-more-btn"
                 className="flex w-full items-center justify-center gap-2 rounded-full bg-white py-3 text-sm font-bold text-emerald-700 shadow-[0_10px_24px_rgba(15,23,42,0.05)] ring-1 ring-emerald-100 transition-all active:scale-95 disabled:opacity-40"
                 onClick={() => fetchOrders(ordersPage + 1, true)}
                 disabled={ordersLoading}

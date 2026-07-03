@@ -50,6 +50,7 @@ export default function Wallet() {
       <div className="sticky top-0 z-20 border-b border-emerald-900/5 bg-[#f6fbf7]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-3 rtl:flex-row-reverse">
           <button
+            data-testid="wallet-back-btn"
             onClick={() => navigate(-1)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-emerald-950 shadow-sm transition-all active:scale-95"
             aria-label={t("go_back")}

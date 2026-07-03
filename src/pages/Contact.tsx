@@ -1,257 +1,217 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { ArrowLeft, Clock, HelpCircle, Mail, MapPin, MessageCircle, Phone, Send } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Mail, 
-  Phone, 
-  MapPin,
-  Send,
-  MessageSquare
-} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Logo } from "@/components/Logo";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { cn } from "@/lib/utils";
+
+const CONTACT_CHANNELS = [
+  {
+    key: "email",
+    href: "mailto:support@nutrio.me",
+    value: "support@nutrio.me",
+    icon: Mail,
+    color: "#7C83F6",
+    bg: "bg-[#F3F4FF]",
+  },
+  {
+    key: "phone",
+    href: "tel:+97440000000",
+    value: "+974 4000 0000",
+    icon: Phone,
+    color: "#22C7A1",
+    bg: "bg-[#EFFFFA]",
+  },
+  {
+    key: "location",
+    href: "https://maps.google.com/?q=Doha,Qatar",
+    value: "Doha, Qatar",
+    icon: MapPin,
+    color: "#38BDF8",
+    bg: "bg-sky-50",
+  },
+] as const;
 
 const Contact = () => {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     subject: "",
-    message: ""
+    message: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
+    await new Promise((resolve) => setTimeout(resolve, 700));
+
     toast({
       title: t("contact_success_title"),
       description: t("contact_success_message"),
     });
-    
+
     setFormData({ name: "", email: "", subject: "", message: "" });
     setIsSubmitting(false);
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/">
-            <Logo size="md" />
+    <main
+      className="h-[100dvh] overflow-y-auto overflow-x-hidden bg-[#F6F8FB] text-[#020617] [-webkit-overflow-scrolling:touch]"
+      dir={isRTL ? "rtl" : "ltr"}
+    >
+      <div className="mx-auto flex min-h-full w-full max-w-[430px] flex-col px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))]">
+        <header className="flex items-center justify-between">
+          <Link
+            to="/auth"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-[#E5EAF1] transition active:scale-95"
+            aria-label="Back"
+          >
+            <ArrowLeft className={cn("h-5 w-5", isRTL && "rotate-180")} />
           </Link>
-          
-          <div className="hidden md:flex items-center gap-8">
-            <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t("nav_about")}</Link>
-            <Link to="/contact" className="text-sm font-medium text-primary transition-colors">{t("nav_contact")}</Link>
-            <Link to="/partner/auth" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t("nav_for_restaurants")}</Link>
+          <div className="text-center">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#22C7A1]">{t("contact_badge")}</p>
+            <h1 className="mt-1 text-[21px] font-black tracking-[-0.03em] text-[#020617]">{t("contact_us")}</h1>
           </div>
+          <Link
+            to="/faq"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-[#E5EAF1] transition active:scale-95"
+            aria-label={t("contact_faq_button")}
+          >
+            <HelpCircle className="h-5 w-5" />
+          </Link>
+        </header>
 
-          <div className="flex items-center gap-3">
-            <Link to="/auth">
-              <Button variant="ghost" size="sm">{t("nav_login")}</Button>
-            </Link>
-            <Link to="/onboarding">
-              <Button variant="gradient" size="sm">{t("nav_get_started")}</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="pt-32 pb-16 px-4">
-        <div className="container mx-auto text-center max-w-3xl">
-          <Badge variant="soft" className="mb-4">
-            <MessageSquare className="w-3 h-3 mr-1" />
-            {t("contact_badge")}
-          </Badge>
-          <h1 className="text-4xl md:text-5xl font-extrabold leading-tight mb-6">
-            {t("contact_title_part1")}{" "}
-            <span className="text-gradient">{t("contact_title_part2")}</span>
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            {t("contact_subtitle")}
-          </p>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section className="py-16 px-4">
-        <div className="container mx-auto max-w-5xl">
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Contact Info */}
-            <div className="space-y-6">
-              <Card variant="interactive">
-                <CardContent className="p-6">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                    <Mail className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="font-semibold mb-2">{t("contact_email_title")}</h3>
-                  <p className="text-sm text-muted-foreground mb-2">{t("contact_email_description")}</p>
-                  <a href="mailto:hello@nutrio.com" className="text-sm text-primary hover:underline">
-                    hello@nutrio.com
-                  </a>
-                </CardContent>
-              </Card>
-
-              <Card variant="interactive">
-                <CardContent className="p-6">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                    <Phone className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="font-semibold mb-2">{t("contact_phone_title")}</h3>
-                  <p className="text-sm text-muted-foreground mb-2">{t("contact_hours")}</p>
-                  <a href="tel:+1-800-NUTRIO" className="text-sm text-primary hover:underline">
-                    +1-800-NUTRIO
-                  </a>
-                </CardContent>
-              </Card>
-
-              <Card variant="interactive">
-                <CardContent className="p-6">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                    <MapPin className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="font-semibold mb-2">{t("contact_address_title")}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    123 Health Street<br />
-                    San Francisco, CA 94102
-                  </p>
-                </CardContent>
-              </Card>
+        <section className="mt-5 overflow-hidden rounded-[30px] bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]">
+          <div className="flex items-start gap-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
+              <MessageCircle className="h-6 w-6" strokeWidth={2.2} />
             </div>
-
-            {/* Contact Form */}
-            <div className="md:col-span-2">
-              <Card variant="elevated">
-                <CardHeader>
-                  <CardTitle>{t("contact_form_title")}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">{t("contact_name")}</Label>
-                        <Input
-                          id="name"
-                          placeholder={t("contact_name_placeholder")}
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          required
-                          className="min-h-[44px]"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">{t("contact_email")}</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder={t("contact_email_placeholder")}
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          required
-                          className="min-h-[44px]"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="subject">{t("contact_subject")}</Label>
-                      <Input
-                        id="subject"
-                        placeholder={t("contact_subject_placeholder")}
-                        value={formData.subject}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                        required
-                        className="min-h-[44px]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="message">{t("contact_message")}</Label>
-                      <Textarea
-                        id="message"
-                        placeholder={t("contact_message_placeholder")}
-                        rows={5}
-                        value={formData.message}
-                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <Button 
-                      type="submit" 
-                      variant="gradient" 
-                      className="w-full"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        t("contact_sending")
-                      ) : (
-                        <>
-                          {t("contact_submit")}
-                          <Send className="w-4 h-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[24px] font-black leading-[1.05] tracking-[-0.04em] text-[#020617]">
+                {t("contact_title_part1")} {t("contact_title_part2")}
+              </h2>
+              <p className="mt-2 text-[13px] font-bold leading-5 text-[#64748B]">{t("contact_subtitle")}</p>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* FAQ Teaser */}
-      <section className="py-16 px-4 bg-card/50">
-        <div className="container mx-auto text-center max-w-2xl">
-          <h2 className="text-2xl font-bold mb-4">{t("contact_faq_title")}</h2>
-          <p className="text-muted-foreground mb-6">
-            {t("contact_faq_description")}
-          </p>
-          <Link to="/auth">
-            <Button variant="outline">
-              {t("contact_faq_button")}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-[20px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+              <Clock className="h-4 w-4 text-[#22C7A1]" />
+              <p className="mt-2 text-[11px] font-black text-[#020617]">{t("contact_hours")}</p>
+            </div>
+            <Link to="/faq" className="rounded-[20px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1] transition active:scale-[0.98]">
+              <HelpCircle className="h-4 w-4 text-[#7C83F6]" />
+              <p className="mt-2 text-[11px] font-black text-[#020617]">{t("contact_faq_title")}</p>
+            </Link>
+          </div>
+        </section>
+
+        <section className="mt-4 grid gap-2">
+          {CONTACT_CHANNELS.map(({ key, href, value, icon: Icon, color, bg }) => (
+            <a
+              key={key}
+              href={href}
+              target={key === "location" ? "_blank" : undefined}
+              rel={key === "location" ? "noreferrer" : undefined}
+              className="flex min-h-[72px] items-center gap-3 rounded-[24px] bg-white p-3 shadow-[0_10px_28px_rgba(15,23,42,0.05)] ring-1 ring-[#E5EAF1] transition active:scale-[0.99]"
+            >
+              <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] ring-1 ring-black/5", bg)} style={{ color }}>
+                <Icon className="h-5 w-5" strokeWidth={2.2} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[12px] font-black text-[#020617]">
+                  {key === "email" ? t("contact_email_title") : key === "phone" ? t("contact_phone_title") : t("contact_address_title")}
+                </span>
+                <span className="mt-0.5 block truncate text-[12px] font-bold text-[#64748B]">{value}</span>
+              </span>
+            </a>
+          ))}
+        </section>
+
+        <section className="mt-4 rounded-[30px] bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]">
+          <div className="mb-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">{t("contact_form_title")}</p>
+            <h2 className="mt-1 text-[20px] font-black tracking-[-0.03em] text-[#020617]">{t("contact_subject_placeholder")}</h2>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="name" className="text-[12px] font-black text-[#020617]">{t("contact_name")}</Label>
+                <Input
+                  id="name"
+                  placeholder={t("contact_name_placeholder")}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  className="h-12 rounded-[18px] border-[#E5EAF1] bg-[#F6F8FB] text-[14px] font-bold"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-[12px] font-black text-[#020617]">{t("contact_email")}</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder={t("contact_email_placeholder")}
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  className="h-12 rounded-[18px] border-[#E5EAF1] bg-[#F6F8FB] text-[14px] font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="subject" className="text-[12px] font-black text-[#020617]">{t("contact_subject")}</Label>
+              <Input
+                id="subject"
+                placeholder={t("contact_subject_placeholder")}
+                value={formData.subject}
+                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                required
+                className="h-12 rounded-[18px] border-[#E5EAF1] bg-[#F6F8FB] text-[14px] font-bold"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="message" className="text-[12px] font-black text-[#020617]">{t("contact_message")}</Label>
+              <Textarea
+                id="message"
+                placeholder={t("contact_message_placeholder")}
+                rows={5}
+                value={formData.message}
+                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                required
+                className="min-h-[132px] rounded-[20px] border-[#E5EAF1] bg-[#F6F8FB] text-[14px] font-bold"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-14 w-full rounded-[22px] bg-[#22C7A1] text-[15px] font-black text-white shadow-[0_14px_30px_rgba(34,199,161,0.28)] hover:bg-[#18B593]"
+            >
+              {isSubmitting ? t("contact_sending") : (
+                <>
+                  {t("contact_submit")}
+                  <Send className={cn("h-4 w-4", isRTL ? "mr-2 rotate-180" : "ml-2")} />
+                </>
+              )}
             </Button>
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-12 px-4 border-t border-border">
-        <div className="container mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <Logo size="sm" />
-            <div className="flex items-center gap-6">
-              <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                {t("footer_about")}
-              </Link>
-              <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                {t("footer_contact")}
-              </Link>
-              <Link to="/partner/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                {t("footer_partner_portal")}
-              </Link>
-              <p className="text-sm text-muted-foreground">
-                {t("footer_copyright")}
-              </p>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
+          </form>
+        </section>
+      </div>
+    </main>
   );
 };
 

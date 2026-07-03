@@ -101,6 +101,7 @@ const BodyMetrics = () => {
           <Button
             variant="ghost"
             size="icon"
+            data-testid="body-metrics-back-btn"
             onClick={() => navigate(-1)}
             className="h-11 w-11 shrink-0 rounded-full bg-white text-[#020617] shadow-sm active:scale-95"
             aria-label="Go back"

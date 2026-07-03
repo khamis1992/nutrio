@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserPlus, Users, Bell, Check, X, UserMinus, UserCheck, Flame } from "lucide-react";
+import { Trophy, UserPlus, Users, Bell, Check, X, UserMinus, UserCheck, Flame } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFriends, Friend, FriendRequest } from "@/hooks/useFriends";
 import { AddFriendSheet } from "@/components/friends/AddFriendSheet";
@@ -8,12 +8,14 @@ import { FriendsList } from "@/components/friends/FriendsList";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDistanceToNow } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 type Tab = "friends" | "requests";
 
 export default function Friends() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("friends");
   const [showAddFriend, setShowAddFriend] = useState(false);
   
@@ -55,13 +57,21 @@ export default function Friends() {
               {t("friends_subtitle") || "Connect and motivate each other"}
             </p>
           </div>
-          <Button
-            onClick={() => setShowAddFriend(true)}
-            className="h-12 rounded-full bg-white/20 px-5 text-[15px] font-bold text-white backdrop-blur-sm hover:bg-white/30"
-          >
-            <UserPlus className="mr-2 h-5 w-5" />
-            {t("friends_add_button") || "Add"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => navigate("/friend-leaderboard")}
+              className="h-12 w-12 rounded-full bg-white/20 p-0 text-white backdrop-blur-sm hover:bg-white/30"
+            >
+              <Trophy className="h-5 w-5" />
+            </Button>
+            <Button
+              onClick={() => setShowAddFriend(true)}
+              className="h-12 rounded-full bg-white/20 px-5 text-[15px] font-bold text-white backdrop-blur-sm hover:bg-white/30"
+            >
+              <UserPlus className="mr-2 h-5 w-5" />
+              {t("friends_add_button") || "Add"}
+            </Button>
+          </div>
         </div>
 
         {/* Tab Switcher */}

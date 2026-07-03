@@ -746,6 +746,7 @@ const Schedule = () => {
         <div className="sticky top-0 z-10 border-b border-[#E5EAF1]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", backgroundColor: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)" }}>
           <div className="flex items-center justify-between h-[44px] px-2 max-w-lg mx-auto">
             <button
+              data-testid="schedule-back-btn"
               onClick={() => navigate("/dashboard")}
               className="flex items-center gap-0.5 active:opacity-60 transition-opacity cursor-pointer"
             >
@@ -917,6 +918,7 @@ const Schedule = () => {
                     <h3 className="mt-0.5 text-[17px] font-black text-[#020617]">Add to {format(selectedDate, "EEE, MMM d")}</h3>
                   </div>
                   <button
+                    data-testid="schedule-clear-combo-btn"
                     onClick={clearSelectedCombo}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1] active:scale-95"
                     aria-label="Remove selected combo"
@@ -967,6 +969,7 @@ const Schedule = () => {
                     </div>
 
                     <button
+                      data-testid="schedule-add-combo-btn"
                       onClick={applySelectedCombo}
                       disabled={comboApplying}
                       className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#020617] text-[14px] font-black text-white shadow-[0_10px_24px_rgba(2,6,23,0.18)] disabled:opacity-60"
@@ -989,6 +992,7 @@ const Schedule = () => {
             className="mb-4"
           >
             <button
+              data-testid="schedule-buy-credits-btn"
               onClick={() => setShowBuyCredit(true)}
               className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-[#F97316]/20 bg-[#FFF7ED] p-4 transition-all active:scale-[0.98]"
             >

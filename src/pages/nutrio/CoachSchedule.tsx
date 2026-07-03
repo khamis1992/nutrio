@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Loader2, Calendar, Video, Phone, MapPin, ClipboardCheck, Clock, Plus, X } from "lucide-react";
+import { Loader2, Calendar, Video, Phone, MapPin, ClipboardCheck, Clock, Plus, X, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useCoachSessions } from "@/hooks/useCoachSessions";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,8 +22,26 @@ export default function ClientCoachSchedule() {
   const { user } = useAuth();
   const { toast } = useToast();
   const clientId = user?.id;
-  const coachId = "active"; // Will resolve from active coach assignment
+  const [coachId, setCoachId] = useState<string | undefined>(undefined);
+  const [resolvingCoach, setResolvingCoach] = useState(true);
   const { sessions, loading, createSession, updateSession } = useCoachSessions(coachId, clientId);
+
+  useEffect(() => {
+    if (!clientId) {
+      setResolvingCoach(false);
+      return;
+    }
+    supabase
+      .from("coach_client_assignments")
+      .select("coach_id")
+      .eq("client_id", clientId)
+      .eq("status", "active")
+      .maybeSingle()
+      .then(({ data }) => {
+        setCoachId(data?.coach_id ?? undefined);
+        setResolvingCoach(false);
+      });
+  }, [clientId]);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -76,10 +95,36 @@ export default function ClientCoachSchedule() {
   const upcomingSessions = sessions.filter((s) => s.status === "scheduled" || s.status === "confirmed");
   const pastSessions = sessions.filter((s) => s.status === "completed" || s.status === "cancelled" || s.status === "no_show");
 
-  if (loading) {
+  if (loading || resolvingCoach) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!coachId) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 py-3">
+          <div className="flex items-center justify-between max-w-lg mx-auto">
+            <h1 className="text-[16px] font-extrabold text-slate-950">My Sessions</h1>
+          </div>
+        </div>
+        <div className="p-4 max-w-lg mx-auto">
+          <motion.div
+            variants={fadeInUp}
+            initial="hidden"
+            animate="visible"
+            className="bg-white rounded-[24px] p-12 text-center shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+              <UserPlus className="w-8 h-8 text-slate-300" />
+            </div>
+            <h3 className="text-[15px] font-bold text-slate-900 mb-2">No coach connected</h3>
+            <p className="text-[12px] text-slate-500">Go to Profile and enter your coach's invite code to get started.</p>
+          </motion.div>
+        </div>
       </div>
     );
   }

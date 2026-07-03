@@ -39,6 +39,7 @@ export const SignUpScreen = ({
       <div className="flex-1 overflow-y-auto px-6 pt-6 pb-6">
         <button
           type="button"
+          data-testid="signup-back-btn"
           onClick={onBack}
           className="mb-4 flex h-10 w-10 items-center justify-center rounded-full border border-[#E5EAF1] bg-white transition-opacity hover:opacity-70"
         >
@@ -68,6 +69,7 @@ export const SignUpScreen = ({
             icon={User}
             disabled={loading}
             autoComplete="name"
+            testId="signup-name-input"
             className="border border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#020617]"
           />
           <FormField
@@ -77,6 +79,7 @@ export const SignUpScreen = ({
             type="email"
             icon={Mail}
             disabled={loading}
+            testId="signup-email-input"
             className="border border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#020617]"
           />
           <FormField
@@ -87,10 +90,11 @@ export const SignUpScreen = ({
             icon={Lock}
             showPasswordToggle
             disabled={loading}
+            testId="signup-password-input"
             className="border border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#020617]"
           />
 
-          <label className="flex items-start gap-3 cursor-pointer select-none">
+          <label className="flex items-start gap-3 cursor-pointer select-none" data-testid="signup-terms-toggle">
             <div
               className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${agreedToTerms ? 'border-[#020617] bg-[#020617]' : 'border-[#94A3B8]'}`}
               onClick={onToggleTerms}
@@ -112,13 +116,14 @@ export const SignUpScreen = ({
 
           <p className="text-center text-sm text-[#64748B]">
             {t('already_have_account')}{' '}
-            <button type="button" onClick={onSwitchToSignIn} className="font-semibold text-[#020617] hover:underline" disabled={loading}>
+            <button type="button" data-testid="signup-signin-link" onClick={onSwitchToSignIn} className="font-semibold text-[#020617] hover:underline" disabled={loading}>
               {t('sign_in')}
             </button>
           </p>
           <div className="pt-3" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
             <Button
               type="submit"
+              data-testid="signup-submit-btn"
               variant="gradient"
               size="lg"
               className="w-full rounded-2xl bg-[#020617] font-bold text-white shadow-none hover:bg-[#111827]"

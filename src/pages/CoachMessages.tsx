@@ -1,7 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, ArrowLeft, Loader2, MessageSquare, User, Bell } from "lucide-react";
+import {
+  Send,
+  ArrowLeft,
+  Loader2,
+  MessageSquare,
+  User,
+  Bell,
+  Users,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientCoachMessages } from "@/hooks/useClientCoachMessages";
 import { cn } from "@/lib/utils";
@@ -10,7 +18,8 @@ export default function CoachMessages() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const clientId = user?.id;
-  const { messages, coachInfo, loading, sending, sendMessage, markAsRead } = useClientCoachMessages(clientId);
+  const { messages, coachInfo, loading, sending, sendMessage, markAsRead } =
+    useClientCoachMessages(clientId);
   const [messageInput, setMessageInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -25,7 +34,7 @@ export default function CoachMessages() {
     if (coachInfo) {
       markAsRead();
     }
-  }, [coachInfo, messages.length]);
+  }, [coachInfo, markAsRead, messages.length]);
 
   const handleSend = async () => {
     if (!messageInput.trim()) return;
@@ -40,54 +49,88 @@ export default function CoachMessages() {
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
     if (isToday) {
-      return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }).toLowerCase();
+      return date
+        .toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })
+        .toLowerCase();
     }
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+      <div className="flex min-h-[70dvh] items-center justify-center bg-[#F6F8FB]">
+        <div className="flex h-16 w-16 items-center justify-center rounded-[24px] border border-[#E5EAF1] bg-white shadow-sm">
+          <Loader2 className="h-7 w-7 animate-spin text-[#7C83F6]" />
+        </div>
       </div>
     );
   }
 
   if (!coachInfo) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-          <Users className="w-8 h-8 text-slate-300" />
+      <div className="flex min-h-[70dvh] flex-col items-center justify-center bg-[#F6F8FB] px-5 text-center text-[#020617]">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] border border-[#E5EAF1] bg-white shadow-sm">
+          <Users className="h-8 w-8 text-[#94A3B8]" />
         </div>
-        <h3 className="text-[15px] font-bold text-slate-900 mb-1">No coach connected</h3>
-        <p className="text-[12px] text-slate-500 max-w-[260px]">
-          You haven't connected with a coach yet. Ask your coach for an invite code.
+        <h3 className="mb-1 text-[17px] font-black text-[#020617]">
+          No coach connected
+        </h3>
+        <p className="max-w-[280px] text-[13px] font-medium leading-relaxed text-[#94A3B8]">
+          You haven't connected with a coach yet. Ask your coach for an invite
+          code.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col" style={{ minHeight: "calc(100dvh - 56px - 100px - env(safe-area-inset-bottom, 16px))" }}>
+    <div
+      className="mx-auto flex min-h-0 w-full max-w-[430px] flex-col overflow-hidden bg-[#F6F8FB] px-4 pb-3 pt-2 text-[#020617]"
+      style={{
+        height:
+          "calc(100dvh - 56px - 100px - env(safe-area-inset-bottom, 16px))",
+      }}
+    >
       {/* Chat header */}
-      <div className="flex items-center gap-3 mb-3">
-        <button
-          onClick={() => navigate(-1)}
-          className="w-9 h-9 rounded-full bg-white border border-slate-100 flex items-center justify-center shrink-0 shadow-sm"
-        >
-          <ArrowLeft className="w-4 h-4 text-slate-600" />
-        </button>
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center shrink-0">
-            {coachInfo.coachAvatar ? (
-              <img src={coachInfo.coachAvatar} alt="" className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <User className="w-4 h-4 text-emerald-600" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-[14px] font-extrabold text-slate-900 truncate">{coachInfo.coachName}</h2>
-            <p className="text-[10px] text-slate-500">Your coach</p>
+      <div className="mb-3 shrink-0 overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white p-3 shadow-[0_14px_34px_rgba(2,6,23,0.06)]">
+        <div className="flex items-center gap-3">
+          <button
+            data-testid="coach-messages-back-btn"
+            onClick={() => navigate(-1)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] transition-colors hover:bg-white"
+          >
+            <ArrowLeft className="h-4 w-4 text-[#020617]" />
+          </button>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[20px] border border-[#22C7A1]/20 bg-[#22C7A1]/10">
+              {coachInfo.coachAvatar ? (
+                <img
+                  src={coachInfo.coachAvatar}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <User className="h-5 w-5 text-[#22C7A1]" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C83F6]">
+                Coach chat
+              </p>
+              <h2 className="truncate text-[17px] font-black text-[#020617]">
+                {coachInfo.coachName}
+              </h2>
+              <div className="mt-1 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#22C7A1]" />
+                <p className="text-[11px] font-bold text-[#94A3B8]">
+                  Your coach
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -95,12 +138,19 @@ export default function CoachMessages() {
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto space-y-2 mb-3"
+        className="mb-3 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain rounded-[28px] border border-[#E5EAF1] bg-white p-3 shadow-[0_14px_34px_rgba(2,6,23,0.04)]"
       >
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Bell className="w-10 h-10 text-slate-200 mb-3" />
-            <p className="text-[12px] text-slate-400">No messages yet. Your coach will reach out soon!</p>
+          <div className="flex min-h-[280px] flex-col items-center justify-center px-6 py-12 text-center">
+            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-[22px] bg-[#7C83F6]/10">
+              <Bell className="h-7 w-7 text-[#7C83F6]" />
+            </div>
+            <h3 className="text-[15px] font-black text-[#020617]">
+              No messages yet
+            </h3>
+            <p className="mt-1 text-[12px] font-medium leading-relaxed text-[#94A3B8]">
+              Your coach will reach out here when there is an update.
+            </p>
           </div>
         ) : (
           <AnimatePresence>
@@ -111,21 +161,26 @@ export default function CoachMessages() {
                   key={msg.id}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={cn("flex", isClient ? "justify-end" : "justify-start")}
+                  className={cn(
+                    "flex",
+                    isClient ? "justify-end" : "justify-start",
+                  )}
                 >
                   <div
                     className={cn(
-                      "max-w-[75%] px-4 py-2.5 text-sm leading-relaxed rounded-2xl",
+                      "max-w-[82%] break-words rounded-[22px] px-4 py-3 text-sm font-medium leading-relaxed",
                       isClient
-                        ? "bg-emerald-600 text-white rounded-br-sm"
-                        : "bg-white text-slate-700 rounded-bl-sm shadow-sm border border-slate-100"
+                        ? "rounded-br-md bg-[#020617] text-white"
+                        : "rounded-bl-md border border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]",
                     )}
                   >
                     <p>{msg.message}</p>
-                    <p className={cn(
-                      "text-[10px] mt-1",
-                      isClient ? "text-emerald-200" : "text-slate-400"
-                    )}>
+                    <p
+                      className={cn(
+                        "mt-1 text-[10px] font-bold",
+                        isClient ? "text-white/55" : "text-[#94A3B8]",
+                      )}
+                    >
                       {formatTime(msg.created_at)}
                     </p>
                   </div>
@@ -137,8 +192,8 @@ export default function CoachMessages() {
 
         {sending && (
           <div className="flex justify-end">
-            <div className="bg-emerald-600/50 text-white text-sm rounded-2xl rounded-br-sm px-4 py-2.5 flex items-center gap-1">
-              <Loader2 className="w-4 h-4 animate-spin" />
+            <div className="flex items-center gap-2 rounded-[22px] rounded-br-md bg-[#020617]/70 px-4 py-3 text-sm font-bold text-white">
+              <Loader2 className="h-4 w-4 animate-spin" />
               Sending...
             </div>
           </div>
@@ -146,36 +201,30 @@ export default function CoachMessages() {
       </div>
 
       {/* Input */}
-      <div className="flex items-center gap-2 bg-white rounded-[20px] border border-slate-200 px-3 py-2 shadow-sm">
+      <div className="shrink-0 flex items-center gap-2 rounded-[24px] border border-[#E5EAF1] bg-white px-3 py-2 shadow-[0_14px_34px_rgba(2,6,23,0.08)]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#F6F8FB]">
+          <MessageSquare className="h-4 w-4 text-[#94A3B8]" />
+        </div>
         <input
+          data-testid="coach-messages-input"
           ref={inputRef}
           type="text"
           value={messageInput}
           onChange={(e) => setMessageInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="Reply to your coach..."
-          className="flex-1 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none"
+          className="min-h-[44px] flex-1 bg-transparent text-sm font-semibold text-[#020617] outline-none placeholder:text-[#94A3B8]"
           autoFocus
         />
         <button
+          data-testid="coach-messages-send-btn"
           onClick={handleSend}
           disabled={!messageInput.trim() || sending}
-          className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition-all"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[#020617] text-white transition-all active:scale-95 disabled:opacity-35"
         >
-          <Send className="w-4 h-4" />
+          <Send className="h-4 w-4" />
         </button>
       </div>
     </div>
-  );
-}
-
-function Users(props: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
   );
 }

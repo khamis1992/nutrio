@@ -128,6 +128,7 @@ const Dietary = () => {
         <div className="mx-auto flex h-[78px] max-w-[430px] items-center gap-3 px-4 pt-[env(safe-area-inset-top)]">
           <button
             type="button"
+            data-testid="dietary-back-btn"
             onClick={() => navigate(-1)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 active:scale-95"
             aria-label="Go back"

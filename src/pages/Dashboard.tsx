@@ -24,6 +24,7 @@ import {
   Dumbbell,
   Flame,
   Footprints,
+  Leaf,
   Loader2,
   Lock,
   Medal,
@@ -149,6 +150,7 @@ import { useHealthDailyMetrics } from "@/hooks/useHealthDailyMetrics";
 import { calculateGoalAlignmentScore, getGoalAlignmentLabelKey } from "@/lib/goal-engine";
 import { calculateBodyLoad, calculateRecoveryReadiness, buildReadinessFoodTip, type HealthDailyMetrics } from "@/lib/health-readiness";
 import { syncWorkoutSessionsToHealthDailyMetrics } from "@/lib/health-daily-metrics";
+import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 import { calculateNutritionPerformance, findNutritionMatchedMeal } from "@/lib/nutrition-performance";
 import { PLATFORM_LABELS, type SyncDataType } from "@/lib/healthKit";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -215,6 +217,8 @@ interface TodayScheduleRow {
   meal_id: string;
   scheduled_date: string;
   delivery_time_slot: string | null;
+  order_status?: string | null;
+  restaurant_id?: string | null;
   meals: {
     id: string;
     name: string | null;
@@ -223,6 +227,7 @@ interface TodayScheduleRow {
     protein_g: number | null;
     carbs_g: number | null;
     fat_g: number | null;
+    restaurant_id?: string | null;
   } | null;
   restaurants: RestaurantSummary | null;
 }
@@ -235,6 +240,13 @@ interface TodayMeal {
   restaurant?: RestaurantSummary | null;
   delivery_time_slot?: string | null;
 }
+
+const normalizeDashboardMealType = (mealType: string | null | undefined) => {
+  const type = (mealType || "").toLowerCase().trim();
+  if (type === "snack2" || type === "snacks") return "snack";
+  if (["breakfast", "lunch", "dinner", "snack"].includes(type)) return type;
+  return null;
+};
 
 interface TopRestaurant {
   restaurant_id: string;
@@ -396,13 +408,11 @@ const Dashboard = () => {
   const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
   const [totalActiveOrders, setTotalActiveOrders] = useState(0);
   const [ordersLoading, setOrdersLoading] = useState(true);
-  const [ordersError, setOrdersError] = useState(false);
   const [topRestaurants, setTopRestaurants] = useState<TopRestaurant[]>([]);
   const [topRestaurantsLoading, setTopRestaurantsLoading] = useState(true);
   const [topRestaurantsError, setTopRestaurantsError] = useState(false);
   const [todayMeals, setTodayMeals] = useState<TodayMeal[]>([]);
   const [todayMealsLoading, setTodayMealsLoading] = useState(true);
-  const [todayMealsError, setTodayMealsError] = useState(false);
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
   const [gamification, setGamification] = useState({ xp: 0, level: 1, xpToNextLevel: 100, earnedBadges: 0, totalBadges: 0, badges: [] as GamificationBadge[], earnedIds: new Set<string>() });
   const [waterToday, setWaterToday] = useState(0);
@@ -528,6 +538,7 @@ const Dashboard = () => {
       if (error) throw error;
       await loadWorkoutSummary();
       await syncWorkoutSessionsToHealthDailyMetrics(user.id, todayStr);
+      await syncCommunityChallengeProgressQuietly(user.id);
       setActivityCustomCal("");
       toast.success(t("log_activity_success_title") || "Activity logged", {
         description: `${selectedActivity.name} - ${loggedActivityCal} ${t("cal_short")}`,
@@ -548,6 +559,7 @@ const Dashboard = () => {
       if (error) throw error;
       await loadWorkoutSummary();
       await syncWorkoutSessionsToHealthDailyMetrics(user.id, todayStr);
+      await syncCommunityChallengeProgressQuietly(user.id);
     } catch (error) {
       console.error("Failed to delete activity:", error);
       toast.error(t("log_activity_failed_title") || "Could not update activity");
@@ -605,7 +617,7 @@ const Dashboard = () => {
       const [{ data: schedules, error: schedulesError }, { count: totalCount, error: countError }] = await Promise.all([
         supabase
           .from("meal_schedules")
-          .select(`id, scheduled_date, order_status, meal_id, meal_type, delivery_type, delivery_time_slot, updated_at, meals:meal_id (id, name, restaurant_id, restaurants:restaurant_id (id, name))`)
+          .select("id, scheduled_date, order_status, meal_id, meal_type, delivery_type, delivery_time_slot, updated_at")
           .eq("user_id", user.id)
           .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery"])
           .order("scheduled_date", { ascending: true })
@@ -621,23 +633,50 @@ const Dashboard = () => {
       if (!schedules || schedules.length === 0) {
         setActiveOrders([]); setOrdersLoading(false); return;
       }
-      const activeSchedules = (schedules ?? []) as unknown as ActiveScheduleRow[];
+      const activeSchedules = (schedules ?? []) as unknown as Omit<ActiveScheduleRow, "meals">[];
+      const mealIds = Array.from(new Set(activeSchedules.map((schedule) => schedule.meal_id).filter(Boolean)));
+      const { data: mealsData, error: mealsError } = mealIds.length
+        ? await supabase
+          .from("meals")
+          .select("id, name, restaurant_id")
+          .in("id", mealIds)
+        : { data: [], error: null };
+      if (mealsError) throw mealsError;
+
+      const mealsMap = new Map(
+        ((mealsData ?? []) as NonNullable<ActiveScheduleRow["meals"]>[]).map((meal) => [meal.id, meal])
+      );
+      const restaurantIds = Array.from(new Set(
+        Array.from(mealsMap.values()).map((meal) => meal.restaurant_id).filter(Boolean) as string[]
+      ));
+      const { data: restaurantsData, error: restaurantsError } = restaurantIds.length
+        ? await supabase.from("restaurants").select("id, name").in("id", restaurantIds)
+        : { data: [], error: null };
+      if (restaurantsError) throw restaurantsError;
+
+      const restaurantsMap = new Map(
+        ((restaurantsData ?? []) as RestaurantSummary[]).map((restaurant) => [restaurant.id, restaurant])
+      );
       const orders: ActiveOrder[] = activeSchedules
-        .filter((schedule) => schedule.meals !== null)
-        .map((schedule) => ({
-          id: schedule.id, order_status: schedule.order_status,
-          scheduled_date: schedule.scheduled_date, meal_id: schedule.meal_id,
-          meal_type: schedule.meal_type || null,
-          meal_name: schedule.meals?.name || "Meal",
-          restaurant_name: schedule.meals?.restaurants?.name || "Restaurant",
-          delivery_type: schedule.delivery_type || "pickup",
-          delivery_time_slot: schedule.delivery_time_slot || null,
-          updated_at: schedule.updated_at,
-        }));
+        .map((schedule) => {
+          const meal = mealsMap.get(schedule.meal_id);
+          const restaurant = restaurantsMap.get(meal?.restaurant_id || "");
+          return {
+            id: schedule.id, order_status: schedule.order_status,
+            scheduled_date: schedule.scheduled_date, meal_id: schedule.meal_id,
+            meal_type: schedule.meal_type || null,
+            meal_name: meal?.name || "Meal",
+            restaurant_name: restaurant?.name || "Restaurant",
+            delivery_type: schedule.delivery_type || "pickup",
+            delivery_time_slot: schedule.delivery_time_slot || null,
+            updated_at: schedule.updated_at,
+          };
+        });
       setActiveOrders(orders);
     } catch (err) {
       console.error("Error fetching active orders:", err);
-      setActiveOrders([]); setOrdersError(true);
+      setActiveOrders([]);
+      setTotalActiveOrders(0);
     } finally {
       setOrdersLoading(false);
     }
@@ -686,32 +725,64 @@ const Dashboard = () => {
   const fetchTodayMeals = useCallback(async () => {
     if (!user?.id) return;
     try {
+      setTodayMealsLoading(true);
       const today = getQatarDay();
-      const { data: schedules, error } = await supabase
+      const { data: schedules, error: schedulesError } = await supabase
         .from("meal_schedules")
-        .select(`id, meal_type, meal_id, scheduled_date, delivery_time_slot, meals:meal_id (id, name, image_url, calories, protein_g, carbs_g, fat_g), restaurants:restaurant_id (id, name)`)
+        .select("id, meal_type, meal_id, scheduled_date, delivery_time_slot, order_status, restaurant_id")
         .eq("user_id", user.id)
         .eq("scheduled_date", today)
+        .neq("order_status", "cancelled")
         .order("meal_type")
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (schedulesError) throw schedulesError;
+
+      const todaySchedules = (schedules ?? []) as unknown as Array<
+        Pick<TodayScheduleRow, "id" | "meal_type" | "meal_id" | "scheduled_date" | "delivery_time_slot" | "order_status" | "restaurant_id">
+      >;
+      const mealIds = Array.from(new Set(todaySchedules.map((s) => s.meal_id).filter(Boolean)));
+      const { data: mealsData, error: mealsError } = mealIds.length
+        ? await supabase
+          .from("meals")
+          .select("id, name, image_url, calories, protein_g, carbs_g, fat_g, restaurant_id")
+          .in("id", mealIds)
+        : { data: [], error: null };
+      if (mealsError) throw mealsError;
+
+      const mealsMap = new Map(
+        ((mealsData ?? []) as NonNullable<TodayScheduleRow["meals"]>[]).map((meal) => [meal.id, meal])
+      );
+      const restaurantIds = Array.from(new Set([
+        ...todaySchedules.map((s) => s.restaurant_id).filter(Boolean),
+        ...Array.from(mealsMap.values()).map((meal) => meal.restaurant_id).filter(Boolean),
+      ] as string[]));
+      const { data: restaurantsData, error: restaurantsError } = restaurantIds.length
+        ? await supabase.from("restaurants").select("id, name").in("id", restaurantIds)
+        : { data: [], error: null };
+      if (restaurantsError) throw restaurantsError;
+
+      const restaurantsMap = new Map(
+        ((restaurantsData ?? []) as RestaurantSummary[]).map((restaurant) => [restaurant.id, restaurant])
+      );
       const slots: Record<string, TodayMeal[]> = { breakfast: [], lunch: [], dinner: [], snack: [] };
-      const todaySchedules = (schedules ?? []) as unknown as TodayScheduleRow[];
       todaySchedules.forEach((s) => {
-        const type = s.meal_type || "other";
-        const group = ["breakfast", "lunch", "dinner", "snack"].includes(type) ? type : "other";
-        if (group === "other") return;
+        const group = normalizeDashboardMealType(s.meal_type);
+        if (!group) return;
         if (slots[group].length === 0) {
+          const meal = mealsMap.get(s.meal_id) || null;
           slots[group].push({
-            schedule_id: s.id, meal_type: group, meal: s.meals || null,
-            restaurant: s.restaurants || null, delivery_time_slot: s.delivery_time_slot || null,
+            schedule_id: s.id,
+            meal_type: group,
+            meal,
+            restaurant: restaurantsMap.get(s.restaurant_id || meal?.restaurant_id || "") || null,
+            delivery_time_slot: s.delivery_time_slot || null,
           });
         }
       });
       setTodayMeals(Object.entries(slots).map(([type, items]) => ({ type, ...(items[0] || {}) })));
     } catch (err) {
       console.error("Error fetching today's meals:", err);
-      setTodayMealsError(true);
+      setTodayMeals([]);
     } finally {
       setTodayMealsLoading(false);
     }
@@ -968,26 +1039,6 @@ const Dashboard = () => {
   const aiOverallScore = Math.round((nutritionScore + weeklyConsistencyPct + hydrationPct + Math.min(balancePct, 100)) / 4);
   const aiMealQualityStatus = aiOverallScore >= 80 ? t("ai_status_good") : aiOverallScore >= 60 ? t("ai_status_moderate") : t("ai_status_needs_work");
   const primarySmartRecommendation = smartRecommendations[0];
-  const nutritionTimelineSlots = [
-    { type: "breakfast", label: t("breakfast"), time: "08:00", color: "bg-amber-500", textClass: "text-amber-700" },
-    { type: "lunch", label: t("lunch"), time: "13:00", color: "bg-orange-500", textClass: "text-orange-700" },
-    { type: "dinner", label: t("dinner"), time: "19:00", color: "bg-[#7C83F6]", textClass: "text-[#7C83F6]" },
-    { type: "snack", label: t("snack"), time: "16:30", color: "bg-[#38BDF8]", textClass: "text-[#38BDF8]" },
-  ];
-  const nutritionTimeline = nutritionTimelineSlots.map((slot) => {
-    const item = todayMeals.find((meal) => meal.type === slot.type || meal.meal_type === slot.type);
-    const meal = item?.meal;
-    return {
-      ...slot,
-      name: meal?.name || t("no_meal_logged"),
-      calories: meal?.calories || 0,
-      protein: meal?.protein_g || 0,
-      carbs: meal?.carbs_g || 0,
-      fat: meal?.fat_g || 0,
-      image: meal?.image_url || null,
-      hasMeal: Boolean(meal),
-    };
-  });
   const macroTotal = Math.max(1, todayProgress.protein + todayProgress.carbs + todayProgress.fat);
   const macroSplit = [
     { label: t("protein_label"), value: Math.round((todayProgress.protein / macroTotal) * 100), color: DASHBOARD_COLORS.protein, textClass: "text-[#7C83F6]" },
@@ -996,6 +1047,23 @@ const Dashboard = () => {
   ];
   const proteinSplit = macroSplit[0].value;
   const carbsSplit = macroSplit[1].value;
+  const largestMacroGap = [
+    { label: t("protein_label"), value: Math.round(proteinGap), color: "#7C83F6", bg: "bg-[#F3F4FF]", Icon: Drumstick },
+    { label: t("carbs"), value: Math.round(carbsGap), color: "#38BDF8", bg: "bg-sky-50", Icon: Wheat },
+    { label: t("fat_label"), value: Math.round(fatGap), color: "#FB6B7A", bg: "bg-[#FFF0F2]", Icon: FatIcon },
+  ].sort((a, b) => b.value - a.value)[0];
+  const dailyBalanceState = overBudget
+    ? { label: "Over target", detail: `${Math.max(0, netCalories - dailyCalories)} ${t("cal_short")} above your daily target`, color: "#FB6B7A", bg: "bg-[#FFF0F2]" }
+    : proteinGap > 20
+      ? { label: "Needs protein", detail: `${Math.round(proteinGap)}g protein left to hit your goal`, color: "#7C83F6", bg: "bg-[#F3F4FF]" }
+      : nutritionScore >= 80
+        ? { label: "On track", detail: "Today's intake is aligned with your goal", color: "#22C7A1", bg: "bg-[#EFFFFA]" }
+        : { label: "Needs balance", detail: `${largestMacroGap.value}g ${largestMacroGap.label.toLowerCase()} left`, color: largestMacroGap.color, bg: largestMacroGap.bg };
+  const dailyBalanceMetrics = [
+    { label: t("cal_short"), value: `${Math.round(consumedPct)}%`, width: Math.min(100, Math.round(consumedPct)), color: "#22C7A1" },
+    { label: t("protein_label"), value: `${Math.round(todayProgress.protein)}/${proteinTarget}g`, width: proteinPct, color: "#7C83F6" },
+    { label: t("water"), value: `${Math.round(waterPct)}%`, width: Math.round(waterPct), color: "#38BDF8" },
+  ];
   const goalCalorieDelta = activeGoal?.goal_type === "muscle_gain" ? 200 : activeGoal?.goal_type === "maintenance" ? 0 : 300;
   const deficitValue = activeGoal?.goal_type === "muscle_gain" ? -goalCalorieDelta : goalCalorieDelta;
   const deficitLabel = deficitValue >= 0 ? t("deficit") : t("surplus");
@@ -1235,6 +1303,7 @@ const Dashboard = () => {
               {/* Favorites */}
               <button
                 type="button"
+                data-testid="dashboard-favorites-btn"
                 onClick={() => navigate("/favorites")}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#FB6B7A] shadow-sm ring-1 ring-[#E5EAF1] transition active:scale-95"
                 aria-label={t("favorites_label")}
@@ -1246,6 +1315,7 @@ const Dashboard = () => {
               <div ref={notificationRef} className="relative">
                 <button
                   type="button"
+                  data-testid="dashboard-notifications-btn"
                   onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
                   className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-[#E5EAF1]"
                   aria-label={t("Notifications")}
@@ -1351,6 +1421,7 @@ const Dashboard = () => {
               <button
                 key={key}
                 type="button"
+                data-testid={`dashboard-tab-${key}`}
                 onClick={() => navigate(path)}
                 className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold transition-all ${
                   activeTab === key
@@ -1448,6 +1519,7 @@ const Dashboard = () => {
               {/* Subscription tile — spans 1 */}
                 <button
                   type="button"
+                  data-testid="dashboard-subscription-card"
                   onClick={() => navigate("/subscription")}
                     className="mt-3 flex min-h-11 w-full items-center justify-between gap-3 rounded-[16px] bg-[#F6F8FB] px-3 py-2.5 text-start ring-1 ring-[#E5EAF1] transition active:scale-[0.99]"
                   aria-label={t("open_subscription")}
@@ -1475,6 +1547,7 @@ const Dashboard = () => {
             {activeGoal && (
               <button
                 type="button"
+                data-testid="dashboard-goal-card"
                 onClick={() => navigate("/progress?tab=goals")}
                 className="w-full rounded-[22px] border border-[#E5EAF1] bg-white p-4 text-start shadow-[0_10px_24px_rgba(2,6,23,0.05)] transition active:scale-[0.99]"
               >
@@ -1496,15 +1569,15 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  <div className="rounded-2xl bg-[#F6F8FB] px-2 py-2 ring-1 ring-[#E5EAF1]">
+                  <div className="flex min-h-[54px] flex-col items-center justify-center rounded-2xl bg-[#F6F8FB] px-2 py-2 text-center ring-1 ring-[#E5EAF1]">
                     <p className="text-[9px] font-bold uppercase tracking-wide text-[#94A3B8]">{t("cal_label_short")}</p>
                     <p className="text-sm font-black text-[#22C7A1]">{activeGoal.daily_calorie_target}</p>
                   </div>
-                  <div className="rounded-2xl bg-[#F6F8FB] px-2 py-2 ring-1 ring-[#E5EAF1]">
+                  <div className="flex min-h-[54px] flex-col items-center justify-center rounded-2xl bg-[#F6F8FB] px-2 py-2 text-center ring-1 ring-[#E5EAF1]">
                     <p className="text-[9px] font-bold uppercase tracking-wide text-[#94A3B8]">{t("protein_label")}</p>
                     <p className="text-sm font-black text-[#7C83F6]">{activeGoal.protein_target_g}g</p>
                   </div>
-                  <div className="rounded-2xl bg-[#F6F8FB] px-2 py-2 ring-1 ring-[#E5EAF1]">
+                  <div className="flex min-h-[54px] flex-col items-center justify-center rounded-2xl bg-[#F6F8FB] px-2 py-2 text-center ring-1 ring-[#E5EAF1]">
                     <p className="text-[9px] font-bold uppercase tracking-wide text-[#94A3B8]">{t("tracked")}</p>
                     <p className="truncate text-sm font-black text-[#020617]">{weeklyLoggedDays}/7</p>
                   </div>
@@ -1514,6 +1587,7 @@ const Dashboard = () => {
 
             <button
               type="button"
+              data-testid="dashboard-nutrition-card"
               onClick={() => navigate(nutritionMatchedMeal ? `/meals/${nutritionMatchedMeal.id}` : nutritionPerformance.actionPath)}
               className="w-full overflow-hidden rounded-[24px] border border-[#E5EAF1] bg-white p-4 text-start shadow-[0_10px_24px_rgba(2,6,23,0.05)] transition active:scale-[0.99]"
             >
@@ -1561,14 +1635,15 @@ const Dashboard = () => {
 
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: t("order"), Icon: ConciergeBell, action: () => navigate("/meals"), bg: "bg-[#22C7A1] text-white" },
-                { label: t("log"), Icon: Plus, action: () => setLogMealOpen(true), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
-                { label: "Coaches", Icon: Medal, action: () => navigate(hasActiveCoach ? "/coach-programs" : "/coaches"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
-                { label: t("community"), Icon: Users, action: () => navigate("/community"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
-              ].map(({ label, Icon, action, bg }) => (
+                { label: t("order"), testid: "dashboard-fab-order", Icon: ConciergeBell, action: () => navigate("/meals"), bg: "bg-[#22C7A1] text-white" },
+                { label: t("log"), testid: "dashboard-fab-log", Icon: Plus, action: () => setLogMealOpen(true), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
+                { label: "Coaches", testid: "dashboard-fab-coaches", Icon: Medal, action: () => navigate(hasActiveCoach ? "/coach-programs" : "/coaches"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
+                { label: t("community"), testid: "dashboard-fab-community", Icon: Users, action: () => navigate("/community"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
+              ].map(({ label, testid, Icon, action, bg }) => (
                 <motion.button
                   key={label}
                   type="button"
+                  data-testid={testid}
                   onClick={action}
                   whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                   className={`flex flex-col items-center justify-center gap-1.5 rounded-[18px] py-3 ${bg} shadow-[0_12px_35px_rgba(15,23,42,0.06)]`}
@@ -1581,24 +1656,39 @@ const Dashboard = () => {
 
             {/* ── Daily Focus ───────────────────────────────────────── */}
             {/* ── Today's Meals ─────────────────────────────────────── */}
-            <div className="rounded-[24px] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
-              <div className="flex items-center justify-between">
+            <div className="overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white shadow-[0_16px_45px_rgba(15,23,42,0.07)]">
+              <div className="flex items-center justify-between px-4 pb-3 pt-4">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-orange-600">{t("meals")}</p>
                   <h2 className="mt-0.5 text-[18px] font-black tracking-normal text-slate-950">{t("dashboard_today_meals")}</h2>
                 </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-orange-50 text-orange-600 ring-1 ring-orange-100">
-                  <UtensilsCrossed className="h-4.5 w-4.5" strokeWidth={2} />
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-[#EFFFFA] px-3 py-1.5 text-[11px] font-black text-[#22C7A1]">
+                    {todayMeals.filter((meal) => meal.meal).length}/4
+                  </span>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-orange-50 text-orange-600 ring-1 ring-orange-100">
+                    <UtensilsCrossed className="h-4.5 w-4.5" strokeWidth={2} />
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-4 space-y-2.5">
+              <div className="mx-3 mb-3 rounded-[24px] bg-[#F6F8FB] p-1.5 ring-1 ring-[#E5EAF1]">
                 {(() => {
                   const slots = [
                     { type: "breakfast", label: t("breakfast"), icon: Coffee, color: "from-[#FBBF24] to-[#F97316]", bg: "bg-amber-50", text: "text-amber-700", ring: "ring-amber-200", accent: "bg-orange-500" },
                     { type: "lunch", label: t("lunch"), icon: Soup, color: "from-[#A7F3E5] to-[#22C7A1]", bg: "bg-[#EFFFFA]", text: "text-[#22C7A1]", ring: "ring-[#22C7A1]/20", accent: "bg-[#22C7A1]" },
                     { type: "dinner", label: t("dinner"), icon: UtensilsCrossed, color: "from-[#A5B4FC] to-[#7C83F6]", bg: "bg-[#F3F4FF]", text: "text-[#7C83F6]", ring: "ring-[#7C83F6]/20", accent: "bg-[#7C83F6]" },
+                    { type: "snack", label: t("snack"), icon: Apple, color: "from-[#7DD3FC] to-[#38BDF8]", bg: "bg-sky-50", text: "text-[#38BDF8]", ring: "ring-[#38BDF8]/20", accent: "bg-[#38BDF8]" },
                   ];
+                  if (todayMealsLoading) {
+                    return (
+                      <div className="space-y-2">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="h-[60px] animate-pulse rounded-[16px] bg-slate-100" />
+                        ))}
+                      </div>
+                    );
+                  }
                   const hasAnyMeal = slots.some((s) => {
                     const m = todayMeals.find((tm) => tm.type === s.type);
                     return m && m.meal;
@@ -1631,50 +1721,66 @@ const Dashboard = () => {
                     );
                   }
 
-                  return slots.map((slot) => {
+                  return slots.map((slot, index) => {
                     const meal = todayMeals.find((m) => m.type === slot.type);
                     const hasMeal = meal && meal.meal;
                     const IconSlot = slot.icon;
+                    const nutrition = meal?.meal;
+                    const calories = nutrition?.calories || 0;
+                    const protein = nutrition?.protein_g || 0;
+                    const carbs = nutrition?.carbs_g || 0;
+                    const fat = nutrition?.fat_g || 0;
+                    const macroTotal = Math.max(1, protein + carbs + fat);
+                    const proteinPct = Math.round((protein / macroTotal) * 100);
+                    const carbsPct = Math.round((carbs / macroTotal) * 100);
+                    const fatPct = Math.max(0, 100 - proteinPct - carbsPct);
                     return (
-                      <div key={slot.type}>
+                      <div key={slot.type} className={index > 0 ? "mt-1.5" : ""}>
                         <motion.div
                           whileTap={prefersReducedMotion ? undefined : { scale: hasMeal ? 0.98 : 1 }}
                           onClick={() => hasMeal && setExpandedMeal(expandedMeal === `${slot.type}-${meal.schedule_id}` ? null : `${slot.type}-${meal.schedule_id}`)}
-                          className={`relative flex min-h-[78px] items-center gap-3 overflow-hidden rounded-[22px] border border-slate-100 bg-white p-3 shadow-[0_10px_24px_rgba(15,23,42,0.045)] transition active:scale-[0.99] ${hasMeal ? "cursor-pointer" : ""}`}
+                          className={`relative flex min-h-[76px] items-center gap-3 overflow-hidden rounded-[21px] bg-white p-2.5 ring-1 ring-white/80 transition active:scale-[0.99] ${hasMeal ? "cursor-pointer shadow-[0_8px_22px_rgba(15,23,42,0.045)]" : ""}`}
                         >
-                          <span className={`absolute bottom-3 left-0 top-3 w-1 rounded-r-full ${slot.accent}`} />
-                          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[17px] bg-gradient-to-br ${slot.color} text-white shadow-[0_8px_18px_rgba(15,23,42,0.10)]`}>
-                            <IconSlot className="h-[18px] w-[18px]" strokeWidth={1.75} />
-                          </div>
                           {hasMeal ? (
                             <>
                               {meal.meal?.image_url ? (
-                                <img src={meal.meal.image_url} alt={meal.meal.name} className="h-[54px] w-[54px] shrink-0 rounded-[18px] object-cover shadow-sm ring-1 ring-slate-100" />
+                                <div className="relative h-[58px] w-[58px] shrink-0">
+                                  <img src={meal.meal.image_url} alt={meal.meal.name} className="h-full w-full rounded-[20px] object-cover shadow-sm ring-1 ring-slate-100" />
+                                  <span className={`absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br ${slot.color} text-white ring-2 ring-white`}>
+                                    <IconSlot className="h-[13px] w-[13px]" strokeWidth={2} />
+                                  </span>
+                                </div>
                               ) : (
-                                <div className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[18px] bg-slate-50 shadow-sm ring-1 ring-slate-200/80">
-                                  <Utensils className="h-[18px] w-[18px] text-slate-400" strokeWidth={1.5} />
+                                <div className={`flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br ${slot.color} text-white shadow-sm ring-1 ring-white`}>
+                                  <IconSlot className="h-[20px] w-[20px]" strokeWidth={1.8} />
                                 </div>
                               )}
                               <div className="min-w-0 flex-1">
-                                <p className={`text-[10px] font-black uppercase tracking-[0.1em] ${slot.text}`}>{slot.label}</p>
-                                <p className="mt-0.5 truncate text-[15px] font-black leading-tight text-slate-950">{meal.meal?.name || slot.label}</p>
-                                <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] font-bold text-slate-500">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`h-1.5 w-1.5 rounded-full ${slot.accent}`} />
+                                  <p className={`truncate text-[10px] font-black uppercase tracking-[0.1em] ${slot.text}`}>{slot.label}</p>
+                                </div>
+                                <p className="mt-1 truncate text-[15px] font-black leading-tight text-[#020617]">{meal.meal?.name || slot.label}</p>
+                                <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] font-bold text-[#64748B]">
                                   {meal.restaurant?.name && <span className="truncate">{meal.restaurant.name}</span>}
                                   {meal.meal?.calories && <><span className="text-slate-300">·</span><span>{meal.meal.calories} cal</span></>}
                                   {meal.delivery_time_slot && <><span className="text-slate-300">·</span><span>{meal.delivery_time_slot}</span></>}
                                 </p>
                               </div>
-                              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)] transition-transform ${expandedMeal === `${slot.type}-${meal.schedule_id}` ? "rotate-90" : ""}`}>
+                              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1] transition-transform ${expandedMeal === `${slot.type}-${meal.schedule_id}` ? "rotate-90" : ""}`}>
                                 <NextIcon className="h-3 w-3" strokeWidth={2} />
                               </div>
                             </>
                           ) : (
                             <>
-                              <div className="min-w-0 flex-1">
-                                <p className={`text-[14px] font-black ${slot.text}`}>{slot.label}</p>
-                                <p className="mt-0.5 text-[11px] font-medium text-slate-400">{t("dashboard_no_meal_planned")}</p>
+                              <div className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[19px] ${slot.bg} ${slot.text} ring-1 ${slot.ring}`}>
+                                <IconSlot className="h-[18px] w-[18px]" strokeWidth={1.8} />
                               </div>
-                              <Link to="/meals" className="flex shrink-0 items-center gap-1 rounded-full bg-[#020617] px-2.5 py-1.5 text-[10px] font-black text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)] transition active:scale-95">
+                              <div className="min-w-0 flex-1">
+                                <p className={`text-[13px] font-black ${slot.text}`}>{slot.label}</p>
+                                <p className="mt-0.5 text-[11px] font-bold text-[#94A3B8]">{t("dashboard_no_meal_planned")}</p>
+                              </div>
+                              <Link to="/meals" className="flex h-9 shrink-0 items-center gap-1 rounded-full bg-white px-3 text-[10px] font-black text-[#020617] ring-1 ring-[#E5EAF1] transition active:scale-95">
                                 <Plus className="h-3 w-3" strokeWidth={2.5} />Order Now
                               </Link>
                             </>
@@ -1689,33 +1795,97 @@ const Dashboard = () => {
                               transition={{ type: "spring", stiffness: 300, damping: 28 }}
                               className="overflow-hidden"
                             >
-                              <div className="mx-2 mb-3 rounded-[20px] bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/80">
-                                <p className="text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-400">{t("dashboard_nutrition_facts")}</p>
-                                <div className="mt-2 grid grid-cols-4 gap-1.5">
-                                  <div className="rounded-xl bg-[#EFFFFA] p-2 text-center ring-1 ring-[#22C7A1]/20">
-                                    <Flame className="mx-auto h-[16px] w-[16px] text-[#22C7A1]" strokeWidth={1.75} />
-                                    <p className="mt-1 text-[14px] font-extrabold leading-none text-slate-950">{meal.meal?.calories || 0}</p>
-                                    <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-[#22C7A1]">{t("cal_short")}</p>
+                              <div className="mx-1 mb-2 mt-1 rounded-[28px] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">Nutrition</p>
+                                    <h3 className="mt-1 text-[22px] font-black leading-none tracking-[-0.03em] text-[#020617]">Nutrition profile</h3>
+                                    <p className="mt-1 text-[12px] font-bold text-[#64748B]">Calories, macros and fiber</p>
                                   </div>
-                                  <div className="rounded-xl bg-[#F3F4FF] p-2 text-center ring-1 ring-[#7C83F6]/20">
-                                    <Drumstick className="mx-auto h-[16px] w-[16px] text-[#7C83F6]" strokeWidth={1.75} />
-                                    <p className="mt-1 text-[14px] font-extrabold leading-none text-slate-950">{meal.meal?.protein_g || 0}g</p>
-                                    <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-[#7C83F6]">{t("dashboard_protein")}</p>
+                                  <span className="rounded-full bg-[#F1F5F9] px-3 py-2 text-[11px] font-black text-[#64748B]">per meal</span>
+                                </div>
+
+                                <div className="mt-4 flex items-center gap-4">
+                                  <div className="relative flex h-[118px] w-[118px] shrink-0 items-center justify-center rounded-full"
+                                    style={{
+                                      background: `conic-gradient(#7C83F6 0 ${proteinPct}%, #38BDF8 ${proteinPct}% ${proteinPct + carbsPct}%, #FB6B7A ${proteinPct + carbsPct}% 100%)`,
+                                    }}
+                                  >
+                                    <div className="absolute inset-[10px] rounded-full bg-[#E2E8F0]" />
+                                    <div className="absolute inset-[20px] rounded-full bg-white" />
+                                    <div className="relative text-center">
+                                      <Flame className="mx-auto h-4 w-4 text-[#FB6B7A]" strokeWidth={2} />
+                                      <p className="mt-1 text-[25px] font-black leading-none tracking-[-0.04em] text-[#020617]">{calories}</p>
+                                      <p className="mt-1 text-[9px] font-black uppercase tracking-[0.13em] text-[#94A3B8]">{t("cal_short")}</p>
+                                    </div>
                                   </div>
-                                  <div className="rounded-xl bg-orange-50 p-2 text-center ring-1 ring-orange-100">
-                                    <Wheat className="mx-auto h-[16px] w-[16px] text-[#F97316]" strokeWidth={1.75} />
-                                    <p className="mt-1 text-[14px] font-extrabold leading-none text-slate-950">{meal.meal?.carbs_g || 0}g</p>
-                                    <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-[#F97316]">{t("dashboard_carbs")}</p>
-                                  </div>
-                                  <div className="rounded-xl bg-[#FFF0F2] p-2 text-center ring-1 ring-[#FB6B7A]/20">
-                                    <FatIcon className="mx-auto h-[16px] w-[16px] text-[#FB6B7A]" strokeWidth={1.75} />
-                                    <p className="mt-1 text-[14px] font-extrabold leading-none text-slate-950">{meal.meal?.fat_g || 0}g</p>
-                                    <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-[#FB6B7A]">{t("fat_short")}</p>
+
+                                  <div className="min-w-0 flex-1 space-y-3">
+                                    <div className="flex items-center gap-2.5">
+                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#7C83F6]/15">
+                                        <Drumstick className="h-4 w-4" strokeWidth={1.8} />
+                                      </span>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <p className="text-[13px] font-black text-[#020617]">{t("dashboard_protein")}</p>
+                                          <p className="text-[12px] font-black text-[#64748B]">{proteinPct}%</p>
+                                        </div>
+                                        <p className="text-[12px] font-black text-[#94A3B8]">{protein}g of {macroTotal}g</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2.5">
+                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-50 text-[#38BDF8] ring-1 ring-[#38BDF8]/15">
+                                        <Wheat className="h-4 w-4" strokeWidth={1.8} />
+                                      </span>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <p className="text-[13px] font-black text-[#020617]">{t("dashboard_carbs")}</p>
+                                          <p className="text-[12px] font-black text-[#64748B]">{carbsPct}%</p>
+                                        </div>
+                                        <p className="text-[12px] font-black text-[#94A3B8]">{carbs}g of {macroTotal}g</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2.5">
+                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FFF0F2] text-[#FB6B7A] ring-1 ring-[#FB6B7A]/15">
+                                        <FatIcon className="h-4 w-4" strokeWidth={1.8} />
+                                      </span>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <p className="text-[13px] font-black text-[#020617]">{t("fat_short")}</p>
+                                          <p className="text-[12px] font-black text-[#64748B]">{fatPct}%</p>
+                                        </div>
+                                        <p className="text-[12px] font-black text-[#94A3B8]">{fat}g of {macroTotal}g</p>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
-                                <Link to={`/meals/${meal.meal?.id}`} className="mt-2 flex items-center justify-center gap-1 rounded-full bg-[#020617] py-2 text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(2,6,23,0.14)] transition active:scale-95">
-                                  View Full Details <NextIcon className="h-3 w-3" strokeWidth={2} />
-                                </Link>
+
+                                <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-[#E2E8F0]">
+                                  <div className="h-full bg-[#7C83F6]" style={{ width: `${proteinPct}%` }} />
+                                  <div className="h-full bg-[#38BDF8]" style={{ width: `${carbsPct}%` }} />
+                                  <div className="h-full bg-[#FB6B7A]" style={{ width: `${fatPct}%` }} />
+                                </div>
+
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                  <div className="flex items-center gap-2 rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#7C83F6] ring-1 ring-[#E5EAF1]">
+                                      <Drumstick className="h-4 w-4" strokeWidth={1.8} />
+                                    </span>
+                                    <div className="min-w-0">
+                                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">Macros</p>
+                                      <p className="truncate text-[15px] font-black text-[#020617]">{macroTotal}g total</p>
+                                    </div>
+                                  </div>
+                                  <Link to={`/meals/${meal.meal?.id}`} className="flex items-center gap-2 rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1] transition active:scale-[0.98]">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#22C7A1] ring-1 ring-[#E5EAF1]">
+                                      <Leaf className="h-4 w-4" strokeWidth={1.8} />
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">Details</p>
+                                      <p className="truncate text-[15px] font-black text-[#020617]">View meal</p>
+                                    </div>
+                                  </Link>
+                                </div>
                               </div>
                             </motion.div>
                           )}
@@ -1725,54 +1895,12 @@ const Dashboard = () => {
                   });
                 })()}
               </div>
-
-              {todayMealsError && (
-                <div className="mt-3 rounded-[18px] bg-amber-50 p-3 ring-1 ring-amber-200">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-                      <AlertCircle className="h-4 w-4" strokeWidth={1.75} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[12px] font-semibold text-slate-800">{t("dashboard_today_error")}</p>
-                      <p className="text-[10px] text-slate-500">{t("dashboard_tap_to_try_again")}</p>
-                    </div>
-                    <button type="button"
-                      onClick={() => { setTodayMealsError(false); setTodayMealsLoading(true); fetchTodayMeals(); }}
-                      className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                      {t("retry_button")}
-                    </button>
-                  </div>
-                </div>
-              )}
-              {todayMealsLoading && (
-                <div className="mt-3 space-y-2">
-                  {[1, 2, 3].map((i) => <div key={i} className="h-[60px] animate-pulse rounded-[16px] bg-slate-100" />)}
-                </div>
-              )}
             </div>
 
             {/* ── Subscription Nudge ────────────────────────────────── */}
             <SubscriptionNudge />
 
             {/* ── Active Orders ─────────────────────────────────────── */}
-            {ordersError && (
-              <div className="rounded-[20px] bg-amber-50 p-4 ring-1 ring-amber-200">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-                    <AlertCircle className="h-4.5 w-4.5" strokeWidth={1.75} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold text-slate-800">{t("dashboard_orders_error")}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">{t("dashboard_orders_error_desc")}</p>
-                  </div>
-                  <button type="button"
-                    onClick={() => { setOrdersError(false); fetchActiveOrders(); }}
-                    className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[12px] font-semibold text-amber-700 transition hover:bg-amber-200">
-                    <RefreshCw className="h-3.5 w-3.5" strokeWidth={2} />{t("retry_button")}
-                  </button>
-                </div>
-              </div>
-            )}
             {activeOrders.length > 0 && (
               <div className="rounded-[24px] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
                 <div className="flex items-center justify-between">
@@ -2098,46 +2226,77 @@ const Dashboard = () => {
                     ))}
                   </div>
                 </div>
+
               </div>
             </section>
 
-            <section className="rounded-[28px] bg-white/70 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-xl">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{t("today_timeline")}</p>
-                  <h3 className="mt-0.5 text-[18px] font-black leading-tight text-slate-950">{t("meal_impact")}</h3>
+            <section className="overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-[#E5EAF1]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Goal forecast</p>
+                  <h3 className="mt-0.5 text-[21px] font-black leading-tight text-[#020617]">Daily Balance</h3>
+                  <p className="mt-1 text-[12px] font-bold text-[#64748B]">What your day still needs</p>
                 </div>
-                <span className="rounded-full bg-[#020617] px-3 py-1.5 text-[11px] font-black text-white">
-                  {plannedMeals.length}/4
+                <span className={cn("shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black", dailyBalanceState.bg)} style={{ color: dailyBalanceState.color }}>
+                  {dailyBalanceState.label}
                 </span>
               </div>
 
-              <div className="mt-4 space-y-2.5">
-                {nutritionTimeline.map((meal) => (
-                  <div key={meal.type} className="rounded-[22px] bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-slate-200/80 backdrop-blur-xl">
-                    <div className="flex items-center gap-3">
-                      <div className="flex w-11 shrink-0 flex-col items-center">
-                        <span className={`h-2.5 w-2.5 rounded-full ${meal.color}`} />
-                        <span className="mt-1 text-[10px] font-black text-slate-400">{meal.time}</span>
-                      </div>
-                      {meal.image ? (
-                        <img src={meal.image} alt={meal.name} className="h-12 w-12 shrink-0 rounded-[16px] object-cover" />
-                      ) : (
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-slate-100 text-slate-400">
-                          <UtensilsCrossed className="h-5 w-5" strokeWidth={2.1} />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-[10px] font-black uppercase tracking-[0.1em] ${meal.textClass}`}>{meal.label}</p>
-                        <p className={`mt-0.5 truncate text-[14px] font-black leading-tight ${meal.hasMeal ? "text-slate-950" : "text-slate-400"}`}>{meal.name}</p>
-                        <p className="mt-1 truncate text-[11px] font-bold text-slate-400">
-                          P {meal.protein}g - C {meal.carbs}g - F {meal.fat}g
-                        </p>
-                      </div>
-                      <div className="text-end">
-                        <p className="text-[16px] font-black leading-none text-slate-950">{meal.calories}</p>
-                        <p className="mt-1 text-[10px] font-bold text-slate-400">{t("cal_short")}</p>
-                      </div>
+              <div className="mt-4 grid grid-cols-[112px_1fr] gap-4">
+                <div className="relative flex h-28 w-28 items-center justify-center rounded-[28px] bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
+                  <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120" aria-hidden="true">
+                    <circle cx="60" cy="60" r="48" fill="none" stroke="#E5EAF1" strokeWidth="10" />
+                    <motion.circle
+                      cx="60"
+                      cy="60"
+                      r="48"
+                      fill="none"
+                      stroke={dailyBalanceState.color}
+                      strokeLinecap="round"
+                      strokeWidth="10"
+                      strokeDasharray={301.59}
+                      strokeDashoffset={301.59 - (Math.min(nutritionScore, 100) / 100) * 301.59}
+                      variants={progressRingVariants}
+                      initial="hidden"
+                      animate="visible"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                    <span className="text-[28px] font-black leading-none tracking-[-0.04em] text-[#020617]">{nutritionScore}</span>
+                    <span className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">score</span>
+                  </div>
+                </div>
+
+                <div className="min-w-0 space-y-2.5">
+                  <div className={cn("rounded-[20px] p-3 ring-1 ring-[#E5EAF1]", dailyBalanceState.bg)}>
+                    <p className="text-[12px] font-black text-[#020617]">{dailyBalanceState.detail}</p>
+                    <p className="mt-1 text-[11px] font-bold text-[#64748B]">
+                      {calRemaining > 0 ? `${calRemaining} ${t("cal_short")} left today` : overBudget ? "Keep the next meal light" : "Calories are fully used"}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                      <p className="text-[9px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">Meal coverage</p>
+                      <p className="mt-1 text-[18px] font-black text-[#020617]">{plannedMeals.length}/4</p>
+                    </div>
+                    <div className="rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                      <p className="text-[9px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">Top gap</p>
+                      <p className="mt-1 truncate text-[18px] font-black" style={{ color: largestMacroGap.color }}>{largestMacroGap.value}g</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {dailyBalanceMetrics.map((metric) => (
+                  <div key={metric.label}>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <p className="text-[11px] font-black uppercase tracking-[0.1em] text-[#64748B]">{metric.label}</p>
+                      <p className="text-[12px] font-black text-[#020617]">{metric.value}</p>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-[#EEF2F7]">
+                      <div className="h-full rounded-full" style={{ width: `${metric.width}%`, backgroundColor: metric.color }} />
                     </div>
                   </div>
                 ))}
@@ -2170,24 +2329,41 @@ const Dashboard = () => {
                 </div>
               </section>
 
-              <section className="relative flex min-h-[148px] flex-col justify-between overflow-hidden rounded-[28px] bg-white/72 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80 backdrop-blur-xl">
-                <div className={cn("flex items-start justify-between gap-3", isRTL && "flex-row-reverse")}>
-                  <p className={cn("min-w-0 max-w-[82px] text-[10px] font-black leading-4 text-slate-700", isRTL ? "text-right" : "text-left")}>
-                    {deficitLabel}
-                  </p>
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#020617] text-white shadow-[0_10px_20px_rgba(2,6,23,0.18)]">
-                    <TrendingUp className="h-4.5 w-4.5" strokeWidth={2.4} />
+              <section className="relative flex min-h-[168px] flex-col justify-between overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-[#E5EAF1]">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-[#EFFFFA] to-transparent" />
+                <div className={cn("relative flex items-start justify-between gap-3", isRTL && "flex-row-reverse")}>
+                  <div className={cn("min-w-0", isRTL ? "text-right" : "text-left")}>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">
+                      {deficitLabel}
+                    </p>
+                    <p className="mt-1 text-[11px] font-bold leading-4 text-[#64748B]">
+                      {activeGoal?.goal_type === "muscle_gain" ? t("above_today_budget") : t("on_track_weight_goal")}
+                    </p>
+                  </div>
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
+                    <TrendingUp className="h-5 w-5" strokeWidth={2.4} />
                   </div>
                 </div>
-                <div className={cn("mt-4 min-w-0", isRTL ? "text-right" : "text-left")}>
+
+                <div className={cn("relative mt-4", isRTL ? "text-right" : "text-left")}>
                   <div className={cn("flex items-end gap-1.5", isRTL ? "justify-end" : "justify-start")}>
-                    <p className="whitespace-nowrap text-[28px] font-black leading-none tracking-normal text-[#020617]" dir="ltr">{deficitDisplay}</p>
-                    <p className="pb-0.5 text-[11px] font-black text-slate-400">{t("cal_short")}</p>
+                    <p className="whitespace-nowrap text-[34px] font-black leading-none text-[#020617]" dir="ltr">{deficitDisplay}</p>
+                    <p className="pb-1 text-[12px] font-black text-[#94A3B8]">{t("cal_short")}</p>
+                  </div>
+                  <div className="mt-4 rounded-full bg-[#EEF2F7] p-1">
+                    <div
+                      className="h-2 rounded-full bg-[#22C7A1]"
+                      style={{ width: `${Math.min(100, Math.max(18, (Math.abs(deficitValue) / Math.max(1, goalCalorieDelta)) * 100))}%` }}
+                    />
                   </div>
                 </div>
-                <p className={cn("mt-2 max-w-[118px] text-[10px] font-bold leading-4 text-slate-400", isRTL ? "self-end text-right" : "self-start text-left")}>
-                  {deficitValue >= 0 ? t("on_track_weight_goal") : t("above_today_budget")}
-                </p>
+
+                <div className={cn("relative mt-3 flex items-center gap-2", isRTL && "flex-row-reverse")}>
+                  <span className="h-2 w-2 rounded-full bg-[#22C7A1]" />
+                  <p className={cn("text-[10px] font-black leading-4 text-[#64748B]", isRTL ? "text-right" : "text-left")}>
+                    {deficitValue >= 0 ? t("on_track_weight_goal") : t("above_today_budget")}
+                  </p>
+                </div>
               </section>
             </div>
 

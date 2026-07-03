@@ -214,7 +214,7 @@ const FeatureCard = ({ restaurant, goalType, t }: { restaurant: ShowcaseRestaura
   if (!restaurant.liveRestaurantId) return card;
 
   return (
-    <Link to={`/restaurant/${restaurant.liveRestaurantId}`} className="block">
+    <Link to={`/restaurant/${restaurant.liveRestaurantId}`} data-testid={`meals-showcase-link-${restaurant.liveRestaurantId}`} className="block">
       {card}
     </Link>
   );
@@ -233,6 +233,7 @@ const RestaurantCard = ({
   goalType?: string | null;
   t: (key: string) => string;
 }) => {
+  const cardTestId = restaurant.liveRestaurantId ? `meals-card-${restaurant.liveRestaurantId}` : undefined;
   const favorite = restaurant.liveRestaurantId ? isFavorite(restaurant.liveRestaurantId) : false;
   const reduceMotion = useReducedMotion();
   const fitLabel = getGoalFitLabel(goalType, restaurant);
@@ -255,6 +256,7 @@ const RestaurantCard = ({
             {seedRating(restaurant.name)}
           </span>
           <button
+            data-testid="meals-fav-btn"
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-full bg-white/92 shadow-sm backdrop-blur transition active:scale-95",
               favorite ? "text-rose-500" : "text-slate-500 hover:text-rose-500",
@@ -309,7 +311,7 @@ const RestaurantCard = ({
   if (!restaurant.liveRestaurantId) return card;
 
   return (
-    <Link to={`/restaurant/${restaurant.liveRestaurantId}`} className="block">
+    <Link to={`/restaurant/${restaurant.liveRestaurantId}`} data-testid={cardTestId} className="block">
       {card}
     </Link>
   );
@@ -512,6 +514,7 @@ const Meals = () => {
         <div className="mx-auto flex max-w-[480px] items-center justify-between px-4 py-3">
           <Link
             to="/dashboard"
+            data-testid="meals-back-btn"
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition active:scale-95"
             aria-label={t("back")}
           >
@@ -522,6 +525,7 @@ const Meals = () => {
             <p className="text-[14px] font-bold text-slate-900">{t("discover_restaurants")}</p>
           </div>
           <button
+            data-testid="meals-favorites-filter-btn"
             onClick={() => setShowFavoritesOnly((value) => !value)}
             className={cn(
               "flex h-11 w-11 items-center justify-center rounded-full shadow-sm ring-1 transition active:scale-95",
@@ -544,6 +548,7 @@ const Meals = () => {
               <p className="font-bold">{t("meals_could_not_load")}</p>
               <p className="mt-1 text-[13px] text-red-600">{fetchError}</p>
               <button
+                data-testid="meals-retry-btn"
                 className="mt-3 inline-flex h-9 items-center gap-2 rounded-full bg-white px-3 text-[13px] font-bold text-red-600 ring-1 ring-red-200"
                 onClick={() => {
                   setFetchError(null);
@@ -586,6 +591,7 @@ const Meals = () => {
 
             <Link
               to="/subscription"
+              data-testid="meals-subscription-link"
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#020617] text-white shadow-sm active:scale-95"
               aria-label={t("manage_subscription")}
             >
@@ -615,6 +621,7 @@ const Meals = () => {
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" strokeWidth={2.25} />
               <input
+                data-testid="meals-search-input"
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
@@ -631,6 +638,7 @@ const Meals = () => {
                 return (
                   <button
                     key={category.id}
+                    data-testid={`meals-category-${category.id}`}
                     onClick={() => {
                       Haptics.impact({ style: "light" });
                       setSelectedCategory(category.id);
@@ -664,6 +672,7 @@ const Meals = () => {
             <h2 className="mt-5 text-[24px] font-black tracking-normal text-slate-950">{t("no_matches_found")}</h2>
             <p className="mt-2 max-w-[320px] text-[14px] font-medium leading-relaxed text-slate-500">{t("no_matches_hint")}</p>
             <button
+              data-testid="meals-clear-filters-btn"
               className="mt-5 h-11 rounded-full bg-slate-950 px-5 text-[14px] font-extrabold text-white transition active:scale-95"
               onClick={() => {
                 setSearchQuery("");

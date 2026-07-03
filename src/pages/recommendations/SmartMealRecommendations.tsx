@@ -32,33 +32,14 @@ export default function SmartMealRecommendations() {
   const cuisineOptions = ["Italian", "Asian", "Mediterranean", "Arabic", "Indian", "Mexican"];
   const categoryOptions = ["High Protein", "Low Carb", "Balanced", "Vegetarian", "Keto-Friendly"];
 
-  const calculateMatchScore = (meal: { calories: number; protein_g: number; carbs_g: number; fat_g: number }, targets: NutritionTargets) => {
-    let score = 0; const reasons: string[] = [];
-    const idealCal = targets.calories / 3;
-    const calScore = Math.max(0, 40 - (Math.abs(meal.calories - idealCal) / idealCal * 40));
-    score += calScore; if (calScore > 30) reasons.push("Calorie match"); else if (calScore > 20) reasons.push("Good calorie range");
-    const idealP = targets.protein / 3;
-    const pScore = Math.max(0, 35 - (Math.abs(meal.protein_g - idealP) / idealP * 35));
-    score += pScore; if (pScore > 25) reasons.push("High protein"); else if (pScore > 15) reasons.push("Good protein");
-    const totalM = meal.protein_g + meal.carbs_g + meal.fat_g;
-    if (totalM > 0) { const bScore = 25 - Math.abs(meal.protein_g / totalM - 0.3) * 100; score += Math.max(0, bScore); if (bScore > 20) reasons.push("Balanced macros"); }
-    return { score: Math.round(score), reasons };
-  };
-
   const fetchRecommendations = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser(); if (!user) return;
-      const { data: profile } = await supabase.from("profiles").select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g").eq("user_id", user.id).single();
-      const targets = { calories: profile?.daily_calorie_target || 2000, protein: profile?.protein_target_g || 150, carbs: profile?.carbs_target_g || 200, fats: profile?.fat_target_g || 65 };
+      const { data, error } = await supabase.functions.invoke("recommend-meals", { body: {} });
+      if (error) throw new Error(error.message);
+      const targets = { calories: data.targets.daily_calorie_target, protein: data.targets.protein_target_g, carbs: data.targets.carbs_target_g, fats: data.targets.fat_target_g };
       setNutritionTargets(targets);
-      const { data: mealsData, error } = await supabase.from("meals").select("id, name, description, calories, protein_g, carbs_g, fat_g, image_url, meal_type, restaurants:restaurant_id(name)").eq("is_available", true).order("created_at", { ascending: false }).limit(50);
-      if (error) throw error;
-      const scoredMeals = (mealsData || []).map((meal: any) => {
-        const { score, reasons } = calculateMatchScore(meal, targets);
-        return { ...meal, restaurant_name: meal.restaurants?.name || "Unknown", match_score: score, match_reasons: reasons };
-      }).sort((a: any, b: any) => (b.match_score || 0) - (a.match_score || 0));
-      setMeals(scoredMeals);
+      setMeals((data.meals || []).map((m: any) => ({ id: m.meal_id, name: m.name, description: m.description, restaurant_name: m.restaurant_name, calories: m.calories, protein_g: m.protein_g, carbs_g: m.carbs_g, fat_g: m.fat_g, image_url: m.image_url, meal_type: m.meal_type, match_score: m.match_score, match_reasons: m.match_reasons })));
     } catch (error) { toast.error("Failed to load recommendations"); console.error(error); } finally { setIsLoading(false); }
   }, []);
 

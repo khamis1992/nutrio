@@ -47,6 +47,7 @@ function NativeHeader({
     <header className="sticky top-0 z-40 border-b border-white/70 bg-[#F8FAFC]/90 backdrop-blur-xl safe-area-top">
       <div className="mx-auto flex h-14 max-w-md items-center justify-between px-4">
         <button
+          data-testid="affiliate-back-btn"
           onClick={onBack}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-slate-200 active:scale-95"
           aria-label="Go back"
@@ -508,6 +509,7 @@ export default function Affiliate() {
           </div>
 
           <button
+            data-testid="affiliate-request-payout-btn"
             onClick={() => setPayoutSheetOpen(true)}
             disabled={stats.availableBalance < settings.min_payout_threshold}
             className="mt-4 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[20px] bg-white px-4 text-[15px] font-black text-[#020617] active:scale-[0.98] disabled:opacity-50"
@@ -581,6 +583,7 @@ export default function Affiliate() {
             <div className="mt-2 flex items-center justify-center gap-3">
               <span className="truncate font-mono text-[28px] font-black tracking-[0.12em] text-[#020617]">{referralCode}</span>
               <button
+                data-testid="affiliate-copy-btn"
                 onClick={copyToClipboard}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] ring-1 ring-slate-200 active:scale-95"
                 aria-label={t("affiliate_copy_link")}
@@ -592,6 +595,7 @@ export default function Affiliate() {
 
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             <button
+              data-testid="affiliate-copy-link-btn"
               onClick={copyToClipboard}
               className="flex min-h-[50px] items-center justify-center gap-2 rounded-[18px] bg-[#020617] px-3 text-[14px] font-black text-white active:scale-[0.98]"
             >
@@ -599,6 +603,7 @@ export default function Affiliate() {
               {t("affiliate_copy_link")}
             </button>
             <button
+              data-testid="affiliate-share-btn"
               onClick={shareReferral}
               className="flex min-h-[50px] items-center justify-center gap-2 rounded-[18px] bg-slate-50 px-3 text-[14px] font-black text-[#020617] ring-1 ring-slate-200 active:scale-[0.98]"
             >
@@ -616,6 +621,7 @@ export default function Affiliate() {
             {(["commissions", "network", "payouts"] as const).map((tab) => (
               <button
                 key={tab}
+                data-testid={`affiliate-tab-${tab}`}
                 onClick={() => setActiveTab(tab)}
                 className={`min-h-[42px] rounded-[18px] text-[12px] font-black capitalize transition ${
                   activeTab === tab ? "bg-[#020617] text-white shadow-sm" : "text-slate-500"
@@ -808,12 +814,14 @@ export default function Affiliate() {
 
           <div className="grid grid-cols-2 gap-2.5 pt-2">
             <button
+              data-testid="affiliate-payout-cancel-btn"
               onClick={() => setPayoutSheetOpen(false)}
               className="min-h-[52px] rounded-[18px] bg-slate-50 text-[14px] font-black text-[#020617] ring-1 ring-slate-200 active:scale-[0.98]"
             >
               {t("affiliate_cancel")}
             </button>
             <button
+              data-testid="affiliate-payout-request-btn"
               onClick={handleRequestPayout}
               disabled={processingPayout}
               className="flex min-h-[52px] items-center justify-center gap-2 rounded-[18px] bg-[#020617] text-[14px] font-black text-white active:scale-[0.98] disabled:opacity-60"

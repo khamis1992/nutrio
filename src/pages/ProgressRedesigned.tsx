@@ -448,6 +448,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
         <header className="mb-6 flex items-center justify-between px-0.5">
           <button
             aria-label="Go back"
+            data-testid="progress-back-btn"
             className="grid h-10 w-10 place-items-center rounded-full text-[#0F172A] active:bg-slate-100"
             onClick={() => navigate(-1)}
             type="button"
@@ -457,6 +458,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
           <h1 className="text-[23px] font-black tracking-[-0.06em] text-[#111827]">{t("progress_title")}</h1>
           <button
             aria-label="Open calendar"
+            data-testid="progress-calendar-btn"
             className="grid h-10 w-10 place-items-center rounded-full text-[#0F172A] active:bg-slate-100"
             type="button"
             onClick={() => setShowCalendar(!showCalendar)}
@@ -471,12 +473,14 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
             <label className="mb-2 block text-[13px] font-extrabold text-slate-700">{t("progress_select_date")}</label>
             <div className="flex items-center gap-3">
               <input
+                data-testid="progress-date-input"
                 type="date"
                 value={calendarDate}
                 onChange={(e) => setCalendarDate(e.target.value)}
                 className="h-11 flex-1 rounded-[12px] border border-slate-200 bg-[#F8FAFC] px-3 text-[14px] font-semibold text-slate-800"
               />
               <button
+                data-testid="progress-view-btn"
                 className="h-11 rounded-[12px] bg-[#020617] px-4 text-[13px] font-black text-white active:scale-95"
                 type="button"
                 onClick={() => { toast({ description: `Showing data for ${calendarDate}` }); setShowCalendar(false); }}
@@ -493,6 +497,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
             return (
               <button
                 key={tab.key}
+                data-testid={`progress-tab-${tab.key}`}
                 onClick={() => handleTabChange(tabKey)}
                 className={`rounded-full text-[14px] font-extrabold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${activeTab === tabKey ? 'bg-[#020617] text-white shadow-[0_10px_22px_rgba(2,6,23,0.16)]' : 'text-slate-500'}`}
                 type="button"
@@ -530,7 +535,6 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
           return (
             <>
               <section className="mb-5">
-                {activeGoal ? (
                   <article className="overflow-hidden rounded-[28px] bg-white shadow-[0_8px_32px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
 
                     {/* ── Top banner: date + streak ── */}
@@ -672,60 +676,6 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                     </div>
 
                   </article>
-                ) : (
-                  <article className="relative overflow-hidden rounded-[24px] bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(255,255,255,0.14)_0%,transparent_45%),radial-gradient(130%_130%_at_-20%_0%,rgba(255,255,255,0.10)_0%,transparent_50%),linear-gradient(135deg,#0EA76B_0%,#0B8C6A_50%,#0A6D64_100%)] p-5 text-white shadow-[0_22px_48px_rgba(15,118,110,0.28)]">
-                    <div className="pointer-events-none absolute inset-0 opacity-[0.18] mix-blend-soft-light [background-image:radial-gradient(circle_at_14%_22%,white_1px,transparent_1px),radial-gradient(circle_at_78%_18%,white_1.2px,transparent_2px),radial-gradient(circle_at_46%_62%,white_1.2px,transparent_2px),radial-gradient(circle_at_92%_12%,white_1px,transparent_1px)]" />
-
-                    <div className="relative z-10 flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm">
-                          <CalendarCheck className="h-4 w-4" />
-                          {t("progress_today")} • {dayName}
-                        </div>
-
-                        <div className="flex items-start gap-2 mb-3">
-                          <Flame className="mt-0.5 h-5 w-5 text-amber-300" />
-                          <div>
-                            <p className="text-[26px] font-black leading-none tracking-[-0.06em]">{calConsumed.toLocaleString()}<span className="ml-1 text-[14px] font-bold">kcal</span></p>
-                            <p className="mt-0.5 text-[11px] font-semibold text-white/80">{t("progress_calories_logged_today")}</p>
-                          </div>
-                        </div>
-
-                        <div className="mb-3 rounded-[14px] bg-white/10 px-4 py-3 backdrop-blur-sm">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Target className="h-5 w-5 text-amber-300" />
-                            <p className="text-[14px] font-black">{t("progress_set_goal")}</p>
-                          </div>
-                          <p className="text-[11px] font-medium leading-relaxed text-white/80">
-                            Set your calorie and macro targets to track daily progress and get personalized insights.
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleTabChange("goals")}
-                          className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3 text-[14px] font-black text-[#020617] shadow-[0_8px_20px_rgba(0,0,0,0.12)] active:scale-[0.98] transition-transform"
-                        >
-                          <Target className="h-4 w-4" />
-                          {t("progress_set_your_goal")}
-                        </button>
-                      </div>
-
-                      <div className="shrink-0 pt-1">
-                        <div className="relative grid h-[118px] w-[118px] place-items-center">
-                          <svg width="118" height="118" viewBox="0 0 118 118" className="absolute inset-0 -rotate-90">
-                            <circle cx="59" cy="59" r="50" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="9" />
-                            <circle cx="59" cy="59" r="50" fill="none" stroke="rgba(255,255,255,0.25)" strokeLinecap="round" strokeWidth="9" strokeDasharray="15 299" opacity="0.5" />
-                          </svg>
-                          <div className="text-center">
-                            <Target className="mx-auto h-9 w-9 text-amber-300" />
-                            <div className="mt-2 text-[10px] font-semibold text-white/70">{t("progress_goal_not_set")}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                )}
               </section>
 
               {/* Nutrient Cards Row */}
@@ -1324,59 +1274,59 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
 
             {/* This Week Highlights - 3 Separate Cards */}
             <section className="mb-5">
-              <h3 className="text-[14px] font-black text-slate-800 mb-3">{t("progress_week_highlights")}</h3>
-              <div className="grid grid-cols-3 gap-2.5">
-                <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)] text-center">
+              <h3 className="mb-3 text-[14px] font-black text-[#020617]">{t("progress_week_highlights")}</h3>
+              <div className="grid grid-cols-3 gap-2">
+                <article className="min-w-0 rounded-[20px] border border-[#E5EAF1] bg-white p-2.5 text-center shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
                   <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-amber-100 mb-2">
                     <Trophy className="h-5 w-5 text-amber-600" />
                   </div>
-                  <p className="text-[10px] font-bold text-slate-700">{t("progress_best_protein")}</p>
-                  <p className="text-[9px] text-slate-500">
+                  <p className="min-h-[26px] text-[9px] font-black leading-[1.25] text-[#020617]">{t("progress_best_protein")}</p>
+                  <p className="truncate text-[9px] font-bold text-[#94A3B8]">
                     {(() => {
                       const best = weekdayData.reduce((a, b) => b.protein > a.protein ? b : a, weekdayData[0]);
                       return best?.dayLabel ?? "—";
                     })()}
                   </p>
-                  <p className="text-[14px] font-black text-slate-900">
+                  <p className="mt-1 truncate text-[15px] font-black leading-none text-[#020617]">
                     {(() => {
                       const max = Math.max(...weekdayData.map(d => d.protein));
                       return max > 0 ? `${max} g` : "—";
                     })()}
                   </p>
                 </article>
-                <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)] text-center">
+                <article className="min-w-0 rounded-[20px] border border-[#E5EAF1] bg-white p-2.5 text-center shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
                   <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-orange-100 mb-2">
                     <Flame className="h-5 w-5 text-orange-500" />
                   </div>
-                  <p className="text-[10px] font-bold text-slate-700">{t("progress_highest_calories")}</p>
-                  <p className="text-[9px] text-slate-500">
+                  <p className="min-h-[26px] text-[9px] font-black leading-[1.25] text-[#020617]">{t("progress_highest_calories")}</p>
+                  <p className="truncate text-[9px] font-bold text-[#94A3B8]">
                     {(() => {
                       const best = weekdayData.reduce((a, b) => b.calories > a.calories ? b : a, weekdayData[0]);
                       return best?.dayLabel ?? "—";
                     })()}
                   </p>
-                  <p className="text-[14px] font-black text-slate-900">
+                  <p className="mt-1 truncate text-[15px] font-black leading-none text-[#020617]">
                     {(() => {
                       const max = Math.max(...weekdayData.map(d => d.calories));
                       return max > 0 ? `${max.toLocaleString()} kcal` : "—";
                     })()}
                   </p>
                 </article>
-                <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)] text-center">
+                <article className="min-w-0 rounded-[20px] border border-[#E5EAF1] bg-white p-2.5 text-center shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
                   <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-[#EFF9FF] mb-2">
                     <Droplet className="h-5 w-5 text-[#38BDF8]" />
                   </div>
-                  <p className="text-[10px] font-bold text-slate-700">{t("progress_most_hydrated")}</p>
-                  <p className="text-[9px] text-slate-500">
+                  <p className="min-h-[26px] text-[9px] font-black leading-[1.25] text-[#020617]">{t("progress_most_hydrated")}</p>
+                  <p className="truncate text-[9px] font-bold text-[#94A3B8]">
                     {(() => {
                       const best = weekdayData.reduce((a, b) => b.waterGlasses > a.waterGlasses ? b : a, weekdayData[0]);
                       return best?.dayLabel ?? "—";
                     })()}
                   </p>
-                  <p className="text-[14px] font-black text-slate-900">
+                  <p className="mt-1 truncate text-[15px] font-black leading-none text-[#020617]">
                     {(() => {
                       const max = Math.max(...weekdayData.map(d => d.waterGlasses));
-                      return max > 0 ? `${max} Glasses` : "—";
+                      return max > 0 ? `${Number(max.toFixed(1)).toString()} ${t("progress_glasses")}` : "—";
                     })()}
                   </p>
                 </article>
@@ -1653,7 +1603,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate("/progress?tab=goals")}
+                    onClick={() => navigate("/edit-goal")}
                     className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#020617] text-[12px] font-black text-white active:scale-95"
                   >
                     <Target className="h-4 w-4" strokeWidth={2.4} />

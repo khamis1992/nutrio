@@ -456,6 +456,7 @@ const WalkthroughScreen = () => {
             return (
               <button
                 key={i}
+                data-testid={`walkthrough-dot-${i}`}
                 onClick={() => goTo(i)}
                 aria-label={`Slide ${i + 1}`}
                 style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center" }}

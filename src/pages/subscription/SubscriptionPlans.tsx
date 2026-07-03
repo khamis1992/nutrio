@@ -18,7 +18,7 @@ const TIER_DISPLAY: Record<string, { en: string; ar: string; icon: typeof Zap; b
 };
 
 export default function SubscriptionPlans() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,6 +79,7 @@ export default function SubscriptionPlans() {
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50">
         <div className="px-4 pt-[env(safe-area-inset-top)] h-14 flex items-center gap-3 rtl:flex-row-reverse">
           <button
+            data-testid="subscription-plans-back-btn"
             onClick={() => navigate(-1)}
             className="w-9 h-9 rounded-full bg-muted/80 flex items-center justify-center hover:bg-muted active:scale-95 transition-all"
           >
@@ -110,6 +111,7 @@ export default function SubscriptionPlans() {
       <div className="max-w-lg mx-auto px-4 py-8 -mt-6">
         <div className="flex items-center justify-center gap-1 bg-muted/50 p-1 rounded-2xl mb-6">
           <button
+            data-testid="subscription-plans-view-cards"
             onClick={() => setViewMode("cards")}
             className={cn(
               "flex-1 py-2 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-all",
@@ -122,6 +124,7 @@ export default function SubscriptionPlans() {
             Cards
           </button>
           <button
+            data-testid="subscription-plans-view-compare"
             onClick={() => setViewMode("compare")}
             className={cn(
               "flex-1 py-2 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-all",

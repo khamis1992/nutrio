@@ -23,6 +23,7 @@ import {
   MessageCircle,
   Receipt,
   Settings,
+  Pill,
   ShieldAlert,
   ShoppingBag,
   Sparkles,
@@ -422,6 +423,7 @@ const Profile = () => {
         <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-4">
           <button
             type="button"
+            data-testid="profile-back-btn"
             onClick={() => navigate(-1)}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-[#E5EAF1] active:scale-95"
             aria-label={t("back")}
@@ -436,6 +438,7 @@ const Profile = () => {
           </div>
           <button
             type="button"
+            data-testid="profile-notifications-btn"
             onClick={() => navigate("/notifications")}
             className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-[#E5EAF1] active:scale-95"
             aria-label={t("notifications_menu")}
@@ -538,6 +541,7 @@ const Profile = () => {
         >
           <button
             type="button"
+            data-testid="profile-rewards-btn"
             onClick={() => navigate("/rewards")}
             className="flex w-full items-center justify-between gap-3 rounded-[22px] border border-[#E5EAF1] bg-white p-4 text-start text-[#020617] shadow-[0_10px_24px_rgba(2,6,23,0.05)] transition active:scale-[0.99]"
           >
@@ -569,6 +573,7 @@ const Profile = () => {
         >
           <button
             type="button"
+            data-testid="profile-security-btn"
             onClick={() => navigate("/settings")}
             className="relative flex min-h-[82px] w-full items-center gap-3 px-4 py-3 text-start active:bg-[#F6F8FB]"
           >
@@ -648,6 +653,7 @@ const Profile = () => {
         {isApprovedAffiliate && (
           <button
             type="button"
+            data-testid="profile-affiliate-btn"
             onClick={() => navigate("/affiliate/tracking")}
             className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#020617] text-[13px] font-black text-white shadow-[0_12px_26px_rgba(2,6,23,0.20)] active:scale-[0.99]"
           >
@@ -677,21 +683,6 @@ const Profile = () => {
             onClick={() => navigate("/personal-info")}
           />
           <ActionRow
-            icon={<Target className="h-5 w-5" />}
-            iconClassName="bg-[#EFFFFA] text-[#22C7A1]"
-            title={t("goals")}
-            subtitle={t("goals_subtitle")}
-            value={calorieTarget > 0 ? `${calorieTarget} ${t("cal_unit")}` : "-"}
-            onClick={() => navigate("/progress?tab=goals")}
-          />
-          <ActionRow
-            icon={<Activity className="h-5 w-5" />}
-            iconClassName="bg-[#FFF0F2] text-[#FB6B7A]"
-            title={t("health_info")}
-            subtitle={t("health_info_subtitle")}
-            onClick={() => navigate("/body-metrics")}
-          />
-          <ActionRow
             icon={<ShieldAlert className="h-5 w-5" />}
             iconClassName="bg-[#EFF9FF] text-[#38BDF8]"
             title={t("dietary_preferences")}
@@ -714,6 +705,13 @@ const Profile = () => {
               if (currentCoach) setRemoveCoachOpen(true);
               else setCoachDialogOpen(true);
             }}
+          />
+          <ActionRow
+            icon={<Pill className="h-5 w-5" />}
+            iconClassName="bg-[#F0F9FF] text-[#38BDF8]"
+            title="Medications"
+            subtitle="Check food-drug interactions"
+            onClick={() => navigate("/medications")}
           />
           <ActionRow
             icon={<Heart className="h-5 w-5" />}
@@ -822,8 +820,8 @@ const Profile = () => {
           <ActionRow
             icon={<Bell className="h-5 w-5" />}
             iconClassName="bg-[#EFF9FF] text-[#38BDF8]"
-            title={t("notifications_menu")}
-            subtitle={t("notifications_subtitle")}
+            title={t("notification_center")}
+            subtitle={t("notification_center_subtitle")}
             onClick={() => navigate("/notifications")}
           />
           <ActionRow
@@ -851,6 +849,7 @@ const Profile = () => {
             <AlertDialogTrigger asChild>
               <button
                 type="button"
+                data-testid="profile-delete-account-btn"
                 className="flex min-h-[66px] w-full items-center gap-3 rounded-[22px] border border-[#FB6B7A]/20 bg-white px-4 py-3 text-start shadow-[0_14px_32px_rgba(15,23,42,0.05)] active:bg-[#FFF0F2]"
               >
                 <IconBadge className="bg-[#FFF0F2] text-[#FB6B7A]">

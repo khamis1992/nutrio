@@ -19,7 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { PaymentMethod } from '@/lib/payment-simulation-config';
 import { useCheckoutFlowVariant } from '@/hooks/useExperiments';
 import { useProfile } from '@/hooks/useProfile';
-import { useState, useEffect, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 interface CartItem {
   meal_id: string;
@@ -354,12 +354,12 @@ export default function Checkout() {
 
     return (
       <Button
+        data-testid="checkout-place-order-btn"
         size="lg"
         className="w-full h-14 text-base font-semibold mt-6"
         disabled={step === 'processing' || (!selectedMethod && !isCoveredBySubscription)}
         onClick={() => {
           if (isCoveredBySubscription) {
-            // Direct order without payment
             handlePaymentSuccess();
           } else if (selectedMethod) {
             processCardPayment({
@@ -421,7 +421,7 @@ export default function Checkout() {
           </div>
         )}
         <div className="flex items-center gap-4 mb-8 rtl:flex-row-reverse">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="icon" data-testid="checkout-back-btn" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-2xl font-bold">{t('checkout_title')}</h1>
@@ -468,10 +468,10 @@ export default function Checkout() {
               <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg">
                 <p className="text-sm font-medium text-primary mb-2">{t("checkout_dev_testing")}</p>
                 <div className="flex gap-2 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={() => handleQuickSimulate('credit_card')}>
+                  <Button size="sm" variant="outline" data-testid="checkout-sim-card-btn" onClick={() => handleQuickSimulate('credit_card')}>
                     Test Card
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleQuickSimulate('sadad')}>
+                  <Button size="sm" variant="outline" data-testid="checkout-sim-sadad-btn" onClick={() => handleQuickSimulate('sadad')}>
                     Test Sadad
                   </Button>
                 </div>
@@ -488,6 +488,7 @@ export default function Checkout() {
             <Button
               variant="ghost"
               className="mb-4"
+              data-testid="checkout-change-payment-btn"
               onClick={() => navigate(-1)}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -507,7 +508,7 @@ export default function Checkout() {
                 <p className="text-muted-foreground mb-4">
                   Sadad payment form would appear here
                 </p>
-                <Button onClick={() => processCardPayment({
+                <Button data-testid="checkout-sim-sadad-pay-btn" onClick={() => processCardPayment({
                   number: 'sadad',
                   expiry: '12/25',
                   cvv: '123',
@@ -523,7 +524,7 @@ export default function Checkout() {
                 <p className="text-muted-foreground mb-4">
                   {selectedMethod === 'apple_pay' ? t("checkout_apple_pay_placeholder") : t("checkout_google_pay_placeholder")}
                 </p>
-                <Button onClick={() => processCardPayment({
+                <Button data-testid="checkout-sim-wallet-pay-btn" onClick={() => processCardPayment({
                   number: selectedMethod,
                   expiry: '12/25',
                   cvv: '123',

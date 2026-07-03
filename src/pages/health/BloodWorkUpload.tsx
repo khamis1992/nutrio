@@ -1,20 +1,44 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { useProfile } from "@/hooks/useProfile";
+import {
+  ArrowLeft,
+  AlertCircle,
+  Calendar,
+  Check,
+  FileText,
+  FlaskConical,
+  History,
+  Loader2,
+  Plus,
+  Search,
+  ShieldCheck,
+  Upload,
+  X,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import {
-  ArrowLeft, Upload, FileText, Plus, X, Loader2, Check,
-  FlaskConical, Calendar,
-} from "lucide-react";
-import { fetchMarkerDefinitions, fetchBloodWorkRecords, createBloodWorkRecord, insertMarkers, uploadBloodReport } from "@/services/blood-work";
-import { computeMarkerStatus, categoryIcon, categoryLabel, categoryLabelAr, type BloodMarkerDefinition, type MarkerCategory } from "@/lib/blood-markers";
+  categoryIcon,
+  categoryLabel,
+  categoryLabelAr,
+  computeMarkerStatus,
+  type BloodMarkerDefinition,
+  type MarkerCategory,
+} from "@/lib/blood-markers";
 import { cn } from "@/lib/utils";
+import {
+  createBloodWorkRecord,
+  fetchBloodWorkRecords,
+  fetchMarkerDefinitions,
+  insertMarkers,
+  uploadBloodReport,
+} from "@/services/blood-work";
+import { extractBloodMarkersFromPdf } from "@/services/blood-work-extractor";
 
 interface ManualMarker {
   defId: string;
@@ -27,11 +51,22 @@ interface ManualMarker {
   value: string;
 }
 
+const categories: MarkerCategory[] = [
+  "metabolic",
+  "lipid",
+  "liver",
+  "kidney",
+  "thyroid",
+  "vitamins",
+  "hormones",
+  "blood",
+  "inflammation",
+];
+
 export default function BloodWorkUpload() {
-  const { t, language, isRTL } = useLanguage();
+  const { language, isRTL } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { profile } = useProfile();
   const { toast } = useToast();
 
   const [mode, setMode] = useState<"choose" | "upload" | "manual">("choose");
@@ -39,11 +74,9 @@ export default function BloodWorkUpload() {
   const [testDate, setTestDate] = useState(new Date().toISOString().split("T")[0]);
   const [fasting, setFasting] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
-  // Upload state
+  const [extracting, setExtracting] = useState(false);
+  const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-
-  // Manual state
   const [definitions, setDefinitions] = useState<BloodMarkerDefinition[]>([]);
   const [selectedDefs, setSelectedDefs] = useState<ManualMarker[]>([]);
   const [activeCategory, setActiveCategory] = useState<MarkerCategory>("metabolic");
@@ -57,60 +90,65 @@ export default function BloodWorkUpload() {
       const defs = await fetchMarkerDefinitions();
       if (cancelled) return;
       setDefinitions(defs);
+
       if (user) {
         const records = await fetchBloodWorkRecords(user.id);
-        if (cancelled) return;
-        setPrevRecords(records.map((r) => ({ id: r.id, date: r.test_date })));
+        if (!cancelled) {
+          setPrevRecords(records.map((record) => ({ id: record.id, date: record.test_date })));
+        }
       }
     }
-    load();
 
-    return () => { cancelled = true; };
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
-  const categories: MarkerCategory[] = [
-    "metabolic", "lipid", "liver", "kidney", "thyroid", "vitamins", "hormones", "blood", "inflammation",
-  ];
-
   const filteredDefs = definitions.filter(
-    (d) =>
-      d.category === activeCategory &&
+    (definition) =>
+      definition.category === activeCategory &&
       (searchTerm === "" ||
-        d.marker_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (d.marker_name_ar && d.marker_name_ar.includes(searchTerm)))
+        definition.marker_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (definition.marker_name_ar && definition.marker_name_ar.includes(searchTerm))),
   );
 
-  function addMarker(def: BloodMarkerDefinition) {
-    if (selectedDefs.find((s) => s.defId === def.id)) return;
-    setSelectedDefs([...selectedDefs, {
-      defId: def.id,
-      marker_name: def.marker_name,
-      marker_name_ar: def.marker_name_ar,
-      unit: def.unit,
-      normal_min: def.normal_min,
-      normal_max: def.normal_max,
-      category: def.category,
-      value: "",
-    }]);
+  const hasManualValues = selectedDefs.some((marker) => marker.value.trim() !== "");
+  const canSubmit = mode === "upload" ? Boolean(uploadFile) : selectedDefs.length > 0 && hasManualValues;
+
+  function addMarker(definition: BloodMarkerDefinition) {
+    if (selectedDefs.some((selected) => selected.defId === definition.id)) return;
+    setSelectedDefs([
+      ...selectedDefs,
+      {
+        defId: definition.id,
+        marker_name: definition.marker_name,
+        marker_name_ar: definition.marker_name_ar,
+        unit: definition.unit,
+        normal_min: definition.normal_min,
+        normal_max: definition.normal_max,
+        category: definition.category,
+        value: "",
+      },
+    ]);
   }
 
   function removeMarker(defId: string) {
-    setSelectedDefs(selectedDefs.filter((s) => s.defId !== defId));
+    setSelectedDefs(selectedDefs.filter((selected) => selected.defId !== defId));
   }
 
   function updateMarkerValue(defId: string, value: string) {
-    setSelectedDefs(selectedDefs.map((s) => (s.defId === defId ? { ...s, value } : s)));
+    setSelectedDefs(
+      selectedDefs.map((selected) => (selected.defId === defId ? { ...selected, value } : selected)),
+    );
   }
 
   async function handleSubmit() {
     if (!user) return;
+
     setSubmitting(true);
     try {
-      let reportUrl: string | undefined;
-      if (mode === "upload" && uploadFile) {
-        reportUrl = await uploadBloodReport(uploadFile, user.id);
-      }
-
+      const reportUrl = mode === "upload" && uploadFile ? await uploadBloodReport(uploadFile, user.id) : undefined;
       const record = await createBloodWorkRecord({
         user_id: user.id,
         lab_name: labName || undefined,
@@ -119,264 +157,505 @@ export default function BloodWorkUpload() {
         report_url: reportUrl,
       });
 
-      if (mode === "manual") {
+      if (mode === "manual" || mode === "upload") {
         const filledMarkers = selectedDefs
-          .filter((s) => s.value.trim() !== "")
-          .map((s) => {
-            const val = parseFloat(s.value);
+          .filter((selected) => selected.value.trim() !== "")
+          .map((selected) => {
+            const value = parseFloat(selected.value);
             return {
               record_id: record.id,
-              marker_name: s.marker_name,
-              marker_name_ar: s.marker_name_ar,
-              value: val,
-              unit: s.unit,
-              normal_min: s.normal_min,
-              normal_max: s.normal_max,
-              status: computeMarkerStatus(val, s.normal_min, s.normal_max),
-              category: s.category,
+              marker_name: selected.marker_name,
+              marker_name_ar: selected.marker_name_ar,
+              value,
+              unit: selected.unit,
+              normal_min: selected.normal_min,
+              normal_max: selected.normal_max,
+              status: computeMarkerStatus(value, selected.normal_min, selected.normal_max),
+              category: selected.category,
             };
           });
+
         if (filledMarkers.length > 0) {
           await insertMarkers(filledMarkers);
         }
       }
 
-      toast({ title: isRTL ? "تم الحفظ بنجاح" : "Saved successfully!" });
+      toast({ title: isRTL ? "تم الحفظ بنجاح" : "Saved successfully" });
       navigate("/health/blood-work/results");
-    } catch (err: unknown) {
-      toast({ title: "Error", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+    } catch (error: unknown) {
+      toast({
+        title: isRTL ? "تعذر الحفظ" : "Could not save",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
     } finally {
       setSubmitting(false);
     }
   }
 
+  async function handleUploadFile(file: File | null) {
+    setUploadFile(null);
+    setExtractionMessage(null);
+
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      toast({
+        title: isRTL ? "نوع الملف غير مدعوم" : "Unsupported file type",
+        description: isRTL ? "ارفع ملف PDF فقط." : "Please upload a PDF report only.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadFile(file);
+    setExtracting(true);
+    try {
+      const extracted = await extractBloodMarkersFromPdf(file, definitions);
+      if (extracted.length === 0) {
+        setSelectedDefs([]);
+        setExtractionMessage(
+          isRTL
+            ? "تم حفظ الملف، لكن لم نتمكن من قراءة القيم تلقائيًا. يمكنك حفظه كمرجع أو إدخال القيم يدويًا."
+            : "The file can be saved, but no marker values were detected. You can save it as a reference or enter values manually.",
+        );
+        return;
+      }
+
+      setSelectedDefs(
+        extracted.map(({ definition, value }) => ({
+          defId: definition.id,
+          marker_name: definition.marker_name,
+          marker_name_ar: definition.marker_name_ar,
+          unit: definition.unit,
+          normal_min: definition.normal_min,
+          normal_max: definition.normal_max,
+          category: definition.category,
+          value,
+        })),
+      );
+      setExtractionMessage(
+        isRTL
+          ? `تم استخراج ${extracted.length} مؤشر. راجع القيم قبل الحفظ.`
+          : `${extracted.length} markers found. Review the values before saving.`,
+      );
+    } catch {
+      setSelectedDefs([]);
+      setExtractionMessage(
+        isRTL
+          ? "لم نتمكن من قراءة هذا التقرير تلقائيًا. يمكنك حفظه كمرجع أو إدخال القيم يدويًا."
+          : "We could not read this report automatically. You can save it as a reference or enter values manually.",
+      );
+    } finally {
+      setExtracting(false);
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-4">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg border-b">
-        <div className="flex items-center gap-3 p-4 max-w-lg mx-auto">
-          <button onClick={() => navigate(-1)} className="p-1">
-            <ArrowLeft className={cn("w-5 h-5", isRTL && "rotate-180")} />
+    <div className="min-h-screen bg-[#F6F8FB] text-[#020617]" dir={isRTL ? "rtl" : "ltr"}>
+      <header className="sticky top-0 z-30 border-b border-[#E5EAF1] bg-[#F6F8FB]/90 pt-safe backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-[430px] items-center gap-3 px-4">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-[#E5EAF1] active:scale-95"
+            aria-label={isRTL ? "رجوع" : "Back"}
+          >
+            <ArrowLeft className={cn("h-5 w-5", isRTL && "rotate-180")} />
           </button>
-          <h1 className="text-lg font-bold flex-1">
-            {isRTL ? "🩸 إضافة تحليل دم" : "🩸 Add Blood Work"}
-          </h1>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">
+              {isRTL ? "الصحة" : "Health"}
+            </p>
+            <h1 className="truncate text-[19px] font-black tracking-[-0.03em]">
+              {isRTL ? "فحوصات الدم" : "Blood work"}
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/health/blood-work/results")}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-[#E5EAF1] active:scale-95"
+            aria-label={isRTL ? "السجل" : "History"}
+          >
+            <History className="h-5 w-5" />
+          </button>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-lg mx-auto p-4 space-y-4">
-        {/* Common fields */}
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <div>
-              <Label className="text-sm text-gray-600">{isRTL ? "اسم المختبر" : "Lab Name"}</Label>
-              <Input
-                value={labName}
-                onChange={(e) => setLabName(e.target.value)}
-                placeholder={isRTL ? "مثال: المختبر التخصصي" : "e.g., Al Borg Laboratories"}
-              />
+      <main className="mx-auto max-w-[430px] space-y-4 px-4 pb-28 pt-4">
+        <section className="overflow-hidden rounded-[30px] border border-[#E5EAF1] bg-white p-5 shadow-[0_18px_42px_rgba(15,23,42,0.07)]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">
+                {isRTL ? "مختبرك الصحي" : "Lab snapshot"}
+              </p>
+              <h2 className="mt-2 text-[25px] font-black leading-[1.08] tracking-[-0.04em]">
+                {isRTL ? "أضف نتائجك بدقة" : "Add your results clearly"}
+              </h2>
+              <p className="mt-2 max-w-[280px] text-[13px] font-semibold leading-5 text-[#64748B]">
+                {isRTL
+                  ? "ارفع التقرير أو أدخل المؤشرات يدويًا لمتابعة الاتجاهات الصحية."
+                  : "Upload a report or enter markers manually to track health trends."}
+              </p>
             </div>
-            <div>
-              <Label className="text-sm text-gray-600">{isRTL ? "تاريخ التحليل" : "Test Date"}</Label>
-              <Input type="date" value={testDate} onChange={(e) => setTestDate(e.target.value)} />
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-[#EFF9FF] text-[#38BDF8] ring-1 ring-[#D8F1FF]">
+              <FlaskConical className="h-7 w-7" />
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="fasting"
-                checked={fasting}
-                onChange={(e) => setFasting(e.target.checked)}
-                className="rounded"
-              />
-              <Label htmlFor="fasting">{isRTL ? "صائم" : "Fasting"}</Label>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Mode selector */}
-        {mode === "choose" && (
+          <div className="mt-5 grid grid-cols-3 overflow-hidden rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB]">
+            <div className="p-3">
+              <p className="text-[10px] font-black uppercase text-[#94A3B8]">{isRTL ? "المؤشرات" : "Markers"}</p>
+              <p className="mt-1 text-[20px] font-black">{selectedDefs.length}</p>
+            </div>
+            <div className="border-x border-[#E5EAF1] p-3">
+              <p className="text-[10px] font-black uppercase text-[#94A3B8]">{isRTL ? "السجلات" : "Records"}</p>
+              <p className="mt-1 text-[20px] font-black">{prevRecords.length}</p>
+            </div>
+            <div className="p-3">
+              <p className="text-[10px] font-black uppercase text-[#94A3B8]">{isRTL ? "الحالة" : "Status"}</p>
+              <p className="mt-1 text-[13px] font-black text-[#22C7A1]">
+                {fasting ? (isRTL ? "صائم" : "Fasting") : isRTL ? "غير صائم" : "Fed"}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                {isRTL ? "تفاصيل التحليل" : "Test details"}
+              </p>
+              <h3 className="mt-1 text-[19px] font-black tracking-[-0.03em] text-[#020617]">
+                {isRTL ? "المختبر والتاريخ" : "Lab and date"}
+              </h3>
+            </div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-[#EFFFFA] text-[#22C7A1]">
+              <Calendar className="h-5 w-5" />
+            </div>
+          </div>
+
           <div className="space-y-3">
-            <h2 className="font-semibold text-gray-700">{isRTL ? "كيف تريد إدخال النتائج؟" : "How would you like to enter results?"}</h2>
+            <div className="space-y-1.5">
+              <Label htmlFor="blood-lab-name" className="text-[12px] font-black text-[#020617]">
+                {isRTL ? "اسم المختبر" : "Lab name"}
+              </Label>
+              <Input
+                id="blood-lab-name"
+                value={labName}
+                onChange={(event) => setLabName(event.target.value)}
+                placeholder={isRTL ? "مثال: مختبر البرج" : "e.g., Al Borg Laboratories"}
+                className="h-12 rounded-[18px] border-[#E5EAF1] bg-[#F6F8FB] text-[14px] font-bold text-[#020617] placeholder:text-[#94A3B8]"
+              />
+            </div>
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="blood-test-date" className="text-[12px] font-black text-[#020617]">
+                  {isRTL ? "تاريخ التحليل" : "Test date"}
+                </Label>
+                <Input
+                  id="blood-test-date"
+                  type="date"
+                  value={testDate}
+                  onChange={(event) => setTestDate(event.target.value)}
+                  className="h-12 rounded-[18px] border-[#E5EAF1] bg-[#F6F8FB] text-[14px] font-bold text-[#020617]"
+                />
+              </div>
+              <label className="mt-[26px] flex h-12 min-w-[104px] items-center justify-center gap-2 rounded-[18px] border border-[#E5EAF1] bg-[#F6F8FB] px-3 text-[12px] font-black text-[#020617]">
+                <input
+                  type="checkbox"
+                  checked={fasting}
+                  onChange={(event) => setFasting(event.target.checked)}
+                  className="sr-only"
+                />
+                <span
+                  className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded-full border",
+                    fasting ? "border-[#22C7A1] bg-[#22C7A1]" : "border-[#CBD5E1] bg-white",
+                  )}
+                >
+                  {fasting && <Check className="h-3 w-3 text-white" />}
+                </span>
+                {isRTL ? "صائم" : "Fasting"}
+              </label>
+            </div>
+          </div>
+        </section>
+
+        {mode === "choose" && (
+          <section className="space-y-3">
+            <div className="px-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                {isRTL ? "طريقة الإدخال" : "Input method"}
+              </p>
+              <h3 className="mt-1 text-[20px] font-black tracking-[-0.03em] text-[#020617]">
+                {isRTL ? "كيف تريد إضافة النتائج؟" : "How do you want to add results?"}
+              </h3>
+            </div>
             <button
               onClick={() => setMode("manual")}
-              className="w-full p-4 bg-white rounded-xl border-2 border-dashed border-gray-200 hover:border-emerald-400 transition text-left flex items-center gap-4"
+              className="flex w-full items-center gap-4 rounded-[26px] border border-[#CFF8ED] bg-white p-4 text-start shadow-[0_14px_34px_rgba(15,23,42,0.06)] active:scale-[0.99]"
             >
-              <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
-                <FlaskConical className="w-6 h-6 text-emerald-600" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-[#EFFFFA] text-[#22C7A1]">
+                <FlaskConical className="h-6 w-6" />
               </div>
-              <div>
-                <p className="font-semibold">{isRTL ? "إدخال يدوي" : "Enter Manually"}</p>
-                <p className="text-sm text-gray-500">{isRTL ? "اختر التحاليل وأدخل القيم" : "Select tests and enter values"}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-black text-[#020617]">{isRTL ? "إدخال يدوي" : "Enter manually"}</p>
+                <p className="mt-1 text-[12px] font-semibold leading-5 text-[#94A3B8]">
+                  {isRTL ? "اختر المؤشرات وأدخل القيم بنفسك." : "Choose markers and enter exact values yourself."}
+                </p>
               </div>
+              <Plus className="h-5 w-5 text-[#94A3B8]" />
             </button>
             <button
               onClick={() => setMode("upload")}
-              className="w-full p-4 bg-white rounded-xl border-2 border-dashed border-gray-200 hover:border-blue-400 transition text-left flex items-center gap-4"
+              className="flex w-full items-center gap-4 rounded-[26px] border border-[#D8F1FF] bg-white p-4 text-start shadow-[0_14px_34px_rgba(15,23,42,0.06)] active:scale-[0.99]"
             >
-              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-                <FileText className="w-6 h-6 text-blue-600" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-[#EFF9FF] text-[#38BDF8]">
+                <FileText className="h-6 w-6" />
               </div>
-              <div>
-                <p className="font-semibold">{isRTL ? "رفع تقرير PDF" : "Upload PDF Report"}</p>
-                <p className="text-sm text-gray-500">{isRTL ? "ارفع ملف التقرير" : "Upload your lab report file"}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-black text-[#020617]">{isRTL ? "رفع التقرير" : "Upload report"}</p>
+                <p className="mt-1 text-[12px] font-semibold leading-5 text-[#94A3B8]">
+                  {isRTL ? "ارفع PDF أو صورة من تقرير المختبر." : "Attach a PDF or image from your lab."}
+                </p>
               </div>
+              <Upload className="h-5 w-5 text-[#94A3B8]" />
             </button>
-          </div>
+          </section>
         )}
 
-        {/* Upload mode */}
         {mode === "upload" && (
-          <Card>
-            <CardContent className="p-4">
-              <button
-                onClick={() => setMode("choose")}
-                className="text-sm text-gray-500 mb-3 hover:text-gray-700"
-              >
-                ← {isRTL ? "رجوع" : "Back"}
+          <section className="rounded-[24px] border border-[#E5EAF1] bg-white p-3 shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+            <div className="mb-3 flex items-center justify-between">
+              <button onClick={() => setMode("choose")} className="text-[13px] font-black text-[#64748B]">
+                {isRTL ? "رجوع" : "Back"}
               </button>
-              <div
-                className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 transition"
-                onClick={() => document.getElementById("pdf-upload")?.click()}
-              >
-                {uploadFile ? (
-                  <div className="flex items-center gap-3 justify-center">
-                    <Check className="w-5 h-5 text-green-500" />
-                    <span className="font-medium">{uploadFile.name}</span>
-                    <button onClick={(e) => { e.stopPropagation(); setUploadFile(null); }}>
-                      <X className="w-4 h-4 text-gray-400" />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                    <p className="font-medium">{isRTL ? "اضغط لرفع الملف" : "Tap to upload"}</p>
-                    <p className="text-sm text-gray-400">PDF, JPG, PNG</p>
-                  </>
-                )}
-              </div>
-              <input
-                id="pdf-upload"
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                className="hidden"
-                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Manual mode */}
-        {mode === "manual" && (
-          <>
-            <button onClick={() => setMode("choose")} className="text-sm text-gray-500 hover:text-gray-700">
-              ← {isRTL ? "رجوع" : "Back"}
-            </button>
-
-            {/* Selected markers count */}
-            {selectedDefs.length > 0 && (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span>{selectedDefs.length} {isRTL ? "تحليل مختار" : "markers selected"}</span>
+              <span className="rounded-full bg-[#EFF9FF] px-3 py-1 text-[11px] font-black text-[#38BDF8]">
+                PDF
+              </span>
+            </div>
+            <div
+              className="cursor-pointer rounded-[22px] border-2 border-dashed border-[#BDEBFF] bg-[#EFF9FF] px-5 py-6 text-center transition active:scale-[0.99]"
+              onClick={() => document.getElementById("blood-report-upload")?.click()}
+            >
+              {uploadFile ? (
+                <div className="flex items-center justify-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#22C7A1] text-white">
+                    <Check className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 truncate text-sm font-black text-[#020617]">{uploadFile.name}</span>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setUploadFile(null);
+                      setSelectedDefs([]);
+                      setExtractionMessage(null);
+                    }}
+                  >
+                    <X className="h-4 w-4 text-[#94A3B8]" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Upload className="mx-auto mb-2 h-8 w-8 text-[#38BDF8]" />
+                  <p className="text-[15px] font-black text-[#020617]">{isRTL ? "اضغط لرفع الملف" : "Tap to upload"}</p>
+                  <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                    {isRTL ? "اختر تقرير المختبر من جهازك" : "Choose a lab report from your device"}
+                  </p>
+                </>
+              )}
+            </div>
+            {extracting && (
+              <div className="mt-3 flex items-center gap-3 rounded-[18px] bg-[#F6F8FB] p-3 text-sm font-bold text-[#64748B]">
+                <Loader2 className="h-4 w-4 animate-spin text-[#38BDF8]" />
+                {isRTL ? "Ø¬Ø§Ø±ÙŠ Ù‚Ø±Ø§Ø¡Ø© Ø§Ù„ØªÙ‚Ø±ÙŠØ±..." : "Reading report..."}
               </div>
             )}
-
-            {/* Category tabs */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={cn(
-                    "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition",
-                    activeCategory === cat
-                      ? "bg-emerald-600 text-white"
-                      : "bg-white text-gray-600 border"
-                  )}
-                >
-                  {categoryIcon(cat)} {language === "ar" ? categoryLabelAr(cat) : categoryLabel(cat)}
-                </button>
-              ))}
-            </div>
-
-            {/* Search */}
-            <Input
-              placeholder={isRTL ? "ابحث عن تحليل..." : "Search marker..."}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-
-            {/* Available markers */}
-            <div className="grid grid-cols-1 gap-1.5">
-              {filteredDefs.map((def) => {
-                const isSelected = selectedDefs.find((s) => s.defId === def.id);
-                return (
-                  <button
-                    key={def.id}
-                    onClick={() => (isSelected ? removeMarker(def.id) : addMarker(def))}
-                    className={cn(
-                      "flex items-center gap-3 p-2.5 rounded-lg border transition text-left",
-                      isSelected ? "bg-emerald-50 border-emerald-300" : "bg-white border-gray-100"
-                    )}
-                  >
-                    <span className="text-sm font-medium flex-1">
-                      {language === "ar" && def.marker_name_ar ? def.marker_name_ar : def.marker_name}
-                    </span>
-                    <span className="text-xs text-gray-400">{def.unit}</span>
-                    {isSelected && <Check className="w-4 h-4 text-emerald-600" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Selected markers values */}
+            {extractionMessage && !extracting && (
+              <div className="mt-3 flex gap-3 rounded-[18px] bg-[#F6F8FB] p-3">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#38BDF8]" />
+                <p className="text-sm font-semibold leading-5 text-[#64748B]">{extractionMessage}</p>
+              </div>
+            )}
             {selectedDefs.length > 0 && (
-              <Card className="border-emerald-200">
-                <CardContent className="p-4 space-y-3">
-                  <h3 className="font-semibold text-emerald-800 flex items-center gap-2">
-                    <FlaskConical className="w-4 h-4" />
-                    {isRTL ? "أدخل القيم" : "Enter Values"}
-                  </h3>
+              <div className="mt-4 rounded-[22px] border border-[#CFF8ED] bg-[#F8FFFC] p-3">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">
+                      {isRTL ? "Ù…Ø±Ø§Ø¬Ø¹Ø©" : "Review"}
+                    </p>
+                    <h3 className="text-[16px] font-black text-[#020617]">
+                      {isRTL ? "Ø§Ù„Ù‚ÙŠÙ… Ø§Ù„Ù…Ø³ØªØ®Ø±Ø¬Ø©" : "Extracted values"}
+                    </h3>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#22C7A1]">
+                    {selectedDefs.length}
+                  </span>
+                </div>
+                <div className="space-y-2">
                   {selectedDefs.map((marker) => (
-                    <div key={marker.defId} className="flex items-center gap-2">
-                      <span className="text-sm flex-1 truncate">
-                        {language === "ar" && marker.marker_name_ar ? marker.marker_name_ar : marker.marker_name}
-                      </span>
-                      <span className="text-xs text-gray-400 w-16">{marker.unit}</span>
+                    <div key={marker.defId} className="grid grid-cols-[1fr_104px_32px] items-center gap-2 rounded-[16px] bg-white p-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-[#020617]">
+                          {language === "ar" && marker.marker_name_ar ? marker.marker_name_ar : marker.marker_name}
+                        </p>
+                        <p className="text-[11px] font-bold text-[#94A3B8]">{marker.unit}</p>
+                      </div>
                       <Input
                         type="number"
                         step="any"
                         value={marker.value}
-                        onChange={(e) => updateMarkerValue(marker.defId, e.target.value)}
-                        placeholder="—"
-                        className="w-24 text-center"
+                        onChange={(event) => updateMarkerValue(marker.defId, event.target.value)}
+                        className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] text-center font-black"
                       />
-                      <button onClick={() => removeMarker(marker.defId)} className="p-1">
-                        <X className="w-3.5 h-3.5 text-gray-400" />
+                      <button
+                        type="button"
+                        onClick={() => removeMarker(marker.defId)}
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F6F8FB] text-[#94A3B8]"
+                      >
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+            )}
+            <input
+              id="blood-report-upload"
+              type="file"
+              accept="application/pdf,.pdf"
+              className="hidden"
+              onChange={(event) => {
+                void handleUploadFile(event.target.files?.[0] || null);
+                event.target.value = "";
+              }}
+            />
+          </section>
+        )}
+
+        {mode === "manual" && (
+          <>
+            <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <button onClick={() => setMode("choose")} className="text-[13px] font-black text-[#64748B]">
+                  {isRTL ? "رجوع" : "Back"}
+                </button>
+                <span className="rounded-full bg-[#EFFFFA] px-3 py-1 text-[11px] font-black text-[#22C7A1]">
+                  {selectedDefs.length} {isRTL ? "محدد" : "selected"}
+                </span>
+              </div>
+
+              <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setActiveCategory(category)}
+                    className={cn(
+                      "flex-shrink-0 rounded-full px-3 py-2 text-xs font-black transition",
+                      activeCategory === category
+                        ? "bg-[#020617] text-white"
+                        : "border border-[#E5EAF1] bg-[#F6F8FB] text-[#64748B]",
+                    )}
+                  >
+                    {categoryIcon(category)} {language === "ar" ? categoryLabelAr(category) : categoryLabel(category)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative">
+                <Search className="absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+                <Input
+                  placeholder={isRTL ? "ابحث عن مؤشر..." : "Search marker..."}
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  className="h-12 rounded-[18px] border-[#E5EAF1] bg-[#F6F8FB] ps-11 text-[14px] font-bold"
+                />
+              </div>
+
+              <div className="mt-3 grid max-h-[300px] grid-cols-1 gap-2 overflow-y-auto pe-1">
+                {filteredDefs.map((definition) => {
+                  const isSelected = selectedDefs.some((selected) => selected.defId === definition.id);
+                  return (
+                    <button
+                      key={definition.id}
+                      onClick={() => (isSelected ? removeMarker(definition.id) : addMarker(definition))}
+                      className={cn(
+                        "flex items-center gap-3 rounded-[16px] border p-3 text-start transition",
+                        isSelected ? "border-[#22C7A1] bg-[#EFFFFA]" : "border-[#E5EAF1] bg-white",
+                      )}
+                    >
+                      <span className="flex-1 text-sm font-black text-[#020617]">
+                        {language === "ar" && definition.marker_name_ar ? definition.marker_name_ar : definition.marker_name}
+                      </span>
+                      <span className="text-xs font-bold text-[#94A3B8]">{definition.unit}</span>
+                      {isSelected && <Check className="h-4 w-4 text-[#22C7A1]" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {selectedDefs.length > 0 && (
+              <section className="rounded-[28px] border border-[#CFF8ED] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+                <h3 className="mb-3 flex items-center gap-2 text-[17px] font-black text-[#020617]">
+                  <ShieldCheck className="h-5 w-5 text-[#22C7A1]" />
+                  {isRTL ? "أدخل القيم" : "Enter values"}
+                </h3>
+                {selectedDefs.map((marker) => (
+                  <div
+                    key={marker.defId}
+                    className="mb-2 grid grid-cols-[1fr_104px_32px] items-center gap-2 rounded-[16px] bg-[#F6F8FB] p-2 last:mb-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-[#020617]">
+                        {language === "ar" && marker.marker_name_ar ? marker.marker_name_ar : marker.marker_name}
+                      </p>
+                      <p className="text-[11px] font-bold text-[#94A3B8]">{marker.unit}</p>
+                    </div>
+                    <Input
+                      type="number"
+                      step="any"
+                      value={marker.value}
+                      onChange={(event) => updateMarkerValue(marker.defId, event.target.value)}
+                      placeholder="-"
+                      className="h-11 rounded-[14px] border-[#E5EAF1] bg-white text-center font-black"
+                    />
+                    <button
+                      onClick={() => removeMarker(marker.defId)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#94A3B8]"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </section>
             )}
           </>
         )}
 
-        {/* Submit */}
         {mode !== "choose" && (
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting || (mode === "manual" && selectedDefs.length === 0)}
-            className="w-full py-6 text-base font-semibold"
-          >
-            {submitting ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : isRTL ? (
-              "حفظ التحليل"
-            ) : (
-              "Save Blood Work"
-            )}
-          </Button>
+          <div className="fixed inset-x-0 bottom-[72px] z-40 border-t border-[#E5EAF1] bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl">
+            <div className="mx-auto max-w-[430px]">
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting || !canSubmit}
+                className="h-14 w-full rounded-[22px] bg-[#020617] text-[15px] font-black text-white shadow-[0_16px_32px_rgba(2,6,23,0.22)] hover:bg-[#111827] disabled:bg-[#E2E8F0] disabled:text-[#94A3B8]"
+              >
+                {submitting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : isRTL ? (
+                  "حفظ التحليل"
+                ) : (
+                  "Save blood work"
+                )}
+              </Button>
+            </div>
+          </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

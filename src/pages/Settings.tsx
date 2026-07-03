@@ -1,29 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Clock, Mail, Smartphone, Check, X, Crown, Pause, Play, AlertTriangle, Loader2, HelpCircle, ChevronRight, BookOpen, Utensils, Tag, Moon, Sun } from "lucide-react";
+import { ArrowLeft, Bell, Clock, Mail, Moon, Smartphone, Sun, Tag, Utensils } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSubscription } from "@/hooks/useSubscription";
-import { usePlatformSettings } from "@/hooks/usePlatformSettings";
-import { AdaptiveGoalsSettings } from "@/components/AdaptiveGoalsSettings";
 import { HealthAppsSettings } from "@/components/settings/HealthAppsSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -55,15 +40,12 @@ const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { subscription, hasActiveSubscription, isPaused, pauseSubscription, resumeSubscription, refetch: refetchSubscription } = useSubscription();
-  const { settings: platformSettings, loading: settingsLoading } = usePlatformSettings();
-  const { t, language, setLanguage } = useLanguage();
-  useEffect(() => { document.title = `${t("nav_settings")} — Nutrio`; }, [t]);
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { t } = useLanguage();
+  useEffect(() => { document.title = `${t("nav_settings")} - Nutrio`; }, [t]);
+  const { toggleTheme, isDark } = useTheme();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [pausingSubscription, setPausingSubscription] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences | null>(null);
   const pendingChangesRef = useRef<Partial<Record<keyof NotificationPreferences, boolean | string>>>({});
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -204,6 +186,7 @@ const Settings = () => {
             <Button
               variant="ghost"
               size="icon"
+              data-testid="settings-back-btn"
               onClick={() => navigate(-1)}
             >
               <ArrowLeft className="h-5 w-5" />
@@ -214,178 +197,25 @@ const Settings = () => {
       </header>
 
       <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Subscription Management */}
-        {(subscription && platformSettings.features.subscription_pause) && (
-          <Card className={isPaused ? "border-amber-500/30 bg-amber-500/5" : ""}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Crown className="h-5 w-5 text-primary" />
-                {t('settings_subscription')}
-              </CardTitle>
-              <CardDescription>
-                {t('settings_subscription_description')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium capitalize">{subscription.plan} {t('settings_plan')}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {isPaused ? (
-                      <span className="flex items-center gap-1 text-amber-600">
-                        <Pause className="h-3 w-3" />
-                        {t('settings_subscription_paused_status')}
-                      </span>
-                    ) : (
-                      `${t('settings_renews_on')} ${new Date(subscription.end_date).toLocaleDateString()}`
-                    )}
-                  </p>
-                </div>
-                <Badge variant={isPaused ? "outline" : "default"} className={isPaused ? "border-amber-500 text-amber-600" : ""}>
-                  {isPaused ? t('settings_paused') : t('settings_active')}
-                </Badge>
-              </div>
-
-              {isPaused ? (
-                <div className="p-3 bg-amber-500/10 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-amber-600">{t('settings_subscription_paused_title')}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {t('settings_subscription_paused_desc')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="flex gap-2">
-                {isPaused ? (
-                  <Button 
-                    onClick={async () => {
-                      setPausingSubscription(true);
-                      const success = await resumeSubscription();
-                      setPausingSubscription(false);
-                      if (success) {
-                        toast({
-                          title: t('settings_subscription_resumed'),
-                          description: t('settings_subscription_resumed_desc'),
-                        });
-                      } else {
-                        toast({
-                          title: t('settings_error'),
-                          description: t('settings_resume_error_desc'),
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                    disabled={pausingSubscription}
-                    className="flex-1"
-                  >
-                    {pausingSubscription ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Play className="h-4 w-4 mr-2" />
-                    )}
-                    {t('settings_resume_subscription')}
-                  </Button>
-                ) : (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="flex-1">
-                        <Pause className="h-4 w-4 mr-2" />
-                        {t('settings_pause_subscription')}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t('settings_pause_dialog_title')}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {t('settings_pause_dialog_desc')}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t('settings_cancel')}</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={async () => {
-                            setPausingSubscription(true);
-                            const success = await pauseSubscription();
-                            setPausingSubscription(false);
-                            if (success) {
-                              toast({
-                                title: t('settings_subscription_paused'),
-                                description: t('settings_subscription_paused_toast_desc'),
-                              });
-                            } else {
-                              toast({
-                                title: t('settings_error'),
-                                description: t('settings_pause_error_desc'),
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                        >
-                          {t('settings_pause_subscription')}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-                <Button variant="ghost" onClick={() => navigate("/subscription")}>
-                  {t('settings_change_plan')}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Adaptive Goals Settings */}
-        <AdaptiveGoalsSettings />
-
-        {/* Health Apps Integration */}
-        <HealthAppsSettings />
-
-        {/* Theme Toggle */}
+        {/* App Preferences */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               {isDark ? <Moon className="h-5 w-5 text-primary" /> : <Sun className="h-5 w-5 text-warning" />}
-              {t("appearance") || "Appearance"}
+              {t("appearance")}
             </CardTitle>
             <CardDescription>
-              {isDark ? "Dark mode is on" : "Light mode is on"}
+              {isDark ? t("dark_mode_on") : t("light_mode_on")}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Sun className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">{isDark ? "Switch to light" : "Switch to dark"}</span>
+              <span className="text-sm text-muted-foreground">{isDark ? t("switch_to_light") : t("switch_to_dark")}</span>
             </div>
             <Switch
               checked={isDark}
               onCheckedChange={toggleTheme}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
-              {t("language_label") || "Language"}
-            </CardTitle>
-            <CardDescription>
-              {language === "ar" ? "العربية" : "English"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">{language === "ar" ? "التبديل إلى الإنجليزية" : "Switch to Arabic"}</span>
-            </div>
-            <Switch
-              checked={language === "ar"}
-              onCheckedChange={(checked) => setLanguage(checked ? "ar" : "en")}
             />
           </CardContent>
         </Card>
@@ -549,39 +379,9 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Support */}
-        <Card 
-          className="cursor-pointer hover:bg-accent/50 transition-colors"
-          onClick={() => navigate("/support")}
-        >
-          <CardContent className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-3">
-              <HelpCircle className="h-5 w-5 text-primary" />
-              <div>
-                <p className="font-medium">{t('settings_help')}</p>
-                <p className="text-sm text-muted-foreground">{t('settings_help_desc')}</p>
-              </div>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-          </CardContent>
-        </Card>
+        {/* Health Apps Integration */}
+        <HealthAppsSettings />
 
-        {/* FAQ */}
-        <Card
-          className="cursor-pointer hover:bg-accent/50 transition-colors"
-          onClick={() => navigate("/faq")}
-        >
-          <CardContent className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-3">
-              <BookOpen className="h-5 w-5 text-primary" />
-              <div>
-                <p className="font-medium">{t('settings_about')}</p>
-                <p className="text-sm text-muted-foreground">{t('settings_about_desc')}</p>
-              </div>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-          </CardContent>
-        </Card>
       </div>
 
     </div>

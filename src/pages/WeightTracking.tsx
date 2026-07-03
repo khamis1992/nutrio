@@ -124,7 +124,7 @@ export default function WeightTracking() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-muted">
         <div className="flex items-center justify-between px-4 py-4 rtl:flex-row-reverse">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors">
+          <button data-testid="weight-tracking-back-btn" onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors">
             <ArrowLeft className="w-5 h-5 text-muted-foreground" />
           </button>
           <h1 className="text-lg font-bold text-foreground">{t('weight_tracker')}</h1>
@@ -159,6 +159,7 @@ export default function WeightTracking() {
           </div>
 
           <button
+            data-testid="weight-tracking-update-btn"
             onClick={openSheet}
             className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 active:scale-[0.98] text-white font-bold text-base transition-all"
           >
@@ -171,7 +172,7 @@ export default function WeightTracking() {
           <div className="flex items-center justify-between px-5 pt-5 pb-3">
             <h2 className="font-bold text-foreground">{t('history')}</h2>
             {entries.length > 7 && (
-              <button onClick={() => setShowAll((p) => !p)} className="text-sm text-primary font-semibold flex items-center gap-1">
+              <button data-testid="weight-tracking-view-all-btn" onClick={() => setShowAll((p) => !p)} className="text-sm text-primary font-semibold flex items-center gap-1">
                 {showAll ? t('show_less') : t('view_all')} →
               </button>
             )}
@@ -236,11 +237,11 @@ export default function WeightTracking() {
               <div className="pb-4">
                 {/* Month nav */}
                 <div className="flex items-center justify-between mb-3">
-                  <button onClick={() => setWeekStart(subWeeks(weekStart, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors">
+                  <button data-testid="weight-tracking-prev-week" onClick={() => setWeekStart(subWeeks(weekStart, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors">
                     <NavChevronLeft className="w-5 h-5 text-muted-foreground" />
                   </button>
                   <span className="font-semibold text-foreground text-sm">{format(sheetDate, "MMMM yyyy")}</span>
-                  <button onClick={() => setWeekStart(addWeeks(weekStart, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors">
+                  <button data-testid="weight-tracking-next-week" onClick={() => setWeekStart(addWeeks(weekStart, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors">
                     <NavChevronRight className="w-5 h-5 text-muted-foreground" />
                   </button>
                 </div>

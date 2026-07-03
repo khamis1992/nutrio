@@ -300,6 +300,7 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
               type="button"
               variant="gradient"
               size="xl"
+              data-testid="welcome-sign-up-btn"
               className="flex h-16 w-full items-center justify-center gap-3 rounded-[24px] bg-[#020617] text-[17px] font-black tracking-[-0.02em] text-white shadow-none hover:bg-[#111827]"
               onClick={() => onSwitchView("signup")}
             >
@@ -318,6 +319,7 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
           >
             <button
               type="button"
+              data-testid="welcome-sign-in-btn"
               onClick={() => onSwitchView("signin")}
               className="flex h-16 w-full items-center justify-center gap-3 rounded-[24px] border border-[#E5EAF1] bg-[#F6F8FB] text-[16px] font-extrabold text-[#020617] transition-all active:scale-[0.98]"
             >

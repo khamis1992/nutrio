@@ -111,6 +111,7 @@ export default function Tracker() {
         <div className="mx-auto max-w-[430px] px-4 pb-3 pt-4">
         <div className="flex items-center gap-3">
           <button
+            data-testid="tracker-back-btn"
             onClick={() => navigate(-1)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]"
             aria-label="Back"
@@ -124,6 +125,7 @@ export default function Tracker() {
             <h1 className="text-[24px] font-black leading-tight text-[#020617]">{t("tracker")}</h1>
           </div>
           <button
+            data-testid="tracker-progress-btn"
             onClick={() => navigate("/progress")}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]"
             aria-label={t("progress")}
@@ -135,6 +137,7 @@ export default function Tracker() {
         {/* ── Tabs ── */}
           <div className="mt-4 grid grid-cols-2 gap-2 rounded-full bg-white p-1 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
             <button
+              data-testid="tracker-tab-today"
               onClick={() => setActiveTab("today")}
               className={cn(
                 "flex min-h-11 items-center justify-center gap-2 rounded-full text-[13px] font-extrabold transition-all",
@@ -147,6 +150,7 @@ export default function Tracker() {
               {t("today")}
             </button>
             <button
+              data-testid="tracker-tab-insights"
               onClick={() => setActiveTab("insights")}
               className={cn(
                 "flex min-h-11 items-center justify-center gap-2 rounded-full text-[13px] font-extrabold transition-all",
@@ -219,7 +223,7 @@ export default function Tracker() {
 
               </div>
               <div className="grid grid-cols-2 gap-px bg-slate-100">
-                <Link to="/water-tracker" className="block bg-white px-5 py-4 transition active:scale-[0.99]">
+                <Link to="/water-tracker" data-testid="tracker-water-link" className="block bg-white px-5 py-4 transition active:scale-[0.99]">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t("water")}</p>
@@ -243,7 +247,7 @@ export default function Tracker() {
                   </div>
                 </Link>
 
-                <Link to="/step-counter" className="block bg-white px-5 py-4 transition active:scale-[0.99]">
+                <Link to="/step-counter" data-testid="tracker-steps-link" className="block bg-white px-5 py-4 transition active:scale-[0.99]">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t("steps")}</p>
@@ -278,6 +282,7 @@ export default function Tracker() {
                   <span className="text-[13px] font-bold text-slate-700">{t("weight")}</span>
                 </div>
                 <button
+                  data-testid="tracker-weight-update-btn"
                   onClick={() => setWeightDialogOpen(true)}
                   className="px-3 py-1.5 rounded-full bg-[#020617] text-white text-[12px] font-semibold shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
                 >
@@ -335,12 +340,13 @@ export default function Tracker() {
                   <span className="text-[13px] font-bold text-slate-700">{t("bmi")} (kg/m²)</span>
                 </div>
                 <button
+                  data-testid="tracker-bmi-edit-btn"
                   onClick={() => {
                     setHeightInput(profile?.height_cm?.toString() ?? "");
                     setWeightInput(currentWeight?.toString() ?? "");
                     setBmiDialogOpen(true);
                   }}
-                    className="w-8 h-8 rounded-full bg-[#F6F8FB] flex items-center justify-center ring-1 ring-[#E5EAF1]"
+                  className="w-8 h-8 rounded-full bg-[#F6F8FB] flex items-center justify-center ring-1 ring-[#E5EAF1]"
                 >
                   <Pencil className="w-3.5 h-3.5 text-slate-500" />
                 </button>
@@ -402,6 +408,7 @@ export default function Tracker() {
                 <p className="mt-1 text-[13px] font-semibold text-slate-500">Enter your current weight</p>
               </div>
               <button
+                data-testid="tracker-weight-close-btn"
                 onClick={() => setWeightDialogOpen(false)}
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500"
                 aria-label="Close"
@@ -413,21 +420,23 @@ export default function Tracker() {
             <div className="rounded-[26px] bg-slate-50 p-4">
               <label className="text-[12px] font-extrabold text-slate-600">{t("weight")} (kg)</label>
               <div className="mt-3 flex items-center rounded-[22px] bg-white px-4 py-3 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-[#020617]">
-                <input
-                  type="number"
-                  step="0.1"
-                  min="20"
-                  max="300"
-                  placeholder="75"
-                  value={weightInput}
-                  onChange={(e) => setWeightInput(e.target.value)}
-                  className="min-w-0 flex-1 bg-transparent text-[34px] font-black leading-none text-slate-950 outline-none placeholder:text-slate-300"
-                />
+            <input
+              data-testid="tracker-weight-input"
+              type="number"
+              step="0.1"
+              min="20"
+              max="300"
+              placeholder="75"
+              value={weightInput}
+              onChange={(e) => setWeightInput(e.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-[34px] font-black leading-none text-slate-950 outline-none placeholder:text-slate-300"
+            />
                 <span className="text-[18px] font-black text-slate-400">kg</span>
               </div>
             </div>
 
             <button
+              data-testid="tracker-weight-save-btn"
               onClick={async () => {
                 const kg = parseFloat(weightInput);
                 if (!user || isNaN(kg) || kg <= 0) return;
@@ -475,6 +484,7 @@ export default function Tracker() {
                   <p className="mt-1 text-[13px] font-semibold text-slate-500">Update height and weight</p>
                 </div>
                 <button
+                  data-testid="tracker-bmi-close-btn"
                   onClick={() => setBmiDialogOpen(false)}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500"
                   aria-label="Close"
@@ -523,12 +533,14 @@ export default function Tracker() {
               style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
             >
               <button
+                data-testid="tracker-bmi-cancel-btn"
                 onClick={() => setBmiDialogOpen(false)}
                 className="flex h-14 items-center justify-center rounded-full bg-slate-100 text-[15px] font-black text-slate-600"
               >
                 Cancel
               </button>
               <button
+                data-testid="tracker-bmi-save-btn"
                 onClick={async () => {
                   const cm = parseFloat(heightInput);
                   const kg = parseFloat(weightInput);

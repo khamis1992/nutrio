@@ -209,6 +209,7 @@ const Favorites = () => {
         <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-4">
           <button
             type="button"
+            data-testid="favorites-back-btn"
             onClick={() => navigate(-1)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-800 shadow-[0_8px_22px_rgba(15,23,42,0.07)] transition active:scale-95"
             aria-label={t("go_back")}
@@ -223,6 +224,7 @@ const Favorites = () => {
 
           <button
             type="button"
+            data-testid="favorites-refresh-btn"
             onClick={activeTab === "meals" ? handleRefreshTopMeals : fetchRestaurants}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-rose-600 shadow-[0_8px_22px_rgba(15,23,42,0.07)] transition active:scale-95"
             aria-label={t("refresh")}

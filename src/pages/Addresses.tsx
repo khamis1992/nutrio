@@ -533,6 +533,7 @@ const Addresses = () => {
             <Button
               variant="ghost"
               size="icon"
+              data-testid="addresses-back-btn"
               onClick={() => navigate(-1)}
               className="h-11 w-11 rounded-full bg-white shadow-sm ring-1 ring-slate-200"
             >
@@ -544,6 +545,7 @@ const Addresses = () => {
             </div>
             <Button
               size="icon"
+              data-testid="addresses-add-btn"
               onClick={openAddDialog}
               className="h-11 w-11 rounded-full bg-slate-950 text-white shadow-lg shadow-slate-200 hover:bg-slate-800"
               aria-label={t("add_btn")}

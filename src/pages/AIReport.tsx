@@ -490,6 +490,7 @@ export default function AIReportPage() {
       <div className="sticky top-0 z-50 border-b border-[#E5EAF1] bg-[#F6F8FB]/95 backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] max-w-[430px] items-center gap-3 px-4 pt-[env(safe-area-inset-top)]">
           <button
+            data-testid="ai-report-back-btn"
             onClick={() => navigate(-1)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1] transition active:scale-95"
             aria-label={t("go_back")}
@@ -504,6 +505,7 @@ export default function AIReportPage() {
             <h1 className="truncate text-[22px] font-black leading-tight text-[#020617]">{t("ai_report")}</h1>
           </div>
           <button
+            data-testid="ai-report-download-btn"
             onClick={handleDownloadPdf}
             disabled={generatingPdf}
             className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#020617] px-3.5 text-[12px] font-black uppercase tracking-[0.08em] text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)] transition active:scale-95 disabled:opacity-60"

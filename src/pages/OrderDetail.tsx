@@ -438,6 +438,7 @@ const OrderDetail = () => {
       <div className="sticky top-0 z-20 border-b border-slate-100 bg-white/95 pt-safe backdrop-blur-xl">
         <div className="mx-auto flex max-w-[430px] items-center justify-between gap-3 px-4 py-3 rtl:flex-row-reverse">
           <button
+            data-testid="order-detail-back-btn"
             onClick={() => navigate("/orders")}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-800 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 active:scale-95"
             aria-label="Back to orders"
@@ -643,6 +644,7 @@ const OrderDetail = () => {
                   </a>
                 ) : (
                   <button
+                    data-testid="order-detail-call-driver-btn"
                     disabled
                     className="flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-slate-100 px-4 text-sm font-black text-slate-400 opacity-70"
                   >

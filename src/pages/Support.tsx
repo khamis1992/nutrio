@@ -1,4 +1,5 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Plus, MessageCircle, Clock, CheckCircle, AlertCircle, Loader2, RefreshCw, Send, Paperclip, X, Image, FileText } from "lucide-react";
+import { Plus, MessageCircle, Clock, CheckCircle, AlertCircle, Loader2, RefreshCw, Send, Paperclip, X, Image, FileText, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -86,6 +87,7 @@ const categories = [
 export default function Support() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   useEffect(() => { document.title = `${t("support")} — Nutrio`; }, [t]);
@@ -169,7 +171,6 @@ export default function Support() {
         file_url: publicUrl,
         file_size: file.size,
         file_type: file.type,
-        uploaded_by: user!.id,
       });
     }
     if (uploadedAttachments.length > 0) {
@@ -285,6 +286,7 @@ export default function Support() {
           <div>
             <div className="flex items-center gap-3">
               <button
+                data-testid="support-back-btn"
                 onClick={() => navigate(-1)}
                 className="w-9 h-9 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all shrink-0"
                 aria-label={t("go_back")}
@@ -299,7 +301,7 @@ export default function Support() {
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button data-testid="support-new-ticket-btn">
                 <Plus className="w-4 h-4 mr-2" />
                 New Ticket
               </Button>

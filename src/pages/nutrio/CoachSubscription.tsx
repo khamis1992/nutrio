@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCoachSubscription } from "@/hooks/useCoachSubscription";
 import { useCoachAvailability } from "@/hooks/useCoachAvailability";
 import { useCoachReviews } from "@/hooks/useCoachReviews";
-import { initiateSadadPayment } from "@/lib/sadad";
+import { sadadService } from "@/lib/sadad";
 import { useToast } from "@/hooks/use-toast";
 
 const fadeInUp = {
@@ -44,13 +44,17 @@ export default function CoachSubscription() {
       const price = selectedPlan === "weekly" ? pricing.pricePerWeek : pricing.pricePerMonth;
       const result = await subscribe(selectedPlan, "sadad");
       if (result.success && result.data) {
-        const payment = await initiateSadadPayment({
+        const orderId = `COACH-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const payment = await sadadService.createPayment({
           amount: price,
-          userId: clientId,
-          packageId: result.data.id,
-          userEmail: user?.email,
+          orderId,
+          customerId: clientId,
+          customerEmail: user?.email,
+          description: `Coach Subscription - ${selectedPlan} (${price} QAR)`,
+          successUrl: `${window.location.origin}/coach-onboarding?coachId=${coachId}&payment=success`,
+          failureUrl: `${window.location.origin}/coach-subscription?coachId=${coachId}&payment=failed`,
         });
-        window.location.href = payment.paymentUrl;
+        window.location.href = payment.payment_url;
       } else {
         toast({ title: "Failed", description: result.error?.message || "Please try again.", variant: "destructive" });
       }

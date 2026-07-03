@@ -95,6 +95,7 @@ export const SignInScreen = ({
         >
           <button
             type="button"
+            data-testid="signin-back-btn"
             onClick={onBack}
             className="flex h-10 w-10 items-center justify-center rounded-full border border-[#E5EAF1] bg-white text-[#020617] transition-opacity hover:opacity-70"
           >
@@ -144,14 +145,16 @@ export const SignInScreen = ({
                 animate="visible"
                 className="space-y-2"
               >
-                <label className="text-[16px] font-semibold text-[#020617]">{t('email')}</label>
+                <label htmlFor="signin-email" className="text-[16px] font-semibold text-[#020617]">{t('email')}</label>
                 <div className="relative h-16 rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB]">
                   <span className="absolute left-3.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-[#EFF9FF] text-[#38BDF8]">
                     <Mail className="w-[18px] h-[18px]" />
                   </span>
                   <input
-                    id="email"
+                    id="signin-email"
+                    data-testid="signin-email-input"
                     type="email"
+                    autoComplete="username"
                     placeholder={t('enter_email') ?? 'Enter your email'}
                     className="absolute inset-0 h-full w-full rounded-[20px] border-0 bg-transparent pl-16 pr-12 text-[16px] text-[#020617] outline-none placeholder:text-[#94A3B8]"
                     disabled={loading}
@@ -177,14 +180,16 @@ export const SignInScreen = ({
                 animate="visible"
                 className="space-y-2"
               >
-                <label className="text-[16px] font-semibold text-[#020617]">{t('password')}</label>
+                <label htmlFor="signin-password" className="text-[16px] font-semibold text-[#020617]">{t('password')}</label>
                 <div className="relative h-16 rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB]">
                   <span className="absolute left-3.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-[#F3F4FF] text-[#7C83F6]">
                     <Lock className="w-[18px] h-[18px]" />
                   </span>
                   <input
-                    id="password"
+                    id="signin-password"
+                    data-testid="signin-password-input"
                     type={pwVisible ? 'text' : 'password'}
+                    autoComplete="current-password"
                     placeholder={t('enter_password') ?? 'Enter your password'}
                     className="absolute inset-0 h-full w-full rounded-[20px] border-0 bg-transparent pl-16 pr-12 text-[16px] text-[#020617] outline-none placeholder:text-[#94A3B8]"
                     disabled={loading}
@@ -192,6 +197,7 @@ export const SignInScreen = ({
                   />
                   <button
                     type="button"
+                    data-testid="signin-pw-toggle"
                     onClick={() => setPwVisible(v=>!v)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[#64748B]"
                     aria-label="Toggle password visibility"
@@ -212,9 +218,10 @@ export const SignInScreen = ({
                 animate="visible"
                 className="flex items-center justify-between"
               >
-                <label className="flex items-center gap-2 cursor-pointer select-none group">
+                <label className="flex items-center gap-2 cursor-pointer select-none group" data-testid="signin-remember-me">
                   <div className="relative">
                     <input
+                      id="signin-remember-me"
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => onRememberMe(e.target.checked)}
@@ -238,6 +245,7 @@ export const SignInScreen = ({
                 </label>
                 <button
                   type="button"
+                  data-testid="signin-forgot-link"
                   onClick={onSwitchToForgot}
                   className="text-sm font-semibold text-[#020617] hover:underline"
                 >
@@ -253,13 +261,14 @@ export const SignInScreen = ({
               >
                 <p className="pt-2 text-center text-sm text-[#64748B]">
                   {t('dont_have_account')}{' '}
-                  <button type="button" onClick={onSwitchToSignUp} className="font-semibold text-[#020617] hover:underline" disabled={loading}>
+                  <button type="button" data-testid="signin-signup-link" onClick={onSwitchToSignUp} className="font-semibold text-[#020617] hover:underline" disabled={loading}>
                     {t('sign_up')}
                   </button>
                 </p>
                 <div className="pt-4">
                   <Button
                     type="submit"
+                    data-testid="signin-submit-btn"
                     variant="gradient"
                     size="xl"
                     className="h-16 w-full rounded-3xl bg-[#020617] text-[17px] font-extrabold text-white shadow-none hover:bg-[#111827]"

@@ -190,6 +190,7 @@ const Rewards = () => {
         <div className="mx-auto flex h-14 max-w-[430px] items-center gap-3 px-4">
           <button
             type="button"
+            data-testid="rewards-back-btn"
             onClick={() => navigate(-1)}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-[#E5EAF1] active:scale-95"
             aria-label={t("back")}
@@ -202,6 +203,7 @@ const Rewards = () => {
           </div>
           <button
             type="button"
+            data-testid="rewards-wallet-btn"
             onClick={() => navigate("/wallet")}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-[#020617] text-white active:scale-95"
             aria-label={t("wallet")}

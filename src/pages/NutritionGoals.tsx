@@ -1,12 +1,14 @@
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronRight, Flame, Target, TrendingUp, Utensils } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft, Flame, Target, Utensils } from "lucide-react";
 import { GoalsManagement } from "@/components/GoalsManagement";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Button } from "@/components/ui/button";
 
 const NutritionGoals = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
+  const isEditGoalRoute = location.pathname.endsWith("/edit-goal");
 
   return (
     <div className="min-h-screen bg-[#F6F8FB] pb-24 pt-safe">
@@ -62,19 +64,9 @@ const NutritionGoals = () => {
               <p className="mt-1 text-[12px] font-black leading-4 text-[#020617]">{t("goal_impact_meals")}</p>
             </div>
           </div>
-
-          <Button
-            type="button"
-            onClick={() => navigate("/progress?tab=goals")}
-            className="mt-4 h-12 w-full rounded-2xl bg-[#020617] text-[13px] font-black text-white shadow-none active:scale-[0.98]"
-          >
-            <TrendingUp className="mr-2 h-4 w-4 rtl:ml-2 rtl:mr-0" />
-            {t("view_goal_progress")}
-            <ChevronRight className="ml-2 h-4 w-4 rtl:ml-0 rtl:mr-2 rtl:rotate-180" />
-          </Button>
         </section>
 
-        <GoalsManagement />
+        <GoalsManagement autoOpenEditor={isEditGoalRoute} />
       </div>
     </div>
   );

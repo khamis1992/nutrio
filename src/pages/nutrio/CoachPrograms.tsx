@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, type SyntheticEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCoachPrograms, ProgramMeal } from "@/hooks/useCoachPrograms";
 import { useProgramCompletions } from "@/hooks/useProgramCompletions";
 import { supabase } from "@/integrations/supabase/client";
+import { getMealImage } from "@/lib/meal-images";
 import { toast } from "sonner";
 
 type MealCatalogRow = {
@@ -140,6 +141,17 @@ export default function CoachPrograms() {
     for (const m of allMeals) map[m.id] = m;
     return map;
   }, [allMeals, mealInfos]);
+
+  const handleMealImageError = (
+    event: SyntheticEvent<HTMLImageElement>,
+    mealId?: string,
+    mealType?: string
+  ) => {
+    const fallback = getMealImage(null, mealId, mealType);
+    if (event.currentTarget.src !== fallback) {
+      event.currentTarget.src = fallback;
+    }
+  };
 
   const getSimilarMeals = (currentMealId: string) => {
     const current = mealsById[currentMealId];
@@ -477,13 +489,12 @@ export default function CoachPrograms() {
                 >
                   <div className="flex gap-3">
                     <div className="h-[104px] w-[104px] shrink-0 overflow-hidden rounded-[22px] bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
-                      {nextMealInfo?.image_url ? (
-                        <img src={nextMealInfo.image_url} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-[#22C7A1]">
-                          <UtensilsCrossed className="h-7 w-7" />
-                        </div>
-                      )}
+                      <img
+                        src={getMealImage(nextMealInfo?.image_url, nextMealInfo?.id || nextMeal.meal_id, nextMeal.meal_type)}
+                        alt={nextMealInfo?.name || nextMeal.meal_type}
+                        className="h-full w-full object-cover"
+                        onError={(event) => handleMealImageError(event, nextMealInfo?.id || nextMeal.meal_id, nextMeal.meal_type)}
+                      />
                     </div>
                     <div className="min-w-0 flex-1 py-1">
                       <div className="flex items-center gap-2">
@@ -654,14 +665,20 @@ export default function CoachPrograms() {
                             >
                               <button
                                 onClick={() => toggleMeal(meal.id)}
-                                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all ${
-                                  done
-                                    ? "bg-[#22C7A1] text-white"
-                                    : "bg-[#F6F8FB] text-transparent ring-1 ring-[#E5EAF1] hover:ring-[#020617]/30"
-                                }`}
+                                className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[#F6F8FB] ring-1 ring-[#E5EAF1] transition active:scale-[0.98]"
                                 aria-label="Toggle meal completion"
                               >
-                                <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                                <img
+                                  src={getMealImage(mealData?.image_url, mealData?.id || meal.meal_id, meal.meal_type)}
+                                  alt={mealData?.name || meal.meal_type}
+                                  className={`h-full w-full object-cover transition ${done ? "opacity-45 grayscale" : ""}`}
+                                  onError={(event) => handleMealImageError(event, mealData?.id || meal.meal_id, meal.meal_type)}
+                                />
+                                {done && (
+                                  <span className="absolute inset-0 flex items-center justify-center bg-[#22C7A1]/75 text-white">
+                                    <Check className="h-4 w-4" strokeWidth={3} />
+                                  </span>
+                                )}
                               </button>
                               <div className="min-w-0 flex-1">
                                 <span
@@ -912,13 +929,13 @@ export default function CoachPrograms() {
       )}
 
       {replaceTarget && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#020617]/45 pb-[env(safe-area-inset-bottom)]" onClick={() => setReplaceTarget(null)}>
+        <div className="fixed inset-0 z-[1300] flex items-end justify-center bg-[#020617]/45 pb-[env(safe-area-inset-bottom)]" onClick={() => setReplaceTarget(null)}>
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[82vh] w-full max-w-[430px] flex-col rounded-t-[32px] bg-white shadow-[0_-18px_44px_rgba(2,6,23,0.22)]"
+            className="flex max-h-[calc(100dvh-24px)] w-full max-w-[430px] flex-col rounded-t-[32px] bg-white shadow-[0_-18px_44px_rgba(2,6,23,0.22)]"
           >
             <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-[#CBD5E1]" />
             <div className="flex shrink-0 items-center justify-between px-5 pb-3 pt-5">
@@ -939,7 +956,7 @@ export default function CoachPrograms() {
                 <Shuffle className="h-3.5 w-3.5" /> Closest nutrition matches first
               </div>
             </div>
-            <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-8">
+            <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom,0px)+18px)]">
               {replaceSimilar.map(({ meal, distance }) => {
                 const pct = Math.max(0, Math.round((1 - distance / 2) * 100));
                 const isGood = pct >= 80;
@@ -960,11 +977,12 @@ export default function CoachPrograms() {
                     className="flex w-full items-center gap-3 rounded-[22px] bg-[#F6F8FB] p-3 text-left ring-1 ring-[#E5EAF1] transition-transform active:scale-[0.98]"
                   >
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-white ring-1 ring-[#E5EAF1]">
-                      {meal.image_url ? (
-                        <img src={meal.image_url} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <UtensilsCrossed className="h-5 w-5 text-[#94A3B8]" />
-                      )}
+                      <img
+                        src={getMealImage(meal.image_url, meal.id)}
+                        alt={meal.name}
+                        className="h-full w-full object-cover"
+                        onError={(event) => handleMealImageError(event, meal.id)}
+                      />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[14px] font-black text-[#020617]">{meal.name}</p>

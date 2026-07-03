@@ -37,6 +37,7 @@ export default function Community() {
       <div className="sticky top-0 z-40 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex h-[78px] max-w-[430px] items-center gap-3 px-4 pt-[env(safe-area-inset-top)]">
           <button
+            data-testid="community-back-btn"
             onClick={() => navigate(-1)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
             aria-label="Go back"
@@ -54,6 +55,7 @@ export default function Community() {
           </div>
 
           <button
+            data-testid="community-notifications-btn"
             className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
             onClick={() => navigate("/notifications")}
             aria-label="Notifications"

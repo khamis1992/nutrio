@@ -173,6 +173,7 @@ const ResetPassword = () => {
         {/* Back arrow */}
         <button
           type="button"
+          data-testid="reset-back-btn"
           onClick={() => navigate("/auth")}
           className="mb-8 flex items-center justify-center hover:opacity-70 transition-opacity"
         >
@@ -202,6 +203,7 @@ const ResetPassword = () => {
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 id="rp-password"
+                data-testid="reset-password-input"
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 value={password}
@@ -212,6 +214,7 @@ const ResetPassword = () => {
               />
               <button
                 type="button"
+                data-testid="reset-pw-toggle"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 disabled={loading}
@@ -231,6 +234,7 @@ const ResetPassword = () => {
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 id="rp-confirm"
+                data-testid="reset-confirm-input"
                 type={showConfirmPassword ? "text" : "password"}
                 placeholder="Confirm Password"
                 value={confirmPassword}
@@ -241,6 +245,7 @@ const ResetPassword = () => {
               />
               <button
                 type="button"
+                data-testid="reset-confirm-toggle"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 disabled={loading}
@@ -257,6 +262,7 @@ const ResetPassword = () => {
       <div className="px-6 pb-10 pt-4 bg-white border-t border-gray-100">
         <Button
           type="submit"
+          data-testid="reset-submit-btn"
           form="reset-form"
           variant="gradient"
           className="w-full rounded-2xl font-bold"

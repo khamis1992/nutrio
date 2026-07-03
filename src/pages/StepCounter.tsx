@@ -14,6 +14,7 @@ import { useGoogleFitWorkouts } from "@/hooks/useGoogleFitWorkouts";
 import { useAutoWorkoutDetection } from "@/hooks/useAutoWorkoutDetection";
 import { useHealthKitIntegration } from "@/hooks/useHealthKitIntegration";
 import { Badge } from "@/components/ui/badge";
+import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 
 const GOAL_OPTIONS = [3000, 5000, 6000, 8000, 10000, 15000];
 const QUICK_ADD_OPTIONS = [500, 1000, 2000, 5000];
@@ -143,7 +144,8 @@ export default function StepCounter() {
         .single();
       if (data?.id) localStorage.setItem(sessionKey, data.id);
     }
-  }, [user, todayStr, t]);
+    await syncCommunityChallengeProgressQuietly(user.id);
+  }, [calPerStep, user, todayStr, t]);
 
   // Check Google Fit connection on mount
   useEffect(() => {
@@ -214,7 +216,7 @@ export default function StepCounter() {
     } finally {
       setLoadingWorkouts(false);
     }
-  }, [user, selectedDateStr, todayStr, selectedDate, checkConnection, fetchWorkouts]);
+  }, [user, selectedDateStr, selectedDate, checkConnection, fetchWorkouts]);
 
   // Load workouts when page loads or date changes
   useEffect(() => {
@@ -232,6 +234,7 @@ export default function StepCounter() {
         .eq("id", workout.id);
       
       setDetectedWorkouts(prev => prev.filter(w => w.id !== workout.id));
+      await syncCommunityChallengeProgressQuietly(user.id);
     } catch (error) {
       console.error("Failed to confirm workout:", error);
     }
@@ -310,6 +313,7 @@ export default function StepCounter() {
       <div className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3 rtl:flex-row-reverse">
           <button
+            data-testid="steps-back-btn"
             onClick={() => navigate(-1)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition-transform active:scale-95"
             aria-label="Go back"

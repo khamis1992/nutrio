@@ -19,10 +19,6 @@ import {
   Share2,
   ChevronDown,
   Filter,
-  Plus,
-  Check,
-  ArrowUpRight,
-  ShoppingBag,
   Coffee,
   Sun,
   Moon,
@@ -91,7 +87,6 @@ const RestaurantDetail = () => {
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
   const [activeDietTags, setActiveDietTags] = useState<string[]>([]);
   const [activeCalorieRange, setActiveCalorieRange] = useState<string | null>(null);
   const [activeProteinRange, setActiveProteinRange] = useState<string | null>(null);
@@ -230,20 +225,6 @@ const RestaurantDetail = () => {
     }
   };
 
-  const handleQuickAdd = (mealId: string) => {
-    if (!user) {
-      promptLogin({
-        title: t("add_to_order_title"),
-        description: t("add_to_order_description"),
-        actionLabel: t("sign_in"),
-        signUpLabel: t("create_free_account")
-      });
-      return;
-    }
-    setCartCount(prev => prev + 1);
-    navigate(`/meals/${mealId}`, { state: { quickAdd: true } });
-  };
-
   const toggleFavorite = () => {
     if (!user) {
       promptLogin({
@@ -338,61 +319,6 @@ const RestaurantDetail = () => {
     </div>
   );
 
-  // Quick Add Button Component
-  const QuickAddButton = ({ mealId, onAdd }: { mealId: string; onAdd: (id: string) => void }) => {
-    const [isAdded, setIsAdded] = useState(false);
-
-    const handleClick = (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      hapticFeedback.buttonPress();
-      setIsAdded(true);
-      onAdd(mealId);
-      setTimeout(() => setIsAdded(false), 1500);
-    };
-
-    return (
-      <motion.button
-        whileTap={{ scale: 0.85 }}
-        onClick={handleClick}
-        className={`
-          h-10 w-10 rounded-full
-          flex items-center justify-center
-          shadow-[0_10px_18px_rgba(2,6,23,0.18)]
-          transition-all duration-300
-          ${isAdded 
-            ? 'bg-slate-800 text-white' 
-            : 'bg-[#020617] text-white'
-          }
-        `}
-      >
-        <AnimatePresence mode="wait">
-          {isAdded ? (
-            <motion.div
-              key="check"
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              exit={{ scale: 0, rotate: 180 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            >
-              <Check className="w-5 h-5" />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="plus"
-              initial={{ scale: 0, rotate: 180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              exit={{ scale: 0, rotate: -180 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            >
-              <Plus className="w-5 h-5" />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.button>
-    );
-  };
-
   if (loading) {
     return <RestaurantDetailSkeleton />;
   }
@@ -411,6 +337,7 @@ const RestaurantDetail = () => {
         <div className="mx-auto flex h-[78px] max-w-[430px] items-center justify-between gap-3 px-4 pt-[env(safe-area-inset-top)]">
           <motion.button
             whileTap={{ scale: 0.9 }}
+            data-testid="restaurant-detail-back-btn"
             onClick={() => navigate("/meals")}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
           >
@@ -424,6 +351,7 @@ const RestaurantDetail = () => {
           <div className="flex items-center gap-2">
             <motion.button
             whileTap={{ scale: 0.9 }}
+            data-testid="restaurant-detail-fav-btn"
             onClick={toggleFavorite}
               className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
             >
@@ -456,6 +384,7 @@ const RestaurantDetail = () => {
         <div className="absolute left-0 right-0 top-12 z-10 mx-auto flex max-w-[430px] items-center justify-between px-4">
           <motion.button
             whileTap={{ scale: 0.9 }}
+            data-testid="restaurant-detail-back-float-btn"
             onClick={() => navigate("/meals")}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-[0_10px_24px_rgba(15,23,42,0.12)] backdrop-blur-xl"
           >
@@ -465,6 +394,7 @@ const RestaurantDetail = () => {
           <div className="flex items-center gap-3">
             <motion.button
               whileTap={{ scale: 0.9 }}
+              data-testid="restaurant-detail-fav-float-btn"
               onClick={toggleFavorite}
               className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-[0_10px_24px_rgba(15,23,42,0.12)] backdrop-blur-xl"
             >
@@ -484,6 +414,7 @@ const RestaurantDetail = () => {
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.9 }}
+              data-testid="restaurant-detail-share-btn"
               onClick={shareRestaurant}
               className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-[0_10px_24px_rgba(15,23,42,0.12)] backdrop-blur-xl"
             >
@@ -558,6 +489,7 @@ const RestaurantDetail = () => {
 
           {/* Contact Info Toggle */}
           <button
+            data-testid="restaurant-detail-contact-toggle"
             onClick={() => setShowContactInfo(!showContactInfo)}
             className="flex min-h-[50px] w-full items-center justify-between rounded-2xl bg-slate-50 px-3.5 py-2.5 text-left active:scale-[0.99]"
           >
@@ -776,11 +708,6 @@ const RestaurantDetail = () => {
                           <h4 className="text-[16px] font-black leading-tight text-slate-950 transition-colors group-hover:text-[#020617]">
                             {meal.name}
                           </h4>
-                          {hasActiveSubscription && (
-                            <div className="mt-1">
-                              <QuickAddButton mealId={meal.id} onAdd={handleQuickAdd} />
-                            </div>
-                          )}
                         </div>
                         
                         {meal.description && (
@@ -842,23 +769,6 @@ const RestaurantDetail = () => {
 
       {/* Bottom Spacing */}
       <div className="h-8" />
-
-      {/* Floating Cart Button */}
-      <AnimatePresence>
-        {cartCount > 0 && (
-          <motion.button
-            initial={{ scale: 0, y: 100 }}
-            animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0, y: 100 }}
-            whileTap={{ scale: 0.95 }}
-            className="fixed bottom-24 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full bg-[#020617] px-6 py-4 font-bold text-white shadow-xl shadow-slate-950/25"
-          >
-            <ShoppingBag className="w-5 h-5" />
-            <span>{t("items_in_cart", { count: cartCount })}</span>
-            <ArrowUpRight className="w-5 h-5" />
-          </motion.button>
-        )}
-      </AnimatePresence>
 
       {/* Filter Sheet */}
       <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>

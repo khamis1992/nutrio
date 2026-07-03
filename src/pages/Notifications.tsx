@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   Bell,
   BellOff,
@@ -28,7 +29,7 @@ import { cn } from "@/lib/utils";
 
 interface Notification {
   id: string;
-  type: "order_update" | "meal_reminder" | "subscription_alert" | "general" | "announcement" | "coach_message";
+  type: "order_update" | "meal_reminder" | "subscription_alert" | "general" | "announcement" | "coach_message" | "health_insight";
   title: string;
   message: string;
   status: "unread" | "read" | "archived";
@@ -74,6 +75,12 @@ const TYPE_CONFIG: Record<Notification["type"], { icon: React.ElementType; bg: s
     gradient: "from-[#8B5CF6] to-[#7C3AED]",
     shadow: "shadow-[0_8px_16px_rgba(139,92,246,0.2)]"
   },
+  health_insight: {
+    icon: TrendingUp,
+    bg: "bg-[#F3F4FF]",
+    gradient: "from-[#7C83F6] to-[#6366F1]",
+    shadow: "shadow-[0_8px_16px_rgba(124,131,246,0.2)]"
+  },
 };
 
 const filterLabelKeys: Record<string, string> = {
@@ -101,6 +108,7 @@ const TYPE_TO_FILTER: Record<Notification["type"], FilterKey> = {
   general: "offers",
   announcement: "offers",
   coach_message: "messages",
+  health_insight: "offers",
 };
 
 function getTimeGroup(date: Date): string {
@@ -201,6 +209,7 @@ function CoachReplySheet({
       {/* Header */}
       <div className="flex items-center gap-3 px-4 h-14 border-b border-slate-100 shrink-0">
         <button
+          data-testid="notifications-back-btn"
           onClick={onClose}
           className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:bg-slate-200"
         >
@@ -293,6 +302,7 @@ function CoachReplySheet({
       <div className="px-4 py-3 border-t border-slate-100 bg-white shrink-0">
         <div className="flex items-center gap-2 bg-slate-50 rounded-[20px] border border-slate-200 px-3 py-2">
           <input
+            data-testid="notifications-message-input"
             ref={inputRef}
             type="text"
             value={messageInput}
@@ -303,6 +313,7 @@ function CoachReplySheet({
             autoFocus
           />
           <button
+            data-testid="notifications-send-btn"
             onClick={handleSend}
             disabled={!messageInput.trim() || sending}
             className="w-10 h-10 rounded-full bg-violet-600 text-white flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition-all"
@@ -317,6 +328,7 @@ function CoachReplySheet({
 
 export default function Notifications() {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   useEffect(() => { document.title = `${t("Notifications")} — Nutrio`; }, [t]);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -407,6 +419,14 @@ export default function Notifications() {
     } catch {
       toast({ title: "Error", description: "Failed to delete notification.", variant: "destructive" });
     }
+  };
+
+  const openSmartGoalAdjustment = async (notification: Notification) => {
+    if (notification.status === "unread") {
+      await markAsRead(notification.id);
+    }
+    const route = typeof notification.data?.route === "string" ? notification.data.route : "/edit-goal";
+    navigate(route);
   };
 
   const unreadCount = notifications.filter((n) => n.status === "unread").length;
@@ -547,6 +567,7 @@ export default function Notifications() {
                         const Icon = cfg.icon;
                         const isUnread = n.status === "unread";
                         const isCoachMessage = n.type === "coach_message";
+                        const isSmartGoalAdjustment = n.type === "health_insight" && n.data?.subtype === "smart_goal_adjustment";
 
                         return (
                           <motion.div
@@ -611,7 +632,17 @@ export default function Notifications() {
                                     Reply
                                   </motion.button>
                                 )}
-                                {isUnread && !isCoachMessage && (
+                                {isSmartGoalAdjustment && (
+                                  <motion.button
+                                    whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                                    onClick={() => openSmartGoalAdjustment(n)}
+                                    className="flex items-center gap-1.5 rounded-lg bg-[#F3F4FF] px-3 py-1.5 text-[11px] font-semibold text-[#7C83F6] transition hover:bg-[#EDEFFF]"
+                                  >
+                                    <TrendingUp className="h-3 w-3" strokeWidth={2.5} />
+                                    {t("view")}
+                                  </motion.button>
+                                )}
+                                {isUnread && !isCoachMessage && !isSmartGoalAdjustment && (
                                   <motion.button
                                     whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                                     onClick={() => markAsRead(n.id)}

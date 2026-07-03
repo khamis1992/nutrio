@@ -34,6 +34,7 @@ export const ForgotPasswordScreen = ({
         {/* Back arrow */}
         <button
           type="button"
+          data-testid="forgot-back-btn"
           onClick={onBack}
           className="mb-6 flex h-10 w-10 items-center justify-center rounded-full border border-[#E5EAF1] bg-white transition-opacity hover:opacity-70"
         >
@@ -58,6 +59,7 @@ export const ForgotPasswordScreen = ({
               <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#38BDF8]" />
               <Input
                 id="forgot-email"
+                data-testid="forgot-email-input"
                 type="email"
                 placeholder={t("email_placeholder")}
                 value={forgotEmail}
@@ -73,6 +75,7 @@ export const ForgotPasswordScreen = ({
           <div className="pt-3" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
             <Button
               type="submit"
+              data-testid="forgot-submit-btn"
               variant="gradient"
               size="lg"
               className="w-full rounded-2xl bg-[#020617] font-bold text-white shadow-none hover:bg-[#111827]"

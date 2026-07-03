@@ -55,6 +55,7 @@ export const OtpScreen = ({
         {/* Back arrow */}
         <button
           type="button"
+          data-testid="otp-back-btn"
           onClick={onBack}
           className="mb-6 flex h-10 w-10 items-center justify-center rounded-full border border-[#E5EAF1] bg-white transition-opacity hover:opacity-70"
         >
@@ -77,6 +78,7 @@ export const OtpScreen = ({
               <input
                 key={i}
                 type="text"
+                data-testid={`otp-input-${i}`}
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 maxLength={1}
@@ -121,6 +123,7 @@ export const OtpScreen = ({
           ) : (
             <button
               type="button"
+              data-testid="otp-resend-btn"
               onClick={onResend}
               className="text-sm font-semibold text-[#020617]"
             >
@@ -147,6 +150,7 @@ export const OtpScreen = ({
               <button
                 key={key}
                 type="button"
+                data-testid={`otp-key-${key}`}
                 onClick={() => onOtpKey(key)}
                 className="flex-1 flex items-center justify-center transition-colors active:bg-[#F6F8FB]"
                 style={{ height: 72, fontSize: key === "back" ? 14 : 26, fontWeight: 500, color: "#020617" }}
@@ -171,6 +175,7 @@ export const OtpScreen = ({
         <div className="px-6 pb-8 pt-2">
           <Button
             type="button"
+            data-testid="otp-verify-btn"
             variant="gradient"
             size="xl"
             className="w-full rounded-2xl bg-[#020617] font-bold text-white shadow-none hover:bg-[#111827]"

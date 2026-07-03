@@ -467,7 +467,7 @@ const Onboarding = () => {
       <div className="fixed inset-0 mx-auto flex max-w-[430px] flex-col bg-[#F6F8FB] text-[#020617]">
         {/* X button */}
         <div className="flex-shrink-0 px-5 pt-[calc(env(safe-area-inset-top)+16px)]">
-          <button type="button" onClick={() => navigate("/dashboard")}
+          <button type="button" data-testid="onboarding-close-btn" onClick={() => navigate("/dashboard")}
             className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5EAF1] bg-white text-[#020617] shadow-[0_8px_20px_rgba(2,6,23,0.05)] transition-opacity hover:opacity-70">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -1139,6 +1139,7 @@ const Onboarding = () => {
           <Button
             variant="outline"
             size="lg"
+            data-testid="onboarding-back-btn"
             onClick={handleBack}
             disabled={step === 1 || saving}
             className="h-14 min-h-[56px] flex-1 rounded-[20px] border-[#E5EAF1] bg-white font-extrabold text-[#020617] disabled:opacity-40"
@@ -1148,6 +1149,7 @@ const Onboarding = () => {
           </Button>
           <Button
             size="lg"
+            data-testid="onboarding-continue-btn"
             onClick={handleNext}
             disabled={!canProceed() || saving}
             className="h-14 min-h-[56px] flex-1 rounded-[20px] bg-[#020617] font-extrabold text-white shadow-none hover:bg-[#020617]/90 disabled:bg-[#CBD5E1]"
@@ -1169,6 +1171,7 @@ const Onboarding = () => {
         <div className="mt-3 text-center">
           <Button
             variant="ghost"
+            data-testid="onboarding-quick-start-btn"
             onClick={handleQuickStart}
             className="h-9 text-xs font-extrabold text-[#F97316] hover:bg-[#FFF7ED] hover:text-[#F97316]"
           >
@@ -1177,6 +1180,7 @@ const Onboarding = () => {
           <br />
           <Button
             variant="ghost"
+            data-testid="onboarding-skip-btn"
             onClick={handleSkip}
             className="h-8 text-xs font-bold text-[#64748B] hover:bg-[#F6F8FB] hover:text-[#020617]"
           >

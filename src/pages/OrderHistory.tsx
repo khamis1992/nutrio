@@ -432,6 +432,7 @@ const OrderHistory = () => {
               {canCancel && (
                 <div className="flex gap-2 px-4 pb-4">
                   <button
+                    data-testid="order-history-modify-btn"
                     className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-[#020617] text-sm font-extrabold text-white transition-all active:scale-[0.98]"
                     onClick={(e) => { e.stopPropagation(); setModifyingSchedule(schedule); }}
                   >
@@ -439,6 +440,7 @@ const OrderHistory = () => {
                     {t("modify_btn")}
                   </button>
                   <button
+                    data-testid="order-history-cancel-btn"
                     className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-red-50 text-sm font-extrabold text-red-600 transition-all active:scale-[0.98] disabled:opacity-50"
                     onClick={(e) => { e.stopPropagation(); handleCancelOrder(schedule.id); }}
                     disabled={cancelling === schedule.id}
@@ -496,6 +498,7 @@ const OrderHistory = () => {
       <header className="sticky top-0 z-40 border-b border-emerald-50/90 bg-[#F7FAF8]/95 backdrop-blur-xl">
           <div className="mx-auto flex h-[76px] max-w-[430px] items-center justify-between px-4 pt-[env(safe-area-inset-top)] rtl:flex-row-reverse">
           <button
+            data-testid="order-history-back-btn"
             onClick={() => navigate("/dashboard")}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 transition-all active:scale-95"
           >
@@ -508,6 +511,7 @@ const OrderHistory = () => {
             <h1 className="text-[22px] font-black leading-tight text-slate-950">{t("orders_page_title")}</h1>
           </div>
           <button
+            data-testid="order-history-refresh-btn"
             onClick={handleRefresh}
             disabled={refreshing}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 transition-all active:scale-95 disabled:opacity-40"
@@ -544,6 +548,7 @@ const OrderHistory = () => {
               ].map(({ id, label, count }) => (
                 <button
                   key={id}
+                  data-testid={`order-history-tab-${id}`}
                   onClick={() => setActiveTab(id)}
                   className={`flex min-h-11 items-center justify-center gap-1.5 rounded-full text-[12px] font-extrabold transition-all ${
                     activeTab === id
