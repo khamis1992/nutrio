@@ -18,6 +18,7 @@ import { trackEvent, AnalyticsEvents } from "@/lib/analytics";
 import { useHealthIntegration } from "@/hooks/useHealthIntegration";
 import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 import { logMealItems } from "@/lib/meal-log-service";
+import { getMealImage } from "@/lib/meal-images";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface FoodItem {
@@ -33,6 +34,12 @@ interface FoodItem {
   image_url?: string;
   logged_at?: string;
 }
+
+type MealImageLookupRow = {
+  id: string;
+  name: string;
+  image_url: string | null;
+};
 
 interface SelectedItem extends FoodItem {
   quantity: number;
@@ -176,15 +183,46 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     try {
       const { data } = await supabase
         .from("meal_history")
-        .select("id, name, calories, protein_g, carbs_g, fat_g, logged_at")
+        .select("id, name, calories, protein_g, carbs_g, fat_g, image_url, logged_at")
         .eq("user_id", userId)
         .order("logged_at", { ascending: false })
         .limit(20);
 
+      const historyRows = (data || []) as Array<FoodItem & { image_url?: string | null }>;
+      const namesNeedingImages = Array.from(
+        new Set(
+          historyRows
+            .filter((item) => !item.image_url && item.name)
+            .map((item) => item.name)
+        )
+      );
+
+      let imageLookup = new Map<string, MealImageLookupRow>();
+      if (namesNeedingImages.length > 0) {
+        const { data: mealRows } = await supabase
+          .from("meals")
+          .select("id, name, image_url")
+          .in("name", namesNeedingImages);
+
+        imageLookup = new Map(
+          ((mealRows || []) as MealImageLookupRow[])
+            .filter((meal) => meal.image_url)
+            .map((meal) => [meal.name.toLowerCase(), meal])
+        );
+      }
+
       setRecentItems(
-        (data || [])
+        historyRows
           .filter((d) => d.calories > 0 && d.name && !d.name.startsWith("Meal (0"))
-          .map((d) => ({ ...d, source: "history" as const, logged_at: d.logged_at }))
+          .map((d) => {
+            const matchedMeal = imageLookup.get(d.name.toLowerCase());
+            return {
+              ...d,
+              image_url: d.image_url || matchedMeal?.image_url || getMealImage(null, matchedMeal?.id || d.id),
+              source: "history" as const,
+              logged_at: d.logged_at,
+            };
+          })
       );
     } finally {
       setLoadingRecent(false);
@@ -969,9 +1007,19 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                           onClick={() => { setDetailItem(item); setDetailQty(1); setView("detail"); }}
                           className={`flex items-center gap-3 py-3 cursor-pointer rounded-xl transition-colors ${isSelected ? "bg-primary/5" : "hover:bg-[#e2e8ee]"}`}
                         >
-                          <span className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs font-bold flex items-center justify-center flex-shrink-0">
-                            {index + 1}
-                          </span>
+                          <div className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-[16px] bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
+                            <img
+                              src={getMealImage(item.image_url, item.id)}
+                              alt={item.name}
+                              className="h-full w-full object-cover"
+                              onError={(event) => {
+                                event.currentTarget.src = getMealImage(null, item.id);
+                              }}
+                            />
+                            <span className="absolute left-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-white/90 px-1 text-[9px] font-black text-[#020617] shadow-sm">
+                              {index + 1}
+                            </span>
+                          </div>
                           <div className="flex-1 min-w-0">
                             <p className={`font-semibold text-sm truncate ${isSelected ? "text-primary" : "text-gray-900"}`}>{item.name}</p>
                             <p className="text-xs text-gray-400">

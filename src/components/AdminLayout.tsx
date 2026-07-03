@@ -21,7 +21,11 @@ interface AdminLayoutProps {
   subtitle?: string;
 }
 
-export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayoutProps) {
+export function AdminLayout({
+  children,
+  title = "Admin",
+  subtitle,
+}: AdminLayoutProps) {
   const location = useLocation();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -73,7 +77,7 @@ export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayout
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <div className="w-full px-4 py-6 space-y-6">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
@@ -89,20 +93,23 @@ export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayout
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[#F6F8FB] text-[#020617]">
         <AdminSidebar />
-        
-        <div className="flex-1 flex flex-col">
+
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {/* Header */}
-          <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
-            <div className="px-4 h-14 flex items-center gap-4">
-              <SidebarTrigger />
-              <div className="flex flex-col gap-1">
-                <Breadcrumb>
+          <header className="sticky top-0 z-50 border-b border-[#E5EAF1] bg-white/95 backdrop-blur-xl">
+            <div className="flex min-h-[76px] items-center gap-3 px-4 py-3 sm:px-6">
+              <SidebarTrigger className="h-10 w-10 rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] hover:bg-white" />
+              <div className="min-w-0 flex flex-col gap-1">
+                <Breadcrumb className="mb-0.5">
                   <BreadcrumbList>
                     <BreadcrumbItem>
                       <BreadcrumbLink asChild>
-                        <Link to="/admin" className="flex items-center gap-1">
+                        <Link
+                          to="/admin"
+                          className="flex items-center gap-1 text-xs font-bold text-[#94A3B8] hover:text-[#020617]"
+                        >
                           <Home className="w-3.5 h-3.5" />
                           <span>Admin</span>
                         </Link>
@@ -112,21 +119,28 @@ export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayout
                       <>
                         <BreadcrumbSeparator />
                         <BreadcrumbItem>
-                          <BreadcrumbPage>{title}</BreadcrumbPage>
+                          <BreadcrumbPage className="text-xs font-bold text-[#94A3B8]">
+                            {title}
+                          </BreadcrumbPage>
                         </BreadcrumbItem>
                       </>
                     )}
                   </BreadcrumbList>
                 </Breadcrumb>
-                {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+                <h1 className="truncate text-xl font-black tracking-tight text-[#020617] sm:text-2xl">
+                  {title}
+                </h1>
+                {subtitle && (
+                  <p className="truncate text-xs font-semibold text-[#94A3B8] sm:text-sm">
+                    {subtitle}
+                  </p>
+                )}
               </div>
             </div>
           </header>
 
-          <main className="flex-1 p-6">
-            <div className="max-w-6xl mx-auto">
-              {children}
-            </div>
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+            <div className="w-full min-w-0">{children}</div>
           </main>
         </div>
       </div>

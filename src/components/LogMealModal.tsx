@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { BarcodeScanner, type ScannedProduct } from "./BarcodeScanner";
 import { FoodPhotoLogSheet } from "./FoodPhotoLogSheet";
 import { logMealItems } from "@/lib/meal-log-service";
+import { getMealImage } from "@/lib/meal-images";
 
 interface FoodItem {
   id: string;
@@ -22,6 +23,12 @@ interface FoodItem {
   image_url?: string;
   logged_at?: string;
 }
+
+type MealImageLookupRow = {
+  id: string;
+  name: string;
+  image_url: string | null;
+};
 
 interface LogMealModalProps {
   open: boolean;
@@ -61,14 +68,48 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
     if (!user?.id) return;
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("meal_history")
         .select("id, name, calories, protein_g, carbs_g, fat_g, image_url, logged_at")
         .eq("user_id", user.id)
         .order("logged_at", { ascending: false })
         .limit(20);
 
-      setRecentItems(data || []);
+      if (error) throw error;
+
+      const historyItems = (data || []) as FoodItem[];
+      const namesNeedingImages = Array.from(
+        new Set(
+          historyItems
+            .filter((item) => !item.image_url && item.name)
+            .map((item) => item.name)
+        )
+      );
+
+      let imageLookup = new Map<string, MealImageLookupRow>();
+      if (namesNeedingImages.length > 0) {
+        const { data: mealRows, error: mealError } = await supabase
+          .from("meals")
+          .select("id, name, image_url")
+          .in("name", namesNeedingImages);
+
+        if (mealError) throw mealError;
+        imageLookup = new Map(
+          ((mealRows || []) as MealImageLookupRow[])
+            .filter((meal) => meal.image_url)
+            .map((meal) => [meal.name.toLowerCase(), meal])
+        );
+      }
+
+      setRecentItems(
+        historyItems.map((item) => {
+          const matchedMeal = imageLookup.get(item.name.toLowerCase());
+          return {
+            ...item,
+            image_url: item.image_url || matchedMeal?.image_url || getMealImage(null, matchedMeal?.id || item.id),
+          };
+        })
+      );
     } catch (error) {
       console.error("Failed to load recent meals:", error);
       toast.error(t("failed_to_load_recent_meals"));
@@ -202,7 +243,14 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                     >
                       <div className="w-11 h-11 rounded-xl overflow-hidden bg-gray-50 shrink-0">
                         {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                          <img
+                            src={getMealImage(item.image_url, item.id)}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                            onError={(event) => {
+                              event.currentTarget.src = getMealImage(null, item.id);
+                            }}
+                          />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gray-100 text-xl">🍽️</div>
                         )}

@@ -1,6 +1,6 @@
-import { ReactNode, useEffect, useState } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
-import { Store, Home } from "lucide-react";
+import { ReactNode, useEffect, useRef } from "react";
+import { useLocation, Link } from "react-router-dom";
+import { Home } from "lucide-react";
 import { NewOrderNotificationBanner } from "@/components/partner/NewOrderNotificationBanner";
 import {
   Breadcrumb,
@@ -10,11 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Skeleton } from "@/components/ui/skeleton";
 import { PartnerSidebar } from "@/components/PartnerSidebar";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 interface PartnerLayoutProps {
@@ -24,89 +20,38 @@ interface PartnerLayoutProps {
   action?: ReactNode;
 }
 
-export function PartnerLayout({ children, title = "Partner", subtitle, action }: PartnerLayoutProps) {
-  const navigate = useNavigate();
+export function PartnerLayout({
+  children,
+  title = "Partner",
+  subtitle,
+  action,
+}: PartnerLayoutProps) {
   const location = useLocation();
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [isPartner, setIsPartner] = useState(false);
+  const mainRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (user) {
-      checkPartner();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  const checkPartner = async () => {
-    if (!user) return;
-
-    try {
-      // Check if user has partner role or owns a restaurant
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .in("role", ["restaurant", "partner"])
-        .maybeSingle();
-
-      const { data: restaurantData } = await supabase
-        .from("restaurants")
-        .select("id")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-
-      if (!roleData && !restaurantData) {
-        toast({
-          title: "Access Denied",
-          description: "You don't have partner privileges",
-          variant: "destructive",
-        });
-        navigate("/dashboard");
-        return;
-      }
-
-      setIsPartner(true);
-    } catch (error) {
-      console.error("Error checking partner:", error);
-      navigate("/dashboard");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!isPartner) {
-    return null;
-  }
+    mainRef.current?.scrollTo({ top: 0, left: 0 });
+  }, [location.pathname, location.search]);
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="flex h-[100dvh] w-full overflow-hidden bg-[#F6F8FB]">
         <PartnerSidebar />
-        
-        <div className="flex-1 flex flex-col">
+
+        <div className="flex min-h-0 flex-1 flex-col">
           {/* Header */}
-          <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
-            <div className="px-4 h-14 flex items-center gap-4">
-              <SidebarTrigger />
-              <div className="flex flex-col gap-1">
-                <Breadcrumb>
+          <header className="sticky top-0 z-50 border-b border-[#E5EAF1] bg-white/95 backdrop-blur-xl">
+            <div className="flex min-h-[76px] items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
+              <SidebarTrigger className="h-10 w-10 rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] hover:bg-white" />
+              <div className="min-w-0 flex-1">
+                <Breadcrumb className="mb-1">
                   <BreadcrumbList>
                     <BreadcrumbItem>
                       <BreadcrumbLink asChild>
-                        <Link to="/partner" className="flex items-center gap-1">
+                        <Link
+                          to="/partner"
+                          className="flex items-center gap-1 text-xs font-bold text-[#94A3B8] hover:text-[#020617]"
+                        >
                           <Home className="w-3.5 h-3.5" />
                           <span>Partner</span>
                         </Link>
@@ -116,19 +61,33 @@ export function PartnerLayout({ children, title = "Partner", subtitle, action }:
                       <>
                         <BreadcrumbSeparator />
                         <BreadcrumbItem>
-                          <BreadcrumbPage>{title}</BreadcrumbPage>
+                          <BreadcrumbPage className="text-xs font-bold text-[#94A3B8]">
+                            {title}
+                          </BreadcrumbPage>
                         </BreadcrumbItem>
                       </>
                     )}
                   </BreadcrumbList>
                 </Breadcrumb>
-                {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <h1 className="truncate text-xl font-black tracking-tight text-[#020617] sm:text-2xl">
+                    {title}
+                  </h1>
+                  {subtitle && (
+                    <p className="truncate text-xs font-semibold text-[#94A3B8] sm:text-sm">
+                      {subtitle}
+                    </p>
+                  )}
+                </div>
               </div>
               {action && <div className="ml-auto">{action}</div>}
             </div>
           </header>
 
-          <main className="flex-1 p-6">
+          <main
+            ref={mainRef}
+            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-6 overscroll-contain"
+          >
             <div className="max-w-6xl mx-auto">
               <NewOrderNotificationBanner />
               {children}

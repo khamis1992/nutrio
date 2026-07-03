@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSmartAdjustments, type AdjustmentSuggestion } from "@/hooks/useSmartAdjustments";
@@ -32,6 +34,20 @@ interface SmartAdjustmentsPanelProps {
   onGoalUpdated: () => void;
 }
 
+const SMART_ADJUSTMENT_PREF_KEY = "smart_goal_adjustment_enabled";
+
+const toPreferenceRecord = (preferences: unknown): Record<string, unknown> => {
+  if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) return {};
+  return preferences as Record<string, unknown>;
+};
+
+const readSmartAdjustmentPreference = (preferences: unknown) => {
+  const record = toPreferenceRecord(preferences);
+  return typeof record[SMART_ADJUSTMENT_PREF_KEY] === "boolean"
+    ? record[SMART_ADJUSTMENT_PREF_KEY] as boolean
+    : true;
+};
+
 export const SmartAdjustmentsPanel = ({
   userId,
   activeGoal,
@@ -40,12 +56,93 @@ export const SmartAdjustmentsPanel = ({
 }: SmartAdjustmentsPanelProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const queryClient = useQueryClient();
   const [smartAdjustment, setSmartAdjustment] = useState(true);
+  const [savingSmartAdjustment, setSavingSmartAdjustment] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [applyingAll, setApplyingAll] = useState(false);
   const [expandedImpact, setExpandedImpact] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [feedbackId, setFeedbackId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+
+    const loadSmartAdjustmentPreference = async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("notification_preferences")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (error) {
+        console.error("Failed to load smart adjustment preference", error);
+        return;
+      }
+
+      setSmartAdjustment(readSmartAdjustmentPreference(data?.notification_preferences));
+    };
+
+    loadSmartAdjustmentPreference();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const toggleSmartAdjustment = async () => {
+    if (savingSmartAdjustment) return;
+
+    const previous = smartAdjustment;
+    const next = !previous;
+    setSmartAdjustment(next);
+
+    if (!userId) return;
+
+    setSavingSmartAdjustment(true);
+    try {
+      const { data, error: loadError } = await supabase
+        .from("profiles")
+        .select("notification_preferences")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (loadError) throw loadError;
+
+      const existingPreferences = toPreferenceRecord(data?.notification_preferences);
+      const nextPreferences = {
+        ...existingPreferences,
+        [SMART_ADJUSTMENT_PREF_KEY]: next,
+      };
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          notification_preferences: nextPreferences,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+
+      if (updateError) throw updateError;
+      queryClient.setQueryData(["profile", userId], (current: unknown) => {
+        if (!current || typeof current !== "object") return current;
+        return {
+          ...current,
+          notification_preferences: nextPreferences,
+        };
+      });
+    } catch (error) {
+      console.error("Failed to save smart adjustment preference", error);
+      setSmartAdjustment(previous);
+      toast({
+        title: t("settings_error_updating"),
+        description: t("settings_error_updating_desc"),
+        variant: "destructive",
+      });
+    } finally {
+      setSavingSmartAdjustment(false);
+    }
+  };
 
   const {
     suggestions,
@@ -119,10 +216,11 @@ export const SmartAdjustmentsPanel = ({
           <button
             role="switch"
             aria-checked={smartAdjustment}
-            onClick={() => setSmartAdjustment(!smartAdjustment)}
+            disabled={savingSmartAdjustment}
+            onClick={toggleSmartAdjustment}
             className={cn(
-              "relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-300",
-              smartAdjustment ? "bg-emerald-500" : "bg-slate-300"
+              "relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-300 disabled:cursor-not-allowed disabled:opacity-70",
+              smartAdjustment ? "bg-[#22C7A1]" : "bg-slate-300"
             )}
           >
             <span className={cn(

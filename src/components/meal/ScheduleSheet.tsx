@@ -108,38 +108,44 @@ export const ScheduleSheet = ({
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent
         side="bottom"
-        className="h-auto max-h-[92vh] rounded-t-3xl border-0 bg-background flex flex-col p-0 shadow-2xl"
+        closeButtonClassName="hidden"
+        className="mx-auto flex w-full max-w-[480px] flex-col overflow-hidden rounded-t-[32px] border-0 bg-[#F6F8FB] p-0 shadow-[0_-24px_70px_rgba(2,6,23,0.22)] sm:!left-1/2 sm:!right-auto sm:-translate-x-1/2"
+        style={{
+          bottom: "calc(56px + env(safe-area-inset-bottom, 0px))",
+          height: "calc(100dvh - 80px - env(safe-area-inset-bottom, 0px))",
+          maxHeight: "calc(100dvh - 80px - env(safe-area-inset-bottom, 0px))",
+        }}
       >
         {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
+        <div className="flex shrink-0 justify-center pb-1 pt-3">
+          <div className="h-1 w-10 rounded-full bg-[#CBD5E1]" />
         </div>
 
         {/* Meal preview header */}
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-border/50 shrink-0">
+        <div className="mx-4 mb-3 flex shrink-0 items-center gap-3 rounded-[24px] border border-[#E5EAF1] bg-white p-3 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
           {meal?.image_url ? (
             <img
               src={meal.image_url}
               alt={meal.name}
               loading="lazy"
-              className="w-14 h-14 rounded-2xl object-cover shrink-0"
+              className="h-16 w-16 shrink-0 rounded-[20px] object-cover"
             />
           ) : (
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Utensils className="w-6 h-6 text-primary" />
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[20px] bg-[#EEF2FF]">
+              <Utensils className="h-6 w-6 text-[#7C83F6]" />
             </div>
           )}
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-base leading-tight truncate">{meal?.name}</p>
-            <div className="flex items-center gap-2 mt-0.5">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-black leading-tight text-[#020617]">{meal?.name}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               {meal?.calories && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Flame className="w-3 h-3 text-primary" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF4ED] px-2 py-1 text-[11px] font-extrabold text-[#FB6B7A]">
+                  <Flame className="h-3 w-3" />
                   {meal.calories} kcal
                 </span>
               )}
               {hasActiveSubscription && (
-                <Badge variant="secondary" className="text-xs px-2 py-0">
+                <Badge className="rounded-full bg-[#E6FBF5] px-2 py-1 text-[11px] font-extrabold text-[#0F9F83] hover:bg-[#E6FBF5]">
                   {isUnlimited ? "Unlimited" : `${remainingMeals} left`}
                 </Badge>
               )}
@@ -147,19 +153,19 @@ export const ScheduleSheet = ({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1]"
           >
-            <ChevronLeft className="w-4 h-4 rotate-180 text-muted-foreground" />
+            <ChevronLeft className="h-4 w-4 rotate-180" />
           </button>
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 min-h-0">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-6 [-webkit-overflow-scrolling:touch]">
 
           {/* — Date — */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">When</p>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+          <div className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.04)]">
+            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">When</p>
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
               {dateOptions.map((date, i) => {
                 const isSelected = selectedDate?.toDateString() === date.toDateString();
                 const isToday = new Date().toDateString() === date.toDateString();
@@ -168,20 +174,20 @@ export const ScheduleSheet = ({
                     key={i}
                     whileTap={{ scale: 0.93 }}
                     onClick={() => { setSelectedDate(date); hapticFeedback.buttonPress(); }}
-                    className={`flex-shrink-0 flex flex-col items-center px-3 py-2.5 rounded-2xl min-w-[60px] border-2 transition-all ${
+                    className={`flex min-w-[56px] flex-shrink-0 flex-col items-center rounded-[18px] border px-3 py-2.5 transition-all ${
                       isSelected
-                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                        : "border-border/50 bg-card text-foreground"
+                        ? "border-[#020617] bg-[#020617] text-white shadow-[0_10px_20px_rgba(2,6,23,0.18)]"
+                        : "border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]"
                     }`}
                   >
-                    <span className={`text-[10px] font-semibold uppercase ${isSelected ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    <span className={`text-[10px] font-extrabold uppercase ${isSelected ? "text-white/70" : "text-[#94A3B8]"}`}>
                       {date.toLocaleDateString("en-US", { weekday: "short" })}
                     </span>
-                    <span className={`text-lg font-bold leading-tight ${isSelected ? "text-primary-foreground" : ""}`}>
+                    <span className="text-lg font-black leading-tight">
                       {date.getDate()}
                     </span>
                     {isToday && (
-                      <div className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? "bg-primary-foreground/60" : "bg-primary"}`} />
+                      <div className={`mt-0.5 h-1 w-1 rounded-full ${isSelected ? "bg-white/60" : "bg-[#22C7A1]"}`} />
                     )}
                   </motion.button>
                 );
@@ -190,8 +196,8 @@ export const ScheduleSheet = ({
           </div>
 
           {/* — Meal type — */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Meal type</p>
+          <div className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.04)]">
+            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Meal type</p>
             <div className="grid grid-cols-2 gap-2">
               {MEAL_TYPES.map((type) => {
                 const Icon = type.icon;
@@ -201,24 +207,24 @@ export const ScheduleSheet = ({
                     key={type.id}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => { setSelectedMealType(type.id); hapticFeedback.buttonPress(); }}
-                    className={`flex items-center gap-2.5 p-3 rounded-2xl border-2 text-left transition-all ${
+                    className={`flex items-center gap-2.5 rounded-[18px] border p-3 text-left transition-all ${
                       isSelected
-                        ? "border-primary bg-primary/8 text-primary"
-                        : "border-border/50 bg-card text-foreground"
+                        ? "border-[#020617] bg-[#F8FAFC] text-[#020617]"
+                        : "border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]"
                     }`}
                   >
                     <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        isSelected ? "bg-primary/15" : "bg-muted"
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] ${
+                        isSelected ? "bg-[#020617] text-white" : "bg-white text-[#94A3B8]"
                       }`}
                     >
-                      <Icon className={`w-4.5 h-4.5 ${isSelected ? "text-primary" : "text-muted-foreground"}`} style={{ width: 18, height: 18 }} />
+                      <Icon className="h-[18px] w-[18px]" />
                     </div>
                     <div className="min-w-0">
-                      <p className={`text-sm font-semibold leading-tight ${isSelected ? "text-primary" : ""}`}>{type.label}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">{type.time}</p>
+                      <p className="text-sm font-black leading-tight">{type.label}</p>
+                      <p className="text-[10px] font-bold leading-tight text-[#94A3B8]">{type.time}</p>
                     </div>
-                    {isSelected && <Check className="w-4 h-4 text-primary ml-auto shrink-0" />}
+                    {isSelected && <Check className="ml-auto h-4 w-4 shrink-0 text-[#22C7A1]" />}
                   </motion.button>
                 );
               })}
@@ -226,9 +232,9 @@ export const ScheduleSheet = ({
           </div>
 
           {/* — Delivery time slot — */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Delivery time</p>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+          <div className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.04)]">
+            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Delivery time</p>
+            <div className="grid grid-cols-3 gap-2">
               {TIME_SLOTS.map((slot) => {
                 const isSelected = selectedTimeSlot === slot;
                 return (
@@ -236,10 +242,10 @@ export const ScheduleSheet = ({
                     key={slot}
                     whileTap={{ scale: 0.93 }}
                     onClick={() => setSelectedTimeSlot(isSelected ? null : slot)}
-                    className={`flex-shrink-0 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${
+                    className={`min-h-[44px] rounded-[16px] border px-3 py-2 text-xs font-black transition-all ${
                       isSelected
-                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                        : "border-border/50 bg-card text-foreground"
+                        ? "border-[#020617] bg-[#020617] text-white shadow-[0_10px_20px_rgba(2,6,23,0.18)]"
+                        : "border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]"
                     }`}
                   >
                     {slot}
@@ -251,8 +257,8 @@ export const ScheduleSheet = ({
 
           {/* — Delivery address — */}
           {addresses.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deliver to</p>
+            <div className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.04)]">
+              <p className="mb-3 text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Deliver to</p>
               <div className="space-y-2">
                 {addresses.map((addr) => {
                   const isSelected = selectedAddressId === addr.id;
@@ -265,31 +271,31 @@ export const ScheduleSheet = ({
                         setSelectedAddressLabel(`${addr.label} \u2013 ${addr.address_line1}, ${addr.city}`);
                         hapticFeedback.buttonPress();
                       }}
-                      className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl border-2 text-left transition-all ${
+                      className={`flex w-full items-center gap-3 rounded-[18px] border px-3.5 py-3 text-left transition-all ${
                         isSelected
-                          ? "border-primary bg-primary/8"
-                          : "border-border/50 bg-card"
+                          ? "border-[#020617] bg-[#F8FAFC]"
+                          : "border-[#E5EAF1] bg-[#F6F8FB]"
                       }`}
                     >
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? "bg-primary/15" : "bg-muted"}`}>
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] ${isSelected ? "bg-[#020617]" : "bg-white"}`}>
                         {addr.label.toLowerCase() === "home" ? (
-                          <Home className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                          <Home className={`h-4 w-4 ${isSelected ? "text-white" : "text-[#94A3B8]"}`} />
                         ) : addr.label.toLowerCase() === "work" || addr.label.toLowerCase() === "office" ? (
-                          <Briefcase className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                          <Briefcase className={`h-4 w-4 ${isSelected ? "text-white" : "text-[#94A3B8]"}`} />
                         ) : (
-                          <MapPin className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                          <MapPin className={`h-4 w-4 ${isSelected ? "text-white" : "text-[#94A3B8]"}`} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <p className={`text-sm font-semibold ${isSelected ? "text-primary" : ""}`}>{addr.label}</p>
+                          <p className="text-sm font-black text-[#020617]">{addr.label}</p>
                           {addr.is_default && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Default</span>
+                            <span className="rounded-full bg-[#E6FBF5] px-1.5 py-0.5 text-[10px] font-black text-[#0F9F83]">Default</span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">{addr.address_line1}, {addr.city}</p>
+                        <p className="truncate text-xs font-semibold text-[#94A3B8]">{addr.address_line1}, {addr.city}</p>
                       </div>
-                      {isSelected && <Check className="w-4 h-4 text-primary shrink-0" />}
+                      {isSelected && <Check className="h-4 w-4 shrink-0 text-[#22C7A1]" />}
                     </motion.button>
                   );
                 })}
@@ -299,19 +305,19 @@ export const ScheduleSheet = ({
 
           {/* — Add-ons (collapsible) — */}
           {hasAddons && (
-            <div className="space-y-2">
+            <div className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.04)]">
               <button
                 onClick={() => setAddonsOpen(v => !v)}
-                className="w-full flex items-center justify-between py-1"
+                className="flex w-full items-center justify-between"
               >
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <ShoppingCart className="w-3.5 h-3.5" />
+                <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                  <ShoppingCart className="h-3.5 w-3.5 text-[#38BDF8]" />
                   Add-ons
                   {addonsTotal > 0 && (
-                    <span className="normal-case text-primary font-bold">\u00b7 {formatCurrency(addonsTotal)}</span>
+                    <span className="normal-case tracking-normal text-[#22C7A1]">\u00b7 {formatCurrency(addonsTotal)}</span>
                   )}
                 </p>
-                <ChevronLeft className={`w-4 h-4 text-muted-foreground transition-transform ${addonsOpen ? "-rotate-90" : "rotate-90"}`} />
+                <ChevronLeft className={`h-4 w-4 text-[#94A3B8] transition-transform ${addonsOpen ? "-rotate-90" : "rotate-90"}`} />
               </button>
 
               <AnimatePresence>
@@ -320,31 +326,31 @@ export const ScheduleSheet = ({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="space-y-3 overflow-hidden"
+                    className="mt-3 space-y-3 overflow-hidden"
                   >
                     {Object.entries(groupedAddons).map(([category, items]) => (
                       <div key={category} className="space-y-1.5">
-                        <p className="text-xs text-muted-foreground font-medium">{category}</p>
+                        <p className="text-xs font-black capitalize text-[#64748B]">{category}</p>
                         {items.map((addon) => {
                           const isSel = selectedAddons.has(addon.id);
                           return (
                             <button
                               key={addon.id}
                               onClick={() => toggleAddon(addon.id)}
-                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all ${
-                                isSel ? "bg-primary/8 border-primary/40" : "bg-card border-border/50"
+                              className={`flex w-full items-center justify-between rounded-[16px] border px-3 py-2.5 text-left transition-all ${
+                                isSel ? "border-[#22C7A1] bg-[#E6FBF5]" : "border-[#E5EAF1] bg-[#F6F8FB]"
                               }`}
                             >
-                              <div>
-                                <p className={`text-sm font-medium ${isSel ? "text-primary" : ""}`}>{addon.name}</p>
-                                {addon.description && <p className="text-xs text-muted-foreground">{addon.description}</p>}
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-black text-[#020617]">{addon.name}</p>
+                                {addon.description && <p className="truncate text-xs font-semibold text-[#94A3B8]">{addon.description}</p>}
                               </div>
-                              <div className="flex items-center gap-2 shrink-0 ml-3">
-                                <span className="text-sm font-semibold">{formatCurrency(addon.price)}</span>
-                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                                  isSel ? "bg-primary border-primary" : "border-muted-foreground/30"
+                              <div className="ml-3 flex shrink-0 items-center gap-2">
+                                <span className="text-sm font-black text-[#020617]">{formatCurrency(addon.price)}</span>
+                                <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
+                                  isSel ? "border-[#22C7A1] bg-[#22C7A1]" : "border-[#CBD5E1]"
                                 }`}>
-                                  {isSel && <Check className="w-3 h-3 text-white" />}
+                                  {isSel && <Check className="h-3 w-3 text-white" />}
                                 </div>
                               </div>
                             </button>
@@ -353,9 +359,9 @@ export const ScheduleSheet = ({
                       </div>
                     ))}
                     {addonsTotal > 0 && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-xl px-3 py-2">
-                        <Wallet className="w-3.5 h-3.5 shrink-0" />
-                        Wallet: <span className="font-semibold text-foreground">{formatCurrency(walletBalance)}</span>
+                      <div className="flex items-center gap-2 rounded-[16px] bg-[#F6F8FB] px-3 py-2 text-xs font-bold text-[#64748B]">
+                        <Wallet className="h-3.5 w-3.5 shrink-0 text-[#7C83F6]" />
+                        Wallet: <span className="font-black text-[#020617]">{formatCurrency(walletBalance)}</span>
                         {walletBalance < addonsTotal && (
                           <span className="text-destructive">— not enough</span>
                         )}
@@ -369,9 +375,9 @@ export const ScheduleSheet = ({
         </div>
 
         {/* Fixed confirm bar */}
-        <div className="shrink-0 px-5 pt-3 pb-[max(env(safe-area-inset-bottom),16px)] border-t border-border/40 bg-background">
+        <div className="shrink-0 border-t border-[#E5EAF1] bg-white px-4 pb-4 pt-3">
           {selectedDate && selectedType && (
-            <p className="text-center text-xs text-muted-foreground mb-2">
+            <p className="mb-2 text-center text-xs font-bold text-[#64748B]">
               {selectedType.label} \u00b7 {selectedDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
               {selectedTimeSlot && ` \u00b7 ${selectedTimeSlot}`}
             </p>
@@ -380,10 +386,10 @@ export const ScheduleSheet = ({
             whileTap={{ scale: loading ? 1 : 0.97 }}
             onClick={onSchedule}
             disabled={loading || !selectedDate}
-            className={`w-full h-13 rounded-2xl font-semibold text-base flex items-center justify-center gap-2 transition-all ${
+            className={`h-13 flex w-full items-center justify-center gap-2 rounded-[18px] text-base font-black transition-all ${
               !selectedDate
-                ? "bg-muted text-muted-foreground cursor-not-allowed"
-                : "bg-primary text-primary-foreground shadow-lg shadow-primary/25 active:shadow-none"
+                ? "cursor-not-allowed bg-[#E2E8F0] text-[#94A3B8]"
+                : "bg-[#020617] text-white shadow-[0_16px_32px_rgba(2,6,23,0.24)] active:shadow-none"
             }`}
             style={{ height: 52 }}
           >

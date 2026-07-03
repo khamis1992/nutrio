@@ -74,7 +74,9 @@ export function NewOrderNotificationBanner() {
           // Play notification sound
           if (audioRef.current) {
             audioRef.current.currentTime = 0;
-            audioRef.current.play().catch(() => {});
+            audioRef.current.play().catch((err) => {
+            console.warn("Audio playback prevented (browser autoplay policy):", err);
+          });
           }
 
           setNotifications((prev) => [

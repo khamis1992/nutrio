@@ -1,15 +1,17 @@
-import { Link, useLocation } from "react-router-dom";
-import { 
-  Store, 
-  UtensilsCrossed, 
-  Package, 
-  BarChart3, 
-  Settings, 
-  Wallet,
-  TrendingUp,
+import { useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  BarChart3,
   Bell,
-  User,
   LogOut,
+  Package,
+  Rocket,
+  Settings,
+  Store,
+  TrendingUp,
+  User,
+  UtensilsCrossed,
+  Wallet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -24,13 +26,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { icon: Store, label: "Dashboard", to: "/partner" },
   { icon: UtensilsCrossed, label: "Menu", to: "/partner/menu" },
-  { icon: Package, label: "Add-ons", to: "/partner/addons" },
   { icon: Package, label: "Orders", to: "/partner/orders" },
   { icon: BarChart3, label: "Analytics", to: "/partner/analytics" },
   { icon: Wallet, label: "Payouts", to: "/partner/payouts" },
@@ -40,10 +40,36 @@ const navItems = [
   { icon: Settings, label: "Settings", to: "/partner/settings" },
 ];
 
-// Import additional icons
-import { Rocket } from "lucide-react";
-
 const boostItem = { icon: Rocket, label: "Boost", to: "/partner/boost" };
+
+const partnerRoutePreloaders: Record<string, () => Promise<unknown>> = {
+  "/partner": () => import("@/pages/partner/PartnerDashboard"),
+  "/partner/menu": () => import("@/pages/partner/PartnerMenu"),
+  "/partner/orders": () => import("@/pages/partner/PartnerOrders"),
+  "/partner/analytics": () => import("@/pages/partner/PartnerAnalytics"),
+  "/partner/payouts": () => import("@/pages/partner/PartnerPayouts"),
+  "/partner/earnings": () => import("@/pages/partner/PartnerEarningsDashboard"),
+  "/partner/notifications": () =>
+    import("@/pages/partner/PartnerNotifications"),
+  "/partner/profile": () => import("@/pages/partner/PartnerProfile"),
+  "/partner/settings": () => import("@/pages/partner/PartnerSettings"),
+  "/partner/boost": () => import("@/pages/partner/PartnerBoost"),
+};
+
+const preloadPartnerRoute = (path: string) => {
+  void partnerRoutePreloaders[path]?.().catch(() => undefined);
+};
+
+let hasPreloadedPartnerRoutes = false;
+
+const preloadAllPartnerRoutes = () => {
+  if (hasPreloadedPartnerRoutes) return;
+
+  hasPreloadedPartnerRoutes = true;
+  Object.values(partnerRoutePreloaders).forEach((preload) => {
+    void preload().catch(() => undefined);
+  });
+};
 
 export function PartnerSidebar() {
   const location = useLocation();
@@ -51,6 +77,11 @@ export function PartnerSidebar() {
   const { signOut } = useAuth();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+
+  useEffect(() => {
+    const preloadTimer = window.setTimeout(preloadAllPartnerRoutes, 1000);
+    return () => window.clearTimeout(preloadTimer);
+  }, []);
 
   const isActive = (path: string) => {
     if (path === "/partner") {
@@ -89,7 +120,12 @@ export function PartnerSidebar() {
                     isActive={isActive(item.to)}
                     tooltip={item.label}
                   >
-                    <Link to={item.to}>
+                    <Link
+                      to={item.to}
+                      onMouseEnter={() => preloadPartnerRoute(item.to)}
+                      onFocus={() => preloadPartnerRoute(item.to)}
+                      onPointerDown={() => preloadPartnerRoute(item.to)}
+                    >
                       <item.icon className="h-4 w-4" />
                       <span>{item.label}</span>
                     </Link>
@@ -104,7 +140,12 @@ export function PartnerSidebar() {
                   tooltip={boostItem.label}
                   className="text-primary"
                 >
-                  <Link to={boostItem.to}>
+                  <Link
+                    to={boostItem.to}
+                    onMouseEnter={() => preloadPartnerRoute(boostItem.to)}
+                    onFocus={() => preloadPartnerRoute(boostItem.to)}
+                    onPointerDown={() => preloadPartnerRoute(boostItem.to)}
+                  >
                     <boostItem.icon className="h-4 w-4" />
                     <span>{boostItem.label}</span>
                   </Link>
@@ -118,10 +159,7 @@ export function PartnerSidebar() {
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={handleSignOut}
-              tooltip="Sign Out"
-            >
+            <SidebarMenuButton onClick={handleSignOut} tooltip="Sign Out">
               <LogOut className="h-4 w-4" />
               <span>Sign Out</span>
             </SidebarMenuButton>

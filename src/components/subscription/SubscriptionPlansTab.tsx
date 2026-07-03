@@ -31,7 +31,7 @@ export function SubscriptionPlansTab({
       </div>
 
       {/* Annual billing toggle */}
-      <div className="rounded-[24px] bg-white px-4 py-4 shadow-sm ring-1 ring-slate-200/80">
+      <div className="rounded-[24px] bg-white px-4 py-4 shadow-sm ring-1 ring-[#E5EAF1]">
         <BillingIntervalToggle
           value={billingInterval}
           onChange={onBillingIntervalChange}

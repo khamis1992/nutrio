@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
+import { useSmartGoalAdjustmentNotifications } from "@/hooks/useSmartGoalAdjustmentNotifications";
 
 const HIDDEN_NAV_PATHS = [
   "/checkout",
@@ -13,6 +14,7 @@ const DOCK_RESERVED_HEIGHT = "56px";
 
 export const CustomerLayout = () => {
   const location = useLocation();
+  useSmartGoalAdjustmentNotifications();
   const shouldHideNav = HIDDEN_NAV_PATHS.some(path =>
     location.pathname === path || location.pathname.startsWith(path + "/")
   );

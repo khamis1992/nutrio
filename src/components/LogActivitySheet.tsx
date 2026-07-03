@@ -12,6 +12,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isNative } from "@/lib/capacitor";
+import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 import { syncWorkoutSessionsToHealthDailyMetrics } from "@/lib/health-daily-metrics";
 
 interface Activity {
@@ -232,6 +233,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
       setView("list");
       await loadSessions();
       await syncWorkoutSessionsToHealthDailyMetrics(user.id, todayStr);
+      await syncCommunityChallengeProgressQuietly(user.id);
     } catch {
       toast.error(t("log_activity_failed_title"), { description: t("log_activity_failed_desc") });
     } finally {
@@ -244,6 +246,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
     await supabase.from("workout_sessions").delete().eq("id", id).eq("user_id", user.id);
     await loadSessions();
     await syncWorkoutSessionsToHealthDailyMetrics(user.id, todayStr);
+    await syncCommunityChallengeProgressQuietly(user.id);
   };
 
   const filtered = ACTIVITIES.filter((a) => {

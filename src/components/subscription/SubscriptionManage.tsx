@@ -117,16 +117,16 @@ export function SubscriptionManage({
   const isCancelled = subscriptionStatus === "cancelled";
 
   return (
-    <div className="space-y-0 rounded-[22px] border border-slate-100 bg-white shadow-sm overflow-hidden">
+    <div className="space-y-0 overflow-hidden rounded-[22px] border border-[#E5EAF1] bg-white shadow-sm">
       {/* Auto-Renewal */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
+      <div className="flex items-center justify-between border-b border-[#E5EAF1] px-5 py-4">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50">
-            <BellRing className="h-5 w-5 text-emerald-600" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E6FBF5]">
+            <BellRing className="h-5 w-5 text-[#22C7A1]" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-900 truncate">{t("auto_renewal_title")}</p>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">
+            <p className="truncate text-sm font-bold text-[#020617]">{t("auto_renewal_title")}</p>
+            <p className="mt-0.5 text-xs font-medium text-[#94A3B8]">
               {autoRenew ? t("auto_renewal_on_desc") : t("auto_renewal_off_desc")}
             </p>
           </div>
@@ -135,48 +135,48 @@ export function SubscriptionManage({
           checked={autoRenew}
           onCheckedChange={onToggleAutoRenew}
           disabled={autoRenewLoading || isCancelled}
-          className="shrink-0"
+          className="shrink-0 data-[state=checked]:bg-[#020617]"
         />
       </div>
 
       {/* Rollover Credits */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
+      <div className="flex items-center justify-between border-b border-[#E5EAF1] px-5 py-4">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50">
-            <RefreshCw className="h-5 w-5 text-emerald-600" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E6FBF5]">
+            <RefreshCw className="h-5 w-5 text-[#22C7A1]" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-900 truncate">{t("rollover_credits_title")}</p>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">{t("rollover_carry_forward_desc")}</p>
+            <p className="truncate text-sm font-bold text-[#020617]">{t("rollover_credits_title")}</p>
+            <p className="mt-0.5 text-xs font-medium text-[#94A3B8]">{t("rollover_carry_forward_desc")}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-sm font-extrabold text-emerald-600">
+          <span className="text-sm font-extrabold text-[#22C7A1]">
             {rolloverCredits > 0 ? `${rolloverCredits} credits` : "All used"}
           </span>
           {rolloverCredits > 0 && (
-            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-600">
+            <span className="inline-flex items-center rounded-full bg-[#E6FBF5] px-2.5 py-1 text-xs font-extrabold text-[#22C7A1]">
               Active
             </span>
           )}
-          <ChevronRight className="h-4 w-4 text-slate-300" />
+          <ChevronRight className="h-4 w-4 text-[#94A3B8]" />
         </div>
       </div>
 
       {/* Freeze */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
+      <div className="flex items-center justify-between border-b border-[#E5EAF1] px-5 py-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-50">
             <Snowflake className="h-5 w-5 text-sky-600" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-900 truncate">{t("freeze_subscription")}</p>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">{t("freeze_desc")}</p>
+            <p className="truncate text-sm font-bold text-[#020617]">{t("freeze_subscription")}</p>
+            <p className="mt-0.5 text-xs font-medium text-[#94A3B8]">{t("freeze_desc")}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {freezeDays && (
-            <span className="text-sm font-extrabold text-slate-700">
+            <span className="text-sm font-extrabold text-[#020617]">
               {freezeDays.remaining}/{freezeDays.total}d
             </span>
           )}
@@ -197,17 +197,17 @@ export function SubscriptionManage({
       {isCancelled ? (
         <div className="flex items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50">
-              <RefreshCcw className="h-5 w-5 text-emerald-600" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E6FBF5]">
+              <RefreshCcw className="h-5 w-5 text-[#22C7A1]" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-slate-900 truncate">{t("reactivate_plan")}</p>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">{t("reactivate_desc")}</p>
+              <p className="truncate text-sm font-bold text-[#020617]">{t("reactivate_plan")}</p>
+              <p className="mt-0.5 text-xs font-medium text-[#94A3B8]">{t("reactivate_desc")}</p>
             </div>
           </div>
           <Button
             size="sm"
-            className="rounded-full h-9 px-4 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 shrink-0"
+            className="h-9 shrink-0 rounded-full bg-[#020617] px-4 text-xs font-bold hover:bg-[#020617]/90"
             onClick={onReactivate}
             disabled={isProcessing}
           >
@@ -229,10 +229,10 @@ export function SubscriptionManage({
             </div>
             <div className="min-w-0 text-left">
               <p className="text-sm font-bold text-red-500 truncate">{t("cancel_subscription")}</p>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">{t("cancel_desc")}</p>
+              <p className="mt-0.5 text-xs font-medium text-[#94A3B8]">{t("cancel_desc")}</p>
             </div>
           </div>
-          <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+          <ChevronRight className="h-4 w-4 shrink-0 text-[#94A3B8]" />
         </button>
       )}
 

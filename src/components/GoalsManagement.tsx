@@ -7,13 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -24,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNutritionGoals } from "@/hooks/useNutritionGoals";
 import { useProfile } from "@/hooks/useProfile";
-import { AdaptiveGoalsSettings } from "@/components/AdaptiveGoalsSettings";
+import { SmartAdjustmentsPanel } from "@/components/progress/SmartAdjustmentsPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -53,6 +46,13 @@ const healthGoalToNutritionGoal: Record<Goal, NutritionGoalType> = {
   lose: "weight_loss",
   maintain: "maintenance",
   gain: "muscle_gain",
+};
+
+const nutritionGoalToHealthGoal: Partial<Record<NutritionGoalType, Goal>> = {
+  weight_loss: "lose",
+  maintenance: "maintain",
+  muscle_gain: "gain",
+  general_health: "maintain",
 };
 
 // Diet tag component
@@ -146,7 +146,7 @@ const ActivityLevelCard = ({
       whileTap={{ scale: 0.99 }}
       onClick={onClick}
       className={cn(
-        "relative flex min-h-[62px] w-full items-center gap-3 rounded-3xl p-3 text-left transition-all duration-300",
+        "relative flex min-h-[54px] w-full items-center gap-2 rounded-2xl p-2.5 text-left transition-all duration-300",
         "border",
         selected
           ? "border-[#22C7A1] bg-white shadow-[0_12px_30px_rgba(34,199,161,0.16)]"
@@ -169,10 +169,10 @@ const ActivityLevelCard = ({
         ))}
       </div>
       <div className="flex-1">
-        <p className={cn("text-[13px] font-extrabold leading-tight text-[#020617]", selected && "text-[#020617]")}>
+        <p className={cn("line-clamp-1 text-[12px] font-extrabold leading-tight text-[#020617]", selected && "text-[#020617]")}>
           {activityLevelLabels[level].title}
         </p>
-        <p className="line-clamp-1 text-[11px] font-medium text-[#94A3B8]">
+        <p className="line-clamp-1 text-[10px] font-medium text-[#94A3B8]">
           {activityLevelLabels[level].description}
         </p>
       </div>
@@ -220,7 +220,7 @@ const HealthGoalCard = ({
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={cn(
-        "relative min-h-[92px] overflow-hidden rounded-3xl p-3 transition-all duration-300",
+        "relative min-h-[78px] overflow-hidden rounded-2xl p-2.5 transition-all duration-300",
         "border text-left",
         selected
           ? "border-[#22C7A1] bg-white shadow-[0_14px_35px_rgba(34,199,161,0.16)]"
@@ -228,17 +228,14 @@ const HealthGoalCard = ({
       )}
     >
       <div
-        className={cn(
-          "mb-2 flex h-9 w-9 items-center justify-center rounded-2xl",
-          colors[goal]
-        )}
+        className={cn("mb-2 flex h-8 w-8 items-center justify-center rounded-xl", colors[goal])}
       >
-        <Icon className="h-5 w-5" />
+        <Icon className="h-4 w-4" />
       </div>
-      <p className="mb-1 text-[13px] font-extrabold leading-tight text-[#020617]">
+      <p className="mb-1 text-[12px] font-extrabold leading-tight text-[#020617]">
         {goalLabels[goal].title}
       </p>
-      <p className="line-clamp-2 text-[11px] font-medium leading-4 text-[#94A3B8]">
+      <p className="line-clamp-1 text-[10px] font-medium leading-4 text-[#94A3B8]">
         {goalLabels[goal].description}
       </p>
       <AnimatePresence>
@@ -257,11 +254,15 @@ const HealthGoalCard = ({
   );
 };
 
-export const GoalsManagement = () => {
+interface GoalsManagementProps {
+  autoOpenEditor?: boolean;
+}
+
+export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { goals, activeGoal, goalEvents, loading, setGoal, updateActiveGoal } = useNutritionGoals(user?.id);
+  const { goals, activeGoal, goalEvents, loading, setGoal, updateActiveGoal, updateGoalTargets, refresh } = useNutritionGoals(user?.id);
   const { profile, updateProfile } = useProfile();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -315,8 +316,12 @@ export const GoalsManagement = () => {
   };
 
   const openGoalDialog = () => {
+    const activeGoalType = (activeGoal?.goal_type as NutritionGoalType | undefined) || "general_health";
+    const nextHealthGoal = nutritionGoalToHealthGoal[activeGoalType] || healthGoal || "maintain";
+
+    setHealthGoal(nextHealthGoal);
     setFormData({
-      goal_type: (activeGoal?.goal_type as typeof formData.goal_type) || "general_health",
+      goal_type: activeGoalType as typeof formData.goal_type,
       target_weight_kg: activeGoal?.target_weight_kg?.toString() || targetWeight || "",
       target_date: activeGoal?.target_date || "",
       daily_calorie_target: activeGoal?.daily_calorie_target || goalPlan.dailyCalorieTarget,
@@ -328,6 +333,13 @@ export const GoalsManagement = () => {
     setReviewMode(false);
     setShowCreateDialog(true);
   };
+
+  useEffect(() => {
+    if (!autoOpenEditor || loading || showCreateDialog) return;
+    openGoalDialog();
+    // The dialog should open once when the dedicated edit-goal route is loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenEditor, loading]);
 
   // Load profile data
   useEffect(() => {
@@ -673,9 +685,9 @@ export const GoalsManagement = () => {
                 <Button
                   type="button"
                   onClick={openGoalDialog}
-                  className="h-10 shrink-0 rounded-2xl bg-[#020617] px-3 text-[11px] font-black text-white hover:bg-[#020617]/90"
+                  className="h-10 shrink-0 rounded-2xl bg-[#020617] px-4 text-[11px] font-black text-white hover:bg-[#020617]/90"
                 >
-                  {t("goal_review_update")}
+                  {t("edit_goal")}
                 </Button>
               </div>
             </div>
@@ -738,31 +750,6 @@ export const GoalsManagement = () => {
           </div>
         </details>
       )}
-
-
-      {/* Smart Goal Adjustment */}
-      <details className="group rounded-[28px] border border-[#E5EAF1] bg-white shadow-sm">
-        <summary className="flex min-h-[72px] cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F3F4FF] text-[#7C83F6]">
-              <Activity className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[15px] font-black leading-tight text-[#020617]">{t("smart_goal_adjustment")}</p>
-              <p className="mt-0.5 line-clamp-1 text-[12px] font-semibold text-[#94A3B8]">{t("smart_goal_adjustment_desc")}</p>
-            </div>
-          </div>
-          <span className="rounded-full bg-[#F6F8FB] px-3 py-1.5 text-[11px] font-black text-[#020617] ring-1 ring-[#E5EAF1] group-open:hidden">
-            {t("view")}
-          </span>
-          <span className="hidden rounded-full bg-[#020617] px-3 py-1.5 text-[11px] font-black text-white group-open:inline-flex">
-            {t("close")}
-          </span>
-        </summary>
-        <div className="border-t border-[#E5EAF1] p-3">
-          <AdaptiveGoalsSettings />
-        </div>
-      </details>
 
       {/* Previous Goals */}
       {goals.length > 1 && (
@@ -833,25 +820,58 @@ export const GoalsManagement = () => {
           setReviewMode(false);
         }
       }}>
-        <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto rounded-[28px]">
-          <DialogHeader>
-            <DialogTitle>{t("create_new_nutrition_goal")}</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-16px)] max-w-md flex-col gap-0 overflow-hidden rounded-[28px] border-[#E5EAF1] bg-[#F6F8FB] p-0 shadow-[0_24px_60px_rgba(15,23,42,0.18)]">
+          <DialogHeader className="shrink-0 border-b border-[#E5EAF1] bg-white px-4 pb-3 pt-4 text-left">
+            <DialogTitle className="text-[18px] font-black leading-tight text-[#020617]">{t("create_new_nutrition_goal")}</DialogTitle>
+            <DialogDescription className="mt-1 text-[12px] font-semibold leading-5 text-[#94A3B8]">
               {t("create_goal_description")}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="rounded-[24px] border border-[#E5EAF1] bg-[#F6F8FB] p-3">
-              <div className="mb-3 flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FFF7ED]">
-                  <Flame className="h-5 w-5 text-[#F97316]" />
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-24">
+            {activeGoal && (
+              <details className="group rounded-[22px] border border-[#7C83F6]/25 bg-white shadow-sm outline-none">
+                <summary className="flex min-h-[78px] cursor-pointer list-none items-center justify-between gap-3 rounded-[22px] px-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-[#7C83F6]/25 [&::-webkit-details-marker]:hidden">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#7C83F6]/20">
+                      <Activity className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C83F6]">AI</p>
+                      <p className="mt-0.5 text-[15px] font-black leading-tight text-[#020617]">{t("smart_goal_adjustment")}</p>
+                      <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-snug text-[#94A3B8]">
+                        {t("smart_goal_adjustment_desc")}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-[#020617] px-3 py-1.5 text-[11px] font-black text-white group-open:hidden">
+                    {t("view")}
+                  </span>
+                  <span className="hidden shrink-0 rounded-full bg-[#F6F8FB] px-3 py-1.5 text-[11px] font-black text-[#020617] ring-1 ring-[#E5EAF1] group-open:inline-flex">
+                    {t("close")}
+                  </span>
+                </summary>
+                <div className="border-t border-[#E5EAF1] bg-[#F6F8FB] p-2">
+                  <SmartAdjustmentsPanel
+                    userId={user?.id}
+                    activeGoal={activeGoal}
+                    updateGoalTargets={updateGoalTargets}
+                    onGoalUpdated={refresh}
+                  />
+                </div>
+              </details>
+            )}
+
+            <div className="rounded-[22px] border border-[#E5EAF1] bg-white p-3 shadow-sm">
+              <div className="mb-3 flex items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#FFF7ED]">
+                  <Flame className="h-4 w-4 text-[#F97316]" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-[#020617]">{t("health_goal_title")}</p>
-                  <p className="line-clamp-1 text-[11px] font-semibold text-[#94A3B8]">{t("health_goal_description")}</p>
+                  <p className="text-[13px] font-black text-[#020617]">{t("health_goal_title")}</p>
+                  <p className="line-clamp-1 text-[10px] font-semibold text-[#94A3B8]">{t("health_goal_description")}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-3 gap-2">
                 {(["lose", "maintain", "gain"] as Goal[]).map((g) => (
                   <HealthGoalCard
                     key={g}
@@ -863,14 +883,14 @@ export const GoalsManagement = () => {
               </div>
             </div>
 
-            <div className="rounded-[24px] border border-[#E5EAF1] bg-[#F6F8FB] p-3">
-              <div className="mb-3 flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EFFFFA]">
-                  <Activity className="h-5 w-5 text-[#22C7A1]" />
+            <div className="rounded-[22px] border border-[#E5EAF1] bg-white p-3 shadow-sm">
+              <div className="mb-3 flex items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#EFFFFA]">
+                  <Activity className="h-4 w-4 text-[#22C7A1]" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-[#020617]">{t("activity_level_title")}</p>
-                  <p className="line-clamp-1 text-[11px] font-semibold text-[#94A3B8]">{t("activity_level_description")}</p>
+                  <p className="text-[13px] font-black text-[#020617]">{t("activity_level_title")}</p>
+                  <p className="line-clamp-1 text-[10px] font-semibold text-[#94A3B8]">{t("activity_level_description")}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -885,32 +905,9 @@ export const GoalsManagement = () => {
               </div>
             </div>
 
-            {/* Goal Type */}
-            <div className="space-y-2">
-              <Label>{t("goal_type_label")}</Label>
-              <Select
-                value={formData.goal_type}
-                onValueChange={(value: typeof formData.goal_type) =>
-                  setFormData({ ...formData, goal_type: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {goalTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      <div className="flex items-center gap-2">
-                        <type.icon className={cn("h-4 w-4", type.color)} />
-                        {t(type.labelKey)}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Target Weight (Optional) */}
+            <div className="rounded-[22px] border border-[#E5EAF1] bg-white p-3 shadow-sm">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>{t("target_weight_label")} <span className="text-[#94A3B8]">({t("optional")})</span></Label>
               <Input
@@ -931,42 +928,59 @@ export const GoalsManagement = () => {
                 onChange={(e) => setFormData({ ...formData, target_date: e.target.value })}
               />
             </div>
+              </div>
+            </div>
 
-            <div className="rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">{t("goal_engine_preview")}</p>
-                  <h3 className="mt-1 text-lg font-black text-[#020617]">{goalPlan.dailyCalorieTarget.toLocaleString()} {t("kcal")}</h3>
-                  <p className="mt-1 text-xs font-semibold leading-relaxed text-[#64748B]">{goalPlan.summary}</p>
+            <div className="overflow-hidden rounded-[26px] border border-[#D9F8EF] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+              <div className="bg-gradient-to-br from-[#EFFFFA] via-white to-[#F3F4FF] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#22C7A1]">{t("goal_engine_preview")}</p>
+                    <h3 className="mt-2 text-[30px] font-black leading-none text-[#020617]">
+                      {goalPlan.dailyCalorieTarget.toLocaleString()}
+                      <span className="ml-1 text-[13px] font-black text-[#64748B]">{t("kcal")}</span>
+                    </h3>
+                    <p className="mt-2 text-[12px] font-semibold leading-5 text-[#64748B]">{goalPlan.summary}</p>
+                  </div>
+                  <div className="shrink-0 rounded-full bg-white/85 px-3 py-2 text-center shadow-sm ring-1 ring-[#E5EAF1]">
+                    <p className="text-[9px] font-black uppercase tracking-[0.08em] text-[#94A3B8]">TDEE</p>
+                    <p className="text-[14px] font-black text-[#020617]">{goalPlan.tdee}</p>
+                  </div>
                 </div>
-                <div className="rounded-2xl bg-white px-3 py-2 text-center ring-1 ring-[#E5EAF1]">
-                  <p className="text-[10px] font-bold text-[#94A3B8]">TDEE</p>
-                  <p className="text-sm font-black text-[#020617]">{goalPlan.tdee}</p>
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {[
+                    { label: t("nutrient_protein"), value: `${goalPlan.proteinTargetG}g`, color: "text-[#7C83F6]", bg: "bg-[#F3F4FF]" },
+                    { label: t("nutrient_carbs"), value: `${goalPlan.carbsTargetG}g`, color: "text-[#F97316]", bg: "bg-[#FFF4ED]" },
+                    { label: t("nutrient_fat"), value: `${goalPlan.fatTargetG}g`, color: "text-[#FB6B7A]", bg: "bg-[#FFF1F3]" },
+                  ].map((macro) => (
+                    <div key={macro.label} className="rounded-[18px] bg-white/85 p-2.5 text-center shadow-sm ring-1 ring-[#E5EAF1]">
+                      <p className="text-[10px] font-black text-[#94A3B8]">{macro.label}</p>
+                      <p className={cn("mt-1 rounded-full px-2 py-1 text-sm font-black", macro.bg, macro.color)}>{macro.value}</p>
+                    </div>
+                  ))}
                 </div>
+
+                {goalPlan.safetyNote && (
+                  <div className="mt-3 rounded-[18px] bg-[#FFF1F3] px-3 py-2 text-xs font-bold leading-5 text-[#FB6B7A] ring-1 ring-[#FB6B7A]/15">
+                    {goalPlan.safetyNote}
+                  </div>
+                )}
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <div className="rounded-2xl bg-white p-2 text-center ring-1 ring-[#E5EAF1]">
-                  <p className="text-[10px] font-bold text-[#94A3B8]">{t("nutrient_protein")}</p>
-                  <p className="text-sm font-black text-[#7C83F6]">{goalPlan.proteinTargetG}g</p>
-                </div>
-                <div className="rounded-2xl bg-white p-2 text-center ring-1 ring-[#E5EAF1]">
-                  <p className="text-[10px] font-bold text-[#94A3B8]">{t("nutrient_carbs")}</p>
-                  <p className="text-sm font-black text-[#F97316]">{goalPlan.carbsTargetG}g</p>
-                </div>
-                <div className="rounded-2xl bg-white p-2 text-center ring-1 ring-[#E5EAF1]">
-                  <p className="text-[10px] font-bold text-[#94A3B8]">{t("nutrient_fat")}</p>
-                  <p className="text-sm font-black text-[#FB6B7A]">{goalPlan.fatTargetG}g</p>
-                </div>
+
+              <div className="border-t border-[#E5EAF1] bg-white p-3">
+                <p className="mb-2 text-center text-[11px] font-semibold leading-relaxed text-[#64748B]">
+                  This recommended plan will be used for meals, progress, and reports.
+                </p>
+                <Button
+                  type="button"
+                  className="h-12 w-full rounded-[18px] bg-[#22C7A1] text-sm font-black text-white shadow-[0_12px_24px_rgba(34,199,161,0.22)] hover:bg-[#1EB493]"
+                  onClick={applyCalculatedPlan}
+                >
+                  <Check className="mr-2 h-4 w-4" />
+                  {t("goal_apply_calculated_plan")}
+                </Button>
               </div>
-              {goalPlan.safetyNote && <p className="mt-3 text-xs font-bold text-[#FB6B7A]">{goalPlan.safetyNote}</p>}
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-3 h-11 w-full rounded-2xl border-[#E5EAF1] bg-white text-[#020617]"
-                onClick={applyCalculatedPlan}
-              >
-                {t("goal_apply_calculated_plan")}
-              </Button>
             </div>
 
             {reviewMode && (
@@ -985,7 +999,7 @@ export const GoalsManagement = () => {
             )}
 
             {/* Daily Targets */}
-            <div className="space-y-3 border-t border-[#E5EAF1] pt-2">
+            <div className="space-y-3 rounded-[22px] border border-[#E5EAF1] bg-white p-3 shadow-sm">
               <Label className="text-base">{t("daily_nutrition_targets")}</Label>
 
               <div className="space-y-2">
@@ -1089,6 +1103,8 @@ export const GoalsManagement = () => {
               </div>
             </div>
 
+          </div>
+          <div className="shrink-0 border-t border-[#E5EAF1] bg-white px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3">
             <Button
               className="h-12 w-full rounded-2xl bg-[#020617] font-black text-white hover:bg-[#020617]/90"
               onClick={handleCreateGoal}
