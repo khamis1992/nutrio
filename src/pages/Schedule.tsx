@@ -637,17 +637,20 @@ const Schedule = () => {
     }
   };
 
-  const updateDeliveryTimeSlot = async (scheduleId: string, timeSlot: string) => {
+  const updateDeliveryTimeSlot = async (scheduleId: string, timeSlot: string, deliveryAddressId?: string | null) => {
     try {
+      const updates: Record<string, unknown> = { delivery_time_slot: timeSlot };
+      if (deliveryAddressId) updates.delivery_address_id = deliveryAddressId;
+
       const { error } = await supabase
         .from("meal_schedules")
-        .update({ delivery_time_slot: timeSlot } as Record<string, unknown>)
+        .update(updates)
         .eq("id", scheduleId);
 
       if (error) throw error;
 
       setSchedules(prev => prev.map(s =>
-        s.id === scheduleId ? { ...s, delivery_time_slot: timeSlot } : s
+        s.id === scheduleId ? { ...s, delivery_time_slot: timeSlot, ...(deliveryAddressId ? { delivery_address_id: deliveryAddressId } : {}) } : s
       ));
 
       toast({
@@ -669,9 +672,9 @@ const Schedule = () => {
     setShowTimeSlotDialog(true);
   };
 
-  const handleTimeSlotSelect = ({ time }: { date: Date; time: string }) => {
+  const handleTimeSlotSelect = ({ time, deliveryAddressId }: { date: Date; time: string; deliveryAddressId: string | null }) => {
     if (selectedScheduleForTimeSlot) {
-      updateDeliveryTimeSlot(selectedScheduleForTimeSlot, time);
+      updateDeliveryTimeSlot(selectedScheduleForTimeSlot, time, deliveryAddressId);
     }
     setShowTimeSlotDialog(false);
     setSelectedScheduleForTimeSlot(null);

@@ -263,7 +263,7 @@ const MealWizard = ({
     setPhase("meal-selection");
   };
 
-  const handleComplete = async (timeSlot: string) => {
+  const handleComplete = async (timeSlot: string, deliveryAddressId: string | null) => {
     setScheduling(true);
     try {
       for (const [mealType, meal] of Object.entries(selectedMeals)) {
@@ -273,6 +273,7 @@ const MealWizard = ({
           scheduled_date: format(selectedDate, "yyyy-MM-dd"),
           meal_type: mealType === "snack2" ? "snack" : mealType,
           delivery_time_slot: timeSlot,
+          delivery_address_id: deliveryAddressId,
           order_status: "pending",
         });
 
@@ -1065,9 +1066,9 @@ const MealWizard = ({
                 "5:00 PM", "6:00 PM", "7:00 PM",
               ]}
               timeZone="Qatar (GMT +3)"
-              onSchedule={({ time }) => {
+              onSchedule={({ time, deliveryAddressId }) => {
                 setShowDeliveryScheduler(false);
-                handleComplete(time);
+                handleComplete(time, deliveryAddressId);
               }}
               onCancel={() => setShowDeliveryScheduler(false)}
             />

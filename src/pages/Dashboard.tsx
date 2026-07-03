@@ -354,6 +354,7 @@ const DASHBOARD_COLORS = {
   water: "#38BDF8",
   carbs: "#F97316",
 };
+const DASHBOARD_MEAL_SLIDE_ORDER = ["breakfast", "lunch", "dinner", "snack"];
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -414,6 +415,7 @@ const Dashboard = () => {
   const [todayMeals, setTodayMeals] = useState<TodayMeal[]>([]);
   const [todayMealsLoading, setTodayMealsLoading] = useState(true);
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
+  const [activeMealSlide, setActiveMealSlide] = useState("breakfast");
   const [gamification, setGamification] = useState({ xp: 0, level: 1, xpToNextLevel: 100, earnedBadges: 0, totalBadges: 0, badges: [] as GamificationBadge[], earnedIds: new Set<string>() });
   const [waterToday, setWaterToday] = useState(0);
   const [waterGoal, setWaterGoal] = useState(2500);
@@ -426,6 +428,7 @@ const Dashboard = () => {
   const [recentNotifications, setRecentNotifications] = useState<RecentNotification[]>([]);
   const [notifsLoading, setNotifsLoading] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const mealCarouselRef = useRef<HTMLDivElement>(null);
   const [selectedSchedule, setSelectedSchedule] = useState<MealSchedule | null>(null);
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -779,7 +782,13 @@ const Dashboard = () => {
           });
         }
       });
-      setTodayMeals(Object.entries(slots).map(([type, items]) => ({ type, ...(items[0] || {}) })));
+      const mealList = Object.entries(slots).map(([type, items]) => ({ type, ...(items[0] || {}) }));
+      setTodayMeals(mealList);
+      const firstPlannedMeal = mealList.find((item) => item.meal && item.schedule_id);
+      if (firstPlannedMeal) {
+        setActiveMealSlide(firstPlannedMeal.type);
+        setExpandedMeal(`${firstPlannedMeal.type}-${firstPlannedMeal.schedule_id}`);
+      }
     } catch (err) {
       console.error("Error fetching today's meals:", err);
       setTodayMeals([]);
@@ -789,6 +798,33 @@ const Dashboard = () => {
   }, [user?.id]);
 
   useEffect(() => { fetchTodayMeals(); }, [fetchTodayMeals]);
+
+  useEffect(() => {
+    const plannedSlides = DASHBOARD_MEAL_SLIDE_ORDER
+      .map((type) => todayMeals.find((meal) => meal.type === type && meal.meal && meal.schedule_id))
+      .filter((meal): meal is TodayMeal & { schedule_id: string } => Boolean(meal));
+
+    if (todayMealsLoading || plannedSlides.length <= 1) return;
+
+    const intervalId = window.setInterval(() => {
+      const currentIndex = Math.max(0, plannedSlides.findIndex((meal) => meal.type === activeMealSlide));
+      const nextMeal = plannedSlides[(currentIndex + 1) % plannedSlides.length];
+      const nextSlideIndex = DASHBOARD_MEAL_SLIDE_ORDER.indexOf(nextMeal.type);
+      const carousel = mealCarouselRef.current;
+
+      setActiveMealSlide(nextMeal.type);
+      setExpandedMeal(`${nextMeal.type}-${nextMeal.schedule_id}`);
+
+      if (carousel && nextSlideIndex >= 0) {
+        carousel.scrollTo({
+          left: carousel.clientWidth * nextSlideIndex,
+          behavior: prefersReducedMotion ? "auto" : "smooth",
+        });
+      }
+    }, 4500);
+
+    return () => window.clearInterval(intervalId);
+  }, [activeMealSlide, prefersReducedMotion, todayMeals, todayMealsLoading]);
 
   const animatedCalories = useAnimatedCounter(Math.round(todayProgress.calories), 800);
   const animatedBurned = useAnimatedCounter(totalBurned, 800);
@@ -1682,9 +1718,9 @@ const Dashboard = () => {
                   ];
                   if (todayMealsLoading) {
                     return (
-                      <div className="space-y-2">
+                      <div className="flex overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {[1, 2, 3].map((i) => (
-                          <div key={i} className="h-[60px] animate-pulse rounded-[16px] bg-slate-100" />
+                          <div key={i} className="h-[92px] min-w-full max-w-full shrink-0 animate-pulse rounded-[24px] bg-slate-100" />
                         ))}
                       </div>
                     );
@@ -1693,6 +1729,7 @@ const Dashboard = () => {
                     const m = todayMeals.find((tm) => tm.type === s.type);
                     return m && m.meal;
                   });
+                  const activeSlideIndex = Math.max(0, slots.findIndex((slot) => slot.type === activeMealSlide));
 
                   if (!hasAnyMeal) {
                     return (
@@ -1721,7 +1758,19 @@ const Dashboard = () => {
                     );
                   }
 
-                  return slots.map((slot, index) => {
+                  return (
+                    <>
+                      <div
+                        ref={mealCarouselRef}
+                        className="flex snap-x snap-mandatory overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        onScroll={(event) => {
+                          const { clientWidth, scrollLeft } = event.currentTarget;
+                          if (!clientWidth) return;
+                          const index = Math.min(slots.length - 1, Math.max(0, Math.round(Math.abs(scrollLeft) / clientWidth)));
+                          setActiveMealSlide(slots[index]?.type || slots[0].type);
+                        }}
+                      >
+                        {slots.map((slot) => {
                     const meal = todayMeals.find((m) => m.type === slot.type);
                     const hasMeal = meal && meal.meal;
                     const IconSlot = slot.icon;
@@ -1735,24 +1784,34 @@ const Dashboard = () => {
                     const carbsPct = Math.round((carbs / macroTotal) * 100);
                     const fatPct = Math.max(0, 100 - proteinPct - carbsPct);
                     return (
-                      <div key={slot.type} className={index > 0 ? "mt-1.5" : ""}>
+                      <div key={slot.type} className="min-w-full max-w-full shrink-0 snap-start">
                         <motion.div
                           whileTap={prefersReducedMotion ? undefined : { scale: hasMeal ? 0.98 : 1 }}
-                          onClick={() => hasMeal && setExpandedMeal(expandedMeal === `${slot.type}-${meal.schedule_id}` ? null : `${slot.type}-${meal.schedule_id}`)}
-                          className={`relative flex min-h-[76px] items-center gap-3 overflow-hidden rounded-[21px] bg-white p-2.5 ring-1 ring-white/80 transition active:scale-[0.99] ${hasMeal ? "cursor-pointer shadow-[0_8px_22px_rgba(15,23,42,0.045)]" : ""}`}
+                          onClick={(event) => {
+                            event.currentTarget.scrollIntoView({
+                              behavior: prefersReducedMotion ? "auto" : "smooth",
+                              block: "nearest",
+                              inline: "start",
+                            });
+                            setActiveMealSlide(slot.type);
+                            if (hasMeal) {
+                              setExpandedMeal(`${slot.type}-${meal.schedule_id}`);
+                            }
+                          }}
+                          className={`relative flex min-h-[92px] items-center gap-3.5 overflow-hidden rounded-[24px] bg-white p-3 ring-1 ring-white/80 transition active:scale-[0.99] ${hasMeal ? "cursor-pointer shadow-[0_8px_22px_rgba(15,23,42,0.045)]" : ""}`}
                         >
                           {hasMeal ? (
                             <>
                               {meal.meal?.image_url ? (
-                                <div className="relative h-[58px] w-[58px] shrink-0">
-                                  <img src={meal.meal.image_url} alt={meal.meal.name} className="h-full w-full rounded-[20px] object-cover shadow-sm ring-1 ring-slate-100" />
-                                  <span className={`absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br ${slot.color} text-white ring-2 ring-white`}>
-                                    <IconSlot className="h-[13px] w-[13px]" strokeWidth={2} />
+                                <div className="relative h-[68px] w-[68px] shrink-0">
+                                  <img src={meal.meal.image_url} alt={meal.meal.name} className="h-full w-full rounded-[22px] object-cover shadow-sm ring-1 ring-slate-100" />
+                                  <span className={`absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br ${slot.color} text-white ring-2 ring-white`}>
+                                    <IconSlot className="h-[14px] w-[14px]" strokeWidth={2} />
                                   </span>
                                 </div>
                               ) : (
-                                <div className={`flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br ${slot.color} text-white shadow-sm ring-1 ring-white`}>
-                                  <IconSlot className="h-[20px] w-[20px]" strokeWidth={1.8} />
+                                <div className={`flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br ${slot.color} text-white shadow-sm ring-1 ring-white`}>
+                                  <IconSlot className="h-[22px] w-[22px]" strokeWidth={1.8} />
                                 </div>
                               )}
                               <div className="min-w-0 flex-1">
@@ -1760,21 +1819,21 @@ const Dashboard = () => {
                                   <span className={`h-1.5 w-1.5 rounded-full ${slot.accent}`} />
                                   <p className={`truncate text-[10px] font-black uppercase tracking-[0.1em] ${slot.text}`}>{slot.label}</p>
                                 </div>
-                                <p className="mt-1 truncate text-[15px] font-black leading-tight text-[#020617]">{meal.meal?.name || slot.label}</p>
+                                <p className="mt-1 truncate text-[16px] font-black leading-tight text-[#020617]">{meal.meal?.name || slot.label}</p>
                                 <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] font-bold text-[#64748B]">
                                   {meal.restaurant?.name && <span className="truncate">{meal.restaurant.name}</span>}
                                   {meal.meal?.calories && <><span className="text-slate-300">·</span><span>{meal.meal.calories} cal</span></>}
                                   {meal.delivery_time_slot && <><span className="text-slate-300">·</span><span>{meal.delivery_time_slot}</span></>}
                                 </p>
                               </div>
-                              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1] transition-transform ${expandedMeal === `${slot.type}-${meal.schedule_id}` ? "rotate-90" : ""}`}>
+                              <div className="flex h-9 w-9 shrink-0 rotate-90 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1]">
                                 <NextIcon className="h-3 w-3" strokeWidth={2} />
                               </div>
                             </>
                           ) : (
                             <>
                               <div className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[19px] ${slot.bg} ${slot.text} ring-1 ${slot.ring}`}>
-                                <IconSlot className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                                <IconSlot className="h-[20px] w-[20px]" strokeWidth={1.8} />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className={`text-[13px] font-black ${slot.text}`}>{slot.label}</p>
@@ -1786,16 +1845,9 @@ const Dashboard = () => {
                             </>
                           )}
                         </motion.div>
-                        <AnimatePresence>
-                          {expandedMeal === `${slot.type}-${meal?.schedule_id}` && hasMeal && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ type: "spring", stiffness: 300, damping: 28 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="mx-1 mb-2 mt-1 rounded-[28px] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
+                        {hasMeal && (
+                          <div className="overflow-hidden">
+                              <div className="mx-1 mb-2 mt-2.5 rounded-[28px] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
                                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">Nutrition</p>
@@ -1887,12 +1939,24 @@ const Dashboard = () => {
                                   </Link>
                                 </div>
                               </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                          </div>
+                        )}
+                        </div>
+                      );
+                        })}
                       </div>
-                    );
-                  });
+                      <div className="mt-2 flex items-center justify-center gap-1.5" aria-hidden="true">
+                        {slots.map((slot, index) => (
+                          <span
+                            key={`${slot.type}-swipe-dot`}
+                            className={`h-2 w-2 rounded-full transition-all duration-300 ease-out ${
+                              index === activeSlideIndex ? "scale-110 bg-[#020617]" : "bg-[#CBD5E1]"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  );
                 })()}
               </div>
             </div>

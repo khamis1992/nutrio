@@ -149,6 +149,7 @@ export const ModifyOrderModal = ({
             <div className="p-4">
               <DeliveryScheduler
                 initialDate={newDate || schedule?.scheduled_date}
+                requireAddress={false}
                 onSchedule={handleSchedule}
                 onCancel={() => setStep("details")}
               />

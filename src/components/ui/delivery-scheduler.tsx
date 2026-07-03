@@ -1,5 +1,9 @@
-import { useState } from "react";
-import { Clock, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Briefcase, Check, Clock, Calendar, ChevronLeft, ChevronRight, Home, MapPin, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { formatLocaleDate } from "@/lib/dateUtils";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -8,9 +12,19 @@ interface DeliverySchedulerProps {
   initialDate?: Date | string | null;
   timeSlots?: string[];
   timeZone?: string;
-  onSchedule: (result: { date: Date; time: string }) => void;
+  requireAddress?: boolean;
+  onSchedule: (result: { date: Date; time: string; deliveryAddressId: string | null; deliveryAddressLabel: string }) => void;
   onCancel?: () => void;
 }
+
+type DeliveryAddress = {
+  id: string;
+  label: string;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  is_default: boolean;
+};
 
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
@@ -25,10 +39,13 @@ export const DeliveryScheduler = ({
     "5:00 PM", "6:00 PM", "7:00 PM",
   ],
   timeZone = "Qatar (GMT +3)",
+  requireAddress = true,
   onSchedule,
   onCancel,
 }: DeliverySchedulerProps) => {
   const { language } = useLanguage();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const formatDate = (date: Date) => formatLocaleDate(date, language, { weekday: "long", month: "long", day: "numeric" });
   const parseInitial = () => {
     if (!initialDate) return new Date();
@@ -39,6 +56,9 @@ export const DeliveryScheduler = ({
 
   const [selectedDate, setSelectedDate] = useState<Date>(parseInitial());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [addresses, setAddresses] = useState<DeliveryAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [addressesLoading, setAddressesLoading] = useState(false);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -47,6 +67,41 @@ export const DeliveryScheduler = ({
   const initialWeekOffset = Math.floor(diffDays / 7);
 
   const [weekOffset, setWeekOffset] = useState<number>(initialWeekOffset);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAddresses() {
+      if (!user) return;
+
+      setAddressesLoading(true);
+      const { data, error } = await supabase
+        .from("user_addresses")
+        .select("id, label, address_line1, address_line2, city, is_default")
+        .eq("user_id", user.id)
+        .order("is_default", { ascending: false });
+
+      if (cancelled) return;
+      setAddressesLoading(false);
+
+      if (error) {
+        console.error("Error loading delivery addresses:", error);
+        return;
+      }
+
+      const nextAddresses = data || [];
+      setAddresses(nextAddresses);
+      if (nextAddresses.length > 0) {
+        const defaultAddress = nextAddresses.find((address) => address.is_default) || nextAddresses[0];
+        setSelectedAddressId((current) => current || defaultAddress.id);
+      }
+    }
+
+    void loadAddresses();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // Build 7-day week starting from today + weekOffset*7
   const weekStart = new Date(today);
@@ -60,8 +115,18 @@ export const DeliveryScheduler = ({
 
   const handleConfirm = () => {
     if (!selectedTime) return;
-    onSchedule({ date: selectedDate, time: selectedTime });
+    if (requireAddress && !selectedAddressId) return;
+
+    const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
+    const addressLabel = selectedAddress
+      ? `${selectedAddress.label} - ${selectedAddress.address_line1}, ${selectedAddress.city}`
+      : "";
+
+    onSchedule({ date: selectedDate, time: selectedTime, deliveryAddressId: selectedAddressId, deliveryAddressLabel: addressLabel });
   };
+
+  const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
+  const canConfirm = Boolean(selectedTime) && (!requireAddress || Boolean(selectedAddressId));
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[#F8FAFC]">
@@ -165,6 +230,87 @@ export const DeliveryScheduler = ({
             ))}
           </div>
         </section>
+
+        {requireAddress && (
+          <section className="rounded-[22px] border border-slate-100 bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.07)]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[13px] font-black text-slate-950">Delivery address</p>
+                <p className="mt-1 text-[12px] font-semibold text-slate-500">
+                  {addresses.length > 0 ? "Choose where we should deliver" : "Add an address before confirming"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/addresses")}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 active:scale-95"
+                aria-label="Add delivery address"
+              >
+                <Plus className="h-5 w-5" strokeWidth={2.4} />
+              </button>
+            </div>
+
+            {addressesLoading ? (
+              <div className="mt-4 space-y-2">
+                {[0, 1].map((item) => (
+                  <div key={item} className="h-[68px] animate-pulse rounded-[18px] bg-slate-50" />
+                ))}
+              </div>
+            ) : addresses.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                {addresses.map((address) => {
+                  const isSelected = selectedAddressId === address.id;
+                  const label = address.label.toLowerCase();
+                  const Icon = label === "home" ? Home : label === "work" || label === "office" ? Briefcase : MapPin;
+
+                  return (
+                    <button
+                      key={address.id}
+                      type="button"
+                      onClick={() => setSelectedAddressId(address.id)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-[18px] border p-3 text-left transition-all active:scale-[0.99]",
+                        isSelected ? "border-slate-950 bg-slate-50" : "border-slate-100 bg-slate-50/70"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px]",
+                          isSelected ? "bg-slate-950 text-white" : "bg-white text-slate-500"
+                        )}
+                      >
+                        <Icon className="h-5 w-5" strokeWidth={2.4} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-[13px] font-black text-slate-950">{address.label}</p>
+                          {address.is_default && (
+                            <span className="rounded-full bg-[#E2F8EB] px-2 py-0.5 text-[9px] font-black text-[#0B9B59]">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 truncate text-[12px] font-semibold text-slate-500">
+                          {[address.address_line1, address.address_line2, address.city].filter(Boolean).join(", ")}
+                        </p>
+                      </div>
+                      {isSelected && <Check className="h-4 w-4 shrink-0 text-[#0B9B59]" strokeWidth={3} />}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => navigate("/addresses")}
+                className="mt-4 flex min-h-[54px] w-full items-center justify-center rounded-[17px] border border-dashed border-slate-300 bg-slate-50 px-4 text-[13px] font-black text-slate-700 active:scale-[0.99]"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add delivery address
+              </button>
+            )}
+          </section>
+        )}
       </div>
 
       <div className="shrink-0 border-t border-slate-100 bg-white/95 px-4 pt-3 backdrop-blur-2xl"
@@ -173,9 +319,12 @@ export const DeliveryScheduler = ({
         <div className="mb-2.5 flex items-center justify-between rounded-[16px] bg-slate-50 px-4 py-2">
           <div className="min-w-0">
             <p className="truncate text-[13px] font-black text-slate-950">{formatDate(selectedDate)}</p>
-            <p className="mt-0.5 text-[12px] font-semibold text-slate-500">{selectedTime || "Select a time"}</p>
+            <p className="mt-0.5 text-[12px] font-semibold text-slate-500">
+              {selectedTime || "Select a time"}
+              {selectedAddress && ` - ${selectedAddress.label}`}
+            </p>
           </div>
-          {selectedTime && (
+          {canConfirm && (
             <span className="rounded-full bg-[#E2F8EB] px-3 py-1.5 text-[11px] font-black text-[#0B9B59]">
               Ready
             </span>
@@ -195,7 +344,7 @@ export const DeliveryScheduler = ({
           <button
             type="button"
             className="flex min-h-[50px] flex-[1.4] items-center justify-center rounded-[17px] bg-slate-950 px-4 text-[14px] font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)] transition disabled:bg-slate-300 disabled:text-white disabled:shadow-none"
-            disabled={!selectedTime}
+            disabled={!canConfirm}
             onClick={handleConfirm}
           >
             Confirm time
