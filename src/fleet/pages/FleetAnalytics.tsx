@@ -9,13 +9,25 @@ import {
   AlertTriangle,
   Calendar,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 type RangePreset = "today" | "7d" | "30d";
+
+const C = {
+  ink: "#020617",
+  bg: "#F6F8FB",
+  muted: "#94A3B8",
+  border: "#E5EAF1",
+  progress: "#22C7A1",
+  water: "#38BDF8",
+  protein: "#7C83F6",
+  fat: "#FB6B7A",
+  orange: "#F97316",
+};
 
 function getRangeDates(preset: RangePreset): { from: string; to: string; label: string } {
   const now = new Date();
@@ -48,8 +60,36 @@ interface AnalyticsData {
   slowRestaurants: SlowRestaurant[];
 }
 
+type MetricCardProps = {
+  label: string;
+  value: string | number;
+  helper: string;
+  icon: React.ElementType;
+  accent: string;
+  soft: string;
+};
+
+function MetricCard({ label, value, helper, icon: Icon, accent, soft }: MetricCardProps) {
+  return (
+    <div className="min-h-[138px] rounded-[26px] border border-[#E5EAF1] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.06)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">{label}</p>
+          <p className="mt-2 text-[30px] font-black leading-none tracking-tight text-[#020617]">{value}</p>
+        </div>
+        <div
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px]"
+          style={{ backgroundColor: soft, color: accent }}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+      <p className="mt-4 text-[12px] font-bold leading-5 text-[#94A3B8]">{helper}</p>
+    </div>
+  );
+}
+
 async function fetchAnalytics(from: string, to: string): Promise<AnalyticsData> {
-  // 1. Orders dispatched in range
   const { count: dispatchedToday } = await supabase
     .from("driver_assignment_history")
     .select("id", { count: "exact", head: true })
@@ -57,7 +97,6 @@ async function fetchAnalytics(from: string, to: string): Promise<AnalyticsData> 
     .gte("performed_at", from)
     .lte("performed_at", to);
 
-  // 2. Average wait time (order created → first assignment in range)
   const { data: historyData } = await supabase
     .from("driver_assignment_history")
     .select("performed_at, job_id")
@@ -82,12 +121,8 @@ async function fetchAnalytics(from: string, to: string): Promise<AnalyticsData> 
           .select("id, created_at")
           .in("id", orderIds);
 
-        const orderCreatedMap = new Map(
-          (ordersData || []).map((o) => [o.id, o.created_at])
-        );
-        const jobOrderMap = new Map(
-          (jobsData || []).map((j) => [j.id, j.schedule_id])
-        );
+        const orderCreatedMap = new Map((ordersData || []).map((o) => [o.id, o.created_at]));
+        const jobOrderMap = new Map((jobsData || []).map((j) => [j.id, j.schedule_id]));
 
         const waits = historyData
           .map((h) => {
@@ -107,7 +142,6 @@ async function fetchAnalytics(from: string, to: string): Promise<AnalyticsData> 
     }
   }
 
-  // 3. Top 5 drivers in range by completed deliveries
   const { data: completedJobsData } = await supabase
     .from("delivery_jobs")
     .select("driver_id")
@@ -144,7 +178,6 @@ async function fetchAnalytics(from: string, to: string): Promise<AnalyticsData> 
     });
   }
 
-  // 4. Bottleneck: top 3 restaurants with highest avg minutes from order created → picked_up
   const { data: pickedUpJobs } = await supabase
     .from("delivery_jobs")
     .select("schedule_id, restaurant_id, picked_up_at")
@@ -163,8 +196,8 @@ async function fetchAnalytics(from: string, to: string): Promise<AnalyticsData> 
       .in("id", orderIds);
 
     const orderCreatedMap2 = new Map((ordersForJobs || []).map((o) => [o.id, o.created_at]));
-
     const restaurantWaits = new Map<string, { total: number; count: number }>();
+
     pickedUpJobs.forEach((job) => {
       if (!job.restaurant_id || !job.schedule_id || !job.picked_up_at) return;
       const created = orderCreatedMap2.get(job.schedule_id);
@@ -223,157 +256,182 @@ export default function FleetAnalytics() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Skeleton className="h-32" />
-          <Skeleton className="h-32" />
-          <Skeleton className="h-32" />
+      <div className="space-y-4">
+        <Skeleton className="h-40 rounded-[30px]" />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <Skeleton className="h-36 rounded-[26px]" />
+          <Skeleton className="h-36 rounded-[26px]" />
+          <Skeleton className="h-36 rounded-[26px]" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Skeleton className="h-72" />
-          <Skeleton className="h-72" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Skeleton className="h-80 rounded-[30px]" />
+          <Skeleton className="h-80 rounded-[30px]" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Fleet Analytics</h1>
-          <p className="text-muted-foreground flex items-center gap-1">
-            <Calendar className="w-4 h-4" />
-            {getRangeDates(preset).label}
-          </p>
+    <div className="space-y-4 text-[#020617]">
+      <section className="overflow-hidden rounded-[30px] border border-[#E5EAF1] bg-white shadow-[0_18px_42px_rgba(2,6,23,0.07)]">
+        <div className="flex flex-col gap-5 bg-[#F6F8FB] p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#22C7A1]">Fleet Performance</p>
+            <h1 className="mt-1 text-3xl font-black tracking-tight text-[#020617]">Analytics</h1>
+            <p className="mt-2 flex items-center gap-2 text-sm font-bold text-[#94A3B8]">
+              <Calendar className="h-4 w-4 text-[#38BDF8]" />
+              {getRangeDates(preset).label}
+            </p>
+          </div>
+          <div className="flex rounded-[18px] border border-[#E5EAF1] bg-white p-1.5 shadow-sm">
+            {(["today", "7d", "30d"] as RangePreset[]).map((p) => (
+              <Button
+                key={p}
+                size="sm"
+                variant="ghost"
+                onClick={() => setPreset(p)}
+                className={`h-10 rounded-[14px] px-4 text-sm font-black transition ${
+                  preset === p
+                    ? "bg-[#020617] text-white shadow-[0_10px_20px_rgba(2,6,23,0.14)] hover:bg-[#020617] hover:text-white"
+                    : "text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]"
+                }`}
+              >
+                {p === "today" ? "Today" : p === "7d" ? "7 days" : "30 days"}
+              </Button>
+            ))}
+          </div>
         </div>
-        <div className="flex rounded-lg border bg-muted/40 p-1 gap-1">
-          {(["today", "7d", "30d"] as RangePreset[]).map((p) => (
-            <Button
-              key={p}
-              size="sm"
-              variant="ghost"
-              onClick={() => setPreset(p)}
-              className={`px-3 py-1.5 text-sm ${preset === p ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}
-            >
-              {p === "today" ? "Today" : p === "7d" ? "7 days" : "30 days"}
-            </Button>
-          ))}
+        <div className="grid grid-cols-3 border-t border-[#E5EAF1]">
+          <div className="p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Dispatch</p>
+            <p className="mt-1 text-lg font-black text-[#020617]">Live</p>
+          </div>
+          <div className="border-x border-[#E5EAF1] p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Window</p>
+            <p className="mt-1 text-lg font-black text-[#020617]">{preset === "today" ? "Daily" : preset === "7d" ? "Weekly" : "Monthly"}</p>
+          </div>
+          <div className="p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Focus</p>
+            <p className="mt-1 text-lg font-black text-[#020617]">Speed</p>
+          </div>
         </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <MetricCard
+          label="Orders dispatched"
+          value={data?.dispatchedToday ?? 0}
+          helper="Assignments created during the selected reporting window."
+          icon={Truck}
+          accent={C.ink}
+          soft={C.bg}
+        />
+        <MetricCard
+          label="Avg wait"
+          value={data?.avgWaitMinutes != null ? `${data.avgWaitMinutes} min` : "-"}
+          helper="Average time from order creation to first driver assignment."
+          icon={Clock}
+          accent={C.water}
+          soft="#EFF9FF"
+        />
+        <MetricCard
+          label="Active drivers"
+          value={data?.topDrivers.length ?? 0}
+          helper="Drivers with completed deliveries in this period."
+          icon={TrendingUp}
+          accent={C.progress}
+          soft="#EFFFFA"
+        />
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Truck className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{data?.dispatchedToday ?? 0}</p>
-                <p className="text-xs text-muted-foreground">Orders dispatched</p>
-              </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="overflow-hidden rounded-[30px] border border-[#E5EAF1] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#E5EAF1] bg-[#F6F8FB] p-5">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7C83F6]">Leaderboard</p>
+              <h2 className="mt-1 text-lg font-black text-[#020617]">Top Drivers</h2>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {data?.avgWaitMinutes != null ? `${data.avgWaitMinutes} min` : "—"}
-                </p>
-                <p className="text-xs text-muted-foreground">Avg wait time to assignment</p>
-              </div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-white text-[#7C83F6] ring-1 ring-[#E5EAF1]">
+              <Star className="h-5 w-5" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{data?.topDrivers.length ?? 0}</p>
-                <p className="text-xs text-muted-foreground">Active drivers with deliveries</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Top drivers + Bottleneck restaurants */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Star className="w-4 h-4 text-amber-500" />
-              <CardTitle className="text-base">Top Drivers Today</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="p-4">
             {(!data?.topDrivers || data.topDrivers.length === 0) ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No completed deliveries recorded yet today.</p>
+              <div className="rounded-[22px] bg-[#F6F8FB] p-8 text-center ring-1 ring-[#E5EAF1]">
+                <p className="text-sm font-black text-[#020617]">No completed deliveries yet</p>
+                <p className="mt-1 text-xs font-semibold text-[#94A3B8]">Driver rankings will appear after delivery completion.</p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {data.topDrivers.map((driver, index) => (
-                  <div key={driver.driverId} className="flex items-center justify-between">
+                  <div
+                    key={driver.driverId}
+                    className="flex items-center justify-between gap-3 rounded-[20px] border border-[#E5EAF1] bg-white p-3 shadow-[0_8px_18px_rgba(2,6,23,0.04)]"
+                  >
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-muted-foreground w-5">#{index + 1}</span>
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#F3F4FF] text-sm font-black text-[#7C83F6]">
+                        {index + 1}
+                      </span>
                       <div>
-                        <p className="font-medium text-sm">{driver.driverName}</p>
+                        <p className="text-sm font-black text-[#020617]">{driver.driverName}</p>
+                        <p className="text-xs font-semibold text-[#94A3B8]">Completed delivery volume</p>
                       </div>
                     </div>
-                    <Badge variant="secondary">
-                      <BarChart2 className="w-3 h-3 mr-1" />
+                    <Badge variant="outline" className="border-[#7C83F6]/20 bg-[#F3F4FF] font-black text-[#7C83F6]">
+                      <BarChart2 className="mr-1 h-3 w-3" />
                       {driver.deliveries} deliveries
                     </Badge>
                   </div>
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <CardTitle className="text-base">Slow Restaurants (Today)</CardTitle>
+        <section className="overflow-hidden rounded-[30px] border border-[#E5EAF1] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#E5EAF1] bg-[#F6F8FB] p-5">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#FB6B7A]">Bottlenecks</p>
+              <h2 className="mt-1 text-lg font-black text-[#020617]">Slow Restaurants</h2>
             </div>
-          </CardHeader>
-          <CardContent>
+            <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-white text-[#FB6B7A] ring-1 ring-[#E5EAF1]">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="p-4">
             {(!data?.slowRestaurants || data.slowRestaurants.length === 0) ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No pickup data available yet today.</p>
+              <div className="rounded-[22px] bg-[#F6F8FB] p-8 text-center ring-1 ring-[#E5EAF1]">
+                <p className="text-sm font-black text-[#020617]">No pickup delays found</p>
+                <p className="mt-1 text-xs font-semibold text-[#94A3B8]">Bottleneck data will appear after pickup events are tracked.</p>
+              </div>
             ) : (
               <div className="space-y-3">
-                {data.slowRestaurants.map((r) => (
-                  <div key={r.restaurantId} className="flex items-center justify-between">
+                {data.slowRestaurants.map((restaurant) => (
+                  <div
+                    key={restaurant.restaurantId}
+                    className="flex items-center justify-between gap-3 rounded-[20px] border border-[#E5EAF1] bg-white p-3 shadow-[0_8px_18px_rgba(2,6,23,0.04)]"
+                  >
                     <div>
-                      <p className="font-medium text-sm">{r.restaurantName}</p>
-                      <p className="text-xs text-muted-foreground">{r.orderCount} orders sampled</p>
+                      <p className="text-sm font-black text-[#020617]">{restaurant.restaurantName}</p>
+                      <p className="text-xs font-semibold text-[#94A3B8]">{restaurant.orderCount} orders sampled</p>
                     </div>
                     <Badge
                       variant="outline"
-                      className={r.avgMinutes > 30 ? "text-red-600 border-red-400" : "text-amber-600 border-amber-400"}
+                      className={
+                        restaurant.avgMinutes > 30
+                          ? "border-[#FB6B7A]/25 bg-[#FFF0F2] font-black text-[#FB6B7A]"
+                          : "border-[#F97316]/25 bg-[#FFF7ED] font-black text-[#F97316]"
+                      }
                     >
-                      <Clock className="w-3 h-3 mr-1" />
-                      avg {r.avgMinutes} min
+                      <Clock className="mr-1 h-3 w-3" />
+                      avg {restaurant.avgMinutes} min
                     </Badge>
                   </div>
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
     </div>
   );

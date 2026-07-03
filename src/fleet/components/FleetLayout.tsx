@@ -35,7 +35,7 @@ function FleetSidebar({ mobile = false, onClose, onLogout }: { mobile?: boolean;
   ];
 
   return (
-    <div className={`${mobile ? '' : 'w-64'} bg-background border-r flex flex-col h-full`}>
+    <div className={`${mobile ? '' : 'w-64'} flex h-full min-h-0 flex-col border-r bg-background`}>
       {/* Logo */}
       <div className="p-4 border-b">
         <div className="flex items-center gap-2">
@@ -47,7 +47,7 @@ function FleetSidebar({ mobile = false, onClose, onLogout }: { mobile?: boolean;
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
         {navItems.map((item) => {
           const hasAlert = item.to === "/fleet/dispatch" && unassignedCount > 0;
           return (
@@ -79,7 +79,7 @@ function FleetSidebar({ mobile = false, onClose, onLogout }: { mobile?: boolean;
       </nav>
 
       {/* User Info */}
-      <div className="p-4 border-t">
+      <div className="shrink-0 border-t p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
             <span className="font-semibold text-primary">
@@ -122,9 +122,9 @@ export function FleetLayout() {
   return (
     <TrackingProvider>
     <CityProvider>
-      <div className="min-h-screen flex">
+      <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-background">
         {/* Desktop Sidebar */}
-        <div className="hidden lg:block">
+        <div className="hidden h-full shrink-0 lg:block">
           <FleetSidebar onLogout={handleLogout} />
         </div>
 
@@ -139,9 +139,9 @@ export function FleetLayout() {
         )}
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col min-h-screen">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {/* Header */}
-          <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+          <header className="sticky top-0 z-40 shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="flex items-center justify-between h-14 px-4">
               <div className="flex items-center gap-4">
                 <Button
@@ -162,7 +162,7 @@ export function FleetLayout() {
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 p-4 lg:p-6 overflow-auto">
+          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 overscroll-contain lg:p-6 [-webkit-overflow-scrolling:touch]">
             <div className="max-w-7xl mx-auto">
               <Outlet />
             </div>

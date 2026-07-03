@@ -1,56 +1,102 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { trackingSocket } from "@/fleet/services/trackingSocket";
-import { useFleetAuth } from "@/fleet/hooks/useFleetAuth";
-import { 
-  MapPin, 
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import {
+  LocateFixed,
+  MapPin,
   Navigation,
+  RefreshCw,
+  Search,
+  Star,
+  Truck,
   Wifi,
   WifiOff,
-  Search,
-  RefreshCw,
-  LocateFixed
 } from "lucide-react";
-import type { Driver } from "@/fleet/types";
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
-// Fix Leaflet default marker icon issue in webpack/vite
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { useFleetAuth } from "@/fleet/hooks/useFleetAuth";
+import { trackingSocket } from "@/fleet/services/trackingSocket";
+import { supabase } from "@/integrations/supabase/client";
+import type { Driver } from "@/fleet/types";
+
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
 const DefaultIcon = L.icon({
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
   iconSize: [25, 41],
-  iconAnchor: [12, 41]
+  iconAnchor: [12, 41],
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Doha, Qatar coordinates
 const DOHA_CENTER: [number, number] = [25.2854, 51.1839];
 
+const C = {
+  ink: "#020617",
+  muted: "#94A3B8",
+  panel: "#F6F8FB",
+  protein: "#7C83F6",
+  progress: "#22C7A1",
+  water: "#38BDF8",
+  fat: "#FB6B7A",
+};
+
+function makeDriverIcon(driver: Driver) {
+  const color = driver.isOnline ? C.progress : "#CBD5E1";
+  const label = driver.fullName.charAt(0).toUpperCase();
+
+  return L.divIcon({
+    className: "nutrio-driver-marker",
+    html: `
+      <div style="
+        width: 36px;
+        height: 36px;
+        border-radius: 14px;
+        background: ${color};
+        color: ${driver.isOnline ? "#ffffff" : C.ink};
+        border: 3px solid white;
+        box-shadow: 0 14px 26px rgba(2, 6, 23, 0.22);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 900;
+        font-family: inherit;
+      ">${label}</div>
+    `,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+  });
+}
+
+function locationAgeLabel(updatedAt?: string) {
+  if (!updatedAt) return "No recent ping";
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(updatedAt).getTime()) / 60000));
+  if (minutes < 1) return "Just now";
+  if (minutes === 1) return "1 min ago";
+  return `${minutes} min ago`;
+}
+
 export default function LiveTracking() {
+  const { toast } = useToast();
   const { user, token } = useFleetAuth();
   const [search, setSearch] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [filteredDrivers, setFilteredDrivers] = useState<Driver[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
-  
+
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
-  const markers = useRef<Record<string, L.Marker>>({});
   const markerLayer = useRef<L.LayerGroup | null>(null);
+  const markers = useRef<Record<string, L.Marker>>({});
 
-  // Initialize Leaflet map
   useEffect(() => {
     if (!mapContainer.current) return;
 
@@ -58,194 +104,174 @@ export default function LiveTracking() {
       map.current = L.map(mapContainer.current, {
         center: DOHA_CENTER,
         zoom: 12,
+        zoomControl: false,
       });
 
-      // Add OpenStreetMap tile layer (free, no API key needed)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
       }).addTo(map.current);
 
-      // Add layer group for markers
+      L.control.zoom({ position: "bottomleft" }).addTo(map.current);
       markerLayer.current = L.layerGroup().addTo(map.current);
-
     } catch (error) {
-      console.error('[LiveTracking] Error initializing map:', error);
-      setMapError('Failed to initialize map');
+      console.error("[LiveTracking] Error initializing map:", error);
+      setMapError("Failed to initialize map");
     }
 
     return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
+      map.current?.remove();
+      map.current = null;
     };
   }, []);
 
-  // Fetch drivers
   const fetchDrivers = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('drivers')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .from("drivers")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      const transformedDrivers: Driver[] = (data || []).map((d: { id: string; user_id?: string; email?: string; phone_number?: string; full_name?: string; city_id?: string; assigned_zone_ids?: string[]; approval_status?: string; is_active?: boolean; is_online?: boolean; current_lat?: number; current_lng?: number; last_location_update?: string; total_deliveries?: number; rating?: number; cancellation_rate?: number; wallet_balance?: number; total_earnings?: number; created_at?: string }) => ({
-        id: d.id,
-        authUserId: d.user_id,
-        email: d.email || "",
-        phone: d.phone_number || "",
-        fullName: d.full_name || `Driver ${d.phone_number?.slice(-4) || d.id.slice(0, 8)}`,
-        cityId: d.city_id || "doha",
-        assignedZoneIds: d.assigned_zone_ids || [],
-        status: d.approval_status === "approved" && d.is_active 
-          ? "active" 
-          : d.approval_status === "pending" 
-            ? "pending_verification" 
+      const transformedDrivers: Driver[] = (data || []).map((driver: {
+        id: string;
+        user_id?: string;
+        email?: string;
+        phone_number?: string;
+        full_name?: string;
+        city_id?: string;
+        assigned_zone_ids?: string[];
+        approval_status?: string;
+        is_active?: boolean;
+        is_online?: boolean;
+        current_lat?: number;
+        current_lng?: number;
+        last_location_update?: string;
+        total_deliveries?: number;
+        rating?: number;
+        cancellation_rate?: number;
+        wallet_balance?: number;
+        total_earnings?: number;
+        created_at?: string;
+      }) => ({
+        id: driver.id,
+        authUserId: driver.user_id,
+        email: driver.email || "",
+        phone: driver.phone_number || "",
+        fullName: driver.full_name || `Driver ${driver.phone_number?.slice(-4) || driver.id.slice(0, 8)}`,
+        cityId: driver.city_id || "doha",
+        assignedZoneIds: driver.assigned_zone_ids || [],
+        status: driver.approval_status === "approved" && driver.is_active
+          ? "active"
+          : driver.approval_status === "pending"
+            ? "pending_verification"
             : "inactive",
-        currentLatitude: d.current_lat || undefined,
-        currentLongitude: d.current_lng || undefined,
-        locationUpdatedAt: d.last_location_update || undefined,
-        isOnline: d.is_online || false,
-        totalDeliveries: d.total_deliveries || 0,
-        rating: d.rating || 5.0,
-        cancellationRate: d.cancellation_rate || 0,
-        currentBalance: d.wallet_balance || 0,
-        totalEarnings: d.total_earnings || 0,
+        currentLatitude: driver.current_lat || undefined,
+        currentLongitude: driver.current_lng || undefined,
+        locationUpdatedAt: driver.last_location_update || undefined,
+        isOnline: driver.is_online || false,
+        totalDeliveries: driver.total_deliveries || 0,
+        rating: driver.rating || 5.0,
+        cancellationRate: driver.cancellation_rate || 0,
+        currentBalance: driver.wallet_balance || 0,
+        totalEarnings: driver.total_earnings || 0,
         assignedVehicleId: undefined,
-        createdAt: d.created_at || new Date().toISOString(),
+        createdAt: driver.created_at || new Date().toISOString(),
       }));
 
       setDrivers(transformedDrivers);
     } catch (error) {
-      console.error('Error fetching drivers:', error);
+      console.error("Error fetching drivers:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to load drivers',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load drivers",
+        variant: "destructive",
       });
     }
-  }, []);
+  }, [toast]);
 
-  // Initial fetch
   useEffect(() => {
     fetchDrivers();
   }, [fetchDrivers]);
 
-  // Filter drivers based on search
-  useEffect(() => {
-    if (!search.trim()) {
-      setFilteredDrivers(drivers);
-    } else {
-      const filtered = drivers.filter(driver =>
-        driver.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        driver.phone.includes(search)
-      );
-      setFilteredDrivers(filtered);
-    }
+  const filteredDrivers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return drivers;
+
+    return drivers.filter((driver) =>
+      driver.fullName.toLowerCase().includes(query) ||
+      driver.phone.includes(query)
+    );
   }, [drivers, search]);
 
-  // Update markers when filtered drivers change
+  const driversWithLocation = filteredDrivers.filter((driver) => driver.currentLatitude && driver.currentLongitude);
+  const onlineDrivers = filteredDrivers.filter((driver) => driver.isOnline);
+
   useEffect(() => {
     if (!map.current || !markerLayer.current) return;
 
-    // Clear existing markers
     markerLayer.current.clearLayers();
     markers.current = {};
 
-    // Add new markers
-    filteredDrivers.forEach(driver => {
+    filteredDrivers.forEach((driver) => {
       if (!driver.currentLatitude || !driver.currentLongitude) return;
 
-      // Create custom marker icon
-      const iconHtml = `
-        <div style="
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          background: ${driver.isOnline ? '#22c55e' : '#6b7280'};
-          border: 3px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        "></div>
-      `;
-
-      const customIcon = L.divIcon({
-        html: iconHtml,
-        className: 'custom-driver-marker',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
-      });
-
       const popupContent = `
-        <div style="padding: 8px; min-width: 150px;">
-          <strong>${driver.fullName}</strong><br/>
-          <span style="font-size: 12px; color: #666;">${driver.phone}</span><br/>
-          <span style="font-size: 12px; color: ${driver.isOnline ? '#22c55e' : '#6b7280'};">
-            ${driver.isOnline ? '🟢 Online' : '⚪ Offline'}
-          </span><br/>
-          <span style="font-size: 12px; color: #666;">
-            ${driver.totalDeliveries} deliveries
-          </span><br/>
-          <span style="font-size: 12px; color: #f59e0b;">
-            ★ ${driver.rating.toFixed(1)}
-          </span>
+        <div style="min-width: 170px; padding: 8px; color: ${C.ink};">
+          <div style="font-weight: 900; font-size: 14px;">${driver.fullName}</div>
+          <div style="font-size: 12px; color: ${C.muted}; margin-top: 2px;">${driver.phone}</div>
+          <div style="margin-top: 8px; display: flex; gap: 6px; align-items: center;">
+            <span style="width: 8px; height: 8px; border-radius: 999px; background: ${driver.isOnline ? C.progress : "#CBD5E1"};"></span>
+            <span style="font-size: 12px; font-weight: 800;">${driver.isOnline ? "Online" : "Offline"}</span>
+          </div>
+          <div style="font-size: 12px; color: ${C.muted}; margin-top: 6px;">${driver.totalDeliveries} deliveries / ${driver.rating.toFixed(1)} rating</div>
         </div>
       `;
 
-      const marker = L.marker(
-        [driver.currentLatitude, driver.currentLongitude],
-        { icon: customIcon }
-      )
+      const marker = L.marker([driver.currentLatitude, driver.currentLongitude], {
+        icon: makeDriverIcon(driver),
+      })
         .bindPopup(popupContent)
-        .on('click', () => {
-          setSelectedDriver(driver);
-        });
+        .on("click", () => setSelectedDriver(driver));
 
-      if (markerLayer.current) {
-        marker.addTo(markerLayer.current);
-      }
+      marker.addTo(markerLayer.current!);
       markers.current[driver.id] = marker;
     });
 
-    // Fit map to show all markers if there are any
-    if (filteredDrivers.length > 0 && filteredDrivers.some(d => d.currentLatitude && d.currentLongitude)) {
+    if (driversWithLocation.length > 0) {
       const bounds = L.latLngBounds(
-        filteredDrivers
-          .filter(d => d.currentLatitude && d.currentLongitude)
-          .map(d => [d.currentLatitude!, d.currentLongitude!])
+        driversWithLocation.map((driver) => [driver.currentLatitude!, driver.currentLongitude!])
       );
-      map.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      map.current.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
     }
-  }, [filteredDrivers]);
+  }, [driversWithLocation, filteredDrivers]);
 
-  // WebSocket connection
   useEffect(() => {
     if (!user) return;
 
     trackingSocket.connect({
-      token: token || '',
-      userRole: 'fleet_manager',
-      onConnect: () => {
-
-        setIsConnected(true);
-      },
-      onDisconnect: () => {
-
-        setIsConnected(false);
-      },
+      token: token || "",
+      userRole: "fleet_manager",
+      onConnect: () => setIsConnected(true),
+      onDisconnect: () => setIsConnected(false),
       onDriverLocation: (location) => {
-
-        setDrivers(prev => prev.map(d =>
-          d.id === location.driverId
-            ? { ...d, currentLatitude: location.latitude, currentLongitude: location.longitude }
-            : d
-        ));
+        setDrivers((prev) =>
+          prev.map((driver) =>
+            driver.id === location.driverId
+              ? {
+                  ...driver,
+                  currentLatitude: location.latitude,
+                  currentLongitude: location.longitude,
+                  locationUpdatedAt: new Date().toISOString(),
+                }
+              : driver
+          )
+        );
       },
       onError: (error) => {
-        console.error('[LiveTracking] WebSocket error:', error);
-      }
+        console.error("[LiveTracking] WebSocket error:", error);
+      },
     });
 
     return () => {
@@ -253,170 +279,196 @@ export default function LiveTracking() {
     };
   }, [user, token]);
 
-  const onlineDrivers = filteredDrivers.filter(d => d.isOnline);
+  const centerDriver = (driver: Driver) => {
+    setSelectedDriver(driver);
+    if (driver.currentLatitude && driver.currentLongitude) {
+      markers.current[driver.id]?.openPopup();
+      map.current?.setView([driver.currentLatitude, driver.currentLongitude], 15);
+    }
+  };
 
   if (mapError) {
     return (
-      <div className="space-y-6">
-        <div className="text-center py-12">
-          <Navigation className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
-          <p className="text-muted-foreground">{mapError}</p>
-          <Button onClick={() => window.location.reload()} variant="outline" className="mt-4">
-            Reload Page
-          </Button>
-        </div>
+      <div className="rounded-[28px] bg-white p-10 text-center text-[#020617] ring-1 ring-[#E5EAF1]">
+        <Navigation className="mx-auto mb-4 h-14 w-14 text-[#7C83F6]" />
+        <p className="font-black">{mapError}</p>
+        <Button onClick={() => window.location.reload()} variant="outline" className="mt-4 rounded-full border-[#E5EAF1] bg-white font-black text-[#020617]">
+          Reload Page
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 h-[calc(100vh-6rem)]">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Live Tracking</h1>
-          <p className="text-muted-foreground">Track drivers in real-time</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={isConnected ? "default" : "secondary"}>
-            {isConnected ? (
-              <><Wifi className="h-3 w-3 mr-1" /> Connected</>
-            ) : (
-              <><WifiOff className="h-3 w-3 mr-1" /> Disconnected</>
-            )}
-          </Badge>
-          <Button variant="outline" size="sm" onClick={fetchDrivers}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+    <div className="space-y-5 bg-[#F6F8FB] px-1 pb-8 text-[#020617] sm:px-0">
+      <div className="overflow-hidden rounded-[28px] bg-white p-5 ring-1 ring-[#E5EAF1]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#F6F8FB] px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-[#38BDF8]">
+              <span className="h-2 w-2 rounded-full bg-[#22C7A1]" />
+              Live tracking
+            </div>
+            <h1 className="mt-3 text-[27px] font-black leading-tight text-[#020617]">Driver map</h1>
+            <p className="mt-1 max-w-[34rem] text-sm font-semibold leading-6 text-[#64748B]">
+              Monitor driver locations, online status, and recent movement across Doha in real time.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={isConnected ? "border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]" : "border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#BE123C]"}>
+              {isConnected ? <Wifi className="mr-1 h-3 w-3" /> : <WifiOff className="mr-1 h-3 w-3" />}
+              {isConnected ? "Connected" : "Disconnected"}
+            </Badge>
+            <Button variant="outline" size="sm" onClick={fetchDrivers} className="min-h-10 rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-4 h-[calc(100%-5rem)]">
-        {/* Drivers List */}
-        <Card className="w-80 flex flex-col">
-          <CardHeader>
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Online", value: onlineDrivers.length, icon: Wifi, color: C.progress },
+          { label: "Tracked", value: driversWithLocation.length, icon: MapPin, color: C.water },
+          { label: "Total", value: filteredDrivers.length, icon: Truck, color: C.protein },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <div key={label} className="rounded-[24px] bg-white p-4 ring-1 ring-[#E5EAF1]">
+            <Icon className="mb-3 h-5 w-5" style={{ color }} />
+            <p className="text-2xl font-black leading-none text-[#020617]">{value}</p>
+            <p className="mt-1 text-xs font-bold text-[#94A3B8]">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid min-h-[680px] grid-cols-1 gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <Card className="flex min-h-[520px] flex-col rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
+          <CardContent className="flex min-h-0 flex-1 flex-col p-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
               <Input
                 placeholder="Search drivers..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
+                onChange={(event) => setSearch(event.target.value)}
+                className="min-h-12 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] pl-11 font-semibold text-[#020617] placeholder:text-[#94A3B8]"
               />
             </div>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-auto">
-            <div className="space-y-2">
-              {filteredDrivers.map((driver) => (
-                <div
-                  key={driver.id}
-                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedDriver?.id === driver.id
-                      ? 'border-primary bg-primary/5'
-                      : 'hover:bg-muted'
-                  }`}
-                  onClick={() => {
-                    setSelectedDriver(driver);
-                    if (driver.currentLatitude && driver.currentLongitude && markers.current[driver.id]) {
-                      markers.current[driver.id].openPopup();
-                      map.current?.setView([driver.currentLatitude, driver.currentLongitude], 15);
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${driver.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{driver.fullName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{driver.phone}</p>
+
+            <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-auto pr-1">
+              {filteredDrivers.map((driver) => {
+                const selected = selectedDriver?.id === driver.id;
+                const hasLocation = Boolean(driver.currentLatitude && driver.currentLongitude);
+
+                return (
+                  <button
+                    key={driver.id}
+                    type="button"
+                    className={`w-full rounded-2xl border p-3 text-left transition-colors ${
+                      selected ? "border-[#020617] bg-[#F6F8FB]" : "border-[#E5EAF1] bg-white hover:bg-[#F6F8FB]"
+                    }`}
+                    onClick={() => centerDriver(driver)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-black"
+                        style={{
+                          backgroundColor: driver.isOnline ? `${C.progress}18` : C.panel,
+                          color: driver.isOnline ? C.progress : C.muted,
+                        }}
+                      >
+                        {driver.fullName.charAt(0).toUpperCase()}
+                        <span
+                          className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-white"
+                          style={{ backgroundColor: driver.isOnline ? C.progress : "#CBD5E1" }}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-black text-[#020617]">{driver.fullName}</p>
+                        <p className="truncate text-xs font-semibold text-[#94A3B8]">{driver.phone}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3" />
-                    <span>
-                      {driver.currentLatitude && driver.currentLongitude
-                        ? 'Location available'
-                        : 'No location data'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              
+                    <div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold">
+                      <span className={hasLocation ? "text-[#38BDF8]" : "text-[#94A3B8]"}>
+                        {hasLocation ? "Location available" : "No location data"}
+                      </span>
+                      <span className="text-[#94A3B8]">{locationAgeLabel(driver.locationUpdatedAt)}</span>
+                    </div>
+                  </button>
+                );
+              })}
+
               {filteredDrivers.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No drivers found</p>
+                <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F6F8FB] py-10 text-center text-[#94A3B8]">
+                  <Search className="mx-auto mb-2 h-8 w-8" />
+                  <p className="text-sm font-black">No drivers found</p>
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Map Area */}
-        <Card className="flex-1 relative">
-          <CardContent className="p-0 h-full">
-            <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
-            
-            {/* Stats Overlay */}
-            <div className="absolute bottom-4 right-4 z-10">
-              <div className="bg-white rounded-lg shadow-lg px-4 py-3">
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold">{onlineDrivers.length}</p>
-                    <p className="text-xs text-muted-foreground">Online</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{filteredDrivers.length}</p>
-                    <p className="text-xs text-muted-foreground">Total</p>
-                  </div>
+        <Card className="relative min-h-[620px] overflow-hidden rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
+          <CardContent className="h-full p-0">
+            <div ref={mapContainer} className="absolute inset-0" />
+
+            <div className="absolute bottom-4 right-4 z-10 rounded-[22px] bg-white/95 p-3 ring-1 ring-[#E5EAF1] backdrop-blur">
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="rounded-2xl bg-[#F6F8FB] px-4 py-3">
+                  <p className="text-2xl font-black text-[#22C7A1]">{onlineDrivers.length}</p>
+                  <p className="text-[10px] font-black uppercase text-[#94A3B8]">Online</p>
+                </div>
+                <div className="rounded-2xl bg-[#F6F8FB] px-4 py-3">
+                  <p className="text-2xl font-black text-[#7C83F6]">{filteredDrivers.length}</p>
+                  <p className="text-[10px] font-black uppercase text-[#94A3B8]">Total</p>
                 </div>
               </div>
             </div>
 
-            {/* Selected Driver Info Overlay */}
             {selectedDriver && (
-              <div className="absolute top-4 left-4 z-10">
-                <div className="bg-white rounded-lg shadow-lg p-4 min-w-[200px]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="font-semibold text-primary">
-                        {selectedDriver.fullName.charAt(0)}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium">{selectedDriver.fullName}</p>
-                      <p className="text-xs text-muted-foreground">{selectedDriver.phone}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Status</span>
-                      <Badge variant={selectedDriver.isOnline ? "default" : "secondary"}>
-                        {selectedDriver.isOnline ? 'Online' : 'Offline'}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Deliveries</span>
-                      <span>{selectedDriver.totalDeliveries}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Rating</span>
-                      <span>★ {selectedDriver.rating.toFixed(1)}</span>
-                    </div>
-                  </div>
-                  <Button 
-                    className="w-full mt-3" 
-                    size="sm"
-                    onClick={() => {
-                      if (selectedDriver.currentLatitude && selectedDriver.currentLongitude) {
-                        map.current?.setView([selectedDriver.currentLatitude, selectedDriver.currentLongitude], 16);
-                      }
+              <div className="absolute left-4 top-4 z-10 w-[min(320px,calc(100%-2rem))] rounded-[24px] bg-white/95 p-4 ring-1 ring-[#E5EAF1] backdrop-blur">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-base font-black"
+                    style={{
+                      backgroundColor: selectedDriver.isOnline ? `${C.progress}18` : C.panel,
+                      color: selectedDriver.isOnline ? C.progress : C.muted,
                     }}
                   >
-                    <LocateFixed className="h-4 w-4 mr-2" />
-                    Center on Map
-                  </Button>
+                    {selectedDriver.fullName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-black text-[#020617]">{selectedDriver.fullName}</p>
+                    <p className="truncate text-xs font-semibold text-[#94A3B8]">{selectedDriver.phone}</p>
+                  </div>
                 </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                    <Navigation className="mb-2 h-4 w-4 text-[#22C7A1]" />
+                    <p className="text-xs font-black text-[#020617]">{selectedDriver.isOnline ? "Online" : "Offline"}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                    <Truck className="mb-2 h-4 w-4 text-[#38BDF8]" />
+                    <p className="text-xs font-black text-[#020617]">{selectedDriver.totalDeliveries}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                    <Star className="mb-2 h-4 w-4 fill-[#FB6B7A] text-[#FB6B7A]" />
+                    <p className="text-xs font-black text-[#020617]">{selectedDriver.rating.toFixed(1)}</p>
+                  </div>
+                </div>
+
+                <Button
+                  className="mt-4 min-h-11 w-full rounded-full bg-[#020617] font-black text-white shadow-none hover:bg-[#020617]/90"
+                  size="sm"
+                  onClick={() => {
+                    if (selectedDriver.currentLatitude && selectedDriver.currentLongitude) {
+                      map.current?.setView([selectedDriver.currentLatitude, selectedDriver.currentLongitude], 16);
+                    }
+                  }}
+                >
+                  <LocateFixed className="mr-2 h-4 w-4" />
+                  Center on Map
+                </Button>
               </div>
             )}
           </CardContent>

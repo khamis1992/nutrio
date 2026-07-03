@@ -271,9 +271,9 @@ export default function RouteOptimization() {
   };
 
   const getPriorityBadge = (priority: string) => {
-    if (priority === "high") return <Badge className="bg-red-500 text-[10px] px-1.5 py-0">High</Badge>;
-    if (priority === "normal") return <Badge className="bg-blue-500 text-[10px] px-1.5 py-0">Normal</Badge>;
-    return <Badge variant="outline" className="text-[10px] px-1.5 py-0">Low</Badge>;
+    if (priority === "high") return <Badge className="bg-[#FB6B7A] text-[10px] px-1.5 py-0 text-white">High</Badge>;
+    if (priority === "normal") return <Badge className="bg-[#38BDF8] text-[10px] px-1.5 py-0 text-white">Normal</Badge>;
+    return <Badge variant="outline" className="border-[#E5EAF1] text-[10px] px-1.5 py-0 text-[#94A3B8]">Low</Badge>;
   };
 
   // ── Manual optimize (selected subset) ──────────────────────────────────
@@ -380,31 +380,32 @@ export default function RouteOptimization() {
   const gpsDriverCount = drivers.filter((d) => d.currentLatitude != null).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 text-[#020617]">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 rounded-[26px] bg-white p-4 ring-1 ring-[#E5EAF1] sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Route Optimization</h1>
-          <p className="text-muted-foreground">
+          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#7C83F6]">Bulk assign</p>
+          <h1 className="mt-1 text-[22px] font-black text-[#020617]">Route Optimization</h1>
+          <p className="text-sm font-semibold text-[#64748B]">
             Smart, proximity-based delivery assignment for online drivers.
           </p>
           {gpsDriverCount < drivers.length && (
-            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+            <p className="mt-2 flex items-center gap-1 text-xs font-bold text-[#FB6B7A]">
               <AlertTriangle className="h-3 w-3" />
               {drivers.length - gpsDriverCount} driver(s) have no GPS — they will receive jobs only when all GPS-equipped drivers are full.
             </p>
           )}
         </div>
         <div className="flex gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={fetchAll}>
+          <Button variant="outline" size="sm" onClick={fetchAll} className="rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none">
             <RotateCcw className="h-4 w-4 mr-1.5" />
             Refresh
           </Button>
           <Button
             onClick={handleAutoAssignAll}
             disabled={isOptimizing || drivers.length === 0 || pendingDeliveries.length === 0}
-            className="bg-green-600 hover:bg-green-700"
+            className="rounded-full bg-[#020617] font-black text-white shadow-none hover:bg-[#020617]/90"
           >
             <Zap className="h-4 w-4 mr-2" />
             {isOptimizing ? "Planning…" : "Auto-Assign All"}
@@ -413,19 +414,19 @@ export default function RouteOptimization() {
       </div>
 
       {/* Stats strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Online Drivers", value: drivers.length, icon: Users, color: "text-green-600" },
-          { label: "With GPS", value: gpsDriverCount, icon: Navigation, color: "text-blue-600" },
-          { label: "Pending Deliveries", value: pendingDeliveries.length, icon: Package, color: "text-amber-600" },
-          { label: "High Priority", value: pendingDeliveries.filter(d => d.priority === "high").length, icon: AlertTriangle, color: "text-red-500" },
+          { label: "Online Drivers", value: drivers.length, icon: Users, color: "text-[#22C7A1]" },
+          { label: "With GPS", value: gpsDriverCount, icon: Navigation, color: "text-[#38BDF8]" },
+          { label: "Pending Deliveries", value: pendingDeliveries.length, icon: Package, color: "text-[#7C83F6]" },
+          { label: "High Priority", value: pendingDeliveries.filter(d => d.priority === "high").length, icon: AlertTriangle, color: "text-[#FB6B7A]" },
         ].map(({ label, value, icon: Icon, color }) => (
-          <Card key={label}>
+          <Card key={label} className="rounded-[24px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
             <CardContent className="pt-3 pb-3 flex items-center gap-3">
               <Icon className={`h-5 w-5 ${color}`} />
               <div>
-                <p className="text-xl font-bold leading-none">{value}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+                <p className="text-xl font-black leading-none text-[#020617]">{value}</p>
+                <p className="mt-0.5 text-xs font-bold text-[#94A3B8]">{label}</p>
               </div>
             </CardContent>
           </Card>
@@ -434,14 +435,14 @@ export default function RouteOptimization() {
 
       {/* Preview panel (shown after optimize/auto-assign) */}
       {hasPreview && (
-        <Card className="border-green-300 bg-green-50/50">
+        <Card className="rounded-[26px] border-0 bg-white shadow-none ring-1 ring-[#22C7A1]/40">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2 text-green-800">
+            <CardTitle className="text-base flex items-center gap-2 font-black text-[#020617]">
               <Route className="h-4 w-4" />
               Route Preview — review before confirming
             </CardTitle>
             {hasActiveRules && (
-              <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <div className="mt-2 flex items-start gap-2 rounded-2xl border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 px-3 py-2 text-sm font-semibold text-[#BE123C]">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>
                   <strong>Auto-Dispatch is paused</strong> while this plan is open.
@@ -454,13 +455,13 @@ export default function RouteOptimization() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {optimizedRoutes.map((route) => (
-                <div key={route.driverId} className="rounded-lg border bg-white p-3 space-y-2 shadow-sm">
+                <div key={route.driverId} className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold text-sm">{route.driverName}</p>
-                    <Badge variant="secondary">{route.deliveries.length} job{route.deliveries.length !== 1 ? "s" : ""}</Badge>
+                    <p className="font-black text-sm text-[#020617]">{route.driverName}</p>
+                    <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">{route.deliveries.length} job{route.deliveries.length !== 1 ? "s" : ""}</Badge>
                   </div>
                   {route.totalDistanceKm != null && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <p className="text-xs font-semibold text-[#94A3B8] flex items-center gap-1">
                       <Navigation className="h-3 w-3" />
                       ~{formatDistance(route.totalDistanceKm)} total pickup distance
                     </p>
@@ -468,13 +469,13 @@ export default function RouteOptimization() {
                   <ol className="space-y-1 mt-1">
                     {route.deliveries.map((d, idx) => (
                       <li key={d.id} className="text-xs flex gap-2 items-start">
-                        <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 font-medium">
+                        <span className="w-4 h-4 rounded-full bg-[#7C83F6]/15 text-[#7C83F6] flex items-center justify-center shrink-0 font-black">
                           {idx + 1}
                         </span>
                         <span className="flex-1 min-w-0">
                           <span className="truncate block">{d.deliveryAddress}</span>
                           {d.distanceKm != null && (
-                            <span className="text-muted-foreground">{formatDistance(d.distanceKm)} from driver</span>
+                            <span className="text-[#94A3B8]">{formatDistance(d.distanceKm)} from driver</span>
                           )}
                         </span>
                         {getPriorityBadge(d.priority)}
@@ -485,12 +486,12 @@ export default function RouteOptimization() {
               ))}
             </div>
 
-            <div className="flex gap-2 pt-2 border-t">
-              <Button onClick={handleConfirmAssign} disabled={isAssigning} className="flex-1 sm:flex-none">
+            <div className="flex gap-2 border-t border-[#E5EAF1] pt-2">
+              <Button onClick={handleConfirmAssign} disabled={isAssigning} className="flex-1 rounded-full bg-[#020617] font-black text-white shadow-none hover:bg-[#020617]/90 sm:flex-none">
                 <CheckCircle className="h-4 w-4 mr-2" />
                 {isAssigning ? "Assigning…" : "Confirm & Assign"}
               </Button>
-              <Button variant="outline" onClick={handleReset} disabled={isAssigning}>
+              <Button variant="outline" onClick={handleReset} disabled={isAssigning} className="rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none">
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Discard
               </Button>
@@ -503,19 +504,19 @@ export default function RouteOptimization() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Driver list */}
-        <Card>
+        <Card className="rounded-[26px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Users className="h-4 w-4" />
+              <CardTitle className="text-base flex items-center gap-2 font-black text-[#020617]">
+                <Users className="h-4 w-4 text-[#22C7A1]" />
                 Online Drivers
               </CardTitle>
-              <span className="text-xs text-muted-foreground">{selectedDrivers.length} selected</span>
+              <span className="text-xs font-bold text-[#94A3B8]">{selectedDrivers.length} selected</span>
             </div>
           </CardHeader>
           <CardContent>
             {drivers.length === 0 ? (
-              <p className="text-muted-foreground text-sm text-center py-6">No online drivers right now.</p>
+              <p className="py-6 text-center text-sm font-semibold text-[#94A3B8]">No online drivers right now.</p>
             ) : (
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {drivers.map((driver) => {
@@ -529,10 +530,10 @@ export default function RouteOptimization() {
                       onClick={() => !overloaded && toggleDriver(driver.id)}
                       className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
                         overloaded
-                          ? "opacity-50 cursor-not-allowed bg-muted/30"
+                          ? "opacity-50 cursor-not-allowed bg-[#F6F8FB]"
                           : selectedDrivers.includes(driver.id)
-                            ? "bg-primary/10 border-primary cursor-pointer"
-                            : "hover:bg-muted cursor-pointer"
+                            ? "bg-[#7C83F6]/10 border-[#7C83F6] cursor-pointer"
+                            : "border-[#E5EAF1] hover:bg-[#F6F8FB] cursor-pointer"
                       }`}
                     >
                       <Checkbox
@@ -540,23 +541,23 @@ export default function RouteOptimization() {
                         disabled={overloaded}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{driver.fullName}</p>
-                        <p className="text-xs text-muted-foreground">{driver.phone}</p>
+                        <p className="font-black text-sm truncate text-[#020617]">{driver.fullName}</p>
+                        <p className="text-xs font-semibold text-[#94A3B8]">{driver.phone}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <div className="flex items-center gap-1">
                           {hasGps ? (
-                            <Navigation className="h-3 w-3 text-green-500" />
+                            <Navigation className="h-3 w-3 text-[#22C7A1]" />
                           ) : (
-                            <WifiOff className="h-3 w-3 text-muted-foreground" />
+                            <WifiOff className="h-3 w-3 text-[#94A3B8]" />
                           )}
                           {ageMin != null && (
-                            <span className={`text-[10px] ${ageMin > 10 ? "text-amber-500" : "text-muted-foreground"}`}>
+                            <span className={`text-[10px] font-bold ${ageMin > 10 ? "text-[#FB6B7A]" : "text-[#94A3B8]"}`}>
                               {ageMin}m ago
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-muted-foreground">{activeJobs} active job{activeJobs !== 1 ? "s" : ""}</span>
+                        <span className="text-[10px] font-bold text-[#94A3B8]">{activeJobs} active job{activeJobs !== 1 ? "s" : ""}</span>
                       </div>
                     </div>
                   );
@@ -567,29 +568,29 @@ export default function RouteOptimization() {
         </Card>
 
         {/* Delivery list */}
-        <Card>
+        <Card className="rounded-[26px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Package className="h-4 w-4" />
+              <CardTitle className="text-base flex items-center gap-2 font-black text-[#020617]">
+                <Package className="h-4 w-4 text-[#7C83F6]" />
                 Pending Deliveries
               </CardTitle>
-              <span className="text-xs text-muted-foreground">{selectedDeliveries.length} selected</span>
+              <span className="text-xs font-bold text-[#94A3B8]">{selectedDeliveries.length} selected</span>
             </div>
           </CardHeader>
           <CardContent>
             {pendingDeliveries.length === 0 ? (
-              <p className="text-muted-foreground text-sm text-center py-6">No unassigned deliveries right now.</p>
+              <p className="py-6 text-center text-sm font-semibold text-[#94A3B8]">No unassigned deliveries right now.</p>
             ) : (
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {pendingDeliveries.map((delivery) => (
                   <div
                     key={delivery.id}
                     onClick={() => toggleDelivery(delivery.id)}
-                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-3 transition-colors ${
                       selectedDeliveries.includes(delivery.id)
-                        ? "bg-primary/10 border-primary"
-                        : "hover:bg-muted"
+                        ? "bg-[#7C83F6]/10 border-[#7C83F6]"
+                        : "border-[#E5EAF1] hover:bg-[#F6F8FB]"
                     }`}
                   >
                     <Checkbox
@@ -598,19 +599,19 @@ export default function RouteOptimization() {
                     />
                     <div className="flex-1 min-w-0">
                       {delivery.restaurantName && (
-                        <p className="text-[11px] text-muted-foreground truncate">
+                        <p className="truncate text-[11px] font-bold text-[#94A3B8]">
                           📍 {delivery.restaurantName}
                         </p>
                       )}
-                      <p className="text-sm truncate">{delivery.deliveryAddress}</p>
+                      <p className="truncate text-sm font-black text-[#020617]">{delivery.deliveryAddress}</p>
                       <div className="flex items-center gap-2 mt-1">
                         {getPriorityBadge(delivery.priority)}
                         {delivery.pickupLat != null ? (
-                          <span className="text-[10px] text-green-600 flex items-center gap-0.5">
+                          <span className="flex items-center gap-0.5 text-[10px] font-bold text-[#22C7A1]">
                             <Navigation className="h-2.5 w-2.5" /> GPS
                           </span>
                         ) : (
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                          <span className="flex items-center gap-0.5 text-[10px] font-bold text-[#94A3B8]">
                             <WifiOff className="h-2.5 w-2.5" /> No coords
                           </span>
                         )}
@@ -631,6 +632,7 @@ export default function RouteOptimization() {
             variant="outline"
             onClick={handleOptimizeSelected}
             disabled={isOptimizing || selectedDrivers.length === 0 || selectedDeliveries.length === 0}
+            className="min-h-12 rounded-full border-[#E5EAF1] bg-white px-5 font-black text-[#020617] shadow-none"
           >
             {isOptimizing ? (
               <>

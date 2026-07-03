@@ -54,7 +54,7 @@ type OrderFilter = "all" | "preparing" | "ready_for_pickup";
 function getOrderStatusBadge(status: string) {
   if (status === "ready_for_pickup") {
     return (
-      <Badge className="bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+      <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">
         <CheckCircle2 className="w-3 h-3 mr-1" />
         Ready
       </Badge>
@@ -62,7 +62,7 @@ function getOrderStatusBadge(status: string) {
   }
 
   return (
-    <Badge className="bg-amber-500/10 text-amber-700 border border-amber-500/20">
+    <Badge className="border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#F97316]">
       <ChefHat className="w-3 h-3 mr-1" />
       Preparing
     </Badge>
@@ -72,21 +72,21 @@ function getOrderStatusBadge(status: string) {
 function getRecommendationTypeBadge(type: DispatchRecommendation["type"]) {
   switch (type) {
     case "idle_nearest":
-      return <Badge variant="outline">Nearest idle</Badge>;
+      return <Badge variant="outline" className="border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">Nearest idle</Badge>;
     case "route_compatible":
-      return <Badge className="bg-blue-500/10 text-blue-700 border border-blue-500/20">Route match</Badge>;
+      return <Badge className="border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#0369A1]">Route match</Badge>;
     case "busy_fallback":
-      return <Badge variant="secondary">Busy fallback</Badge>;
+      return <Badge className="border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#BE123C]">Busy fallback</Badge>;
     default:
-      return <Badge variant="secondary">Available</Badge>;
+      return <Badge className="border border-[#7C83F6]/25 bg-[#7C83F6]/10 text-[#4F46E5]">Available</Badge>;
   }
 }
 
 function ReliabilityBadge({ tier, label, score }: { tier: string; label: string; score: number }) {
   const colours: Record<string, string> = {
-    green: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
-    amber: "bg-amber-500/10 text-amber-700 border-amber-500/20",
-    red: "bg-red-500/10 text-red-700 border-red-500/20",
+    green: "bg-[#22C7A1]/10 text-[#047857] border-[#22C7A1]/25",
+    amber: "bg-[#FB6B7A]/10 text-[#F97316] border-[#FB6B7A]/25",
+    red: "bg-[#FB6B7A]/10 text-[#BE123C] border-[#FB6B7A]/25",
   };
   return (
     <Badge variant="outline" className={`border ${colours[tier] ?? ""}`} title={`Reliability score: ${score}/100`}>
@@ -349,34 +349,36 @@ export default function OrderManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 text-[#020617]">
       {/* Header + tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="rounded-[26px] bg-white p-4 ring-1 ring-[#E5EAF1]">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Order Management</h1>
-          <p className="text-muted-foreground">
+          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#7C83F6]">Live operations</p>
+          <h1 className="mt-1 text-[22px] font-black text-[#020617]">Order Management</h1>
+          <p className="text-sm font-semibold text-[#64748B]">
             Dispatch orders and view branch queues from one place.
           </p>
           {autoDispatchPaused && (
-            <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 px-3 py-1 text-xs font-black text-[#BE123C]">
               <AlertTriangle className="h-3 w-3" />
               Auto-Dispatch paused — route plan in progress
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border bg-muted/40 p-1 gap-1">
+        <div className="flex flex-col gap-2 sm:items-end">
+          <div className="grid grid-cols-2 gap-1 rounded-full bg-[#F6F8FB] p-1 ring-1 ring-[#E5EAF1]">
             <button
               type="button"
               onClick={() => setActiveTab("dispatch")}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === "dispatch" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              className={`min-h-10 rounded-full px-4 text-sm font-black transition-colors ${activeTab === "dispatch" ? "bg-[#020617] text-white" : "text-[#64748B]"}`}
             >
               Dispatch Queue
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("branches")}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === "branches" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              className={`min-h-10 rounded-full px-4 text-sm font-black transition-colors ${activeTab === "branches" ? "bg-[#020617] text-white" : "text-[#64748B]"}`}
             >
               By Branch
             </button>
@@ -388,17 +390,19 @@ export default function OrderManagement() {
                 size="sm"
                 onClick={() => navigate("/fleet/dispatch?tab=bulk")}
                 title="Open Route Optimization to batch-assign multiple orders at once"
+                className="rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none"
               >
                 <Route className="w-4 h-4 mr-2" />
                 Batch Plan
               </Button>
-              <Button variant="outline" onClick={() => fetchData(true)} disabled={refreshing}>
+              <Button variant="outline" onClick={() => fetchData(true)} disabled={refreshing} className="rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none">
                 <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {/* Branch Orders tab */}
@@ -412,55 +416,55 @@ export default function OrderManagement() {
       {activeTab === "dispatch" && <>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Card className="rounded-[24px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                <ChefHat className="w-5 h-5 text-amber-600" />
+              <div className="w-10 h-10 rounded-2xl bg-[#FB6B7A]/10 flex items-center justify-center">
+                <ChefHat className="w-5 h-5 text-[#FB6B7A]" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.preparing}</p>
-                <p className="text-xs text-muted-foreground">Preparing</p>
+                <p className="text-2xl font-black text-[#020617]">{stats.preparing}</p>
+                <p className="text-xs font-bold text-[#94A3B8]">Preparing</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-[24px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <div className="w-10 h-10 rounded-2xl bg-[#22C7A1]/10 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-[#22C7A1]" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.ready}</p>
-                <p className="text-xs text-muted-foreground">Ready for Pickup</p>
+                <p className="text-2xl font-black text-[#020617]">{stats.ready}</p>
+                <p className="text-xs font-bold text-[#94A3B8]">Ready for Pickup</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-[24px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <Truck className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 rounded-2xl bg-[#38BDF8]/10 flex items-center justify-center">
+                <Truck className="w-5 h-5 text-[#38BDF8]" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.assigned}</p>
-                <p className="text-xs text-muted-foreground">Already Assigned</p>
+                <p className="text-2xl font-black text-[#020617]">{stats.assigned}</p>
+                <p className="text-xs font-bold text-[#94A3B8]">Already Assigned</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-[24px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Navigation className="w-5 h-5 text-primary" />
+              <div className="w-10 h-10 rounded-2xl bg-[#7C83F6]/10 flex items-center justify-center">
+                <Navigation className="w-5 h-5 text-[#7C83F6]" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.onlineDrivers}</p>
-                <p className="text-xs text-muted-foreground">Online Drivers</p>
+                <p className="text-2xl font-black text-[#020617]">{stats.onlineDrivers}</p>
+                <p className="text-xs font-bold text-[#94A3B8]">Online Drivers</p>
               </div>
             </div>
           </CardContent>
@@ -468,7 +472,7 @@ export default function OrderManagement() {
       </div>
 
       {/* Driver Board — collapsible */}
-      <Card>
+      <Card className="rounded-[26px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
         <CardHeader className="pb-3">
           <button
             type="button"
@@ -476,17 +480,17 @@ export default function OrderManagement() {
             onClick={() => setShowDriverBoard((prev) => !prev)}
           >
             <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <CardTitle className="text-base">Driver Board</CardTitle>
-              <Badge variant="secondary">{stats.onlineDrivers} online</Badge>
+              <Users className="w-4 h-4 text-[#7C83F6]" />
+              <CardTitle className="text-base font-black text-[#020617]">Driver Board</CardTitle>
+              <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">{stats.onlineDrivers} online</Badge>
             </div>
-            {showDriverBoard ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            {showDriverBoard ? <ChevronUp className="w-4 h-4 text-[#94A3B8]" /> : <ChevronDown className="w-4 h-4 text-[#94A3B8]" />}
           </button>
         </CardHeader>
         {showDriverBoard && (
           <CardContent className="pt-0">
             {drivers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No active drivers found.</p>
+              <p className="text-sm font-semibold text-[#94A3B8]">No active drivers found.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                 {drivers.map((driver) => {
@@ -497,14 +501,14 @@ export default function OrderManagement() {
                   return (
                     <div
                       key={driver.id}
-                      className={`rounded-lg border p-2.5 text-sm flex flex-col gap-1 ${isOverloaded ? "border-orange-400 bg-orange-50/50" : ""}`}
+                      className={`rounded-2xl border p-3 text-sm flex flex-col gap-1 ${isOverloaded ? "border-[#FB6B7A]/30 bg-[#FB6B7A]/10" : "border-[#E5EAF1] bg-[#F6F8FB]"}`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${driver.isOnline ? "bg-green-500" : "bg-gray-300"}`} />
-                        <span className="font-medium truncate">{driver.fullName}</span>
-                        {isOverloaded && <AlertTriangle className="w-3 h-3 text-orange-500 shrink-0" />}
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${driver.isOnline ? "bg-[#22C7A1]" : "bg-[#CBD5E1]"}`} />
+                        <span className="font-black truncate text-[#020617]">{driver.fullName}</span>
+                        {isOverloaded && <AlertTriangle className="w-3 h-3 text-[#FB6B7A] shrink-0" />}
                       </div>
-                      <div className="text-xs text-muted-foreground flex gap-2 flex-wrap">
+                      <div className="text-xs font-semibold text-[#94A3B8] flex gap-2 flex-wrap">
                         <span>{driver.activeJobs.length} active</span>
                         {locationAgeMin != null && <span>GPS {locationAgeMin}m ago</span>}
                         {driver.vehiclePlate && <span className="font-mono">{driver.vehiclePlate}</span>}
@@ -521,22 +525,23 @@ export default function OrderManagement() {
       {/* Dispatch queue + details */}
       <div className="grid grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)] gap-6">
         {/* Queue */}
-        <Card className="min-h-[620px]">
+        <Card className="min-h-[620px] rounded-[26px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
           <CardHeader className="space-y-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Dispatch Queue</CardTitle>
-              <Badge variant="secondary">{filteredOrders.length} orders</Badge>
+              <CardTitle className="text-lg font-black text-[#020617]">Dispatch Queue</CardTitle>
+              <Badge className="border border-[#7C83F6]/25 bg-[#7C83F6]/10 text-[#4F46E5]">{filteredOrders.length} orders</Badge>
             </div>
             <div className="flex gap-2">
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search branch, meal, customer..."
+                className="rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] placeholder:text-[#94A3B8]"
               />
               <select
                 value={filter}
                 onChange={(event) => setFilter(event.target.value as OrderFilter)}
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                className="h-10 rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] px-3 text-sm font-bold text-[#020617]"
               >
                 <option value="all">All</option>
                 <option value="preparing">Preparing</option>
@@ -550,8 +555,8 @@ export default function OrderManagement() {
                 {Object.entries(groupedOrders).map(([groupName, groupOrders]) => (
                   <div key={groupName} className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <p className="font-medium text-sm">{groupName}</p>
-                      <Badge variant="outline">{groupOrders.length}</Badge>
+                      <p className="text-sm font-black text-[#020617]">{groupName}</p>
+                      <Badge variant="outline" className="border-[#E5EAF1] text-[#94A3B8]">{groupOrders.length}</Badge>
                     </div>
                     {groupOrders.map((order) => {
                       const recommendation = recommendationMap.get(order.id)?.[0] || null;
@@ -564,8 +569,8 @@ export default function OrderManagement() {
                           key={order.id}
                           type="button"
                           onClick={() => setSelectedOrderId(order.id)}
-                          className={`w-full text-left rounded-lg border p-3 transition-colors ${
-                            isSelected ? "border-primary bg-primary/5" : `hover:border-primary/40 ${urgency}`
+                          className={`w-full text-left rounded-2xl border p-3 transition-colors ${
+                            isSelected ? "border-[#020617] bg-[#F6F8FB]" : `border-[#E5EAF1] bg-white hover:border-[#7C83F6]/40 ${urgency}`
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -576,7 +581,7 @@ export default function OrderManagement() {
                                 {elapsedMin >= 10 && (
                                   <Badge
                                     variant="outline"
-                                    className={elapsedMin >= 20 ? "text-red-600 border-red-400" : "text-amber-600 border-amber-400"}
+                                    className={elapsedMin >= 20 ? "border-[#FB6B7A] text-[#BE123C]" : "border-[#FB6B7A]/50 text-[#F97316]"}
                                   >
                                     <Clock className="w-3 h-3 mr-1" />
                                     {formatElapsed(elapsedMin)}
@@ -584,27 +589,27 @@ export default function OrderManagement() {
                                 )}
                               </div>
                               <div>
-                                <p className="font-medium">{order.mealName}</p>
-                                <p className="text-xs text-muted-foreground">{order.customerName}</p>
+                                <p className="font-black text-[#020617]">{order.mealName}</p>
+                                <p className="text-xs font-semibold text-[#94A3B8]">{order.customerName}</p>
                               </div>
                             </div>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs font-bold text-[#94A3B8]">
                               {format(new Date(order.createdAt), "HH:mm")}
                             </span>
                           </div>
-                          <div className="mt-3 text-xs text-muted-foreground space-y-1">
+                          <div className="mt-3 text-xs font-semibold text-[#94A3B8] space-y-1">
                             <div className="flex items-center gap-1">
                               <MapPin className="w-3 h-3" />
                               <span className="truncate">{order.pickupAddress || "No pickup address"}</span>
                             </div>
                             {recommendation ? (
-                              <div className="flex items-center gap-2 text-foreground">
-                                <Sparkles className="w-3 h-3 text-primary" />
+                              <div className="flex items-center gap-2 text-[#020617]">
+                                <Sparkles className="w-3 h-3 text-[#7C83F6]" />
                                 <span className="truncate">{recommendation.reason}</span>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2">
-                                <AlertTriangle className="w-3 h-3 text-amber-600" />
+                                <AlertTriangle className="w-3 h-3 text-[#FB6B7A]" />
                                 <span>No eligible drivers right now</span>
                               </div>
                             )}
@@ -616,7 +621,7 @@ export default function OrderManagement() {
                 ))}
 
                 {filteredOrders.length === 0 && (
-                  <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+                  <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F6F8FB] p-8 text-center text-sm font-semibold text-[#94A3B8]">
                     No dispatchable orders match the current filters.
                   </div>
                 )}
@@ -626,13 +631,13 @@ export default function OrderManagement() {
         </Card>
 
         {/* Details */}
-        <Card className="min-h-[620px]">
+        <Card className="min-h-[620px] rounded-[26px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
           <CardHeader>
-            <CardTitle className="text-lg">Dispatch Details</CardTitle>
+            <CardTitle className="text-lg font-black text-[#020617]">Dispatch Details</CardTitle>
           </CardHeader>
           <CardContent>
             {!selectedOrder ? (
-              <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
+              <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F6F8FB] p-12 text-center text-sm font-semibold text-[#94A3B8]">
                 Select an order from the queue to review smart driver recommendations.
               </div>
             ) : (
@@ -669,7 +674,7 @@ export default function OrderManagement() {
                 })()}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card className="bg-muted/30">
+                  <Card className="rounded-[22px] border-0 bg-[#F6F8FB] shadow-none ring-1 ring-[#E5EAF1]">
                     <CardContent className="pt-4 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         {getOrderStatusBadge(selectedOrder.status)}
@@ -678,34 +683,34 @@ export default function OrderManagement() {
                         )}
                       </div>
                       <div>
-                        <p className="font-semibold">{selectedOrder.mealName}</p>
-                        <p className="text-sm text-muted-foreground">{selectedOrder.restaurantName}</p>
+                        <p className="font-black text-[#020617]">{selectedOrder.mealName}</p>
+                        <p className="text-sm font-semibold text-[#94A3B8]">{selectedOrder.restaurantName}</p>
                       </div>
-                      <div className="text-sm space-y-1">
-                        <p><span className="text-muted-foreground">Customer:</span> {selectedOrder.customerName}</p>
-                        <p><span className="text-muted-foreground">Phone:</span> {selectedOrder.customerPhone || "N/A"}</p>
-                        <p><span className="text-muted-foreground">Pickup:</span> {selectedOrder.pickupAddress || "N/A"}</p>
-                        <p><span className="text-muted-foreground">Dropoff:</span> {selectedOrder.deliveryAddress || "N/A"}</p>
+                      <div className="space-y-1 text-sm font-semibold text-[#020617]">
+                        <p><span className="text-[#94A3B8]">Customer:</span> {selectedOrder.customerName}</p>
+                        <p><span className="text-[#94A3B8]">Phone:</span> {selectedOrder.customerPhone || "N/A"}</p>
+                        <p><span className="text-[#94A3B8]">Pickup:</span> {selectedOrder.pickupAddress || "N/A"}</p>
+                        <p><span className="text-[#94A3B8]">Dropoff:</span> {selectedOrder.deliveryAddress || "N/A"}</p>
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-muted/30">
+                  <Card className="rounded-[22px] border-0 bg-[#F6F8FB] shadow-none ring-1 ring-[#E5EAF1]">
                     <CardContent className="pt-4 space-y-3">
                       <div>
-                        <p className="text-sm text-muted-foreground">Top recommendation</p>
-                        <p className="font-semibold">
+                        <p className="text-sm font-bold text-[#94A3B8]">Top recommendation</p>
+                        <p className="font-black text-[#020617]">
                           {topRecommendation
                             ? driversWithLive.find((driver) => driver.id === topRecommendation.driverId)?.fullName || "Driver"
                             : "No recommendation"}
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm font-semibold text-[#64748B]">
                           {topRecommendation ? topRecommendation.reason : "No eligible online drivers with live location."}
                         </p>
                       </div>
                       {topRecommendation && (
                         <Button
-                          className="w-full"
+                          className="min-h-11 w-full rounded-full bg-[#020617] font-black text-white shadow-none hover:bg-[#020617]/90"
                           disabled={assigningDriverId !== null}
                           onClick={() =>
                             handleAssign(
@@ -724,8 +729,8 @@ export default function OrderManagement() {
 
                 {/* Operator notes */}
                 <div className="space-y-2">
-                  <label htmlFor="dispatch-notes" className="text-sm font-medium">
-                    Operator notes <span className="text-muted-foreground font-normal">(optional, saved with assignment)</span>
+                  <label htmlFor="dispatch-notes" className="text-sm font-black text-[#020617]">
+                    Operator notes <span className="font-semibold text-[#94A3B8]">(optional, saved with assignment)</span>
                   </label>
                   <textarea
                     id="dispatch-notes"
@@ -733,19 +738,19 @@ export default function OrderManagement() {
                     onChange={(e) => setAssignNotes(e.target.value)}
                     placeholder="e.g. Call driver before pickup, fragile items..."
                     rows={2}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-full resize-none rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] px-3 py-2 text-sm font-semibold text-[#020617] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#7C83F6]/30"
                   />
                 </div>
 
                 {/* Recommended drivers list */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h2 className="font-semibold">Recommended Drivers</h2>
-                    <Badge variant="outline">{selectedRecommendations.length} candidates</Badge>
+                    <h2 className="font-black text-[#020617]">Recommended Drivers</h2>
+                    <Badge variant="outline" className="border-[#E5EAF1] text-[#94A3B8]">{selectedRecommendations.length} candidates</Badge>
                   </div>
 
                   {selectedRecommendations.length === 0 ? (
-                    <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+                    <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F6F8FB] p-8 text-center text-sm font-semibold text-[#94A3B8]">
                       No suitable drivers are currently online with fresh location data.
                     </div>
                   ) : (
@@ -767,14 +772,16 @@ export default function OrderManagement() {
                         return (
                           <Card
                             key={driver.id}
-                            className={isMapSelected ? "border-violet-500 ring-1 ring-violet-400" : index === 0 ? "border-primary/40" : undefined}
+                            className={`rounded-[22px] border-0 bg-white shadow-none ring-1 ${
+                              isMapSelected ? "ring-[#7C83F6]" : index === 0 ? "ring-[#22C7A1]/50" : "ring-[#E5EAF1]"
+                            }`}
                           >
                             <CardContent className="pt-4">
                               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                                 <div className="space-y-2">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="font-semibold">{driver.fullName}</p>
-                                    {index === 0 && <Badge>Best match</Badge>}
+                                    <p className="font-black text-[#020617]">{driver.fullName}</p>
+                                    {index === 0 && <Badge className="bg-[#020617] text-white">Best match</Badge>}
                                     {getRecommendationTypeBadge(recommendation.type)}
                                     <ReliabilityBadge
                                       tier={recommendation.reliabilityTier}
@@ -783,18 +790,18 @@ export default function OrderManagement() {
                                     />
                                     {isAssignedDriver && <Badge variant="secondary">Current driver</Badge>}
                                     {isMapSelected && (
-                                      <Badge className="bg-violet-500/10 text-violet-700 border border-violet-500/20">
+                                      <Badge className="border border-[#7C83F6]/25 bg-[#7C83F6]/10 text-[#4F46E5]">
                                         Map selected
                                       </Badge>
                                     )}
                                     {recommendation.isOverloaded && (
-                                      <Badge variant="outline" className="text-orange-600 border-orange-400">
+                                      <Badge variant="outline" className="border-[#FB6B7A]/50 text-[#BE123C]">
                                         <AlertTriangle className="w-3 h-3 mr-1" />
                                         Overloaded
                                       </Badge>
                                     )}
                                   </div>
-                                  <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-[#94A3B8]">
                                     <span>{driver.phone || "No phone"}</span>
                                     <span>Rating {driver.rating?.toFixed(1) || "5.0"}</span>
                                     <span>{driver.activeJobs.length} active jobs</span>
@@ -802,21 +809,21 @@ export default function OrderManagement() {
                                       <span>{formatDistance(recommendation.distanceKm)}</span>
                                     )}
                                     {recommendation.estimatedPickupMinutes != null && (
-                                      <span className="text-foreground font-medium">
+                                      <span className="font-black text-[#020617]">
                                         ~{recommendation.estimatedPickupMinutes} min to pickup
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-sm">{recommendation.reason}</p>
+                                  <p className="text-sm font-semibold text-[#020617]">{recommendation.reason}</p>
                                   {recommendation.routeCompatibilityKm != null && (
-                                    <p className="text-xs text-muted-foreground">
+                                    <p className="text-xs font-semibold text-[#94A3B8]">
                                       Current drop-off is {formatDistance(recommendation.routeCompatibilityKm)} from this pickup.
                                     </p>
                                   )}
                                   {recommendation.warnings.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
                                       {recommendation.warnings.map((warning) => (
-                                        <Badge key={warning} variant="outline" className="text-amber-700 border-amber-300">
+                                        <Badge key={warning} variant="outline" className="border-[#FB6B7A]/40 text-[#F97316]">
                                           {warning}
                                         </Badge>
                                       ))}
@@ -828,13 +835,14 @@ export default function OrderManagement() {
                                   {waLink && (
                                     <a href={waLink} target="_blank" rel="noopener noreferrer">
                                       <Button variant="ghost" size="icon" title="Open WhatsApp">
-                                        <MessageCircle className="w-4 h-4 text-green-600" />
+                                        <MessageCircle className="w-4 h-4 text-[#22C7A1]" />
                                       </Button>
                                     </a>
                                   )}
                                   <Button
                                     variant={index === 0 ? "default" : "outline"}
                                     disabled={assigningDriverId !== null || isAssignedDriver}
+                                    className={index === 0 ? "rounded-full bg-[#020617] font-black text-white shadow-none hover:bg-[#020617]/90" : "rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none"}
                                     onClick={() =>
                                       handleAssign(
                                         driver.id,
@@ -866,13 +874,13 @@ export default function OrderManagement() {
       </div>
 
       {/* Recent Activity */}
-      <Card>
+      <Card className="rounded-[26px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
         <CardHeader>
-          <CardTitle className="text-lg">Recent Dispatch Activity</CardTitle>
+          <CardTitle className="text-lg font-black text-[#020617]">Recent Dispatch Activity</CardTitle>
         </CardHeader>
         <CardContent>
           {activity.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+            <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F6F8FB] p-8 text-center text-sm font-semibold text-[#94A3B8]">
               No manual dispatch activity recorded yet.
             </div>
           ) : (
@@ -887,28 +895,28 @@ export default function OrderManagement() {
                 return (
                   <div
                     key={entry.id}
-                    className="rounded-lg border p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                    className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline">{entry.action}</Badge>
-                        <span className="font-medium">{entry.driverName}</span>
+                        <span className="font-black text-[#020617]">{entry.driverName}</span>
                         {entry.orderId && (
-                          <span className="text-sm text-muted-foreground">Order #{entry.orderId.slice(0, 8)}</span>
+                          <span className="text-sm font-semibold text-[#94A3B8]">Order #{entry.orderId.slice(0, 8)}</span>
                         )}
                         {isHandedOver && (
-                          <Badge className="bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                          <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">
                             <CheckCircle2 className="w-3 h-3 mr-1" />
                             Picked up
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{entry.reason || "Manual fleet dispatch action"}</p>
+                      <p className="text-sm font-semibold text-[#64748B]">{entry.reason || "Manual fleet dispatch action"}</p>
                       {entry.notes && (
-                        <p className="text-xs text-muted-foreground italic">Note: {entry.notes}</p>
+                        <p className="text-xs font-semibold italic text-[#94A3B8]">Note: {entry.notes}</p>
                       )}
                     </div>
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    <div className="text-sm font-semibold text-[#94A3B8] flex items-center gap-2">
                       <Clock className="w-4 h-4" />
                       <span>{entry.performedAt ? format(new Date(entry.performedAt), "MMM d, HH:mm") : "Just now"}</span>
                     </div>
