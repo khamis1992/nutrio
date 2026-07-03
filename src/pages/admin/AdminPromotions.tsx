@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,9 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -41,17 +40,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Plus, 
-  Search, 
-  Ticket, 
-  TrendingUp, 
-  Users, 
+import {
+  Plus,
+  Search,
+  Ticket,
+  TrendingUp,
+  Users,
   DollarSign,
   Edit,
   Trash2,
   Copy,
-  Calendar
+  Calendar,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { formatCurrency, CURRENCY } from "@/lib/currency";
@@ -61,7 +62,7 @@ interface Promotion {
   code: string;
   name: string;
   description: string | null;
-  discount_type: 'percentage' | 'fixed';
+  discount_type: "percentage" | "fixed";
   discount_value: number;
   min_order_amount: number;
   max_discount_amount: number | null;
@@ -78,7 +79,7 @@ interface PromotionFormData {
   code: string;
   name: string;
   description: string;
-  discount_type: 'percentage' | 'fixed';
+  discount_type: "percentage" | "fixed";
   discount_value: string;
   min_order_amount: string;
   max_discount_amount: string;
@@ -107,6 +108,7 @@ const initialFormData: PromotionFormData = {
 export default function AdminPromotions() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
@@ -153,13 +155,13 @@ export default function AdminPromotions() {
 
       const now = new Date();
       const total = promotionsData?.length || 0;
-      const active = promotionsData?.filter(p => 
-        p.is_active && 
-        new Date(p.valid_from) <= now && 
-        (!p.valid_until || new Date(p.valid_until) > now)
+      const active = promotionsData?.filter((promotion) =>
+        promotion.is_active &&
+        new Date(promotion.valid_from) <= now &&
+        (!promotion.valid_until || new Date(promotion.valid_until) > now)
       ).length || 0;
-      const totalRedemptions = promotionsData?.reduce((sum, p) => sum + (p.uses_count || 0), 0) || 0;
-      const totalDiscount = usageData?.reduce((sum, u) => sum + Number(u.discount_applied), 0) || 0;
+      const totalRedemptions = promotionsData?.reduce((sum, promotion) => sum + (promotion.uses_count || 0), 0) || 0;
+      const totalDiscount = usageData?.reduce((sum, usage) => sum + Number(usage.discount_applied), 0) || 0;
 
       setStats({ total, active, totalRedemptions, totalDiscount });
     } catch (error) {
@@ -172,18 +174,24 @@ export default function AdminPromotions() {
     fetchStats();
   }, [fetchPromotions, fetchStats]);
 
+  const openCreateDialog = () => {
+    setEditingPromotion(null);
+    setFormData(initialFormData);
+    setIsDialogOpen(true);
+  };
+
   const generateCode = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
     for (let i = 0; i < 8; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    setFormData(prev => ({ ...prev, code }));
+    setFormData((prev) => ({ ...prev, code }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     if (!formData.code || !formData.name || !formData.discount_value) {
       toast({
         title: "Validation Error",
@@ -193,6 +201,7 @@ export default function AdminPromotions() {
       return;
     }
 
+    setSaving(true);
     try {
       const promotionData = {
         code: formData.code.toUpperCase(),
@@ -238,6 +247,8 @@ export default function AdminPromotions() {
         description: error instanceof Error ? error.message : "Failed to save promotion",
         variant: "destructive",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -296,290 +307,97 @@ export default function AdminPromotions() {
     const validUntil = promotion.valid_until ? new Date(promotion.valid_until) : null;
 
     if (!promotion.is_active) {
-      return <Badge variant="secondary">Inactive</Badge>;
+      return <Badge variant="outline" className="border-[#E5EAF1] bg-[#F6F8FB] font-black text-[#94A3B8]">Inactive</Badge>;
     }
     if (validFrom > now) {
-      return <Badge variant="outline" className="border-blue-500 text-blue-600">Scheduled</Badge>;
+      return <Badge variant="outline" className="border-[#38BDF8]/20 bg-[#EFF9FF] font-black text-[#38BDF8]">Scheduled</Badge>;
     }
     if (validUntil && validUntil < now) {
-      return <Badge variant="destructive">Expired</Badge>;
+      return <Badge variant="outline" className="border-[#FB6B7A]/20 bg-[#FFF0F2] font-black text-[#FB6B7A]">Expired</Badge>;
     }
     if (promotion.max_uses && promotion.uses_count >= promotion.max_uses) {
-      return <Badge variant="secondary">Exhausted</Badge>;
+      return <Badge variant="outline" className="border-[#F97316]/25 bg-[#FFF7ED] font-black text-[#F97316]">Exhausted</Badge>;
     }
-    return <Badge className="bg-green-500">Active</Badge>;
+    return <Badge variant="outline" className="border-[#22C7A1]/20 bg-[#EFFFFA] font-black text-[#22C7A1]">Active</Badge>;
   };
 
-  const filteredPromotions = promotions.filter(promotion =>
+  const filteredPromotions = promotions.filter((promotion) =>
     promotion.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
     promotion.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Promotions & Coupons</h1>
-            <p className="text-muted-foreground">Create and manage discount codes</p>
+    <AdminLayout title="Promotions" subtitle="Create and manage discount codes">
+      <div className="space-y-5 text-[#020617]">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_18px_42px_rgba(2,6,23,0.07)] ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-4 border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#020617] text-white">
+                <Ticket className="h-6 w-6" />
+              </span>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">Growth Tools</p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-[#020617]">Promotions & Coupons</h1>
+                <p className="mt-1 text-sm font-semibold text-[#94A3B8]">Create, schedule, and monitor discount campaigns.</p>
+              </div>
+            </div>
+            <Button
+              onClick={openCreateDialog}
+              className="h-11 gap-2 rounded-[14px] bg-[#020617] px-4 font-black text-white hover:bg-[#020617]/90"
+            >
+              <Plus className="h-4 w-4" />
+              Create Promotion
+            </Button>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) {
-              setEditingPromotion(null);
-              setFormData(initialFormData);
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Promotion
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingPromotion ? "Edit Promotion" : "Create New Promotion"}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="code">Promo Code *</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="code"
-                        value={formData.code}
-                        onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
-                        placeholder="SAVE20"
-                        className="uppercase h-12 sm:h-10 min-h-[44px]"
-                      />
-                      <Button type="button" variant="outline" onClick={generateCode} className="min-h-[44px]">
-                        Generate
-                      </Button>
-                    </div>
+
+          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: "Total Promotions", value: stats.total, Icon: Ticket, bg: "bg-[#F6F8FB]", color: "text-[#020617]", ring: "ring-[#E5EAF1]" },
+              { label: "Active Now", value: stats.active, Icon: TrendingUp, bg: "bg-[#EFFFFA]", color: "text-[#22C7A1]", ring: "ring-[#22C7A1]/20" },
+              { label: "Redemptions", value: stats.totalRedemptions, Icon: Users, bg: "bg-[#F3F4FF]", color: "text-[#7C83F6]", ring: "ring-[#7C83F6]/20" },
+              { label: "Discounts Given", value: formatCurrency(stats.totalDiscount), Icon: DollarSign, bg: "bg-[#EFF9FF]", color: "text-[#38BDF8]", ring: "ring-[#38BDF8]/20" },
+            ].map(({ label, value, Icon, bg, color, ring }) => (
+              <div key={label} className={`rounded-[20px] ${bg} p-4 ring-1 ${ring}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-3xl font-black leading-none text-[#020617]">{value}</p>
+                    <p className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Name *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Summer Sale 20% Off"
-                      className="h-12 sm:h-10 min-h-[44px]"
-                    />
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-white ${color} shadow-sm ring-1 ring-white/80`}>
+                    <Icon className="h-5 w-5" />
                   </div>
                 </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Get 20% off on all orders this summer"
-                    className="min-h-[100px] sm:min-h-[120px]"
-                  />
-                </div>
+        <section className="rounded-[24px] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+            <Input
+              placeholder="Search by code or name"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] pl-10 font-semibold text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#020617]"
+            />
+          </div>
+        </section>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="space-y-2">
-                    <Label>Discount Type *</Label>
-                    <Select
-                      value={formData.discount_type}
-                      onValueChange={(value: 'percentage' | 'fixed') =>
-                        setFormData(prev => ({ ...prev, discount_type: value }))
-                      }
-                    >
-                      <SelectTrigger className="h-12 sm:h-10 min-h-[44px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percentage">Percentage (%)</SelectItem>
-                        <SelectItem value="fixed">Fixed Amount ({CURRENCY.symbol})</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discount_value">
-                      Discount Value * {formData.discount_type === 'percentage' ? '(%)' : `(${CURRENCY.symbol})`}
-                    </Label>
-                    <Input
-                      id="discount_value"
-                      type="number"
-                      inputMode={formData.discount_type === 'percentage' ? "numeric" : "decimal"}
-                      min="0"
-                      max={formData.discount_type === 'percentage' ? 100 : undefined}
-                      value={formData.discount_value}
-                      onChange={(e) => setFormData(prev => ({ ...prev, discount_value: e.target.value }))}
-                      placeholder={formData.discount_type === 'percentage' ? "20" : "10.00"}
-                      className="h-12 sm:h-10 min-h-[44px]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="min_order_amount">Minimum Order Amount ({CURRENCY.symbol})</Label>
-                    <Input
-                      id="min_order_amount"
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      value={formData.min_order_amount}
-                      onChange={(e) => setFormData(prev => ({ ...prev, min_order_amount: e.target.value }))}
-                      placeholder="0"
-                      className="h-12 sm:h-10 min-h-[44px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="max_discount_amount">Max Discount Amount ({CURRENCY.symbol})</Label>
-                    <Input
-                      id="max_discount_amount"
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      value={formData.max_discount_amount}
-                      onChange={(e) => setFormData(prev => ({ ...prev, max_discount_amount: e.target.value }))}
-                      placeholder="No limit"
-                      className="h-12 sm:h-10 min-h-[44px]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="max_uses">Total Usage Limit</Label>
-                    <Input
-                      id="max_uses"
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      value={formData.max_uses}
-                      onChange={(e) => setFormData(prev => ({ ...prev, max_uses: e.target.value }))}
-                      placeholder="Unlimited"
-                      className="h-12 sm:h-10 min-h-[44px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="max_uses_per_user">Uses Per Customer</Label>
-                    <Input
-                      id="max_uses_per_user"
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      value={formData.max_uses_per_user}
-                      onChange={(e) => setFormData(prev => ({ ...prev, max_uses_per_user: e.target.value }))}
-                      placeholder="1"
-                      className="h-12 sm:h-10 min-h-[44px]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="valid_from">Valid From *</Label>
-                    <Input
-                      id="valid_from"
-                      type="datetime-local"
-                      value={formData.valid_from}
-                      onChange={(e) => setFormData(prev => ({ ...prev, valid_from: e.target.value }))}
-                      className="h-12 sm:h-10 min-h-[44px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="valid_until">Valid Until</Label>
-                    <Input
-                      id="valid_until"
-                      type="datetime-local"
-                      value={formData.valid_until}
-                      onChange={(e) => setFormData(prev => ({ ...prev, valid_until: e.target.value }))}
-                      className="h-12 sm:h-10 min-h-[44px]"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="is_active"
-                    checked={formData.is_active}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
-                  />
-                  <Label htmlFor="is_active">Active</Label>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">
-                    {editingPromotion ? "Update" : "Create"} Promotion
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Promotions</CardTitle>
-              <Ticket className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Now</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.active}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Redemptions</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalRedemptions}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Discounts Given</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.totalDiscount)}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search */}
-        <div className="relative flex-1 w-full max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by code or name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 min-h-[44px]"
-          />
-        </div>
-
-        {/* Promotions Table */}
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+            <div>
+              <h2 className="text-lg font-black text-[#020617]">Promotion Directory</h2>
+              <p className="text-xs font-bold text-[#94A3B8]">{filteredPromotions.length} visible from {promotions.length} total</p>
+            </div>
+            <Badge variant="outline" className="border-[#38BDF8]/20 bg-[#EFF9FF] text-[#38BDF8]">
+              Coupon engine
+            </Badge>
+          </div>
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="border-[#E5EAF1] hover:bg-transparent">
                   <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Discount</TableHead>
@@ -592,28 +410,32 @@ export default function AdminPromotions() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      Loading promotions...
+                    <TableCell colSpan={7} className="py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <Loader2 className="h-8 w-8 animate-spin text-[#020617]" />
+                        <p className="text-sm font-semibold text-[#94A3B8]">Loading promotions...</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : filteredPromotions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No promotions found
+                    <TableCell colSpan={7} className="py-12 text-center">
+                      <p className="font-black text-[#020617]">No promotions found</p>
+                      <p className="mt-1 text-sm font-semibold text-[#94A3B8]">Try adjusting your search.</p>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredPromotions.map((promotion) => (
-                    <TableRow key={promotion.id}>
+                    <TableRow key={promotion.id} className="border-[#E5EAF1] transition-colors hover:bg-[#F6F8FB]">
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <code className="bg-muted px-2 py-1 rounded text-sm font-mono">
+                          <code className="rounded-[10px] bg-[#F6F8FB] px-2 py-1 font-mono text-sm font-black text-[#020617] ring-1 ring-[#E5EAF1]">
                             {promotion.code}
                           </code>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="min-h-[44px] min-w-[44px]"
+                            className="min-h-[44px] min-w-[44px] text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]"
                             onClick={() => copyCode(promotion.code)}
                           >
                             <Copy className="h-3 w-3" />
@@ -622,39 +444,39 @@ export default function AdminPromotions() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{promotion.name}</p>
+                          <p className="font-black text-[#020617]">{promotion.name}</p>
                           {promotion.description && (
-                            <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                            <p className="max-w-[200px] truncate text-sm font-semibold text-[#94A3B8]">
                               {promotion.description}
                             </p>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="font-medium">
-                          {promotion.discount_type === 'percentage'
+                        <span className="font-black text-[#020617]">
+                          {promotion.discount_type === "percentage"
                             ? `${promotion.discount_value}%`
-                            : `$${promotion.discount_value}`}
+                            : formatCurrency(promotion.discount_value)}
                         </span>
                         {promotion.min_order_amount > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            Min: ${promotion.min_order_amount}
+                          <p className="text-xs font-semibold text-[#94A3B8]">
+                            Min: {formatCurrency(promotion.min_order_amount)}
                           </p>
                         )}
                       </TableCell>
                       <TableCell>
-                        <span>
+                        <span className="font-semibold text-[#020617]">
                           {promotion.uses_count}
                           {promotion.max_uses && ` / ${promotion.max_uses}`}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Calendar className="h-3 w-3" />
+                        <div className="flex items-center gap-1 text-sm font-semibold text-[#020617]">
+                          <Calendar className="h-3 w-3 text-[#38BDF8]" />
                           <span>{format(new Date(promotion.valid_from), "MMM d, yyyy")}</span>
                         </div>
                         {promotion.valid_until && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs font-semibold text-[#94A3B8]">
                             Until {format(new Date(promotion.valid_until), "MMM d, yyyy")}
                           </p>
                         )}
@@ -665,7 +487,7 @@ export default function AdminPromotions() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="min-h-[44px] min-w-[44px]"
+                            className="min-h-[44px] min-w-[44px] text-[#020617] hover:bg-[#F6F8FB]"
                             onClick={() => handleEdit(promotion)}
                           >
                             <Edit className="h-4 w-4" />
@@ -673,10 +495,10 @@ export default function AdminPromotions() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="min-h-[44px] min-w-[44px]"
+                            className="min-h-[44px] min-w-[44px] text-[#FB6B7A] hover:bg-[#FFF0F2] hover:text-[#FB6B7A]"
                             onClick={() => setDeletePromotion(promotion)}
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -685,23 +507,44 @@ export default function AdminPromotions() {
                 )}
               </TableBody>
             </Table>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        {/* Delete Confirmation */}
+        <PromotionDialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              setEditingPromotion(null);
+              setFormData(initialFormData);
+            }
+          }}
+          editingPromotion={editingPromotion}
+          formData={formData}
+          setFormData={setFormData}
+          generateCode={generateCode}
+          handleSubmit={handleSubmit}
+          saving={saving}
+        />
+
         <AlertDialog open={!!deletePromotion} onOpenChange={() => setDeletePromotion(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Promotion</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete the promotion "{deletePromotion?.name}"? 
-                This will also delete all usage history. This action cannot be undone.
+          <AlertDialogContent className="border-[#E5EAF1] bg-white p-0 shadow-[0_24px_60px_rgba(2,6,23,0.18)]">
+            <AlertDialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
+              <AlertDialogTitle className="flex items-center gap-3 text-xl font-black text-[#020617]">
+                <span className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#FFF0F2] text-[#FB6B7A] ring-1 ring-[#FB6B7A]/20">
+                  <AlertTriangle className="h-5 w-5" />
+                </span>
+                Delete Promotion
+              </AlertDialogTitle>
+              <AlertDialogDescription className="font-semibold text-[#94A3B8]">
+                Are you sure you want to delete the promotion "{deletePromotion?.name}"? This will also delete all usage history. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogFooter className="border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+              <AlertDialogCancel className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="h-11 rounded-[14px] bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90">
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -709,5 +552,218 @@ export default function AdminPromotions() {
         </AlertDialog>
       </div>
     </AdminLayout>
+  );
+}
+
+function PromotionDialog({
+  open,
+  onOpenChange,
+  editingPromotion,
+  formData,
+  setFormData,
+  generateCode,
+  handleSubmit,
+  saving,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  editingPromotion: Promotion | null;
+  formData: PromotionFormData;
+  setFormData: React.Dispatch<React.SetStateAction<PromotionFormData>>;
+  generateCode: () => void;
+  handleSubmit: (event: React.FormEvent) => void;
+  saving: boolean;
+}) {
+  const inputClass = "h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]";
+  const labelClass = "font-black text-[#020617]";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-[95vw] overflow-y-auto border-[#E5EAF1] bg-white p-0 shadow-[0_24px_60px_rgba(2,6,23,0.18)] sm:max-w-2xl">
+        <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
+          <DialogTitle className="text-xl font-black text-[#020617]">
+            {editingPromotion ? "Edit Promotion" : "Create New Promotion"}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4 p-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="code" className={labelClass}>Promo Code *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="code"
+                    value={formData.code}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))}
+                    placeholder="SAVE20"
+                    className={`${inputClass} uppercase`}
+                  />
+                  <Button type="button" variant="outline" onClick={generateCode} className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]">
+                    Generate
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name" className={labelClass}>Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
+                  placeholder="Summer Sale 20% Off"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description" className={labelClass}>Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))}
+                placeholder="Get 20% off on all orders this summer"
+                className="min-h-[100px] rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <div className="space-y-2">
+                <Label className={labelClass}>Discount Type *</Label>
+                <Select
+                  value={formData.discount_type}
+                  onValueChange={(value: "percentage" | "fixed") =>
+                    setFormData((prev) => ({ ...prev, discount_type: value }))
+                  }
+                >
+                  <SelectTrigger className={inputClass}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount ({CURRENCY.symbol})</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="discount_value" className={labelClass}>
+                  Discount Value * {formData.discount_type === "percentage" ? "(%)" : `(${CURRENCY.symbol})`}
+                </Label>
+                <Input
+                  id="discount_value"
+                  type="number"
+                  inputMode={formData.discount_type === "percentage" ? "numeric" : "decimal"}
+                  min="0"
+                  max={formData.discount_type === "percentage" ? 100 : undefined}
+                  value={formData.discount_value}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, discount_value: event.target.value }))}
+                  placeholder={formData.discount_type === "percentage" ? "20" : "10.00"}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="min_order_amount" className={labelClass}>Minimum Order Amount ({CURRENCY.symbol})</Label>
+                <Input
+                  id="min_order_amount"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={formData.min_order_amount}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, min_order_amount: event.target.value }))}
+                  placeholder="0"
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="max_discount_amount" className={labelClass}>Max Discount Amount ({CURRENCY.symbol})</Label>
+                <Input
+                  id="max_discount_amount"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={formData.max_discount_amount}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, max_discount_amount: event.target.value }))}
+                  placeholder="No limit"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="max_uses" className={labelClass}>Total Usage Limit</Label>
+                <Input
+                  id="max_uses"
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  value={formData.max_uses}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, max_uses: event.target.value }))}
+                  placeholder="Unlimited"
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="max_uses_per_user" className={labelClass}>Uses Per Customer</Label>
+                <Input
+                  id="max_uses_per_user"
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  value={formData.max_uses_per_user}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, max_uses_per_user: event.target.value }))}
+                  placeholder="1"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="valid_from" className={labelClass}>Valid From *</Label>
+                <Input
+                  id="valid_from"
+                  type="datetime-local"
+                  value={formData.valid_from}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, valid_from: event.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="valid_until" className={labelClass}>Valid Until</Label>
+                <Input
+                  id="valid_until"
+                  type="datetime-local"
+                  value={formData.valid_until}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, valid_until: event.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-[18px] bg-[#F6F8FB] p-4 ring-1 ring-[#E5EAF1]">
+              <Label htmlFor="is_active" className="font-black text-[#020617]">Active</Label>
+              <Switch
+                id="is_active"
+                checked={formData.is_active}
+                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_active: checked }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving} className="h-11 rounded-[14px] bg-[#020617] font-black text-white hover:bg-[#020617]/90">
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editingPromotion ? "Update" : "Create"} Promotion
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

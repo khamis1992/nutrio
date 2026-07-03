@@ -54,6 +54,17 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+
+const C = {
+  text: "#020617",
+  muted: "#94A3B8",
+  panel: "#F6F8FB",
+  water: "#38BDF8",
+  fat: "#FB6B7A",
+  protein: "#7C83F6",
+  progress: "#22C7A1",
+};
 
 // Order status type matching database
 type OrderStatus =
@@ -77,43 +88,43 @@ const STATUS_CONFIG: Record<
 > = {
   pending: {
     label: "In progress",
-    color: "text-orange-600",
-    bgColor: "bg-orange-100 border-orange-200",
+    color: "text-[#0369A1]",
+    bgColor: "bg-[#38BDF8]/10 border-[#38BDF8]/25",
   },
   confirmed: {
     label: "In progress",
-    color: "text-orange-600",
-    bgColor: "bg-orange-100 border-orange-200",
+    color: "text-[#0369A1]",
+    bgColor: "bg-[#38BDF8]/10 border-[#38BDF8]/25",
   },
   preparing: {
     label: "In progress",
-    color: "text-orange-600",
-    bgColor: "bg-orange-100 border-orange-200",
+    color: "text-[#5B5FE8]",
+    bgColor: "bg-[#7C83F6]/10 border-[#7C83F6]/25",
   },
   ready: {
     label: "In progress",
-    color: "text-orange-600",
-    bgColor: "bg-orange-100 border-orange-200",
+    color: "text-[#047857]",
+    bgColor: "bg-[#22C7A1]/10 border-[#22C7A1]/25",
   },
   out_for_delivery: {
     label: "In progress",
-    color: "text-orange-600",
-    bgColor: "bg-orange-100 border-orange-200",
+    color: "text-[#0369A1]",
+    bgColor: "bg-[#38BDF8]/10 border-[#38BDF8]/25",
   },
   delivered: {
     label: "Completed",
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-100 border-emerald-200",
+    color: "text-[#047857]",
+    bgColor: "bg-[#22C7A1]/10 border-[#22C7A1]/25",
   },
   completed: {
     label: "Completed",
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-100 border-emerald-200",
+    color: "text-[#047857]",
+    bgColor: "bg-[#22C7A1]/10 border-[#22C7A1]/25",
   },
   cancelled: {
     label: "Cancelled",
-    color: "text-red-600",
-    bgColor: "bg-red-100 border-red-200",
+    color: "text-[#BE123C]",
+    bgColor: "bg-[#FB6B7A]/10 border-[#FB6B7A]/25",
   },
 };
 
@@ -128,43 +139,43 @@ const STATUS_CONFIG_DETAILED: Record<
 > = {
   pending: {
     label: "Pending",
-    color: "text-amber-600",
-    bgColor: "bg-amber-500/10 border-amber-500/20",
+    color: "text-[#0369A1]",
+    bgColor: "bg-[#38BDF8]/10 border-[#38BDF8]/25",
   },
   confirmed: {
     label: "Confirmed",
-    color: "text-blue-600",
-    bgColor: "bg-blue-500/10 border-blue-500/20",
+    color: "text-[#0369A1]",
+    bgColor: "bg-[#38BDF8]/10 border-[#38BDF8]/25",
   },
   preparing: {
     label: "Preparing",
-    color: "text-purple-600",
-    bgColor: "bg-purple-500/10 border-purple-500/20",
+    color: "text-[#5B5FE8]",
+    bgColor: "bg-[#7C83F6]/10 border-[#7C83F6]/25",
   },
   ready: {
     label: "Ready",
-    color: "text-cyan-600",
-    bgColor: "bg-cyan-500/10 border-cyan-500/20",
+    color: "text-[#047857]",
+    bgColor: "bg-[#22C7A1]/10 border-[#22C7A1]/25",
   },
   out_for_delivery: {
     label: "Out for Delivery",
-    color: "text-indigo-600",
-    bgColor: "bg-indigo-500/10 border-indigo-500/20",
+    color: "text-[#0369A1]",
+    bgColor: "bg-[#38BDF8]/10 border-[#38BDF8]/25",
   },
   delivered: {
     label: "Delivered",
-    color: "text-green-600",
-    bgColor: "bg-green-500/10 border-green-500/20",
+    color: "text-[#047857]",
+    bgColor: "bg-[#22C7A1]/10 border-[#22C7A1]/25",
   },
   completed: {
     label: "Completed",
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-500/10 border-emerald-500/20",
+    color: "text-[#047857]",
+    bgColor: "bg-[#22C7A1]/10 border-[#22C7A1]/25",
   },
   cancelled: {
     label: "Cancelled",
-    color: "text-red-600",
-    bgColor: "bg-red-500/10 border-red-500/20",
+    color: "text-[#BE123C]",
+    bgColor: "bg-[#FB6B7A]/10 border-[#FB6B7A]/25",
   },
 };
 
@@ -228,9 +239,10 @@ const OrderCard = ({
 
   return (
     <div
-      className={`relative bg-white rounded-2xl border shadow-sm p-5 flex flex-col gap-4 transition-shadow hover:shadow-md ${
-        isSelected ? "ring-2 ring-primary" : ""
-      }`}
+      className={cn(
+        "relative flex flex-col gap-4 rounded-[28px] border border-[#E2E8F0] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.05)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(2,6,23,0.08)] sm:p-5",
+        isSelected && "border-[#22C7A1] ring-2 ring-[#22C7A1]/20"
+      )}
     >
       {/* Selection checkbox */}
       <div className="absolute top-4 right-4">
@@ -239,45 +251,45 @@ const OrderCard = ({
 
       {/* Top row: badge + name + status */}
       <div className="flex items-start gap-3 pr-8">
-        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center">
-          <span className="text-xs font-bold text-teal-700 leading-none">
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#22C7A1]/12">
+          <span className="text-xs font-black leading-none text-[#047857]">
             {getOrderBadge(order.id)}
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 truncate">
+          <p className="truncate text-base font-black text-[#020617]">
             {order.profile?.full_name || "Customer"}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="mt-0.5 text-xs font-bold text-[#94A3B8]">
             Order #{order.id.substring(0, 8).toUpperCase()}
           </p>
         </div>
         <Badge
           variant="outline"
-          className={`shrink-0 text-xs font-medium ${statusCfg.bgColor} ${statusCfg.color} border`}
+          className={`h-8 shrink-0 rounded-full border px-3 text-xs font-extrabold ${statusCfg.bgColor} ${statusCfg.color}`}
         >
           {statusCfg.label}
         </Badge>
       </div>
 
       {/* Date / time row */}
-      <div className="flex items-center justify-between text-sm text-gray-500">
+      <div className="flex items-center justify-between rounded-2xl bg-[#F6F8FB] px-3 py-2 text-sm font-bold text-[#94A3B8]">
         <span>{dateLabel}</span>
-        {timeLabel && <span className="font-medium text-gray-700">{timeLabel}</span>}
+        {timeLabel && <span className="font-black text-[#020617]">{timeLabel}</span>}
       </div>
 
       {/* Items mini-table */}
       <div>
-        <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-xs text-gray-400 font-medium mb-1 px-0.5">
+        <div className="mb-1 grid grid-cols-[1fr_auto_auto] gap-x-3 px-0.5 text-xs font-extrabold uppercase tracking-[0.08em] text-[#94A3B8]">
           <span>Items</span>
           <span>Qty</span>
           <span>Price</span>
         </div>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-[#E2E8F0]">
           <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-sm py-1.5 px-0.5">
-            <span className="text-gray-700 truncate">{order.meal.name}</span>
-            <span className="text-gray-500 text-center">1</span>
-            <span className="text-gray-700 font-medium text-right">
+            <span className="truncate font-bold text-[#020617]">{order.meal.name}</span>
+            <span className="text-center font-bold text-[#94A3B8]">1</span>
+            <span className="text-right font-black text-[#020617]">
               {formatCurrency(order.meal.price)}
             </span>
           </div>
@@ -285,12 +297,12 @@ const OrderCard = ({
       </div>
 
       {/* Total row */}
-      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-        <span className="text-sm text-gray-500">
+      <div className="flex items-center justify-between border-t border-[#E2E8F0] pt-1">
+        <span className="text-sm font-bold text-[#94A3B8]">
           Total{" "}
-          <span className="text-gray-400 text-xs font-normal">(before tax)</span>
+          <span className="text-xs font-bold text-[#94A3B8]">(before tax)</span>
         </span>
-        <span className="font-bold text-gray-900">
+        <span className="font-black text-[#020617]">
           {formatCurrency(order.meal.price)}
         </span>
       </div>
@@ -299,7 +311,7 @@ const OrderCard = ({
       <div className="flex items-center justify-between">
         <button
           onClick={onViewDetails}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+          className="flex min-h-11 items-center gap-1.5 rounded-2xl px-1 text-sm font-bold text-[#94A3B8] transition-colors hover:text-[#020617]"
         >
           <span>1 item</span>
           <Maximize2 className="w-3.5 h-3.5" />
@@ -307,14 +319,14 @@ const OrderCard = ({
 
         {isFinished ? (
           order.order_status === "cancelled" ? (
-            <span className="text-sm font-medium text-red-500">Cancelled</span>
+            <span className="text-sm font-black text-[#FB6B7A]">Cancelled</span>
           ) : (
-            <span className="text-sm font-medium text-emerald-600">Paid</span>
+            <span className="text-sm font-black text-[#22C7A1]">Paid</span>
           )
         ) : (
           <Button
             size="sm"
-            className="bg-teal-500 hover:bg-teal-600 text-white rounded-lg px-4 h-8 text-sm font-medium"
+            className="h-11 rounded-2xl bg-[#020617] px-4 text-sm font-extrabold text-white hover:bg-[#020617]/90"
             onClick={onViewDetails}
           >
             Pay bill
@@ -780,76 +792,95 @@ const AdminOrders = () => {
       title="Order Management"
       subtitle={`${stats.total} total orders`}
     >
-      <div className="space-y-6">
+      <div className="space-y-4 bg-[#F6F8FB] text-[#020617] sm:space-y-5">
+        <section className="overflow-hidden rounded-[28px] border border-[#E2E8F0] bg-white shadow-[0_18px_45px_rgba(2,6,23,0.06)]">
+          <div className="flex items-start justify-between gap-4 p-5">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#22C7A1]">
+                Orders desk
+              </p>
+              <h1 className="mt-1 text-[28px] font-black leading-tight text-[#020617]">
+                Order Management
+              </h1>
+              <p className="mt-1 max-w-md text-sm font-semibold leading-5 text-[#94A3B8]">
+                Review meal schedules, customer orders, status changes, platform fees, and bulk actions.
+              </p>
+            </div>
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-[#22C7A1]/15 text-[#047857]">
+              <ShoppingBag className="h-7 w-7" />
+            </div>
+          </div>
+        </section>
+
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
-          <Card>
-            <CardContent className="pt-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-4">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <ShoppingBag className="h-5 w-5 text-primary" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#22C7A1]/12">
+                  <ShoppingBag className="h-5 w-5 text-[#047857]" />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Orders</p>
+                <div className="min-w-0">
+                  <p className="text-2xl font-black text-[#020617]">{stats.total}</p>
+                  <p className="text-xs font-bold text-[#94A3B8]">Total Orders</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-4">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-4">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-blue-500" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#38BDF8]/12">
+                  <Calendar className="h-5 w-5 text-[#0369A1]" />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.today}</p>
-                  <p className="text-xs text-muted-foreground">Today</p>
+                <div className="min-w-0">
+                  <p className="text-2xl font-black text-[#020617]">{stats.today}</p>
+                  <p className="text-xs font-bold text-[#94A3B8]">Today</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-4">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-4">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <CheckCircle className="h-5 w-5 text-emerald-500" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#22C7A1]/12">
+                  <CheckCircle className="h-5 w-5 text-[#047857]" />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.completed}</p>
-                  <p className="text-xs text-muted-foreground">Completed</p>
+                <div className="min-w-0">
+                  <p className="text-2xl font-black text-[#020617]">{stats.completed}</p>
+                  <p className="text-xs font-bold text-[#94A3B8]">Completed</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-4">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-4">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-amber-500" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FB6B7A]/12">
+                  <Clock className="h-5 w-5 text-[#BE123C]" />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.overdue}</p>
-                  <p className="text-xs text-muted-foreground">Overdue</p>
+                <div className="min-w-0">
+                  <p className="text-2xl font-black text-[#020617]">{stats.overdue}</p>
+                  <p className="text-xs font-bold text-[#94A3B8]">Overdue</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-4">
+          <Card className="col-span-2 rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)] md:col-span-1">
+            <CardContent className="p-4">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-purple-500" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#7C83F6]/12">
+                  <DollarSign className="h-5 w-5 text-[#5B5FE8]" />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">
+                <div className="min-w-0">
+                  <p className="text-xl font-black text-[#020617]">
                     {formatCurrency(stats.totalRevenue)}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs font-bold text-[#94A3B8]">
                     Platform Fees (18%)
                   </p>
                 </div>
@@ -859,7 +890,7 @@ const AdminOrders = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto rounded-[24px] border border-[#E2E8F0] bg-white p-2 shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
           {[
             { value: "all", label: "All", count: stats.total },
             { value: "today", label: "Today", count: stats.today },
@@ -874,15 +905,15 @@ const AdminOrders = () => {
             <button
               key={tab.value}
               onClick={() => setActiveTab(tab.value as "all" | "today" | "upcoming" | "completed" | "overdue")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`min-h-11 shrink-0 rounded-2xl px-4 text-sm font-extrabold transition-colors ${
                 activeTab === tab.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-[#020617] text-white shadow-[0_10px_22px_rgba(2,6,23,0.14)]"
+                  : "bg-[#F6F8FB] text-[#64748B] hover:bg-[#EEF2F7]"
               }`}
             >
               {tab.label}
               {tab.count > 0 && (
-                <Badge variant="secondary" className="ml-2 text-xs">
+                <Badge variant="secondary" className="ml-2 rounded-full bg-white/80 text-xs text-[#020617]">
                   {tab.count}
                 </Badge>
               )}
@@ -891,33 +922,34 @@ const AdminOrders = () => {
         </div>
 
         {/* Order list header bar (matches design) */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="rounded-[28px] border border-[#E2E8F0] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           {/* Left: title + search */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-gray-900 whitespace-nowrap">
+          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+            <h2 className="whitespace-nowrap text-lg font-black text-[#020617]">
               Order list
             </h2>
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
               <Input
                 placeholder="Search by meal, restaurant, or customer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-9"
+                className="h-12 rounded-2xl border-[#E2E8F0] bg-[#F6F8FB] pl-11 text-sm font-bold text-[#020617] placeholder:text-[#94A3B8]"
               />
             </div>
           </div>
 
           {/* Right: view toggle + sort + export + refresh */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:shrink-0">
             {/* View toggle */}
-            <div className="flex items-center border rounded-lg overflow-hidden">
+            <div className="flex h-11 items-center overflow-hidden rounded-2xl border border-[#E2E8F0] bg-[#F6F8FB] p-1">
               <button
                 onClick={() => setViewMode("list")}
-                className={`p-2 transition-colors ${
+                className={`grid h-9 w-9 place-items-center rounded-xl transition-colors ${
                   viewMode === "list"
-                    ? "bg-gray-900 text-white"
-                    : "bg-white text-gray-500 hover:bg-gray-50"
+                    ? "bg-[#020617] text-white"
+                    : "text-[#94A3B8] hover:bg-white"
                 }`}
                 title="List view"
               >
@@ -925,10 +957,10 @@ const AdminOrders = () => {
               </button>
               <button
                 onClick={() => setViewMode("grid")}
-                className={`p-2 transition-colors ${
+                className={`grid h-9 w-9 place-items-center rounded-xl transition-colors ${
                   viewMode === "grid"
-                    ? "bg-gray-900 text-white"
-                    : "bg-white text-gray-500 hover:bg-gray-50"
+                    ? "bg-[#020617] text-white"
+                    : "text-[#94A3B8] hover:bg-white"
                 }`}
                 title="Grid view"
               >
@@ -939,7 +971,7 @@ const AdminOrders = () => {
             {/* Sort dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                <Button variant="outline" size="sm" className="h-11 rounded-2xl border-[#E2E8F0] bg-white font-extrabold text-[#020617]">
                   Sort by
                   <ChevronDown className="w-3.5 h-3.5" />
                 </Button>
@@ -991,7 +1023,7 @@ const AdminOrders = () => {
               variant="outline"
               size="sm"
               onClick={exportToCSV}
-              className="gap-1.5 h-9"
+              className="h-11 rounded-2xl border-[#E2E8F0] bg-white font-extrabold text-[#020617]"
             >
               <Download className="w-4 h-4" />
               Export
@@ -1003,7 +1035,7 @@ const AdminOrders = () => {
               size="icon"
               onClick={fetchOrders}
               disabled={loading}
-              className="h-9 w-9"
+              className="h-11 w-11 rounded-2xl border-[#E2E8F0] bg-white text-[#020617]"
             >
               <RefreshCw
                 className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
@@ -1013,29 +1045,30 @@ const AdminOrders = () => {
             {/* Add new (placeholder) */}
             <Button
               size="sm"
-              className="gap-1.5 h-9 bg-teal-500 hover:bg-teal-600 text-white"
+              className="h-11 rounded-2xl bg-[#22C7A1] font-extrabold text-white hover:bg-[#1DB492]"
             >
               <Plus className="w-4 h-4" />
               Add new
             </Button>
           </div>
         </div>
+        </div>
 
         {/* Bulk Actions */}
         {selectedOrders.size > 0 && (
-          <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-center justify-between">
-            <span className="text-sm text-primary font-medium">
+          <div className="flex items-center justify-between rounded-[24px] border border-[#22C7A1]/25 bg-[#22C7A1]/10 p-3">
+            <span className="text-sm font-extrabold text-[#047857]">
               {selectedOrders.size} order{selectedOrders.size > 1 ? "s" : ""}{" "}
               selected
             </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleBulkComplete}>
+              <Button variant="outline" size="sm" onClick={handleBulkComplete} className="rounded-2xl border-[#22C7A1]/25 bg-white font-extrabold text-[#047857]">
                 Mark as Completed
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="text-red-600 border-red-200"
+                className="rounded-2xl border-[#FB6B7A]/25 bg-white font-extrabold text-[#BE123C]"
                 onClick={handleBulkCancel}
               >
                 Cancel Selected
@@ -1047,19 +1080,19 @@ const AdminOrders = () => {
         {/* Loading state */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-muted-foreground text-sm">Loading orders...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-[#22C7A1]" />
+            <p className="text-sm font-bold text-[#94A3B8]">Loading orders...</p>
           </div>
         )}
 
         {/* Empty state */}
         {!loading && filteredOrders.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-              <Utensils className="w-6 h-6 text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center gap-3 rounded-[28px] border border-[#E2E8F0] bg-white py-16 shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-[#F6F8FB]">
+              <Utensils className="h-7 w-7 text-[#94A3B8]" />
             </div>
-            <p className="text-muted-foreground">No orders found</p>
-            <p className="text-muted-foreground/70 text-sm">
+            <p className="text-lg font-black text-[#020617]">No orders found</p>
+            <p className="text-sm font-semibold text-[#94A3B8]">
               Try adjusting your filters
             </p>
           </div>
@@ -1087,14 +1120,14 @@ const AdminOrders = () => {
 
         {/* List (table) view */}
         {!loading && filteredOrders.length > 0 && viewMode === "list" && (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold">Orders</CardTitle>
+          <Card className="overflow-hidden rounded-[28px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardHeader className="border-b border-[#E2E8F0] pb-4">
+              <CardTitle className="text-lg font-black text-[#020617]">Orders</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent">
+                  <TableRow className="bg-[#F6F8FB] hover:bg-[#F6F8FB]">
                     <TableHead className="w-10 pl-6">
                       <Checkbox
                         checked={
@@ -1107,7 +1140,7 @@ const AdminOrders = () => {
                     <TableHead>
                       <button
                         onClick={() => handleSort("meal_name")}
-                        className="flex items-center gap-1 hover:text-foreground transition-colors"
+                        className="flex items-center gap-1 font-extrabold text-[#94A3B8] transition-colors hover:text-[#020617]"
                       >
                         Meal
                         {sortField === "meal_name" &&
@@ -1125,7 +1158,7 @@ const AdminOrders = () => {
                     <TableHead>
                       <button
                         onClick={() => handleSort("scheduled_date")}
-                        className="flex items-center gap-1 hover:text-foreground transition-colors"
+                        className="flex items-center gap-1 font-extrabold text-[#94A3B8] transition-colors hover:text-[#020617]"
                       >
                         Scheduled
                         {sortField === "scheduled_date" &&
@@ -1144,7 +1177,7 @@ const AdminOrders = () => {
                   {filteredOrders.map((order) => (
                     <TableRow
                       key={order.id}
-                      className="hover:bg-muted/50 transition-colors"
+                      className="border-[#E2E8F0] transition-colors hover:bg-[#F6F8FB]/70"
                     >
                       <TableCell className="pl-6">
                         <Checkbox
@@ -1157,34 +1190,34 @@ const AdminOrders = () => {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Utensils className="w-5 h-5 text-primary" />
+                            <Utensils className="h-5 w-5 text-[#047857]" />
                           </div>
-                          <p className="font-medium">{order.meal.name}</p>
+                          <p className="font-black text-[#020617]">{order.meal.name}</p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1 text-sm font-semibold text-[#94A3B8]">
                           <Store className="w-3 h-3" />
                           {order.meal.restaurant.name}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1 text-sm font-semibold text-[#94A3B8]">
                           <User className="w-3 h-3" />
                           {order.profile?.full_name || "Customer"}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{order.meal_type}</Badge>
+                        <Badge variant="secondary" className="rounded-full bg-[#F6F8FB] font-extrabold text-[#020617]">{order.meal_type}</Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="font-medium">
+                        <span className="font-black text-[#020617]">
                           {formatCurrency(order.meal.price)}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
+                        <div className="flex items-center gap-1 text-sm font-semibold text-[#94A3B8]">
+                          <Calendar className="h-3 w-3 text-[#38BDF8]" />
                           {format(
                             new Date(order.scheduled_date),
                             "MMM d, yyyy"
@@ -1198,7 +1231,7 @@ const AdminOrders = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8"
+                              className="h-10 w-10 rounded-2xl text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]"
                             >
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
@@ -1246,16 +1279,16 @@ const AdminOrders = () => {
 
         {/* Order Detail Sheet */}
         <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <SheetContent className="w-full sm:max-w-xl">
+          <SheetContent className="w-full bg-[#F6F8FB] sm:max-w-xl">
             {selectedOrder && (
               <>
-                <SheetHeader className="pb-6 border-b">
+                <SheetHeader className="border-b border-[#E2E8F0] pb-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Utensils className="w-8 h-8 text-primary" />
+                    <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-[#22C7A1]/12">
+                      <Utensils className="h-8 w-8 text-[#047857]" />
                     </div>
                     <div>
-                      <SheetTitle className="text-xl">
+                      <SheetTitle className="text-xl font-black text-[#020617]">
                         {selectedOrder.meal.name}
                       </SheetTitle>
                       <SheetDescription>
@@ -1267,35 +1300,35 @@ const AdminOrders = () => {
 
                 <div className="mt-6 space-y-6">
                   {/* Order Info */}
-                  <Card>
+                  <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-sm">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                      <CardTitle className="text-sm font-extrabold uppercase tracking-wider text-[#94A3B8]">
                         Order Details
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs font-bold text-[#94A3B8]">
                             Order ID
                           </p>
-                          <code className="text-sm font-mono">
+                          <code className="text-sm font-mono font-bold text-[#020617]">
                             {selectedOrder.id.substring(0, 16)}...
                           </code>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs font-bold text-[#94A3B8]">
                             Meal Type
                           </p>
-                          <Badge variant="secondary">
+                          <Badge variant="secondary" className="rounded-full bg-[#F6F8FB] font-extrabold text-[#020617]">
                             {selectedOrder.meal_type}
                           </Badge>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs font-bold text-[#94A3B8]">
                             Scheduled Date
                           </p>
-                          <p className="text-sm">
+                          <p className="text-sm font-black text-[#020617]">
                             {format(
                               new Date(selectedOrder.scheduled_date),
                               "MMM d, yyyy"
@@ -1303,10 +1336,10 @@ const AdminOrders = () => {
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs font-bold text-[#94A3B8]">
                             Created
                           </p>
-                          <p className="text-sm">
+                          <p className="text-sm font-black text-[#020617]">
                             {format(
                               new Date(selectedOrder.created_at),
                               "MMM d, yyyy"
@@ -1318,30 +1351,30 @@ const AdminOrders = () => {
                   </Card>
 
                   {/* Pricing Breakdown */}
-                  <Card>
+                  <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-sm">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                      <CardTitle className="text-sm font-extrabold uppercase tracking-wider text-[#94A3B8]">
                         Pricing Breakdown
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
+                      <div className="flex justify-between text-sm font-semibold">
+                        <span className="text-[#94A3B8]">
                           Meal Price (set by restaurant)
                         </span>
-                        <span className="font-medium">
+                        <span className="font-black text-[#020617]">
                           {formatCurrency(selectedOrder.meal.price)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm text-destructive">
+                      <div className="flex justify-between text-sm font-bold text-[#FB6B7A]">
                         <span>Platform Fee (18%)</span>
                         <span>
                           - {formatCurrency(selectedOrder.meal.price * 0.18)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm font-semibold border-t pt-2 mt-1">
+                      <div className="mt-1 flex justify-between border-t border-[#E2E8F0] pt-2 text-sm font-black">
                         <span>Restaurant Payout</span>
-                        <span className="text-green-600">
+                        <span className="text-[#22C7A1]">
                           {formatCurrency(selectedOrder.meal.price * 0.82)}
                         </span>
                       </div>
@@ -1349,22 +1382,22 @@ const AdminOrders = () => {
                   </Card>
 
                   {/* Restaurant */}
-                  <Card>
+                  <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-sm">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                      <CardTitle className="text-sm font-extrabold uppercase tracking-wider text-[#94A3B8]">
                         Restaurant
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                          <Store className="w-5 h-5 text-muted-foreground" />
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#38BDF8]/10">
+                          <Store className="h-5 w-5 text-[#0369A1]" />
                         </div>
                         <div>
-                          <p className="font-medium">
+                          <p className="font-black text-[#020617]">
                             {selectedOrder.meal.restaurant.name}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs font-bold text-[#94A3B8]">
                             Meal Provider
                           </p>
                         </div>
@@ -1373,22 +1406,22 @@ const AdminOrders = () => {
                   </Card>
 
                   {/* Customer */}
-                  <Card>
+                  <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-sm">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                      <CardTitle className="text-sm font-extrabold uppercase tracking-wider text-[#94A3B8]">
                         Customer
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="w-5 h-5 text-primary" />
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#7C83F6]/10">
+                          <User className="h-5 w-5 text-[#5B5FE8]" />
                         </div>
                         <div>
-                          <p className="font-medium">
+                          <p className="font-black text-[#020617]">
                             {selectedOrder.profile?.full_name || "Customer"}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs font-bold text-[#94A3B8]">
                             {selectedOrder.profile?.email || "No email"}
                           </p>
                         </div>
@@ -1402,7 +1435,7 @@ const AdminOrders = () => {
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
-                          className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                          className="h-12 flex-1 rounded-2xl border-[#FB6B7A]/25 bg-white font-extrabold text-[#BE123C] hover:bg-[#FB6B7A]/10"
                           onClick={() => {
                             if (
                               confirm(
@@ -1419,8 +1452,8 @@ const AdminOrders = () => {
                     )}
 
                   {selectedOrder.order_status === "cancelled" && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-600 font-medium">
+                    <div className="rounded-[24px] border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 p-4">
+                      <p className="text-sm font-extrabold text-[#BE123C]">
                         This order has been cancelled
                       </p>
                     </div>

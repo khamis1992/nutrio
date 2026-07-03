@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -487,21 +486,21 @@ const AdminAffiliateApplications = () => {
     switch (status) {
       case "pending":
         return (
-          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+          <Badge variant="outline" className="border-[#FDBA74]/40 bg-[#FFF7ED] text-[#F97316]">
             <Clock className="h-3 w-3 mr-1" />
             Pending
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+          <Badge variant="outline" className="border-[#22C7A1]/20 bg-[#EFFFFA] text-[#22C7A1]">
             <CheckCircle className="h-3 w-3 mr-1" />
             Approved
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
+          <Badge variant="outline" className="border-[#FB6B7A]/20 bg-[#FFF0F2] text-[#FB6B7A]">
             <XCircle className="h-3 w-3 mr-1" />
             Rejected
           </Badge>
@@ -521,145 +520,127 @@ const AdminAffiliateApplications = () => {
 
   return (
     <AdminLayout title="Affiliate Applications" subtitle={`${stats.pending} pending review`}>
-      <div className="space-y-6">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Applications</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-amber-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.pending}</p>
-                  <p className="text-xs text-muted-foreground">Pending</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <CheckCircle className="h-5 w-5 text-emerald-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.approved}</p>
-                  <p className="text-xs text-muted-foreground">Approved</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
-                  <XCircle className="h-5 w-5 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.rejected}</p>
-                  <p className="text-xs text-muted-foreground">Rejected</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2">
-          {[
-            { value: "all", label: "All", count: stats.total },
-            { value: "pending", label: "Pending", count: stats.pending },
-            { value: "approved", label: "Approved", count: stats.approved },
-            { value: "rejected", label: "Rejected", count: stats.rejected },
-          ].map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value as "all" | "pending" | "approved" | "rejected")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <Badge variant="secondary" className="ml-2 text-xs">
-                  {tab.count}
-                </Badge>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, email, or user ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <Button variant="outline" onClick={exportToCSV} className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Export
-                </Button>
-                <Button variant="outline" size="icon" onClick={fetchApplications} disabled={loading}>
-                  <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                </Button>
-              </div>
+      <div className="space-y-5 text-[#020617]">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_18px_42px_rgba(2,6,23,0.07)] ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-4 border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">Affiliate Review</p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#020617]">Applications</h2>
+              <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                Review applicants, approve referral access, and manage rejection notes.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={exportToCSV}
+                className="h-11 gap-2 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
+              >
+                <Download className="h-4 w-4 text-[#38BDF8]" />
+                Export
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={fetchApplications}
+                disabled={loading}
+                className="h-11 w-11 rounded-[14px] border-[#E5EAF1] bg-white text-[#020617] hover:bg-[#F6F8FB]"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+          </div>
 
-        {/* Bulk Actions */}
+          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: "Total Applications", value: stats.total, Icon: Users, bg: "bg-[#F6F8FB]", color: "text-[#020617]", ring: "ring-[#E5EAF1]" },
+              { label: "Pending Review", value: stats.pending, Icon: Clock, bg: "bg-[#FFF7ED]", color: "text-[#F97316]", ring: "ring-[#FDBA74]/35" },
+              { label: "Approved", value: stats.approved, Icon: CheckCircle, bg: "bg-[#EFFFFA]", color: "text-[#22C7A1]", ring: "ring-[#22C7A1]/20" },
+              { label: "Rejected", value: stats.rejected, Icon: XCircle, bg: "bg-[#FFF0F2]", color: "text-[#FB6B7A]", ring: "ring-[#FB6B7A]/20" },
+            ].map(({ label, value, Icon, bg, color, ring }) => (
+              <div key={label} className={`rounded-[20px] ${bg} p-4 ring-1 ${ring}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-3xl font-black leading-none text-[#020617]">{value}</p>
+                    <p className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+                  </div>
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-[16px] bg-white ${color} shadow-sm ring-1 ring-white/80`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[24px] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "all", label: "All", count: stats.total },
+                { value: "pending", label: "Pending", count: stats.pending },
+                { value: "approved", label: "Approved", count: stats.approved },
+                { value: "rejected", label: "Rejected", count: stats.rejected },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  onClick={() => setActiveTab(tab.value as "all" | "pending" | "approved" | "rejected")}
+                  className={`min-h-10 rounded-[14px] px-4 text-sm font-black transition ${
+                    activeTab === tab.value
+                      ? "bg-[#020617] text-white shadow-[0_10px_20px_rgba(2,6,23,0.14)]"
+                      : "bg-[#F6F8FB] text-[#64748B] ring-1 ring-[#E5EAF1] hover:text-[#020617]"
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] ${activeTab === tab.value ? "bg-white/10 text-white" : "bg-white text-[#94A3B8]"}`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="relative min-w-[280px] flex-1 xl:max-w-md">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+              <Input
+                placeholder="Search by name, email, or user ID"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] pl-10 font-semibold text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#020617]"
+              />
+            </div>
+          </div>
+        </section>
+
         {selectedApplications.size > 0 && (
-          <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-center justify-between">
-            <span className="text-sm text-primary font-medium">
+          <div className="flex flex-col gap-3 rounded-[18px] border border-[#7C83F6]/20 bg-[#F3F4FF] p-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm font-black text-[#020617]">
               {selectedApplications.size} application{selectedApplications.size > 1 ? "s" : ""} selected
             </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleBulkApprove} disabled={isBulkProcessing}>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={handleBulkApprove} disabled={isBulkProcessing} className="rounded-[12px] border-[#22C7A1]/20 bg-white text-[#22C7A1]">
                 Approve Selected
               </Button>
-              <Button variant="outline" size="sm" className="text-red-600 border-red-200" onClick={openBulkRejectDialog} disabled={isBulkProcessing}>
+              <Button variant="outline" size="sm" className="rounded-[12px] border-[#FB6B7A]/20 bg-white text-[#FB6B7A] hover:bg-[#FFF0F2]" onClick={openBulkRejectDialog} disabled={isBulkProcessing}>
                 Reject Selected
               </Button>
             </div>
           </div>
         )}
 
-        {/* Applications Table */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold">Applications</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+            <div>
+              <h3 className="text-lg font-black text-[#020617]">Application Queue</h3>
+              <p className="text-xs font-bold text-[#94A3B8]">{filteredApplications.length} visible from {applications.length} total</p>
+            </div>
+            <Badge variant="outline" className="border-[#38BDF8]/20 bg-[#EFF9FF] text-[#38BDF8]">
+              Review center
+            </Badge>
+          </div>
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
+                <TableRow className="border-[#E5EAF1] hover:bg-transparent">
                   <TableHead className="w-10 pl-6">
                     <Checkbox
                       checked={selectedApplications.size === filteredApplications.length && filteredApplications.length > 0}
@@ -669,7 +650,7 @@ const AdminAffiliateApplications = () => {
                   <TableHead>Applicant</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>
-                    <button onClick={() => handleSort("applied_at")} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    <button onClick={() => handleSort("applied_at")} className="flex items-center gap-1 transition-colors hover:text-[#020617]">
                       Applied Date
                       {sortField === "applied_at" && (sortDirection === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
                     </button>
@@ -683,8 +664,8 @@ const AdminAffiliateApplications = () => {
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        <p className="text-muted-foreground text-sm">Loading applications...</p>
+                        <Loader2 className="w-8 h-8 animate-spin text-[#020617]" />
+                        <p className="text-sm font-semibold text-[#94A3B8]">Loading applications...</p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -692,17 +673,17 @@ const AdminAffiliateApplications = () => {
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                          <Users className="w-6 h-6 text-muted-foreground" />
+                        <div className="w-12 h-12 rounded-[18px] bg-[#F6F8FB] flex items-center justify-center ring-1 ring-[#E5EAF1]">
+                          <Users className="w-6 h-6 text-[#94A3B8]" />
                         </div>
-                        <p className="text-muted-foreground">No applications found</p>
-                        <p className="text-muted-foreground/70 text-sm">Try adjusting your filters</p>
+                        <p className="font-black text-[#020617]">No applications found</p>
+                        <p className="text-sm font-semibold text-[#94A3B8]">Try adjusting your filters</p>
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredApplications.map((application) => (
-                    <TableRow key={application.id} className="hover:bg-muted/50 transition-colors">
+                    <TableRow key={application.id} className="border-[#E5EAF1] transition-colors hover:bg-[#F6F8FB]">
                       <TableCell className="pl-6">
                         <Checkbox
                           checked={selectedApplications.has(application.id)}
@@ -711,30 +692,30 @@ const AdminAffiliateApplications = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="w-5 h-5 text-primary" />
+                          <div className="w-11 h-11 rounded-[15px] bg-[#F6F8FB] flex items-center justify-center ring-1 ring-[#E5EAF1]">
+                            <User className="w-5 h-5 text-[#7C83F6]" />
                           </div>
                           <div>
-                            <p className="font-medium">{application.profile?.full_name || "Anonymous User"}</p>
-                            <p className="text-xs text-muted-foreground">{application.profile?.email || "No email"}</p>
+                            <p className="font-black text-[#020617]">{application.profile?.full_name || "Anonymous User"}</p>
+                            <p className="text-xs font-semibold text-[#94A3B8]">{application.profile?.email || "No email"}</p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(application.status)}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
+                        <div className="flex items-center gap-1 text-sm font-semibold text-[#94A3B8]">
+                          <Calendar className="w-3 h-3 text-[#38BDF8]" />
                           {format(new Date(application.applied_at), "MMM d, yyyy")}
                         </div>
                       </TableCell>
                       <TableCell>
                         {application.application_note ? (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <FileText className="w-3 h-3" />
+                          <div className="flex items-center gap-1 text-sm font-semibold text-[#94A3B8]">
+                            <FileText className="w-3 h-3 text-[#7C83F6]" />
                             <span className="truncate max-w-[150px]">{application.application_note}</span>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground/50 text-sm">-</span>
+                          <span className="text-sm font-semibold text-[#94A3B8]">-</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -744,7 +725,7 @@ const AdminAffiliateApplications = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                                className="h-8 w-8 text-[#22C7A1] hover:bg-[#EFFFFA] hover:text-[#22C7A1]"
                                 onClick={() => handleApprove(application)}
                                 disabled={processingId === application.id}
                               >
@@ -757,7 +738,7 @@ const AdminAffiliateApplications = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                className="h-8 w-8 text-[#FB6B7A] hover:bg-[#FFF0F2] hover:text-[#FB6B7A]"
                                 onClick={() => openRejectDialog(application)}
                                 disabled={processingId === application.id}
                               >
@@ -767,7 +748,7 @@ const AdminAffiliateApplications = () => {
                           )}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-[#020617] hover:bg-[#F6F8FB]">
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -785,7 +766,7 @@ const AdminAffiliateApplications = () => {
                               {application.status !== "approved" && (
                                 <DropdownMenuItem
                                   onClick={() => handleApprove(application)}
-                                  className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-500/10"
+                                  className="text-[#22C7A1] focus:bg-[#EFFFFA] focus:text-[#22C7A1]"
                                 >
                                   <CheckCircle className="w-4 h-4 mr-2" />
                                   Approve
@@ -794,7 +775,7 @@ const AdminAffiliateApplications = () => {
                               {application.status !== "rejected" && (
                                 <DropdownMenuItem
                                   onClick={() => openRejectDialog(application)}
-                                  className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
+                                  className="text-[#FB6B7A] focus:bg-[#FFF0F2] focus:text-[#FB6B7A]"
                                 >
                                   <XCircle className="w-4 h-4 mr-2" />
                                   Reject
@@ -809,101 +790,85 @@ const AdminAffiliateApplications = () => {
                 )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
         {/* Application Detail Sheet */}
         <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <SheetContent className="w-full sm:max-w-xl">
+          <SheetContent className="w-full border-l border-[#E5EAF1] bg-[#F6F8FB] p-0 sm:max-w-xl">
             {selectedApplication && (
               <>
-                <SheetHeader className="pb-6 border-b">
+                <SheetHeader className="border-b border-[#E5EAF1] bg-white p-5 text-left">
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="w-8 h-8 text-primary" />
+                    <div className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#7C83F6]/15">
+                      <User className="h-8 w-8" />
                     </div>
                     <div>
-                      <SheetTitle className="text-xl">
+                      <SheetTitle className="text-xl font-black text-[#020617]">
                         {selectedApplication.profile?.full_name || "Anonymous User"}
                       </SheetTitle>
-                      <SheetDescription>{getStatusBadge(selectedApplication.status)}</SheetDescription>
+                      <SheetDescription className="mt-2">{getStatusBadge(selectedApplication.status)}</SheetDescription>
                     </div>
                   </div>
                 </SheetHeader>
 
-                <div className="mt-6 space-y-6">
+                <div className="space-y-4 p-5">
                   {/* Application Info */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Application Details
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 gap-4">
+                  <section className="rounded-[22px] bg-white p-4 shadow-[0_12px_28px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                      Application Details
+                    </p>
+                      <div className="mt-4 grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-xs text-muted-foreground">User ID</p>
-                          <code className="text-sm font-mono">{selectedApplication.user_id.substring(0, 16)}...</code>
+                          <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">User ID</p>
+                          <code className="text-sm font-bold text-[#020617]">{selectedApplication.user_id.substring(0, 16)}...</code>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Email</p>
-                          <p className="text-sm">{selectedApplication.profile?.email || "N/A"}</p>
+                          <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">Email</p>
+                          <p className="text-sm font-bold text-[#020617]">{selectedApplication.profile?.email || "N/A"}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Applied</p>
-                          <p className="text-sm">{format(new Date(selectedApplication.applied_at), "MMM d, yyyy HH:mm")}</p>
+                          <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">Applied</p>
+                          <p className="text-sm font-bold text-[#020617]">{format(new Date(selectedApplication.applied_at), "MMM d, yyyy HH:mm")}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Reviewed</p>
-                          <p className="text-sm">
+                          <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">Reviewed</p>
+                          <p className="text-sm font-bold text-[#020617]">
                             {selectedApplication.reviewed_at
                               ? format(new Date(selectedApplication.reviewed_at), "MMM d, yyyy HH:mm")
                               : "Not reviewed"}
                           </p>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                  </section>
 
                   {/* Application Note */}
                   {selectedApplication.application_note && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                          Application Note
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                          <FileText className="w-4 h-4 text-muted-foreground mt-0.5" />
-                          <p className="text-sm">{selectedApplication.application_note}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <section className="rounded-[22px] bg-white p-4 shadow-[0_12px_28px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Application Note</p>
+                      <div className="mt-3 flex items-start gap-3 rounded-[16px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                        <FileText className="mt-0.5 h-4 w-4 text-[#7C83F6]" />
+                        <p className="text-sm font-semibold leading-6 text-[#64748B]">{selectedApplication.application_note}</p>
+                      </div>
+                    </section>
                   )}
 
                   {/* Rejection Reason */}
                   {selectedApplication.rejection_reason && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                          Rejection Reason
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-100">
-                          <XCircle className="w-4 h-4 text-red-500 mt-0.5" />
-                          <p className="text-sm text-red-700">{selectedApplication.rejection_reason}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <section className="rounded-[22px] bg-white p-4 shadow-[0_12px_28px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Rejection Reason</p>
+                      <div className="mt-3 flex items-start gap-3 rounded-[16px] border border-[#FB6B7A]/20 bg-[#FFF0F2] p-3">
+                        <XCircle className="mt-0.5 h-4 w-4 text-[#FB6B7A]" />
+                        <p className="text-sm font-semibold leading-6 text-[#FB6B7A]">{selectedApplication.rejection_reason}</p>
+                      </div>
+                    </section>
                   )}
 
                   {/* Actions */}
                   {selectedApplication.status === "pending" && (
-                    <div className="flex gap-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       <Button
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                        className="h-12 rounded-[16px] bg-[#020617] font-black text-white hover:bg-[#020617]/90"
                         onClick={() => {
                           handleApprove(selectedApplication);
                           setIsDetailOpen(false);
@@ -915,7 +880,7 @@ const AdminAffiliateApplications = () => {
                       </Button>
                       <Button
                         variant="outline"
-                        className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                        className="h-12 rounded-[16px] border-[#FB6B7A]/25 bg-white font-black text-[#FB6B7A] hover:bg-[#FFF0F2] hover:text-[#FB6B7A]"
                         onClick={() => {
                           openRejectDialog(selectedApplication);
                           setIsDetailOpen(false);
@@ -935,29 +900,40 @@ const AdminAffiliateApplications = () => {
 
         {/* Reject Dialog */}
         <Sheet open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-          <SheetContent className="w-full sm:max-w-md">
-            <SheetHeader className="pb-6">
-              <SheetTitle>{selectedApplications.size > 0 ? `Reject ${selectedApplications.size} Applications` : "Reject Application"}</SheetTitle>
-              <SheetDescription>
+          <SheetContent className="w-full border-l border-[#E5EAF1] bg-[#F6F8FB] p-0 sm:max-w-md">
+            <SheetHeader className="border-b border-[#E5EAF1] bg-white p-5 text-left">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#FFF0F2] text-[#FB6B7A] ring-1 ring-[#FB6B7A]/20">
+                  <XCircle className="h-5 w-5" />
+                </span>
+                <div>
+                  <SheetTitle className="text-xl font-black text-[#020617]">{selectedApplications.size > 0 ? `Reject ${selectedApplications.size} Applications` : "Reject Application"}</SheetTitle>
+                  <SheetDescription className="mt-1 font-semibold text-[#94A3B8]">
                 {selectedApplications.size > 0 ? `Provide a reason for rejecting these ${selectedApplications.size} applications (optional). This reason will be sent to all selected applicants.` : `Provide a reason for rejecting ${selectedApplication?.profile?.full_name || "this application"} (optional).`}
-              </SheetDescription>
+                  </SheetDescription>
+                </div>
+              </div>
             </SheetHeader>
-            <div className="space-y-4 mt-4">
+            <div className="space-y-4 p-5">
               <Textarea
                 placeholder="Reason for rejection..."
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 rows={4}
+                className="min-h-32 rounded-[18px] border-[#E5EAF1] bg-white font-semibold text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#020617]"
               />
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => setIsRejectDialogOpen(false)}>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button
+                  variant="outline"
+                  className="h-12 rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white"
+                  onClick={() => setIsRejectDialogOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button
-                  variant="destructive"
-                  className="flex-1"
                   onClick={selectedApplications.size > 0 ? handleBulkReject : handleReject}
                   disabled={processingId !== null || isBulkProcessing}
+                  className="h-12 rounded-[16px] bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90"
                 >
                   {processingId || isBulkProcessing ? (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />

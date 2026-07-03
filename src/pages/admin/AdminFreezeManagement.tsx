@@ -1,26 +1,32 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Snowflake, 
-  Search, 
-  Filter, 
-  Calendar, 
-  User,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  RefreshCw
-} from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { cn } from "@/lib/utils";
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Filter,
+  RefreshCw,
+  Search,
+  Snowflake,
+  User,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { AdminLayout } from "@/components/AdminLayout";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FreezeRequest {
   id: string;
@@ -32,6 +38,35 @@ interface FreezeRequest {
   status: string;
   requested_at: string;
   user_email?: string;
+}
+
+const C = {
+  ink: "#020617",
+  muted: "#94A3B8",
+  panel: "#F6F8FB",
+  protein: "#7C83F6",
+  progress: "#22C7A1",
+  water: "#38BDF8",
+  fat: "#FB6B7A",
+};
+
+const tabs = [
+  { value: "pending", label: "Pending" },
+  { value: "active", label: "Active" },
+  { value: "completed", label: "Completed" },
+];
+
+function statusBadge(status: string) {
+  if (status === "active") {
+    return <Badge className="border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#0369A1]">Active</Badge>;
+  }
+  if (status === "pending") {
+    return <Badge className="border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#F97316]">Pending</Badge>;
+  }
+  if (status === "rejected") {
+    return <Badge className="border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#BE123C]">Rejected</Badge>;
+  }
+  return <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">{status}</Badge>;
 }
 
 export default function AdminFreezeManagement() {
@@ -56,10 +91,9 @@ export default function AdminFreezeManagement() {
 
       if (error) throw error;
 
-      // Transform data to include user email
-      const transformedData = data?.map(freeze => ({
+      const transformedData = data?.map((freeze) => ({
         ...freeze,
-        user_email: freeze.subscriptions?.user?.email
+        user_email: freeze.subscriptions?.user?.email,
       })) || [];
 
       setFreezes(transformedData);
@@ -109,82 +143,94 @@ export default function AdminFreezeManagement() {
     }
   };
 
-  const filteredFreezes = freezes.filter(freeze => {
-    const matchesSearch = searchQuery === "" || 
-      freeze.user_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      freeze.id.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || freeze.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredFreezes = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-  const pendingFreezes = filteredFreezes.filter(f => f.status === "pending");
-  const activeFreezes = filteredFreezes.filter(f => f.status === "active");
-  const completedFreezes = filteredFreezes.filter(f => ["completed", "approved"].includes(f.status));
+    return freezes.filter((freeze) => {
+      const matchesSearch =
+        !query ||
+        freeze.user_email?.toLowerCase().includes(query) ||
+        freeze.id.toLowerCase().includes(query);
+
+      const matchesStatus = statusFilter === "all" || freeze.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [freezes, searchQuery, statusFilter]);
+
+  const pendingFreezes = filteredFreezes.filter((freeze) => freeze.status === "pending");
+  const activeFreezes = filteredFreezes.filter((freeze) => freeze.status === "active");
+  const completedFreezes = filteredFreezes.filter((freeze) => ["completed", "approved"].includes(freeze.status));
+
+  const stats = useMemo(() => ({
+    pending: freezes.filter((freeze) => freeze.status === "pending").length,
+    active: freezes.filter((freeze) => freeze.status === "active").length,
+    completed: freezes.filter((freeze) => ["completed", "approved"].includes(freeze.status)).length,
+    total: freezes.length,
+  }), [freezes]);
+
+  const currentList = activeTab === "pending" ? pendingFreezes : activeTab === "active" ? activeFreezes : completedFreezes;
 
   const renderFreezeCard = (freeze: FreezeRequest, showActions = false) => (
-    <Card key={freeze.id} className="hover:shadow-md transition-shadow">
+    <Card key={freeze.id} className="rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
       <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <User className="w-4 h-4 text-slate-400" />
-              <span className="font-medium text-slate-900">
-                {freeze.user_email || "Unknown User"}
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <Calendar className="w-4 h-4" />
-              <span>
-                {format(parseISO(freeze.freeze_start_date), "MMM d")} - {format(parseISO(freeze.freeze_end_date), "MMM d, yyyy")}
-              </span>
-              <span className="text-slate-400">({freeze.days_count} days)</span>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 space-y-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F6F8FB] text-[#7C83F6]">
+                <User className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-base font-black text-[#020617]">
+                  {freeze.user_email || "Unknown User"}
+                </p>
+                <p className="truncate text-xs font-semibold text-[#94A3B8]">
+                  Request #{freeze.id.slice(0, 8)}
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Clock className="w-4 h-4" />
-              <span>
-                Requested {format(parseISO(freeze.requested_at), "MMM d, yyyy 'at' h:mm a")}
-              </span>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                <Calendar className="mb-2 h-4 w-4 text-[#38BDF8]" />
+                <p className="text-sm font-black text-[#020617]">
+                  {format(parseISO(freeze.freeze_start_date), "MMM d")} - {format(parseISO(freeze.freeze_end_date), "MMM d")}
+                </p>
+                <p className="text-[10px] font-black uppercase text-[#94A3B8]">Freeze window</p>
+              </div>
+              <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                <Snowflake className="mb-2 h-4 w-4 text-[#7C83F6]" />
+                <p className="text-sm font-black text-[#020617]">{freeze.days_count} days</p>
+                <p className="text-[10px] font-black uppercase text-[#94A3B8]">Duration</p>
+              </div>
+              <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                <Clock className="mb-2 h-4 w-4 text-[#FB6B7A]" />
+                <p className="text-sm font-black text-[#020617]">
+                  {format(parseISO(freeze.requested_at), "MMM d")}
+                </p>
+                <p className="text-[10px] font-black uppercase text-[#94A3B8]">Requested</p>
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-2">
-            <Badge 
-              variant={
-                freeze.status === "active" ? "default" :
-                freeze.status === "pending" ? "secondary" :
-                freeze.status === "completed" ? "outline" :
-                "destructive"
-              }
-              className={cn(
-                freeze.status === "active" && "bg-emerald-100 text-emerald-700",
-                freeze.status === "pending" && "bg-amber-100 text-amber-700",
-                freeze.status === "completed" && "bg-slate-100 text-slate-700"
-              )}
-            >
-              {freeze.status}
-            </Badge>
-
+          <div className="flex flex-col gap-3 lg:items-end">
+            {statusBadge(freeze.status)}
             {showActions && freeze.status === "pending" && (
-              <div className="flex gap-2 mt-2">
+              <div className="grid grid-cols-2 gap-2 lg:flex">
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-red-200 text-red-600 hover:bg-red-50"
+                  className="min-h-10 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#BE123C] shadow-none hover:bg-[#FB6B7A]/15"
                   onClick={() => handleReject(freeze.id)}
                 >
-                  <XCircle className="w-4 h-4 mr-1" />
+                  <XCircle className="mr-1 h-4 w-4" />
                   Reject
                 </Button>
                 <Button
                   size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className="min-h-10 rounded-full bg-[#020617] font-black text-white shadow-none hover:bg-[#020617]/90"
                   onClick={() => handleApprove(freeze.id)}
                 >
-                  <CheckCircle2 className="w-4 h-4 mr-1" />
+                  <CheckCircle2 className="mr-1 h-4 w-4" />
                   Approve
                 </Button>
               </div>
@@ -195,115 +241,73 @@ export default function AdminFreezeManagement() {
     </Card>
   );
 
+  const emptyIcon = activeTab === "pending" ? Clock : activeTab === "active" ? Snowflake : CheckCircle2;
+  const EmptyIcon = emptyIcon;
+
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 py-6 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <AdminLayout>
+      <div className="space-y-5 bg-[#F6F8FB] p-1 text-[#020617]">
+        <div className="overflow-hidden rounded-[28px] bg-white p-5 ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Freeze Management</h1>
-              <p className="text-slate-600 mt-1">
-                Review and manage subscription freeze requests
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#F6F8FB] px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-[#38BDF8]">
+                <span className="h-2 w-2 rounded-full bg-[#22C7A1]" />
+                Freeze control
+              </div>
+              <h1 className="mt-3 text-[28px] font-black leading-tight text-[#020617]">Freeze Management</h1>
+              <p className="mt-1 max-w-[42rem] text-sm font-semibold leading-6 text-[#64748B]">
+                Review subscription pause requests, approve eligible freezes, and monitor active customer hold periods.
               </p>
             </div>
             <Button
               variant="outline"
               onClick={fetchFreezes}
               disabled={isLoading}
+              className="min-h-12 rounded-full border-[#E5EAF1] bg-white px-5 font-black text-[#020617] shadow-none"
             >
-              <RefreshCw className={cn("w-4 h-4 mr-2", isLoading && "animate-spin")} />
+              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Stats Cards */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-500">Pending Requests</p>
-                  <p className="text-2xl font-bold text-amber-600">
-                    {freezes.filter(f => f.status === "pending").length}
-                  </p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[
+            { label: "Pending", value: stats.pending, icon: Clock, color: C.fat },
+            { label: "Active", value: stats.active, icon: Snowflake, color: C.water },
+            { label: "Completed", value: stats.completed, icon: CheckCircle2, color: C.progress },
+            { label: "Total", value: stats.total, icon: AlertCircle, color: C.protein },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="rounded-[24px] bg-white p-4 ring-1 ring-[#E5EAF1]">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}18`, color }}>
+                  <Icon className="h-5 w-5" />
                 </div>
-                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-amber-600" />
+                <div>
+                  <p className="text-2xl font-black leading-none text-[#020617]">{value}</p>
+                  <p className="mt-1 text-xs font-bold text-[#94A3B8]">{label}</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-500">Active Freezes</p>
-                  <p className="text-2xl font-bold text-emerald-600">
-                    {freezes.filter(f => f.status === "active").length}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                  <Snowflake className="w-5 h-5 text-emerald-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-500">Completed</p>
-                  <p className="text-2xl font-bold text-slate-600">
-                    {freezes.filter(f => ["completed", "approved"].includes(f.status)).length}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5 text-slate-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-500">Total Requests</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {freezes.length}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <AlertCircle className="w-5 h-5 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          ))}
         </div>
 
-        {/* Filters */}
-        <Card className="mb-6">
+        <Card className="rounded-[26px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
           <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex flex-col gap-3 md:flex-row">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
                 <Input
                   placeholder="Search by user email or freeze ID..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="min-h-12 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] pl-11 font-semibold text-[#020617] placeholder:text-[#94A3B8]"
                 />
               </div>
-              <div className="w-full md:w-48">
+              <div className="w-full md:w-56">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
-                    <Filter className="w-4 h-4 mr-2" />
+                  <SelectTrigger className="min-h-12 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-black text-[#020617]">
+                    <Filter className="mr-2 h-4 w-4 text-[#7C83F6]" />
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -319,88 +323,51 @@ export default function AdminFreezeManagement() {
           </CardContent>
         </Card>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="pending">
-              Pending
-              {pendingFreezes.length > 0 && (
-                <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700">
-                  {pendingFreezes.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-          </TabsList>
+        <div className="flex gap-2 overflow-x-auto rounded-[26px] bg-white p-2 ring-1 ring-[#E5EAF1]">
+          {tabs.map((tab) => {
+            const count = tab.value === "pending" ? pendingFreezes.length : tab.value === "active" ? activeFreezes.length : completedFreezes.length;
+            const active = activeTab === tab.value;
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setActiveTab(tab.value)}
+                className={`min-h-11 flex-1 rounded-full px-4 text-sm font-black transition-colors ${
+                  active ? "bg-[#020617] text-white" : "bg-[#F6F8FB] text-[#64748B]"
+                }`}
+              >
+                {tab.label} <span className={active ? "text-white/70" : "text-[#94A3B8]"}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
 
-          <TabsContent value="pending" className="space-y-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              </div>
-            ) : pendingFreezes.length > 0 ? (
-              pendingFreezes.map(freeze => renderFreezeCard(freeze, true))
-            ) : (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <Clock className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                    No Pending Requests
-                  </h3>
-                  <p className="text-slate-600">
-                    There are no freeze requests waiting for approval
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="active" className="space-y-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              </div>
-            ) : activeFreezes.length > 0 ? (
-              activeFreezes.map(freeze => renderFreezeCard(freeze))
-            ) : (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <Snowflake className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                    No Active Freezes
-                  </h3>
-                  <p className="text-slate-600">
-                    No subscriptions are currently frozen
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="completed" className="space-y-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              </div>
-            ) : completedFreezes.length > 0 ? (
-              completedFreezes.map(freeze => renderFreezeCard(freeze))
-            ) : (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                    No Completed Freezes
-                  </h3>
-                  <p className="text-slate-600">
-                    No freeze requests have been completed yet
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+        <div className="space-y-4">
+          {isLoading ? (
+            <Card className="rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
+              <CardContent className="flex items-center justify-center py-14">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#7C83F6] border-t-transparent" />
+              </CardContent>
+            </Card>
+          ) : currentList.length > 0 ? (
+            currentList.map((freeze) => renderFreezeCard(freeze, activeTab === "pending"))
+          ) : (
+            <Card className="rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
+              <CardContent className="px-6 py-12 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] bg-[#F6F8FB] text-[#7C83F6]">
+                  <EmptyIcon className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-black text-[#020617]">
+                  No {activeTab} freezes
+                </h3>
+                <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                  Nothing in this queue right now.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

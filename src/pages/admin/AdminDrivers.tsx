@@ -1,34 +1,27 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Truck,
-  Users,
-  Star,
-  Wallet,
-  CheckCircle,
-  XCircle,
-  Search,
-  RefreshCw,
-  User,
   Bike,
   Car,
+  CheckCircle,
+  Clock,
+  RefreshCw,
+  Search,
+  Star,
+  Truck,
+  User,
+  Users,
+  Wallet,
+  XCircle,
 } from "lucide-react";
+
+import { AdminLayout } from "@/components/AdminLayout";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { AdminLayout } from "@/components/AdminLayout";
 
 interface Driver {
   id: string;
@@ -47,6 +40,68 @@ interface Driver {
     full_name: string | null;
     email: string;
   } | null;
+}
+
+const C = {
+  ink: "#020617",
+  muted: "#94A3B8",
+  panel: "#F6F8FB",
+  protein: "#7C83F6",
+  progress: "#22C7A1",
+  water: "#38BDF8",
+  fat: "#FB6B7A",
+};
+
+const tabs = [
+  { value: "all", label: "All" },
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "online", label: "Online" },
+];
+
+function getStatusBadge(status: Driver["approval_status"]) {
+  switch (status) {
+    case "approved":
+      return <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">Approved</Badge>;
+    case "pending":
+      return <Badge className="border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#F97316]">Pending</Badge>;
+    case "rejected":
+      return <Badge className="border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#BE123C]">Rejected</Badge>;
+    default:
+      return <Badge className="border border-[#E5EAF1] bg-[#F6F8FB] text-[#64748B]">{status}</Badge>;
+  }
+}
+
+function getVehicleIcon(type: string) {
+  switch (type) {
+    case "car":
+      return <Car className="h-4 w-4" />;
+    case "bike":
+      return <Bike className="h-4 w-4" />;
+    default:
+      return <Truck className="h-4 w-4" />;
+  }
+}
+
+function DriverSkeleton() {
+  return (
+    <AdminLayout title="Driver Management">
+      <div className="space-y-5 bg-[#F6F8FB]">
+        <Skeleton className="h-36 rounded-[28px]" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[1, 2, 3, 4].map((item) => (
+            <Skeleton key={item} className="h-24 rounded-[24px]" />
+          ))}
+        </div>
+        <Skeleton className="h-20 rounded-[26px]" />
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {[1, 2, 3, 4].map((item) => (
+            <Skeleton key={item} className="h-52 rounded-[28px]" />
+          ))}
+        </div>
+      </div>
+    </AdminLayout>
+  );
 }
 
 export default function AdminDrivers() {
@@ -85,11 +140,9 @@ export default function AdminDrivers() {
 
       if (error) throw error;
 
-      // Fetch profiles for drivers
-      const userIds = [...new Set((data || []).map((d) => d.user_id).filter(Boolean))];
-      
+      const userIds = [...new Set((data || []).map((driver) => driver.user_id).filter(Boolean))];
       let profilesMap: Record<string, { full_name: string | null; email: string }> = {};
-      
+
       if (userIds.length > 0) {
         const { data: profiles, error: profilesError } = await supabase
           .from("profiles")
@@ -99,25 +152,23 @@ export default function AdminDrivers() {
         if (profilesError) {
           console.error("Error fetching profiles:", profilesError);
         } else if (profiles) {
-          profilesMap = profiles.reduce((acc, p) => {
-            acc[p.user_id] = { 
-              full_name: p.full_name, 
-              email: p.email || ""
+          profilesMap = profiles.reduce((acc, profile) => {
+            acc[profile.user_id] = {
+              full_name: profile.full_name,
+              email: profile.email || "",
             };
             return acc;
           }, {} as Record<string, { full_name: string | null; email: string }>);
         }
       }
 
-      // Merge driver data with profiles
-      const transformed: Driver[] = (data || []).map((d) => ({
-        ...d,
-        profile: profilesMap[d.user_id] || null,
+      const transformed: Driver[] = (data || []).map((driver) => ({
+        ...driver,
+        profile: profilesMap[driver.user_id] || null,
       }));
 
       setDrivers(transformed);
     } catch (error) {
-      // Only log the error — drivers table might be empty, which is a valid state
       console.warn("Error fetching drivers (table may be empty):", error);
     } finally {
       setLoading(false);
@@ -134,8 +185,8 @@ export default function AdminDrivers() {
       if (error) throw error;
 
       setDrivers((prev) =>
-        prev.map((d) =>
-          d.id === driverId ? { ...d, approval_status: status } : d
+        prev.map((driver) =>
+          driver.id === driverId ? { ...driver, approval_status: status } : driver
         )
       );
 
@@ -153,267 +204,221 @@ export default function AdminDrivers() {
     }
   };
 
-  const filteredDrivers = drivers.filter((driver) => {
-    // Filter by search
-    const searchLower = searchQuery.toLowerCase();
-    const matchesSearch =
-      driver.profile?.full_name?.toLowerCase().includes(searchLower) ||
-      driver.profile?.email?.toLowerCase().includes(searchLower) ||
-      driver.vehicle_plate?.toLowerCase().includes(searchLower);
-
-    // Filter by tab
-    const matchesTab =
-      activeTab === "all" ||
-      (activeTab === "pending" && driver.approval_status === "pending") ||
-      (activeTab === "approved" && driver.approval_status === "approved") ||
-      (activeTab === "online" && driver.is_online);
-
-    return matchesSearch && matchesTab;
-  });
-
-  const stats = {
+  const stats = useMemo(() => ({
     total: drivers.length,
-    pending: drivers.filter((d) => d.approval_status === "pending").length,
-    approved: drivers.filter((d) => d.approval_status === "approved").length,
-    online: drivers.filter((d) => d.is_online).length,
-    totalEarnings: drivers.reduce((sum, d) => sum + d.wallet_balance, 0),
-    totalDeliveries: drivers.reduce((sum, d) => sum + d.total_deliveries, 0),
-  };
+    pending: drivers.filter((driver) => driver.approval_status === "pending").length,
+    approved: drivers.filter((driver) => driver.approval_status === "approved").length,
+    online: drivers.filter((driver) => driver.is_online).length,
+    totalEarnings: drivers.reduce((sum, driver) => sum + driver.wallet_balance, 0),
+    totalDeliveries: drivers.reduce((sum, driver) => sum + driver.total_deliveries, 0),
+  }), [drivers]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "approved":
-        return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Approved</Badge>;
-      case "pending":
-        return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">Pending</Badge>;
-      case "rejected":
-        return <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Rejected</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
+  const filteredDrivers = useMemo(() => {
+    const searchLower = searchQuery.trim().toLowerCase();
 
-  const getVehicleIcon = (type: string) => {
-    switch (type) {
-      case "car":
-        return <Car className="h-4 w-4" />;
-      case "bike":
-        return <Bike className="h-4 w-4" />;
-      default:
-        return <Truck className="h-4 w-4" />;
-    }
-  };
+    return drivers.filter((driver) => {
+      const matchesSearch =
+        !searchLower ||
+        driver.profile?.full_name?.toLowerCase().includes(searchLower) ||
+        driver.profile?.email?.toLowerCase().includes(searchLower) ||
+        driver.vehicle_plate?.toLowerCase().includes(searchLower) ||
+        driver.vehicle_type?.toLowerCase().includes(searchLower);
+
+      const matchesTab =
+        activeTab === "all" ||
+        (activeTab === "pending" && driver.approval_status === "pending") ||
+        (activeTab === "approved" && driver.approval_status === "approved") ||
+        (activeTab === "online" && driver.is_online);
+
+      return matchesSearch && matchesTab;
+    });
+  }, [activeTab, drivers, searchQuery]);
 
   if (loading) {
-    return (
-      <AdminLayout title="Driver Management">
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      </AdminLayout>
-    );
+    return <DriverSkeleton />;
   }
 
   return (
     <AdminLayout title="Driver Management" subtitle="Manage drivers and deliveries">
-      <div className="space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-sm text-muted-foreground">Total Drivers</p>
-                </div>
+      <div className="space-y-5 bg-[#F6F8FB] pb-8 text-[#020617]">
+        <div className="overflow-hidden rounded-[28px] bg-white p-5 ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#F6F8FB] px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-[#7C83F6]">
+                <span className="h-2 w-2 rounded-full bg-[#22C7A1]" />
+                Admin fleet
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.approved}</p>
-                  <p className="text-sm text-muted-foreground">Approved</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                  <Truck className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.totalDeliveries}</p>
-                  <p className="text-sm text-muted-foreground">Deliveries</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                  <Wallet className="h-5 w-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">QAR {stats.totalEarnings.toFixed(2)}</p>
-                  <p className="text-sm text-muted-foreground">Total Earnings</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <h1 className="mt-3 text-[28px] font-black leading-tight text-[#020617]">Driver approvals</h1>
+              <p className="mt-1 max-w-[40rem] text-sm font-semibold leading-6 text-[#64748B]">
+                Review registered drivers, approve access, monitor online coverage, and track fleet wallet balances.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={fetchDrivers}
+              className="min-h-12 rounded-full border-[#E5EAF1] bg-white px-4 font-black text-[#020617] shadow-none"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
-        {/* Search and Filters */}
-        <Card>
-          <CardContent className="py-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[
+            { label: "Total Drivers", value: stats.total, icon: Users, color: C.protein },
+            { label: "Approved", value: stats.approved, icon: CheckCircle, color: C.progress },
+            { label: "Deliveries", value: stats.totalDeliveries, icon: Truck, color: C.water },
+            { label: "Wallet", value: `QAR ${stats.totalEarnings.toFixed(0)}`, icon: Wallet, color: C.fat },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="rounded-[24px] bg-white p-4 ring-1 ring-[#E5EAF1]">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}18`, color }}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-2xl font-black leading-none text-[#020617]">{value}</p>
+                  <p className="mt-1 text-xs font-bold text-[#94A3B8]">{label}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <Card className="rounded-[26px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-3">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
                 <Input
-                  placeholder="Search drivers..."
+                  placeholder="Search name, email, plate, vehicle..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="min-h-12 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] pl-11 font-semibold text-[#020617] placeholder:text-[#94A3B8]"
                 />
               </div>
-              <Button variant="outline" onClick={fetchDrivers}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
+
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {tabs.map((tab) => {
+                  const count =
+                    tab.value === "all" ? stats.total :
+                    tab.value === "pending" ? stats.pending :
+                    tab.value === "approved" ? stats.approved :
+                    stats.online;
+                  const active = activeTab === tab.value;
+
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => setActiveTab(tab.value)}
+                      className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-black transition-colors ${
+                        active ? "bg-[#020617] text-white" : "bg-[#F6F8FB] text-[#64748B] ring-1 ring-[#E5EAF1]"
+                      }`}
+                    >
+                      {tab.label} <span className={active ? "text-white/75" : "text-[#94A3B8]"}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Drivers Table */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Drivers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-4">
-                <TabsTrigger value="all">All ({stats.total})</TabsTrigger>
-                <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
-                <TabsTrigger value="approved">Approved ({stats.approved})</TabsTrigger>
-                <TabsTrigger value="online">Online ({stats.online})</TabsTrigger>
-              </TabsList>
+        {filteredDrivers.length === 0 ? (
+          <Card className="rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
+            <CardContent className="px-6 py-12 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] bg-[#F6F8FB] text-[#7C83F6]">
+                <Users className="h-8 w-8" />
+              </div>
+              <p className="text-lg font-black text-[#020617]">No drivers found</p>
+              <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                Drivers will appear here once they register through the Driver portal.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {filteredDrivers.map((driver) => {
+              const driverName = driver.profile?.full_name || "Unnamed Driver";
+              const vehicleLabel = [driver.vehicle_make, driver.vehicle_model].filter(Boolean).join(" ") || driver.vehicle_type;
 
-              <TabsContent value={activeTab} className="mt-0">
-                {filteredDrivers.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                    <p className="font-medium text-foreground mb-1">No drivers registered yet</p>
-                    <p className="text-sm text-muted-foreground">Drivers will appear here once they register via the Driver portal.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Driver</TableHead>
-                          <TableHead>Vehicle</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Deliveries</TableHead>
-                          <TableHead>Rating</TableHead>
-                          <TableHead>Wallet</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredDrivers.map((driver) => (
-                          <TableRow key={driver.id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                                  <User className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                                <div>
-                                  <p className="font-medium">
-                                    {driver.profile?.full_name || "Unnamed Driver"}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {driver.profile?.email}
-                                  </p>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                {getVehicleIcon(driver.vehicle_type)}
-                                <span className="capitalize">{driver.vehicle_type}</span>
-                                {driver.vehicle_plate && (
-                                  <span className="text-sm text-muted-foreground">
-                                    ({driver.vehicle_plate})
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                {getStatusBadge(driver.approval_status)}
-                                {driver.is_online && (
-                                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
-                                    Online
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>{driver.total_deliveries}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                                <span>{driver.rating?.toFixed(1) || "0.0"}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>QAR {driver.wallet_balance.toFixed(2)}</TableCell>
-                            <TableCell>
-                              {driver.approval_status === "pending" && (
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20"
-                                    onClick={() => updateApprovalStatus(driver.id, "approved")}
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20"
-                                    onClick={() => updateApprovalStatus(driver.id, "rejected")}
-                                  >
-                                    <XCircle className="h-4 w-4 mr-1" />
-                                    Reject
-                                  </Button>
-                                </div>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+              return (
+                <Card key={driver.id} className="rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#F6F8FB] text-[#7C83F6]">
+                          <User className="h-6 w-6" />
+                          <span
+                            className="absolute -right-1 -top-1 h-4 w-4 rounded-full border-2 border-white"
+                            style={{ backgroundColor: driver.is_online ? C.progress : "#CBD5E1" }}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="truncate text-base font-black text-[#020617]">{driverName}</h3>
+                          <p className="truncate text-sm font-semibold text-[#94A3B8]">{driver.profile?.email || "No email"}</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {getStatusBadge(driver.approval_status)}
+                            {driver.is_online && (
+                              <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">Online</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {driver.approval_status === "pending" && (
+                        <div className="grid grid-cols-2 gap-2 sm:flex">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="min-h-10 rounded-full border-[#22C7A1]/25 bg-[#22C7A1]/10 font-black text-[#047857] shadow-none hover:bg-[#22C7A1]/15"
+                            onClick={() => updateApprovalStatus(driver.id, "approved")}
+                          >
+                            <CheckCircle className="mr-1 h-4 w-4" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="min-h-10 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#BE123C] shadow-none hover:bg-[#FB6B7A]/15"
+                            onClick={() => updateApprovalStatus(driver.id, "rejected")}
+                          >
+                            <XCircle className="mr-1 h-4 w-4" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                      <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                        <div className="mb-2 text-[#38BDF8]">{getVehicleIcon(driver.vehicle_type)}</div>
+                        <p className="truncate text-sm font-black capitalize text-[#020617]">{vehicleLabel}</p>
+                        <p className="text-[10px] font-black uppercase text-[#94A3B8]">{driver.vehicle_plate || "No plate"}</p>
+                      </div>
+                      <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                        <Truck className="mb-2 h-4 w-4 text-[#7C83F6]" />
+                        <p className="text-sm font-black text-[#020617]">{driver.total_deliveries}</p>
+                        <p className="text-[10px] font-black uppercase text-[#94A3B8]">Deliveries</p>
+                      </div>
+                      <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                        <Star className="mb-2 h-4 w-4 fill-[#FB6B7A] text-[#FB6B7A]" />
+                        <p className="text-sm font-black text-[#020617]">{driver.rating?.toFixed(1) || "0.0"}</p>
+                        <p className="text-[10px] font-black uppercase text-[#94A3B8]">Rating</p>
+                      </div>
+                      <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                        <Wallet className="mb-2 h-4 w-4 text-[#22C7A1]" />
+                        <p className="truncate text-sm font-black text-[#020617]">QAR {driver.wallet_balance.toFixed(2)}</p>
+                        <p className="text-[10px] font-black uppercase text-[#94A3B8]">Wallet</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

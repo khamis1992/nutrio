@@ -57,6 +57,7 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 
 interface StreakReward {
   id: string;
@@ -92,6 +93,16 @@ const rewardTypeOptions = [
   { value: 'discount', label: 'Discount %', icon: TrendingUp },
   { value: 'badge', label: 'Badge', icon: Target },
 ];
+
+const C = {
+  text: "#020617",
+  muted: "#94A3B8",
+  panel: "#F6F8FB",
+  water: "#38BDF8",
+  fat: "#FB6B7A",
+  protein: "#7C83F6",
+  progress: "#22C7A1",
+};
 
 export default function AdminStreakRewards() {
   const { toast } = useToast();
@@ -309,8 +320,8 @@ export default function AdminStreakRewards() {
   if (loading) {
     return (
       <AdminLayout title="Streak Rewards" subtitle="Manage user streak rewards and milestones">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="flex h-64 items-center justify-center rounded-[28px] bg-[#F6F8FB]">
+          <Loader2 className="h-8 w-8 animate-spin text-[#22C7A1]" />
         </div>
       </AdminLayout>
     );
@@ -318,88 +329,116 @@ export default function AdminStreakRewards() {
 
   return (
     <AdminLayout title="Streak Rewards" subtitle="Manage user streak rewards and milestones">
-      <div className="space-y-6">
+      <div className="space-y-4 bg-[#F6F8FB] text-[#020617] sm:space-y-5">
+        <section className="overflow-hidden rounded-[28px] border border-[#E2E8F0] bg-white shadow-[0_18px_45px_rgba(2,6,23,0.06)]">
+          <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-[#22C7A1]/15 text-[#047857]">
+                <Flame className="h-7 w-7" />
+              </div>
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#22C7A1]">
+                  Streak engine
+                </p>
+                <h1 className="mt-1 text-[28px] font-black leading-tight text-[#020617]">
+                  Streak Rewards
+                </h1>
+                <p className="mt-1 max-w-lg text-sm font-semibold leading-5 text-[#94A3B8]">
+                  Manage meal logging milestones, active reward tiers, claims, and user streak engagement.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => handleOpenDialog()}
+              className="h-12 rounded-2xl bg-[#020617] px-5 font-extrabold text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] hover:bg-[#020617]/90"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Reward
+            </Button>
+          </div>
+        </section>
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <Card>
-            <CardContent className="pt-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Flame className="h-5 w-5 text-primary" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#22C7A1]/12">
+                  <Flame className="h-5 w-5 text-[#047857]" />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.totalRewards}</p>
-                  <p className="text-xs text-muted-foreground">Total Rewards</p>
+                <div className="min-w-0">
+                  <p className="text-2xl font-black text-[#020617]">{stats.totalRewards}</p>
+                  <p className="text-xs font-bold text-[#94A3B8]">Total Rewards</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-4">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <Check className="h-5 w-5 text-green-500" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#22C7A1]/12">
+                  <Check className="h-5 w-5 text-[#047857]" />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.activeRewards}</p>
-                  <p className="text-xs text-muted-foreground">Active</p>
+                <div className="min-w-0">
+                  <p className="text-2xl font-black text-[#020617]">{stats.activeRewards}</p>
+                  <p className="text-xs font-bold text-[#94A3B8]">Active</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-4">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                  <Gift className="h-5 w-5 text-cyan-500" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#38BDF8]/12">
+                  <Gift className="h-5 w-5 text-[#0369A1]" />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.totalClaims}</p>
-                  <p className="text-xs text-muted-foreground">Claims</p>
+                <div className="min-w-0">
+                  <p className="text-2xl font-black text-[#020617]">{stats.totalClaims}</p>
+                  <p className="text-xs font-bold text-[#94A3B8]">Claims</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-4">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-amber-500" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#7C83F6]/12">
+                  <TrendingUp className="h-5 w-5 text-[#5B5FE8]" />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.totalValueClaimed)}</p>
-                  <p className="text-xs text-muted-foreground">Value Claimed</p>
+                <div className="min-w-0">
+                  <p className="truncate text-xl font-black text-[#020617]">{formatCurrency(stats.totalValueClaimed)}</p>
+                  <p className="text-xs font-bold text-[#94A3B8]">Value Claimed</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-4">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-purple-500" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#7C83F6]/12">
+                  <Users className="h-5 w-5 text-[#5B5FE8]" />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.usersWithStreaks}</p>
-                  <p className="text-xs text-muted-foreground">Users w/ Streaks</p>
+                <div className="min-w-0">
+                  <p className="text-2xl font-black text-[#020617]">{stats.usersWithStreaks}</p>
+                  <p className="text-xs font-bold text-[#94A3B8]">Users w/ Streaks</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-4">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-rose-500/10 flex items-center justify-center">
-                  <Target className="h-5 w-5 text-rose-500" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FB6B7A]/12">
+                  <Target className="h-5 w-5 text-[#BE123C]" />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.avgStreakDays}</p>
-                  <p className="text-xs text-muted-foreground">Avg Streak</p>
+                <div className="min-w-0">
+                  <p className="text-2xl font-black text-[#020617]">{stats.avgStreakDays}</p>
+                  <p className="text-xs font-bold text-[#94A3B8]">Avg Streak</p>
                 </div>
               </div>
             </CardContent>
@@ -407,34 +446,127 @@ export default function AdminStreakRewards() {
         </div>
 
         {/* Streak Rewards Table */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Flame className="h-5 w-5" />
+        <Card className="overflow-hidden rounded-[28px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-[#E2E8F0]">
+            <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
+              <Flame className="h-5 w-5 text-[#22C7A1]" />
               Streak Reward Tiers
             </CardTitle>
-            <Button onClick={() => handleOpenDialog()}>
+            <Button
+              onClick={() => handleOpenDialog()}
+              className="h-11 rounded-2xl bg-[#22C7A1] font-extrabold text-white hover:bg-[#1DB492]"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Reward
             </Button>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+          <CardContent className="p-0">
+            <div className="grid gap-3 p-4 md:hidden">
+              {rewards.length === 0 ? (
+                <div className="rounded-[24px] bg-[#F6F8FB] px-5 py-10 text-center">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-[#94A3B8]">
+                    <Gift className="h-7 w-7" />
+                  </div>
+                  <p className="mt-4 text-lg font-black text-[#020617]">No rewards yet</p>
+                  <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                    Add your first streak reward tier.
+                  </p>
+                </div>
+              ) : (
+                rewards.map((reward) => {
+                  const Icon = getRewardTypeIcon(reward.reward_type);
+                  return (
+                    <article
+                      key={reward.id}
+                      className="rounded-[24px] border border-[#E2E8F0] bg-[#F6F8FB] p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#22C7A1] shadow-sm">
+                            <Flame className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="text-lg font-black text-[#020617]">{reward.streak_days} days</p>
+                            <p className="text-xs font-bold text-[#94A3B8]">{getRewardTypeLabel(reward.reward_type)}</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={reward.is_active}
+                          onCheckedChange={() => toggleActive(reward)}
+                        />
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <div className="rounded-2xl bg-white p-3">
+                          <Icon className="mb-2 h-4 w-4 text-[#7C83F6]" />
+                          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#94A3B8]">
+                            Reward
+                          </p>
+                          <p className="mt-1 truncate text-sm font-black text-[#020617]">
+                            {formatRewardValue(reward)}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-white p-3">
+                          <div className={cn(
+                            "mb-2 h-4 w-4 rounded-full",
+                            reward.is_active ? "bg-[#22C7A1]" : "bg-[#FB6B7A]"
+                          )} />
+                          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#94A3B8]">
+                            Status
+                          </p>
+                          <p className="mt-1 text-sm font-black text-[#020617]">
+                            {reward.is_active ? "Active" : "Disabled"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="mt-3 line-clamp-2 text-sm font-semibold text-[#64748B]">
+                        {reward.reward_description}
+                      </p>
+
+                      <div className="mt-4 flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="h-11 flex-1 rounded-2xl border-[#E2E8F0] bg-white font-extrabold text-[#020617]"
+                          onClick={() => handleOpenDialog(reward)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-11 flex-1 rounded-2xl border-[#FB6B7A]/25 bg-white font-extrabold text-[#BE123C]"
+                          onClick={() => {
+                            setSelectedReward(reward);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </Button>
+                      </div>
+                    </article>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Streak Days</TableHead>
-                    <TableHead>Reward Type</TableHead>
-                    <TableHead>Reward Value</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                  <TableRow className="bg-[#F6F8FB] hover:bg-[#F6F8FB]">
+                    <TableHead className="font-extrabold text-[#94A3B8]">Streak Days</TableHead>
+                    <TableHead className="font-extrabold text-[#94A3B8]">Reward Type</TableHead>
+                    <TableHead className="font-extrabold text-[#94A3B8]">Reward Value</TableHead>
+                    <TableHead className="font-extrabold text-[#94A3B8]">Description</TableHead>
+                    <TableHead className="text-center font-extrabold text-[#94A3B8]">Status</TableHead>
+                    <TableHead className="text-right font-extrabold text-[#94A3B8]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rewards.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="py-10 text-center font-semibold text-[#94A3B8]">
                         No streak rewards configured. Add your first reward tier!
                       </TableCell>
                     </TableRow>
@@ -444,24 +576,24 @@ export default function AdminStreakRewards() {
                       return (
                         <TableRow key={reward.id}>
                           <TableCell>
-                            <Badge variant="outline" className="gap-1 text-base px-3 py-1">
-                              <Flame className="h-4 w-4 text-orange-500" />
+                            <Badge variant="outline" className="gap-1 rounded-full border-[#22C7A1]/25 bg-[#22C7A1]/10 px-3 py-1 text-base font-black text-[#047857]">
+                              <Flame className="h-4 w-4" />
                               {reward.streak_days} days
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Icon className="h-4 w-4 text-muted-foreground" />
-                              <span>{getRewardTypeLabel(reward.reward_type)}</span>
+                              <Icon className="h-4 w-4 text-[#7C83F6]" />
+                              <span className="font-bold text-[#020617]">{getRewardTypeLabel(reward.reward_type)}</span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="font-semibold text-green-600">
+                            <span className="font-black text-[#22C7A1]">
                               {formatRewardValue(reward)}
                             </span>
                           </TableCell>
                           <TableCell>
-                            <p className="text-sm text-muted-foreground max-w-[200px] truncate">
+                            <p className="max-w-[200px] truncate text-sm font-semibold text-[#94A3B8]">
                               {reward.reward_description}
                             </p>
                           </TableCell>
@@ -476,7 +608,7 @@ export default function AdminStreakRewards() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="min-h-[44px] min-w-[44px]"
+                                className="min-h-[44px] min-w-[44px] rounded-2xl text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]"
                                 onClick={() => handleOpenDialog(reward)}
                               >
                                 <Pencil className="h-4 w-4" />
@@ -484,7 +616,7 @@ export default function AdminStreakRewards() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
+                                className="min-h-[44px] min-w-[44px] rounded-2xl text-[#FB6B7A] hover:bg-[#FB6B7A]/10 hover:text-[#BE123C]"
                                 onClick={() => {
                                   setSelectedReward(reward);
                                   setDeleteDialogOpen(true);
@@ -505,15 +637,15 @@ export default function AdminStreakRewards() {
         </Card>
 
         {/* Info Card */}
-        <Card className="bg-muted/50">
-          <CardContent className="pt-6">
+        <Card className="rounded-[28px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+          <CardContent className="p-5">
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Flame className="h-5 w-5 text-primary" />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#22C7A1]/12">
+                <Flame className="h-5 w-5 text-[#047857]" />
               </div>
               <div>
-                <h3 className="font-semibold mb-2">How Streak Rewards Work</h3>
-                <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                <h3 className="mb-2 font-black text-[#020617]">How Streak Rewards Work</h3>
+                <ul className="list-inside list-disc space-y-1 text-sm font-semibold text-[#94A3B8]">
                   <li>Users build streaks by logging meals on consecutive days</li>
                   <li>When a user reaches a streak milestone, they unlock the reward</li>
                   <li>Users can claim rewards from their profile page</li>
@@ -528,19 +660,19 @@ export default function AdminStreakRewards() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+        <DialogContent className="mx-4 max-h-[90vh] max-w-[95vw] overflow-y-auto rounded-[28px] border-[#E2E8F0] bg-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-xl font-black text-[#020617]">
               {selectedReward ? "Edit Streak Reward" : "Add New Streak Reward"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="font-semibold text-[#94A3B8]">
               Configure a reward that users can earn by maintaining a meal logging streak.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="streak_days">Streak Days Required</Label>
+              <Label htmlFor="streak_days" className="font-extrabold text-[#020617]">Streak Days Required</Label>
               <Input
                 id="streak_days"
                 type="number"
@@ -548,21 +680,21 @@ export default function AdminStreakRewards() {
                 min={1}
                 value={formData.streak_days}
                 onChange={(e) => setFormData({ ...formData, streak_days: parseInt(e.target.value) || 0 })}
-                className="h-12 sm:h-10 min-h-[44px]"
+                className="min-h-[44px] rounded-2xl border-[#E2E8F0] bg-[#F6F8FB] font-bold text-[#020617] sm:h-10"
                 placeholder="e.g., 7"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs font-semibold text-[#94A3B8]">
                 Number of consecutive days users must log meals
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reward_type">Reward Type</Label>
+              <Label htmlFor="reward_type" className="font-extrabold text-[#020617]">Reward Type</Label>
               <Select
                 value={formData.reward_type}
                 onValueChange={(value: typeof formData.reward_type) => setFormData({ ...formData, reward_type: value })}
               >
-                <SelectTrigger className="h-12 sm:h-10 min-h-[44px]">
+                <SelectTrigger className="min-h-[44px] rounded-2xl border-[#E2E8F0] bg-[#F6F8FB] font-bold text-[#020617] sm:h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -579,7 +711,7 @@ export default function AdminStreakRewards() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reward_value">
+              <Label htmlFor="reward_value" className="font-extrabold text-[#020617]">
                 {formData.reward_type === 'discount' ? 'Discount Percentage' : 
                  formData.reward_type === 'free_meal' ? 'Number of Free Meals' : 
                  formData.reward_type === 'badge' ? 'Badge Level (cosmetic)' : 'Bonus Amount (QAR)'}
@@ -592,28 +724,28 @@ export default function AdminStreakRewards() {
                 step={formData.reward_type === 'discount' ? 1 : 0.01}
                 value={formData.reward_value}
                 onChange={(e) => setFormData({ ...formData, reward_value: parseFloat(e.target.value) || 0 })}
-                className="h-12 sm:h-10 min-h-[44px]"
+                className="min-h-[44px] rounded-2xl border-[#E2E8F0] bg-[#F6F8FB] font-bold text-[#020617] sm:h-10"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reward_description">Reward Description</Label>
+              <Label htmlFor="reward_description" className="font-extrabold text-[#020617]">Reward Description</Label>
               <Textarea
                 id="reward_description"
                 placeholder="e.g., QAR 10 bonus credit for 7-day streak"
                 value={formData.reward_description}
                 onChange={(e) => setFormData({ ...formData, reward_description: e.target.value })}
-                className="min-h-[80px] sm:min-h-[100px]"
+                className="min-h-[80px] rounded-2xl border-[#E2E8F0] bg-[#F6F8FB] font-bold text-[#020617] sm:min-h-[100px]"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs font-semibold text-[#94A3B8]">
                 This description will be shown to users when they unlock the reward
               </p>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between rounded-2xl bg-[#F6F8FB] p-3">
               <div className="space-y-0.5">
-                <Label>Active</Label>
-                <p className="text-sm text-muted-foreground">
+                <Label className="font-extrabold text-[#020617]">Active</Label>
+                <p className="text-sm font-semibold text-[#94A3B8]">
                   Enable this reward for users to earn
                 </p>
               </div>
@@ -625,10 +757,10 @@ export default function AdminStreakRewards() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 rounded-2xl border-[#E2E8F0] bg-white font-extrabold text-[#020617]">
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={saving}>
+            <Button onClick={handleSubmit} disabled={saving} className="h-11 rounded-2xl bg-[#22C7A1] font-extrabold text-white hover:bg-[#1DB492]">
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {selectedReward ? "Save Changes" : "Create Reward"}
             </Button>
@@ -638,17 +770,17 @@ export default function AdminStreakRewards() {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-[28px] border-[#E2E8F0] bg-white">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Streak Reward</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-xl font-black text-[#020617]">Delete Streak Reward</AlertDialogTitle>
+            <AlertDialogDescription className="font-semibold text-[#94A3B8]">
               Are you sure you want to delete the reward for {selectedReward?.streak_days} day streak? 
               This will remove the reward from being available to users. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel className="h-11 rounded-2xl border-[#E2E8F0] bg-white font-extrabold text-[#020617]">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="h-11 rounded-2xl bg-[#FB6B7A] font-extrabold text-white hover:bg-[#E85D6C]">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

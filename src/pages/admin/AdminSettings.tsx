@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, Bell, Zap, Save, Loader2, Crown, Users, Bike, MapPin, Store } from "lucide-react";
+import { DollarSign, Bell, Zap, Save, Loader2, Crown, Users, Bike, MapPin, Store, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -84,6 +84,13 @@ interface DriverEarningsSettings {
   };
   peak_hour_bonus: number;
 }
+
+const cardClass = "overflow-hidden rounded-[24px] border-[#E5EAF1] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)]";
+const cardHeaderClass = "border-b border-[#E5EAF1] bg-[#F6F8FB] p-5";
+const cardContentClass = "space-y-4 p-5";
+const inputClass = "min-h-[48px] rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617] focus-visible:ring-[#020617]";
+const compactInputClass = "min-h-[44px] rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617] focus-visible:ring-[#020617]";
+const switchClass = "data-[state=checked]:bg-[#020617] data-[state=unchecked]:bg-[#E5EAF1]";
 
 export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
@@ -236,23 +243,62 @@ export default function AdminSettings() {
 
   if (loading) {
     return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <AdminLayout title="Platform Settings" subtitle="Configure platform-wide settings and features">
+        <div className="flex h-64 items-center justify-center rounded-[28px] border border-[#E5EAF1] bg-[#F6F8FB]">
+          <Loader2 className="h-8 w-8 animate-spin text-[#22C7A1]" />
         </div>
       </AdminLayout>
     );
   }
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Platform Settings</h1>
-            <p className="text-muted-foreground">Configure platform-wide settings and features</p>
+    <AdminLayout title="Platform Settings" subtitle="Configure platform-wide settings and features">
+      <div className="space-y-6 text-[#020617]">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_18px_42px_rgba(2,6,23,0.07)] ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-5 border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-[#22C7A1] ring-1 ring-[#E5EAF1]">
+                <Settings className="h-3.5 w-3.5" />
+                Control panel
+              </div>
+              <h2 className="text-2xl font-black tracking-tight text-[#020617] sm:text-3xl">Platform settings</h2>
+              <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-[#94A3B8]">
+                Configure commercial rates, driver earnings, monetization packages, platform features, and notification channels.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
+              <div className="rounded-[18px] border border-[#E5EAF1] bg-white p-4">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">Restaurant fee</p>
+                <p className="mt-2 text-xl font-black text-[#020617]">{commissionRates.restaurant}%</p>
+              </div>
+              <div className="rounded-[18px] border border-[#E5EAF1] bg-white p-4">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">Driver share</p>
+                <p className="mt-2 text-xl font-black text-[#020617]">{driverEarningsSettings.default_percentage}%</p>
+              </div>
+            </div>
           </div>
-          <Button onClick={saveSettings} disabled={saving}>
+          <div className="grid grid-cols-3 bg-white">
+            <div className="p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Features</p>
+              <p className="mt-1 text-lg font-black text-[#020617]">{Object.values(features).filter(Boolean).length}/4</p>
+            </div>
+            <div className="border-x border-[#E5EAF1] p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Channels</p>
+              <p className="mt-1 text-lg font-black text-[#020617]">{Object.values(notifications).filter(Boolean).length}/3</p>
+            </div>
+            <div className="p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Affiliate</p>
+              <p className="mt-1 text-lg font-black text-[#020617]">{affiliateSettings.enabled ? "On" : "Off"}</p>
+            </div>
+          </div>
+        </section>
+
+        <div className="sticky top-4 z-10 flex justify-end">
+          <Button
+            onClick={saveSettings}
+            disabled={saving}
+            className="min-h-[48px] rounded-[14px] bg-[#020617] px-5 font-black text-white shadow-[0_12px_24px_rgba(2,6,23,0.14)] hover:bg-[#020617]/90"
+          >
             {saving ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
@@ -264,21 +310,21 @@ export default function AdminSettings() {
 
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
           {/* Commission Rates */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
+              <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
+                <DollarSign className="h-5 w-5 text-[#38BDF8]" />
                 Default Commission Rates
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="font-medium text-[#94A3B8]">
                 Default rates for new restaurants. You can override these per restaurant from the{" "}
-                <Link to="/admin/restaurants" className="text-primary underline underline-offset-2 hover:text-primary/80">
+                <Link to="/admin/restaurants" className="text-[#38BDF8] underline underline-offset-2 hover:text-[#38BDF8]/80">
                   Restaurant Management
                 </Link>{" "}
                 page.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cardContentClass}>
               <div className="space-y-2">
                 <Label htmlFor="restaurant-commission">Default Restaurant Commission (%)</Label>
                 <Input
@@ -291,9 +337,9 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setCommissionRates({ ...commissionRates, restaurant: Number(e.target.value) })
                   }
-                  className="h-12 sm:h-10 min-h-[44px]"
+                  className={inputClass}
                 />
-                <p className="text-xs text-muted-foreground">Applied to new restaurants. Each restaurant can have its own rate.</p>
+                <p className="text-xs text-[#94A3B8]">Applied to new restaurants. Each restaurant can have its own rate.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="delivery-commission">Delivery Commission (%)</Label>
@@ -307,21 +353,21 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setCommissionRates({ ...commissionRates, delivery: Number(e.target.value) })
                   }
-                  className="h-12 sm:h-10 min-h-[44px]"
+                  className={inputClass}
                 />
               </div>
             </CardContent>
           </Card>
 
           {/* Featured Listing Pricing */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
+              <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
                 Featured Listing Pricing
               </CardTitle>
-              <CardDescription>Configure prices for restaurant boost packages</CardDescription>
+              <CardDescription className="font-medium text-[#94A3B8]">Configure prices for restaurant boost packages</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cardContentClass}>
               <div className="space-y-2">
                 <Label htmlFor="weekly-price">Weekly Boost (QAR)</Label>
                 <Input
@@ -334,7 +380,7 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setFeaturedPrices({ ...featuredPrices, weekly: Number(e.target.value) })
                   }
-                  className="h-12 sm:h-10 min-h-[44px]"
+                  className={inputClass}
                 />
               </div>
               <div className="space-y-2">
@@ -349,7 +395,7 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setFeaturedPrices({ ...featuredPrices, biweekly: Number(e.target.value) })
                   }
-                  className="h-12 sm:h-10 min-h-[44px]"
+                  className={inputClass}
                 />
               </div>
               <div className="space-y-2">
@@ -364,67 +410,71 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setFeaturedPrices({ ...featuredPrices, monthly: Number(e.target.value) })
                   }
-                  className="h-12 sm:h-10 min-h-[44px]"
+                  className={inputClass}
                 />
               </div>
             </CardContent>
           </Card>
 
           {/* Feature Toggles */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" />
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
+              <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
+                <Zap className="h-5 w-5 text-[#38BDF8]" />
                 Feature Toggles
               </CardTitle>
-              <CardDescription>Enable or disable platform features</CardDescription>
+              <CardDescription className="font-medium text-[#94A3B8]">Enable or disable platform features</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cardContentClass}>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Referral Program</Label>
-                  <p className="text-sm text-muted-foreground">Allow users to refer friends</p>
+                  <p className="text-sm text-[#94A3B8]">Allow users to refer friends</p>
                 </div>
                 <Switch
+                  className={switchClass}
                   checked={features.referral_program}
                   onCheckedChange={(checked) =>
                     setFeatures({ ...features, referral_program: checked })
                   }
                 />
               </div>
-              <Separator />
+              <Separator className="bg-[#E5EAF1]" />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Meal Scheduling</Label>
-                  <p className="text-sm text-muted-foreground">Enable advance meal scheduling</p>
+                  <p className="text-sm text-[#94A3B8]">Enable advance meal scheduling</p>
                 </div>
                 <Switch
+                  className={switchClass}
                   checked={features.meal_scheduling}
                   onCheckedChange={(checked) =>
                     setFeatures({ ...features, meal_scheduling: checked })
                   }
                 />
               </div>
-              <Separator />
+              <Separator className="bg-[#E5EAF1]" />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Subscription Pause</Label>
-                  <p className="text-sm text-muted-foreground">Allow users to pause subscriptions</p>
+                  <p className="text-sm text-[#94A3B8]">Allow users to pause subscriptions</p>
                 </div>
                 <Switch
+                  className={switchClass}
                   checked={features.subscription_pause}
                   onCheckedChange={(checked) =>
                     setFeatures({ ...features, subscription_pause: checked })
                   }
                 />
               </div>
-              <Separator />
+              <Separator className="bg-[#E5EAF1]" />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Delivery Tracking</Label>
-                  <p className="text-sm text-muted-foreground">Enable real-time delivery tracking</p>
+                  <p className="text-sm text-[#94A3B8]">Enable real-time delivery tracking</p>
                 </div>
                 <Switch
+                  className={switchClass}
                   checked={features.delivery_tracking}
                   onCheckedChange={(checked) =>
                     setFeatures({ ...features, delivery_tracking: checked })
@@ -435,18 +485,18 @@ export default function AdminSettings() {
           </Card>
 
           {/* Driver Earnings Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bike className="h-5 w-5 text-primary" />
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
+              <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
+                <Bike className="h-5 w-5 text-[#38BDF8]" />
                 Driver Earnings Settings
               </CardTitle>
-              <CardDescription>Configure how drivers earn per delivery</CardDescription>
+              <CardDescription className="font-medium text-[#94A3B8]">Configure how drivers earn per delivery</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 p-5">
               {/* Global Settings */}
               <div className="space-y-4">
-                <h4 className="text-sm font-semibold text-muted-foreground">Global Default</h4>
+                <h4 className="text-sm font-semibold text-[#94A3B8]">Global Default</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="driver-base-earning">Base Earning per Order (QAR)</Label>
@@ -463,9 +513,9 @@ export default function AdminSettings() {
                           default_base_earning: Number(e.target.value) 
                         })
                       }
-                      className="h-12 sm:h-10 min-h-[44px]"
+                      className={inputClass}
                     />
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[#94A3B8]">
                       Fixed amount added to every order
                     </p>
                   </div>
@@ -484,16 +534,16 @@ export default function AdminSettings() {
                           default_percentage: Number(e.target.value) 
                         })
                       }
-                      className="h-12 sm:h-10 min-h-[44px]"
+                      className={inputClass}
                     />
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[#94A3B8]">
                       Driver receives this % of delivery fee + 100% of tips
                     </p>
                   </div>
                 </div>
               </div>
 
-              <Separator />
+              <Separator className="bg-[#E5EAF1]" />
 
               {/* Minimum Payout */}
               <div className="space-y-2">
@@ -511,28 +561,29 @@ export default function AdminSettings() {
                       minimum_payout_threshold: Number(e.target.value) 
                     })
                   }
-                  className="h-12 sm:h-10 min-h-[44px]"
+                  className={inputClass}
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[#94A3B8]">
                   Minimum balance required before driver can request payout
                 </p>
               </div>
 
-              <Separator />
+              <Separator className="bg-[#E5EAF1]" />
 
               {/* Advanced Earnings Features */}
               <div className="space-y-4">
-                <h4 className="text-sm font-semibold text-muted-foreground">Advanced Earnings Features</h4>
+                <h4 className="text-sm font-semibold text-[#94A3B8]">Advanced Earnings Features</h4>
                 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label className="flex items-center gap-2">
+                    <Label className="flex items-center gap-2 font-bold text-[#020617]">
                       <MapPin className="h-4 w-4" />
                       Enable Distance Tiers
                     </Label>
-                    <p className="text-sm text-muted-foreground">Pay different rates based on delivery distance</p>
+                    <p className="text-sm text-[#94A3B8]">Pay different rates based on delivery distance</p>
                   </div>
                   <Switch
+                    className={switchClass}
                     checked={driverEarningsSettings.enable_distance_tiers}
                     onCheckedChange={(checked) =>
                       setDriverEarningsSettings({ 
@@ -544,7 +595,7 @@ export default function AdminSettings() {
                 </div>
 
                 {driverEarningsSettings.enable_distance_tiers && (
-                  <div className="pl-4 border-l-2 border-muted space-y-4">
+                  <div className="pl-4 border-l-2 border-[#E5EAF1] space-y-4">
                     <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-2">
                         <Label className="text-xs">Short (0-3km)</Label>
@@ -562,7 +613,7 @@ export default function AdminSettings() {
                               },
                             })
                           }
-                          className="h-10"
+                          className={compactInputClass}
                         />
                       </div>
                       <div className="space-y-2">
@@ -581,7 +632,7 @@ export default function AdminSettings() {
                               },
                             })
                           }
-                          className="h-10"
+                          className={compactInputClass}
                         />
                       </div>
                       <div className="space-y-2">
@@ -600,24 +651,25 @@ export default function AdminSettings() {
                               },
                             })
                           }
-                          className="h-10"
+                          className={compactInputClass}
                         />
                       </div>
                     </div>
                   </div>
                 )}
 
-                <Separator />
+                <Separator className="bg-[#E5EAF1]" />
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label className="flex items-center gap-2">
+                    <Label className="flex items-center gap-2 font-bold text-[#020617]">
                       <MapPin className="h-4 w-4" />
                       Enable City Multipliers
                     </Label>
-                    <p className="text-sm text-muted-foreground">Different rates for different cities</p>
+                    <p className="text-sm text-[#94A3B8]">Different rates for different cities</p>
                   </div>
                   <Switch
+                    className={switchClass}
                     checked={driverEarningsSettings.enable_city_multipliers}
                     onCheckedChange={(checked) =>
                       setDriverEarningsSettings({ 
@@ -629,7 +681,7 @@ export default function AdminSettings() {
                 </div>
 
                 {driverEarningsSettings.enable_city_multipliers && (
-                  <div className="pl-4 border-l-2 border-muted space-y-3">
+                  <div className="pl-4 border-l-2 border-[#E5EAF1] space-y-3">
                     <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-2">
                         <Label className="text-xs">Doha Multiplier</Label>
@@ -648,7 +700,7 @@ export default function AdminSettings() {
                               },
                             })
                           }
-                          className="h-10"
+                          className={compactInputClass}
                         />
                       </div>
                       <div className="space-y-2">
@@ -668,7 +720,7 @@ export default function AdminSettings() {
                               },
                             })
                           }
-                          className="h-10"
+                          className={compactInputClass}
                         />
                       </div>
                       <div className="space-y-2">
@@ -688,24 +740,25 @@ export default function AdminSettings() {
                               },
                             })
                           }
-                          className="h-10"
+                          className={compactInputClass}
                         />
                       </div>
                     </div>
                   </div>
                 )}
 
-                <Separator />
+                <Separator className="bg-[#E5EAF1]" />
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label className="flex items-center gap-2">
+                    <Label className="flex items-center gap-2 font-bold text-[#020617]">
                       <Store className="h-4 w-4" />
                       Restaurant-Specific Rates
                     </Label>
-                    <p className="text-sm text-muted-foreground">Allow custom rates per restaurant</p>
+                    <p className="text-sm text-[#94A3B8]">Allow custom rates per restaurant</p>
                   </div>
                   <Switch
+                    className={switchClass}
                     checked={driverEarningsSettings.enable_restaurant_specific}
                     onCheckedChange={(checked) =>
                       setDriverEarningsSettings({ 
@@ -717,15 +770,15 @@ export default function AdminSettings() {
                 </div>
 
                 {driverEarningsSettings.enable_restaurant_specific && (
-                  <div className="pl-4 border-l-2 border-muted">
-                    <p className="text-sm text-muted-foreground">
+                  <div className="pl-4 border-l-2 border-[#E5EAF1]">
+                    <p className="text-sm text-[#94A3B8]">
                       Restaurant-specific rates can be configured in the restaurant detail page.
                     </p>
                   </div>
                 )}
               </div>
 
-              <Separator />
+              <Separator className="bg-[#E5EAF1]" />
 
               {/* Peak Hour Bonus */}
               <div className="space-y-2">
@@ -743,9 +796,9 @@ export default function AdminSettings() {
                       peak_hour_bonus: Number(e.target.value) 
                     })
                   }
-                  className="h-12 sm:h-10 min-h-[44px]"
+                  className={inputClass}
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[#94A3B8]">
                   Extra amount added during peak hours (lunch 11am-2pm, dinner 6pm-9pm)
                 </p>
               </div>
@@ -753,15 +806,15 @@ export default function AdminSettings() {
           </Card>
 
           {/* Premium Analytics Pricing */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Crown className="h-5 w-5 text-primary" />
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
+              <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
+                <Crown className="h-5 w-5 text-[#38BDF8]" />
                 Premium Analytics Pricing
               </CardTitle>
-              <CardDescription>Configure pricing for partner premium analytics</CardDescription>
+              <CardDescription className="font-medium text-[#94A3B8]">Configure pricing for partner premium analytics</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cardContentClass}>
               <div className="space-y-2">
                 <Label htmlFor="analytics-monthly">Monthly Price (QAR)</Label>
                 <Input
@@ -774,7 +827,7 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setPremiumAnalyticsPrices({ ...premiumAnalyticsPrices, monthly: Number(e.target.value) })
                   }
-                  className="h-12 sm:h-10 min-h-[44px]"
+                  className={inputClass}
                 />
               </div>
               <div className="space-y-2">
@@ -789,7 +842,7 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setPremiumAnalyticsPrices({ ...premiumAnalyticsPrices, quarterly: Number(e.target.value) })
                   }
-                  className="h-12 sm:h-10 min-h-[44px]"
+                  className={inputClass}
                 />
               </div>
               <div className="space-y-2">
@@ -804,35 +857,36 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setPremiumAnalyticsPrices({ ...premiumAnalyticsPrices, yearly: Number(e.target.value) })
                   }
-                  className="h-12 sm:h-10 min-h-[44px]"
+                  className={inputClass}
                 />
               </div>
             </CardContent>
           </Card>
 
           {/* Affiliate/MLM Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-violet-500" />
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
+              <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
+                <Users className="h-5 w-5 text-[#7C83F6]" />
                 Affiliate Program Settings
               </CardTitle>
-              <CardDescription>Configure multi-tier affiliate commissions</CardDescription>
+              <CardDescription className="font-medium text-[#94A3B8]">Configure multi-tier affiliate commissions</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cardContentClass}>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Enable Affiliate Program</Label>
-                  <p className="text-sm text-muted-foreground">Allow users to earn commissions</p>
+                  <p className="text-sm text-[#94A3B8]">Allow users to earn commissions</p>
                 </div>
                 <Switch
+                  className={switchClass}
                   checked={affiliateSettings.enabled}
                   onCheckedChange={(checked) =>
                     setAffiliateSettings({ ...affiliateSettings, enabled: checked })
                   }
                 />
               </div>
-              <Separator />
+              <Separator className="bg-[#E5EAF1]" />
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Tier 1 (%)</Label>
@@ -845,7 +899,7 @@ export default function AdminSettings() {
                     onChange={(e) =>
                       setAffiliateSettings({ ...affiliateSettings, tier1_commission: Number(e.target.value) })
                     }
-                    className="h-12 sm:h-10 min-h-[44px]"
+                    className={inputClass}
                   />
                 </div>
                 <div className="space-y-2">
@@ -859,7 +913,7 @@ export default function AdminSettings() {
                     onChange={(e) =>
                       setAffiliateSettings({ ...affiliateSettings, tier2_commission: Number(e.target.value) })
                     }
-                    className="h-12 sm:h-10 min-h-[44px]"
+                    className={inputClass}
                   />
                 </div>
                 <div className="space-y-2">
@@ -873,7 +927,7 @@ export default function AdminSettings() {
                     onChange={(e) =>
                       setAffiliateSettings({ ...affiliateSettings, tier3_commission: Number(e.target.value) })
                     }
-                    className="h-12 sm:h-10 min-h-[44px]"
+                    className={inputClass}
                   />
                 </div>
               </div>
@@ -887,53 +941,56 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setAffiliateSettings({ ...affiliateSettings, min_payout_threshold: Number(e.target.value) })
                   }
-                  className="h-12 sm:h-10 min-h-[44px]"
+                  className={inputClass}
                 />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5 text-primary" />
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
+              <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
+                <Bell className="h-5 w-5 text-[#38BDF8]" />
                 Notification Settings
               </CardTitle>
-              <CardDescription>Configure notification channels</CardDescription>
+              <CardDescription className="font-medium text-[#94A3B8]">Configure notification channels</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cardContentClass}>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Email Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Send notifications via email</p>
+                  <p className="text-sm text-[#94A3B8]">Send notifications via email</p>
                 </div>
                 <Switch
+                  className={switchClass}
                   checked={notifications.email_enabled}
                   onCheckedChange={(checked) =>
                     setNotifications({ ...notifications, email_enabled: checked })
                   }
                 />
               </div>
-              <Separator />
+              <Separator className="bg-[#E5EAF1]" />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Push Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Send browser push notifications</p>
+                  <p className="text-sm text-[#94A3B8]">Send browser push notifications</p>
                 </div>
                 <Switch
+                  className={switchClass}
                   checked={notifications.push_enabled}
                   onCheckedChange={(checked) =>
                     setNotifications({ ...notifications, push_enabled: checked })
                   }
                 />
               </div>
-              <Separator />
+              <Separator className="bg-[#E5EAF1]" />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>SMS Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Send notifications via SMS</p>
+                  <p className="text-sm text-[#94A3B8]">Send notifications via SMS</p>
                 </div>
                 <Switch
+                  className={switchClass}
                   checked={notifications.sms_enabled}
                   onCheckedChange={(checked) =>
                     setNotifications({ ...notifications, sms_enabled: checked })
@@ -947,3 +1004,6 @@ export default function AdminSettings() {
     </AdminLayout>
   );
 }
+
+
+

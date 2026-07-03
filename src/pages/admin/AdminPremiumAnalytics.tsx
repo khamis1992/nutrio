@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -53,10 +52,10 @@ interface Restaurant {
 }
 
 const statusConfig: Record<string, { label: string; className: string }> = {
-  pending: { label: "Pending", className: "bg-amber-100 text-amber-800 border-amber-200" },
-  active: { label: "Active", className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-  rejected: { label: "Rejected", className: "bg-red-100 text-red-800 border-red-200" },
-  expired: { label: "Expired", className: "bg-gray-100 text-gray-600 border-gray-200" },
+  pending: { label: "Pending", className: "border-[#FDBA74]/40 bg-[#FFF7ED] text-[#F97316]" },
+  active: { label: "Active", className: "border-[#22C7A1]/20 bg-[#EFFFFA] text-[#22C7A1]" },
+  rejected: { label: "Rejected", className: "border-[#FB6B7A]/20 bg-[#FFF0F2] text-[#FB6B7A]" },
+  expired: { label: "Expired", className: "border-[#E5EAF1] bg-[#F6F8FB] text-[#94A3B8]" },
 };
 
 const packageDurations: Record<string, number> = {
@@ -72,12 +71,10 @@ export default function AdminPremiumAnalytics() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Approve/reject dialog
   const [actionTarget, setActionTarget] = useState<PurchaseRequest | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
   const [actionSubmitting, setActionSubmitting] = useState(false);
 
-  // Manual grant dialog
   const [grantOpen, setGrantOpen] = useState(false);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [grantRestaurantId, setGrantRestaurantId] = useState("");
@@ -128,7 +125,6 @@ export default function AdminPremiumAnalytics() {
 
     try {
       if (actionType === "approve") {
-        // Mark the purchase as active — the hook checks this directly
         const { error: purchaseError } = await supabase
           .from("premium_analytics_purchases")
           .update({ status: "active" })
@@ -138,8 +134,6 @@ export default function AdminPremiumAnalytics() {
           throw new Error(`Failed to activate purchase: ${purchaseError.message}`);
         }
 
-        // Also try to update premium_analytics_until on the restaurant (best-effort,
-        // works once the column migration has been applied to the remote DB)
         await supabase
           .from("restaurants")
           .update({ premium_analytics_until: actionTarget.ends_at })
@@ -180,7 +174,6 @@ export default function AdminPremiumAnalytics() {
       const endsAt = new Date();
       endsAt.setMonth(endsAt.getMonth() + months);
 
-      // Fetch the restaurant's owner_id first so we store the correct partner_id
       const { data: restaurantData, error: fetchErr } = await supabase
         .from("restaurants")
         .select("id, owner_id")
@@ -191,7 +184,6 @@ export default function AdminPremiumAnalytics() {
         throw new Error("Could not find restaurant.");
       }
 
-      // Best-effort: update premium_analytics_until if the column exists
       await supabase
         .from("restaurants")
         .update({ premium_analytics_until: endsAt.toISOString() })
@@ -222,141 +214,177 @@ export default function AdminPremiumAnalytics() {
     }
   };
 
-  const filtered = requests.filter((r) => {
+  const filtered = requests.filter((request) => {
     const matchSearch =
       !search ||
-      r.restaurant_name.toLowerCase().includes(search.toLowerCase()) ||
-      (r.payment_reference || "").toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || r.status === statusFilter;
+      request.restaurant_name.toLowerCase().includes(search.toLowerCase()) ||
+      (request.payment_reference || "").toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || request.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const pendingCount = requests.filter((r) => r.status === "pending").length;
+  const stats = {
+    total: requests.length,
+    pending: requests.filter((request) => request.status === "pending").length,
+    active: requests.filter((request) => request.status === "active").length,
+    rejected: requests.filter((request) => request.status === "rejected").length,
+  };
 
   return (
-    <AdminLayout>
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Crown className="h-6 w-6 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold">Premium Analytics</h1>
-            <p className="text-sm text-muted-foreground">Manage partner subscription requests</p>
+    <AdminLayout title="Premium Analytics" subtitle={`${stats.pending} requests awaiting review`}>
+      <div className="space-y-5 text-[#020617]">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_18px_42px_rgba(2,6,23,0.07)] ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-4 border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#020617] text-white">
+                <Crown className="h-6 w-6" />
+              </span>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7C83F6]">Partner Revenue</p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-[#020617]">Premium Analytics</h1>
+                <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                  Manage paid analytics requests and manual partner access.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchRequests}
+                className="h-11 gap-2 rounded-[14px] border-[#E5EAF1] bg-white px-4 font-black text-[#020617] hover:bg-[#F6F8FB]"
+              >
+                <RefreshCw className="h-4 w-4 text-[#38BDF8]" />
+                Refresh
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setGrantOpen(true)}
+                className="h-11 gap-2 rounded-[14px] bg-[#020617] px-4 font-black text-white hover:bg-[#020617]/90"
+              >
+                <Gift className="h-4 w-4" />
+                Manual Grant
+              </Button>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchRequests}>
-            <RefreshCw className="h-4 w-4 mr-1.5" />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={() => setGrantOpen(true)}>
-            <Gift className="h-4 w-4 mr-1.5" />
-            Manual Grant
-          </Button>
-        </div>
-      </div>
 
-      {/* Summary stat */}
-      {pendingCount > 0 && (
-        <Card className="border-amber-200 bg-amber-50/50">
-          <CardContent className="pt-4 pb-4">
-            <p className="text-sm text-amber-700">
-              <span className="font-bold text-lg text-amber-800">{pendingCount}</span> request{pendingCount !== 1 ? "s" : ""} awaiting review
-            </p>
-          </CardContent>
-        </Card>
-      )}
+          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: "Total Requests", value: stats.total, Icon: Crown, bg: "bg-[#F6F8FB]", color: "text-[#020617]", ring: "ring-[#E5EAF1]" },
+              { label: "Pending Review", value: stats.pending, Icon: Loader2, bg: "bg-[#FFF7ED]", color: "text-[#F97316]", ring: "ring-[#FDBA74]/35" },
+              { label: "Active Access", value: stats.active, Icon: Check, bg: "bg-[#EFFFFA]", color: "text-[#22C7A1]", ring: "ring-[#22C7A1]/20" },
+              { label: "Rejected", value: stats.rejected, Icon: X, bg: "bg-[#FFF0F2]", color: "text-[#FB6B7A]", ring: "ring-[#FB6B7A]/20" },
+            ].map(({ label, value, Icon, bg, color, ring }) => (
+              <div key={label} className={`rounded-[20px] ${bg} p-4 ring-1 ${ring}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-3xl font-black leading-none text-[#020617]">{value}</p>
+                    <p className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+                  </div>
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-[16px] bg-white ${color} shadow-sm ring-1 ring-white/80`}>
+                    <Icon className={`h-5 w-5 ${label === "Pending Review" && loading ? "animate-spin" : ""}`} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-      {/* Filters */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search restaurant or ref..."
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="expired">Expired</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        <section className="rounded-[24px] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative min-w-[280px] flex-1 lg:max-w-md">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+              <Input
+                placeholder="Search restaurant or payment reference"
+                className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] pl-10 font-semibold text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#020617]"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-11 w-full rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-black text-[#020617] lg:w-44">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </section>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+            <div>
+              <h2 className="text-lg font-black text-[#020617]">Purchase Requests</h2>
+              <p className="text-xs font-bold text-[#94A3B8]">{filtered.length} visible from {requests.length} total</p>
+            </div>
+            <Badge variant="outline" className="border-[#38BDF8]/20 bg-[#EFF9FF] text-[#38BDF8]">
+              Premium
+            </Badge>
+          </div>
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader2 className="h-6 w-6 animate-spin text-[#020617]" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground text-sm">
-              No requests found
+            <div className="py-16 text-center">
+              <p className="text-sm font-black text-[#020617]">No requests found</p>
+              <p className="mt-1 text-xs font-semibold text-[#94A3B8]">Try adjusting the search or status filter.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b bg-muted/30">
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Restaurant</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Package</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Price</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Payment Ref</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Expires</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Actions</th>
+                  <tr className="border-b border-[#E5EAF1] bg-white">
+                    {["Restaurant", "Package", "Price", "Payment Ref", "Expires", "Date", "Status", "Actions"].map((head) => (
+                      <th key={head} className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                        {head}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y">
-                  {filtered.map((req) => {
-                    const cfg = statusConfig[req.status] || statusConfig.expired;
+                <tbody className="divide-y divide-[#E5EAF1]">
+                  {filtered.map((request) => {
+                    const cfg = statusConfig[request.status] || statusConfig.expired;
                     return (
-                      <tr key={req.id} className="hover:bg-muted/20 transition-colors">
-                        <td className="px-4 py-3 font-medium">{req.restaurant_name}</td>
-                        <td className="px-4 py-3 capitalize">{req.package_type}</td>
-                        <td className="px-4 py-3">{req.price_paid > 0 ? formatCurrency(req.price_paid) : "—"}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                          {req.payment_reference || "—"}
+                      <tr key={request.id} className="transition-colors hover:bg-[#F6F8FB]">
+                        <td className="px-4 py-3 font-black text-[#020617]">{request.restaurant_name}</td>
+                        <td className="px-4 py-3 font-semibold capitalize text-[#020617]">{request.package_type}</td>
+                        <td className="px-4 py-3 font-black text-[#22C7A1]">{request.price_paid > 0 ? formatCurrency(request.price_paid) : "-"}</td>
+                        <td className="px-4 py-3 font-mono text-xs font-semibold text-[#94A3B8]">
+                          {request.payment_reference || "-"}
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {format(new Date(req.ends_at), "dd MMM yyyy")}
+                        <td className="px-4 py-3 font-semibold text-[#94A3B8]">
+                          {format(new Date(request.ends_at), "dd MMM yyyy")}
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {format(new Date(req.created_at), "dd MMM yyyy")}
+                        <td className="px-4 py-3 font-semibold text-[#94A3B8]">
+                          {format(new Date(request.created_at), "dd MMM yyyy")}
                         </td>
                         <td className="px-4 py-3">
-                          <Badge variant="outline" className={`text-xs ${cfg.className}`}>
+                          <Badge variant="outline" className={`text-xs font-black ${cfg.className}`}>
                             {cfg.label}
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
-                          {req.status === "pending" && (
+                          {request.status === "pending" && (
                             <div className="flex items-center gap-1.5">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 px-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                                onClick={() => openAction(req, "approve")}
+                                className="h-8 rounded-[12px] border-[#22C7A1]/20 bg-white px-2 text-[#22C7A1] hover:bg-[#EFFFFA] hover:text-[#22C7A1]"
+                                onClick={() => openAction(request, "approve")}
                               >
                                 <Check className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 px-2 text-red-700 border-red-200 hover:bg-red-50"
-                                onClick={() => openAction(req, "reject")}
+                                className="h-8 rounded-[12px] border-[#FB6B7A]/20 bg-white px-2 text-[#FB6B7A] hover:bg-[#FFF0F2] hover:text-[#FB6B7A]"
+                                onClick={() => openAction(request, "reject")}
                               >
                                 <X className="h-3.5 w-3.5" />
                               </Button>
@@ -370,93 +398,106 @@ export default function AdminPremiumAnalytics() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </section>
 
-      {/* Approve / Reject dialog */}
-      <Dialog open={!!actionTarget} onOpenChange={() => { setActionTarget(null); setActionType(null); }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>
-              {actionType === "approve" ? "Approve Request" : "Reject Request"}
-            </DialogTitle>
-            <DialogDescription>
-              {actionType === "approve"
-                ? `This will activate Premium Analytics for "${actionTarget?.restaurant_name}" until ${actionTarget ? format(new Date(actionTarget.ends_at), "dd MMM yyyy") : ""}.`
-                : `This will reject the request from "${actionTarget?.restaurant_name}". No access will be granted.`}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" disabled={actionSubmitting} onClick={() => { setActionTarget(null); setActionType(null); }}>
-              Cancel
-            </Button>
-            <Button
-              variant={actionType === "approve" ? "default" : "destructive"}
-              disabled={actionSubmitting}
-              onClick={handleAction}
-            >
-              {actionSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {actionType === "approve" ? "Approve" : "Reject"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <Dialog open={!!actionTarget} onOpenChange={() => { setActionTarget(null); setActionType(null); }}>
+          <DialogContent className="border-[#E5EAF1] bg-white p-0 shadow-[0_24px_60px_rgba(2,6,23,0.18)] sm:max-w-sm">
+            <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
+              <DialogTitle className="text-xl font-black text-[#020617]">
+                {actionType === "approve" ? "Approve Request" : "Reject Request"}
+              </DialogTitle>
+              <DialogDescription className="font-semibold text-[#94A3B8]">
+                {actionType === "approve"
+                  ? `This will activate Premium Analytics for "${actionTarget?.restaurant_name}" until ${actionTarget ? format(new Date(actionTarget.ends_at), "dd MMM yyyy") : ""}.`
+                  : `This will reject the request from "${actionTarget?.restaurant_name}". No access will be granted.`}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+              <Button
+                variant="outline"
+                disabled={actionSubmitting}
+                onClick={() => { setActionTarget(null); setActionType(null); }}
+                className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={actionSubmitting}
+                onClick={handleAction}
+                className={`h-11 rounded-[14px] font-black text-white ${actionType === "approve" ? "bg-[#020617] hover:bg-[#020617]/90" : "bg-[#FB6B7A] hover:bg-[#FB6B7A]/90"}`}
+              >
+                {actionSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {actionType === "approve" ? "Approve" : "Reject"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* Manual Grant dialog */}
-      <Dialog open={grantOpen} onOpenChange={setGrantOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-primary" />
-              Manual Grant
-            </DialogTitle>
-            <DialogDescription>
-              Activate Premium Analytics for a restaurant without payment.
-            </DialogDescription>
-          </DialogHeader>
+        <Dialog open={grantOpen} onOpenChange={setGrantOpen}>
+          <DialogContent className="border-[#E5EAF1] bg-white p-0 shadow-[0_24px_60px_rgba(2,6,23,0.18)] sm:max-w-sm">
+            <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
+              <DialogTitle className="flex items-center gap-2 text-xl font-black text-[#020617]">
+                <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#020617] text-white">
+                  <Gift className="h-5 w-5" />
+                </span>
+                Manual Grant
+              </DialogTitle>
+              <DialogDescription className="font-semibold text-[#94A3B8]">
+                Activate Premium Analytics for a restaurant without payment.
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Restaurant</Label>
-              <Select value={grantRestaurantId} onValueChange={setGrantRestaurantId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select restaurant..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {restaurants.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-4 p-5">
+              <div className="space-y-1.5">
+                <Label className="font-black text-[#020617]">Restaurant</Label>
+                <Select value={grantRestaurantId} onValueChange={setGrantRestaurantId}>
+                  <SelectTrigger className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617]">
+                    <SelectValue placeholder="Select restaurant..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {restaurants.map((restaurant) => (
+                      <SelectItem key={restaurant.id} value={restaurant.id}>{restaurant.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-black text-[#020617]">Package</Label>
+                <Select value={grantPackage} onValueChange={setGrantPackage}>
+                  <SelectTrigger className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly (1 month)</SelectItem>
+                    <SelectItem value="quarterly">Quarterly (3 months)</SelectItem>
+                    <SelectItem value="yearly">Yearly (12 months)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Package</Label>
-              <Select value={grantPackage} onValueChange={setGrantPackage}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">Monthly (1 month)</SelectItem>
-                  <SelectItem value="quarterly">Quarterly (3 months)</SelectItem>
-                  <SelectItem value="yearly">Yearly (12 months)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setGrantOpen(false)} disabled={grantSubmitting}>
-              Cancel
-            </Button>
-            <Button onClick={handleManualGrant} disabled={!grantRestaurantId || grantSubmitting}>
-              {grantSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Grant Access
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            <DialogFooter className="gap-2 border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+              <Button
+                variant="outline"
+                onClick={() => setGrantOpen(false)}
+                disabled={grantSubmitting}
+                className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleManualGrant}
+                disabled={!grantRestaurantId || grantSubmitting}
+                className="h-11 rounded-[14px] bg-[#020617] font-black text-white hover:bg-[#020617]/90"
+              >
+                {grantSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Grant Access
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </AdminLayout>
   );
 }

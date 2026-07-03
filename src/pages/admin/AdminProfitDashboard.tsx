@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import type { ReactNode } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -77,6 +78,93 @@ interface RestaurantProfit {
   grossRevenue: number;
   commission: number;
   payout: number;
+}
+
+const C = {
+  text: "#020617",
+  muted: "#94A3B8",
+  surface: "#F6F8FB",
+  water: "#38BDF8",
+  danger: "#FB6B7A",
+  protein: "#7C83F6",
+  progress: "#22C7A1",
+};
+
+function ProfitMetricCard({
+  label,
+  value,
+  detail,
+  color,
+  icon,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  color: string;
+  icon: ReactNode;
+}) {
+  return (
+    <Card className="overflow-hidden rounded-2xl border-0 bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-slate-100">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.14em]" style={{ color: C.muted }}>
+              {label}
+            </p>
+            <p className="mt-3 text-3xl font-black leading-none tracking-tight" style={{ color }}>
+              {value}
+            </p>
+            <p className="mt-2 text-sm font-medium" style={{ color: C.muted }}>
+              {detail}
+            </p>
+          </div>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}18`, color }}>
+            {icon}
+          </div>
+        </div>
+        <div className="mt-5 h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: C.surface }}>
+          <div className="h-full w-2/3 rounded-full" style={{ backgroundColor: color }} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BreakdownRow({
+  label,
+  value,
+  detail,
+  icon,
+  color,
+  pct,
+}: {
+  label: string;
+  value: number;
+  detail: string;
+  icon: ReactNode;
+  color: string;
+  pct: number;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-[#F6F8FB] p-3">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}18`, color }}>
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <span className="truncate text-sm font-black text-[#020617]">{label}</span>
+          <span className="ml-2 shrink-0 text-sm font-black text-[#020617]">{formatCurrency(value)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white">
+            <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }} />
+          </div>
+          <span className="w-10 text-right text-xs font-bold text-[#94A3B8]">{pct.toFixed(0)}%</span>
+        </div>
+        <p className="mt-1 text-xs font-medium text-[#94A3B8]">{detail}</p>
+      </div>
+    </div>
+  );
 }
 
 export default function AdminProfitDashboard() {
@@ -493,24 +581,24 @@ export default function AdminProfitDashboard() {
   };
 
   const revenueItems = [
-    { label: "Subscriptions", value: stats?.subscriptionRevenue || 0, icon: Users, color: "indigo", detail: `${stats?.totalSubscribers || 0} subscribers` },
-    { label: `Commission (${globalCommissionRate}%)`, value: stats?.commissionRevenue || 0, icon: Percent, color: "purple", detail: `${stats?.totalOrders || 0} orders` },
-    { label: "Unused Meals", value: stats?.unusedMealsProfit || 0, icon: Utensils, color: "amber", detail: "Unordered meal credits" },
-    { label: "Featured Listings", value: stats?.featuredListingsRevenue || 0, icon: Star, color: "pink", detail: "Partner boosts" },
-    { label: "Premium Analytics", value: stats?.premiumAnalyticsRevenue || 0, icon: BarChart3, color: "teal", detail: "Analytics upgrades" },
+    { label: "Subscriptions", value: stats?.subscriptionRevenue || 0, icon: Users, color: C.protein, detail: `${stats?.totalSubscribers || 0} subscribers` },
+    { label: `Commission (${globalCommissionRate}%)`, value: stats?.commissionRevenue || 0, icon: Percent, color: C.progress, detail: `${stats?.totalOrders || 0} orders` },
+    { label: "Unused Meals", value: stats?.unusedMealsProfit || 0, icon: Utensils, color: C.water, detail: "Unordered meal credits" },
+    { label: "Featured Listings", value: stats?.featuredListingsRevenue || 0, icon: Star, color: C.danger, detail: "Partner boosts" },
+    { label: "Premium Analytics", value: stats?.premiumAnalyticsRevenue || 0, icon: BarChart3, color: C.protein, detail: "Analytics upgrades" },
   ];
 
   const expenseItems = [
-    { label: "Driver Costs", value: stats?.driverCosts || 0, icon: Truck, color: "red", detail: "Delivery fees + tips" },
-    { label: "Refunds", value: stats?.refundCosts || 0, icon: RotateCcw, color: "orange", detail: "Cancelled orders" },
-    { label: "Affiliate Payouts", value: stats?.affiliateCosts || 0, icon: Share2, color: "rose", detail: "Referral commissions" },
+    { label: "Driver Costs", value: stats?.driverCosts || 0, icon: Truck, color: C.danger, detail: "Delivery fees + tips" },
+    { label: "Refunds", value: stats?.refundCosts || 0, icon: RotateCcw, color: C.water, detail: "Cancelled orders" },
+    { label: "Affiliate Payouts", value: stats?.affiliateCosts || 0, icon: Share2, color: C.protein, detail: "Referral commissions" },
   ];
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-96">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex h-96 items-center justify-center bg-[#F6F8FB]">
+          <Loader2 className="h-8 w-8 animate-spin text-[#22C7A1]" />
         </div>
       </AdminLayout>
     );
@@ -518,206 +606,171 @@ export default function AdminProfitDashboard() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 bg-[#F6F8FB] p-1 text-[#020617]">
         {/* Page header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Profit Dashboard</h1>
-            <p className="text-muted-foreground">
-              {stats?.totalOrders || 0} orders &middot; {stats?.totalSubscribers || 0} subscribers &middot; {stats?.totalRestaurants || 0} restaurants
-            </p>
+        <div className="overflow-hidden rounded-3xl bg-white shadow-[0_18px_44px_rgba(2,6,23,0.06)] ring-1 ring-slate-100">
+          <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-white shadow-[0_14px_28px_rgba(34,199,161,0.22)]" style={{ backgroundColor: C.progress }}>
+                <Wallet className="h-7 w-7" />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em]" style={{ color: C.progress }}>
+                  Profit intelligence
+                </p>
+                <h1 className="mt-1 text-3xl font-black tracking-tight" style={{ color: C.text }}>
+                  Profit Dashboard
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm font-medium leading-6" style={{ color: C.muted }}>
+                  Revenue, expense, margin, restaurant commission, and platform profitability for {periodLabel.toLowerCase()}.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                className="h-11 rounded-xl border-slate-200 bg-white px-4 font-bold text-[#020617] shadow-sm hover:bg-[#F6F8FB]"
+                onClick={handleExportReport}
+              >
+                <Printer className="mr-2 h-4 w-4 text-[#38BDF8]" />
+                Export Report
+              </Button>
+              <Select value={period} onValueChange={setPeriod}>
+                <SelectTrigger className="h-11 w-40 rounded-xl border-slate-200 bg-white font-bold text-[#020617] shadow-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Last 7 days</SelectItem>
+                  <SelectItem value="30">Last 30 days</SelectItem>
+                  <SelectItem value="90">Last 90 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2" onClick={handleExportReport}>
-              <Printer className="h-4 w-4" />
-              Export Report
-            </Button>
-            <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid border-t border-slate-100 bg-[#F6F8FB]/70 px-6 py-4 text-sm font-semibold sm:grid-cols-3">
+            <span style={{ color: C.muted }}>Orders: <strong className="text-[#020617]">{stats?.totalOrders || 0}</strong></span>
+            <span style={{ color: C.muted }}>Subscribers: <strong className="text-[#020617]">{stats?.totalSubscribers || 0}</strong></span>
+            <span style={{ color: C.muted }}>Restaurants: <strong className="text-[#020617]">{stats?.totalRestaurants || 0}</strong></span>
           </div>
         </div>
 
         {/* KPI stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${(stats?.netProfit || 0) >= 0 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                  <Wallet className={`h-5 w-5 ${(stats?.netProfit || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`} />
-                </div>
-                <div>
-                  <p className={`text-2xl font-bold ${(stats?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(stats?.netProfit || 0)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Net Profit &middot; {(stats?.profitMargin || 0) >= 0 ? '+' : ''}{(stats?.profitMargin || 0).toFixed(1)}% margin
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCurrency(stats?.totalRevenue || 0)}</p>
-                  <p className="text-xs text-muted-foreground">Total Revenue</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
-                  <TrendingDown className="h-5 w-5 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCurrency(stats?.totalExpenses || 0)}</p>
-                  <p className="text-xs text-muted-foreground">Total Expenses</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-purple-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats?.totalSubscribers || 0}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Subscribers &middot; {formatCurrency(stats?.subscriptionRevenue || 0)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <ProfitMetricCard
+            label="Net profit"
+            value={formatCurrency(stats?.netProfit || 0)}
+            detail={`${(stats?.profitMargin || 0) >= 0 ? "+" : ""}${(stats?.profitMargin || 0).toFixed(1)}% margin`}
+            color={(stats?.netProfit || 0) >= 0 ? C.progress : C.danger}
+            icon={<Wallet className="h-6 w-6" />}
+          />
+          <ProfitMetricCard
+            label="Total revenue"
+            value={formatCurrency(stats?.totalRevenue || 0)}
+            detail="Gross platform revenue"
+            color={C.water}
+            icon={<TrendingUp className="h-6 w-6" />}
+          />
+          <ProfitMetricCard
+            label="Total expenses"
+            value={formatCurrency(stats?.totalExpenses || 0)}
+            detail="Driver, refund, affiliate cost"
+            color={C.danger}
+            icon={<TrendingDown className="h-6 w-6" />}
+          />
+          <ProfitMetricCard
+            label="Subscribers"
+            value={`${stats?.totalSubscribers || 0}`}
+            detail={formatCurrency(stats?.subscriptionRevenue || 0)}
+            color={C.protein}
+            icon={<Users className="h-6 w-6" />}
+          />
         </div>
 
         {/* Revenue vs Expenses chart */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Revenue vs Expenses</CardTitle>
+        <Card className="overflow-hidden rounded-3xl border-0 bg-white shadow-[0_18px_44px_rgba(2,6,23,0.06)] ring-1 ring-slate-100">
+          <CardHeader className="border-b border-slate-100 px-6 py-5">
+            <CardTitle className="text-xl font-black text-[#020617]">Revenue vs Expenses</CardTitle>
+            <p className="text-sm font-medium text-[#94A3B8]">Daily revenue, expenses, and net profit trend.</p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <ResponsiveContainer width="100%" height={320}>
               <ComposedChart data={dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#38BDF8" stopOpacity={0.22}/>
+                    <stop offset="95%" stopColor="#38BDF8" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#FB6B7A" stopOpacity={0.18}/>
+                    <stop offset="95%" stopColor="#FB6B7A" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#EEF2F7" vertical={false} />
+                <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tick={{ fill: C.muted, fontWeight: 700 }} />
+                <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{ fill: C.muted }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                 <Tooltip
                   formatter={(value: number) => formatCurrency(value)}
-                  contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 12px 30px rgba(2,6,23,0.08)' }}
                 />
-                <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#revenueGradient)" name="Revenue" />
-                <Area type="monotone" dataKey="expenses" stroke="#ef4444" strokeWidth={2} fill="url(#expenseGradient)" name="Expenses" />
-                <Line type="monotone" dataKey="profit" stroke="#22c55e" strokeWidth={2.5} dot={false} name="Net Profit" />
+                <Area type="monotone" dataKey="revenue" stroke="#38BDF8" strokeWidth={2.5} fill="url(#revenueGradient)" name="Revenue" />
+                <Area type="monotone" dataKey="expenses" stroke="#FB6B7A" strokeWidth={2.5} fill="url(#expenseGradient)" name="Expenses" />
+                <Line type="monotone" dataKey="profit" stroke="#22C7A1" strokeWidth={3} dot={false} name="Net Profit" />
               </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
         {/* Revenue & Expenses breakdown */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
           {/* Revenue sources */}
-          <Card className="lg:col-span-3">
-            <CardHeader className="pb-3">
+          <Card className="rounded-3xl border-0 bg-white shadow-[0_18px_44px_rgba(2,6,23,0.06)] ring-1 ring-slate-100 lg:col-span-3">
+            <CardHeader className="border-b border-slate-100 px-6 py-5">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Revenue Sources</CardTitle>
-                <span className="text-sm font-semibold text-green-600">{formatCurrency(stats?.totalRevenue || 0)}</span>
+                <CardTitle className="text-xl font-black text-[#020617]">Revenue Sources</CardTitle>
+                <span className="text-sm font-black text-[#22C7A1]">{formatCurrency(stats?.totalRevenue || 0)}</span>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 p-5">
               {revenueItems.map((item) => {
                 const pct = (stats?.totalRevenue || 0) > 0 ? (item.value / (stats?.totalRevenue || 1)) * 100 : 0;
                 const Icon = item.icon;
                 return (
-                  <div key={item.label} className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg bg-${item.color}-500/10 flex items-center justify-center shrink-0`}>
-                      <Icon className={`h-4 w-4 text-${item.color}-500`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium truncate">{item.label}</span>
-                        <span className="text-sm font-semibold ml-2">{formatCurrency(item.value)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={`h-full bg-${item.color}-500 rounded-full transition-all`}
-                            style={{ width: `${Math.min(pct, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground w-10 text-right">{pct.toFixed(0)}%</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
-                    </div>
-                  </div>
+                  <BreakdownRow
+                    key={item.label}
+                    label={item.label}
+                    value={item.value}
+                    detail={item.detail}
+                    icon={<Icon className="h-4 w-4" />}
+                    color={item.color}
+                    pct={pct}
+                  />
                 );
               })}
             </CardContent>
           </Card>
 
           {/* Expense sources */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="pb-3">
+          <Card className="rounded-3xl border-0 bg-white shadow-[0_18px_44px_rgba(2,6,23,0.06)] ring-1 ring-slate-100 lg:col-span-2">
+            <CardHeader className="border-b border-slate-100 px-6 py-5">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Expenses</CardTitle>
-                <span className="text-sm font-semibold text-red-600">{formatCurrency(stats?.totalExpenses || 0)}</span>
+                <CardTitle className="text-xl font-black text-[#020617]">Expenses</CardTitle>
+                <span className="text-sm font-black text-[#FB6B7A]">{formatCurrency(stats?.totalExpenses || 0)}</span>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 p-5">
               {expenseItems.map((item) => {
                 const pct = (stats?.totalExpenses || 0) > 0 ? (item.value / (stats?.totalExpenses || 1)) * 100 : 0;
                 const Icon = item.icon;
                 return (
-                  <div key={item.label} className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg bg-${item.color}-500/10 flex items-center justify-center shrink-0`}>
-                      <Icon className={`h-4 w-4 text-${item.color}-500`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium truncate">{item.label}</span>
-                        <span className="text-sm font-semibold ml-2">{formatCurrency(item.value)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={`h-full bg-${item.color}-500 rounded-full transition-all`}
-                            style={{ width: `${Math.min(pct, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground w-10 text-right">{pct.toFixed(0)}%</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
-                    </div>
-                  </div>
+                  <BreakdownRow
+                    key={item.label}
+                    label={item.label}
+                    value={item.value}
+                    detail={item.detail}
+                    icon={<Icon className="h-4 w-4" />}
+                    color={item.color}
+                    pct={pct}
+                  />
                 );
               })}
             </CardContent>
@@ -725,45 +778,59 @@ export default function AdminProfitDashboard() {
         </div>
 
         {/* Restaurant profit table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Profit by Restaurant</CardTitle>
+        <Card className="overflow-hidden rounded-3xl border-0 bg-white shadow-[0_18px_44px_rgba(2,6,23,0.06)] ring-1 ring-slate-100">
+          <CardHeader className="border-b border-slate-100 px-6 py-5">
+            <CardTitle className="text-xl font-black text-[#020617]">Profit by Restaurant</CardTitle>
+            <p className="text-sm font-medium text-[#94A3B8]">Commission and payout split by partner restaurant.</p>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="overflow-x-auto p-0">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Restaurant</TableHead>
-                  <TableHead className="text-right">Orders</TableHead>
-                  <TableHead className="text-right">Gross Revenue</TableHead>
-                  <TableHead className="text-right">Commission ({globalCommissionRate}%)</TableHead>
-                  <TableHead className="text-right">Payout ({100 - globalCommissionRate}%)</TableHead>
+              <TableHeader className="bg-[#F6F8FB]">
+                <TableRow className="border-slate-100 hover:bg-transparent">
+                  <TableHead className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Restaurant</TableHead>
+                  <TableHead className="text-right text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Orders</TableHead>
+                  <TableHead className="text-right text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Gross Revenue</TableHead>
+                  <TableHead className="text-right text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Commission ({globalCommissionRate}%)</TableHead>
+                  <TableHead className="text-right text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Payout ({100 - globalCommissionRate}%)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {restaurantData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      No restaurant data available
+                    <TableCell colSpan={5} className="py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F6F8FB]">
+                          <BarChart3 className="h-6 w-6 text-[#94A3B8]" />
+                        </div>
+                        <p className="font-bold text-[#020617]">No restaurant data available</p>
+                        <p className="text-sm font-medium text-[#94A3B8]">Restaurant profit appears after orders are created.</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   <>
                     {restaurantData.map((restaurant, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-medium">{restaurant.restaurantName}</TableCell>
-                        <TableCell className="text-right">{restaurant.totalOrders}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(restaurant.grossRevenue)}</TableCell>
-                        <TableCell className="text-right text-purple-600 font-medium">{formatCurrency(restaurant.commission)}</TableCell>
-                        <TableCell className="text-right text-green-600">{formatCurrency(restaurant.payout)}</TableCell>
+                      <TableRow key={i} className="border-slate-100 transition-colors hover:bg-[#F6F8FB]/70">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#7C83F6]/10 text-[#7C83F6]">
+                              <Utensils className="h-5 w-5" />
+                            </div>
+                            <span className="font-black text-[#020617]">{restaurant.restaurantName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-[#020617]">{restaurant.totalOrders}</TableCell>
+                        <TableCell className="text-right font-bold text-[#020617]">{formatCurrency(restaurant.grossRevenue)}</TableCell>
+                        <TableCell className="text-right font-black text-[#7C83F6]">{formatCurrency(restaurant.commission)}</TableCell>
+                        <TableCell className="text-right font-bold text-[#22C7A1]">{formatCurrency(restaurant.payout)}</TableCell>
                       </TableRow>
                     ))}
-                    <TableRow className="bg-muted/50 font-medium">
-                      <TableCell>Total</TableCell>
-                      <TableCell className="text-right">{restaurantData.reduce((s, r) => s + r.totalOrders, 0)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(restaurantData.reduce((s, r) => s + r.grossRevenue, 0))}</TableCell>
-                      <TableCell className="text-right text-purple-600">{formatCurrency(restaurantData.reduce((s, r) => s + r.commission, 0))}</TableCell>
-                      <TableCell className="text-right text-green-600">{formatCurrency(restaurantData.reduce((s, r) => s + r.payout, 0))}</TableCell>
+                    <TableRow className="bg-[#F6F8FB] font-black">
+                      <TableCell className="text-[#020617]">Total</TableCell>
+                      <TableCell className="text-right text-[#020617]">{restaurantData.reduce((s, r) => s + r.totalOrders, 0)}</TableCell>
+                      <TableCell className="text-right text-[#020617]">{formatCurrency(restaurantData.reduce((s, r) => s + r.grossRevenue, 0))}</TableCell>
+                      <TableCell className="text-right text-[#7C83F6]">{formatCurrency(restaurantData.reduce((s, r) => s + r.commission, 0))}</TableCell>
+                      <TableCell className="text-right text-[#22C7A1]">{formatCurrency(restaurantData.reduce((s, r) => s + r.payout, 0))}</TableCell>
                     </TableRow>
                   </>
                 )}

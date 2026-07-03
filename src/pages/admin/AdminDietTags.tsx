@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,15 +32,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { 
-  Tag, 
-  Plus, 
-  Pencil, 
-  Trash2, 
+import {
+  Tag,
+  Plus,
+  Pencil,
+  Trash2,
   Search,
   Loader2,
   Leaf,
-  AlertTriangle
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,15 +60,13 @@ export default function AdminDietTags() {
   const [tags, setTags] = useState<DietTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Dialog states
+
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState<DietTag | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [saving, setSaving] = useState(false);
-  
-  // Form states
+
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
 
@@ -82,8 +79,7 @@ export default function AdminDietTags() {
   const fetchTags = async () => {
     try {
       setLoading(true);
-      
-      // Fetch diet tags
+
       const { data: tagsData, error: tagsError } = await supabase
         .from("diet_tags")
         .select("*")
@@ -91,21 +87,18 @@ export default function AdminDietTags() {
 
       if (tagsError) throw tagsError;
 
-      // Fetch meal counts for each tag
       const { data: mealTagsData, error: mealTagsError } = await supabase
         .from("meal_diet_tags")
         .select("diet_tag_id");
 
       if (mealTagsError) throw mealTagsError;
 
-      // Count meals per tag
       const mealCounts: Record<string, number> = {};
-      (mealTagsData || []).forEach(mt => {
-        mealCounts[mt.diet_tag_id] = (mealCounts[mt.diet_tag_id] || 0) + 1;
+      (mealTagsData || []).forEach((mealTag) => {
+        mealCounts[mealTag.diet_tag_id] = (mealCounts[mealTag.diet_tag_id] || 0) + 1;
       });
 
-      // Combine data
-      const tagsWithCounts = (tagsData || []).map(tag => ({
+      const tagsWithCounts = (tagsData || []).map((tag) => ({
         ...tag,
         meal_count: mealCounts[tag.id] || 0,
       }));
@@ -127,16 +120,16 @@ export default function AdminDietTags() {
     setEditDialogOpen(true);
   };
 
-  const openEditDialog = (tag: DietTag) => {
+  const openEditDialog = (tagItem: DietTag) => {
     setIsCreating(false);
-    setSelectedTag(tag);
-    setFormName(tag.name);
-    setFormDescription(tag.description || "");
+    setSelectedTag(tagItem);
+    setFormName(tagItem.name);
+    setFormDescription(tagItem.description || "");
     setEditDialogOpen(true);
   };
 
-  const openDeleteDialog = (tag: DietTag) => {
-    setSelectedTag(tag);
+  const openDeleteDialog = (tagItem: DietTag) => {
+    setSelectedTag(tagItem);
     setDeleteDialogOpen(true);
   };
 
@@ -149,7 +142,6 @@ export default function AdminDietTags() {
     setSaving(true);
     try {
       if (isCreating) {
-        // Create new tag
         const { error } = await supabase
           .from("diet_tags")
           .insert({
@@ -160,7 +152,6 @@ export default function AdminDietTags() {
         if (error) throw error;
         toast.success("Diet tag created successfully");
       } else if (selectedTag) {
-        // Update existing tag
         const { error } = await supabase
           .from("diet_tags")
           .update({
@@ -188,13 +179,11 @@ export default function AdminDietTags() {
     if (!selectedTag) return;
 
     try {
-      // First delete any meal associations
       await supabase
         .from("meal_diet_tags")
         .delete()
         .eq("diet_tag_id", selectedTag.id);
 
-      // Then delete the tag
       const { error } = await supabase
         .from("diet_tags")
         .delete()
@@ -213,28 +202,34 @@ export default function AdminDietTags() {
     }
   };
 
-  const filteredTags = tags.filter(tag =>
-    tag.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tag.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTags = tags.filter((tagItem) =>
+    tagItem.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    tagItem.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getTagColor = (name: string): string => {
     const lowerName = name.toLowerCase();
-    if (lowerName.includes("vegan") || lowerName.includes("vegetarian")) return "bg-green-500/10 text-green-600 border-green-500/20";
-    if (lowerName.includes("gluten")) return "bg-amber-500/10 text-amber-600 border-amber-500/20";
-    if (lowerName.includes("keto") || lowerName.includes("low-carb")) return "bg-purple-500/10 text-purple-600 border-purple-500/20";
-    if (lowerName.includes("dairy")) return "bg-blue-500/10 text-blue-600 border-blue-500/20";
-    if (lowerName.includes("nut")) return "bg-red-500/10 text-red-600 border-red-500/20";
-    if (lowerName.includes("halal") || lowerName.includes("kosher")) return "bg-teal-500/10 text-teal-600 border-teal-500/20";
-    return "bg-primary/10 text-primary border-primary/20";
+    if (lowerName.includes("vegan") || lowerName.includes("vegetarian")) return "border-[#22C7A1]/20 bg-[#EFFFFA] text-[#22C7A1]";
+    if (lowerName.includes("gluten")) return "border-[#F97316]/25 bg-[#FFF7ED] text-[#F97316]";
+    if (lowerName.includes("keto") || lowerName.includes("low-carb")) return "border-[#7C83F6]/20 bg-[#F3F4FF] text-[#7C83F6]";
+    if (lowerName.includes("dairy")) return "border-[#38BDF8]/20 bg-[#EFF9FF] text-[#38BDF8]";
+    if (lowerName.includes("nut")) return "border-[#FB6B7A]/20 bg-[#FFF0F2] text-[#FB6B7A]";
+    if (lowerName.includes("halal") || lowerName.includes("kosher")) return "border-[#22C7A1]/20 bg-[#EFFFFA] text-[#22C7A1]";
+    return "border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]";
+  };
+
+  const stats = {
+    total: tags.length,
+    inUse: tags.filter((tagItem) => tagItem.meal_count && tagItem.meal_count > 0).length,
+    assignments: tags.reduce((sum, tagItem) => sum + (tagItem.meal_count || 0), 0),
   };
 
   if (loading) {
     return (
       <AdminLayout title="Diet Tags" subtitle="Manage dietary tags">
-        <div className="space-y-6">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-96 w-full rounded-xl" />
+        <div className="space-y-4">
+          <Skeleton className="h-44 rounded-[24px]" />
+          <Skeleton className="h-96 w-full rounded-[24px]" />
         </div>
       </AdminLayout>
     );
@@ -242,91 +237,84 @@ export default function AdminDietTags() {
 
   return (
     <AdminLayout title="Diet Tags" subtitle="Manage dietary preferences and restrictions">
-      <div className="space-y-6">
-        {/* Header Actions */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
-          <div className="relative flex-1 w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="space-y-5 text-[#020617]">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_18px_42px_rgba(2,6,23,0.07)] ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-4 border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#020617] text-white">
+                <Tag className="h-6 w-6" />
+              </span>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">Meal Taxonomy</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-[#020617]">Diet Tags</h2>
+                <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                  Manage dietary preferences and restrictions used across meals.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={openCreateDialog}
+              className="h-11 gap-2 rounded-[14px] bg-[#020617] px-4 font-black text-white hover:bg-[#020617]/90"
+            >
+              <Plus className="h-4 w-4" />
+              Add Diet Tag
+            </Button>
+          </div>
+
+          <div className="grid gap-3 p-4 sm:grid-cols-3">
+            {[
+              { label: "Total Tags", value: stats.total, Icon: Tag, bg: "bg-[#F6F8FB]", color: "text-[#020617]", ring: "ring-[#E5EAF1]" },
+              { label: "Tags In Use", value: stats.inUse, Icon: Leaf, bg: "bg-[#EFFFFA]", color: "text-[#22C7A1]", ring: "ring-[#22C7A1]/20" },
+              { label: "Assignments", value: stats.assignments, Icon: Tag, bg: "bg-[#EFF9FF]", color: "text-[#38BDF8]", ring: "ring-[#38BDF8]/20" },
+            ].map(({ label, value, Icon, bg, color, ring }) => (
+              <div key={label} className={`rounded-[20px] ${bg} p-4 ring-1 ${ring}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-3xl font-black leading-none text-[#020617]">{value}</p>
+                    <p className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+                  </div>
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-[16px] bg-white ${color} shadow-sm ring-1 ring-white/80`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[24px] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
             <Input
-              placeholder="Search diet tags..."
+              placeholder="Search diet tags"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 min-h-[44px]"
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] pl-10 font-semibold text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#020617]"
             />
           </div>
-          <Button onClick={openCreateDialog} className="w-full sm:w-auto min-h-[44px]">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Diet Tag
-          </Button>
-        </div>
+        </section>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-primary/10">
-                  <Tag className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{tags.length}</p>
-                  <p className="text-sm text-muted-foreground">Total Tags</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-green-500/10">
-                  <Leaf className="h-6 w-6 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {tags.filter(t => t.meal_count && t.meal_count > 0).length}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Tags in Use</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-blue-500/10">
-                  <Tag className="h-6 w-6 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {tags.reduce((sum, t) => sum + (t.meal_count || 0), 0)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Total Assignments</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tags Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>All Diet Tags</CardTitle>
-            <CardDescription>
-              Manage dietary preferences and restrictions that can be assigned to meals
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+            <div>
+              <h3 className="text-lg font-black text-[#020617]">All Diet Tags</h3>
+              <p className="text-xs font-bold text-[#94A3B8]">{filteredTags.length} visible from {tags.length} total</p>
+            </div>
+            <Badge variant="outline" className="border-[#38BDF8]/20 bg-[#EFF9FF] text-[#38BDF8]">
+              Meal filters
+            </Badge>
+          </div>
+          <div className="overflow-x-auto">
             {filteredTags.length === 0 ? (
-              <div className="text-center py-12">
-                <Tag className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground">
+              <div className="py-16 text-center">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
+                  <Tag className="h-6 w-6 text-[#94A3B8]" />
+                </div>
+                <p className="font-black text-[#020617]">
                   {searchQuery ? "No diet tags found matching your search" : "No diet tags yet"}
                 </p>
                 {!searchQuery && (
-                  <Button variant="outline" className="mt-4" onClick={openCreateDialog}>
+                  <Button variant="outline" className="mt-4 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617]" onClick={openCreateDialog}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create your first tag
                   </Button>
@@ -335,7 +323,7 @@ export default function AdminDietTags() {
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="border-[#E5EAF1] hover:bg-transparent">
                     <TableHead>Tag</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead className="text-center">Meals</TableHead>
@@ -344,41 +332,41 @@ export default function AdminDietTags() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTags.map((tag) => (
-                    <TableRow key={tag.id}>
+                  {filteredTags.map((tagItem) => (
+                    <TableRow key={tagItem.id} className="border-[#E5EAF1] transition-colors hover:bg-[#F6F8FB]">
                       <TableCell>
-                        <Badge variant="outline" className={getTagColor(tag.name)}>
-                          {tag.name}
+                        <Badge variant="outline" className={`font-black ${getTagColor(tagItem.name)}`}>
+                          {tagItem.name}
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-xs">
-                        <p className="text-sm text-muted-foreground truncate">
-                          {tag.description || "No description"}
+                        <p className="truncate text-sm font-semibold text-[#94A3B8]">
+                          {tagItem.description || "No description"}
                         </p>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="secondary">
-                          {tag.meal_count || 0}
+                        <Badge variant="outline" className="border-[#E5EAF1] bg-[#F6F8FB] font-black text-[#020617]">
+                          {tagItem.meal_count || 0}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(tag.created_at), "MMM d, yyyy")}
+                      <TableCell className="text-sm font-semibold text-[#94A3B8]">
+                        {format(new Date(tagItem.created_at), "MMM d, yyyy")}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="min-h-[44px] min-w-[44px]"
-                            onClick={() => openEditDialog(tag)}
+                            className="min-h-[44px] min-w-[44px] text-[#020617] hover:bg-[#F6F8FB]"
+                            onClick={() => openEditDialog(tagItem)}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
-                            onClick={() => openDeleteDialog(tag)}
+                            className="min-h-[44px] min-w-[44px] text-[#FB6B7A] hover:bg-[#FFF0F2] hover:text-[#FB6B7A]"
+                            onClick={() => openDeleteDialog(tagItem)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -389,83 +377,86 @@ export default function AdminDietTags() {
                 </TableBody>
               </Table>
             )}
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        {/* Preview Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tag Preview</CardTitle>
-            <CardDescription>How tags appear throughout the platform</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <Badge key={tag.id} variant="outline" className={getTagColor(tag.name)}>
-                  {tag.name}
-                </Badge>
-              ))}
-              {tags.length === 0 && (
-                <p className="text-sm text-muted-foreground">No tags to preview</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <section className="rounded-[24px] bg-white p-5 shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="mb-4">
+            <h3 className="text-lg font-black text-[#020617]">Tag Preview</h3>
+            <p className="text-xs font-bold text-[#94A3B8]">How tags appear throughout the platform</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tagItem) => (
+              <Badge key={tagItem.id} variant="outline" className={`font-black ${getTagColor(tagItem.name)}`}>
+                {tagItem.name}
+              </Badge>
+            ))}
+            {tags.length === 0 && (
+              <p className="text-sm font-semibold text-[#94A3B8]">No tags to preview</p>
+            )}
+          </div>
+        </section>
       </div>
 
-      {/* Create/Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="max-h-[90vh] max-w-[95vw] overflow-y-auto border-[#E5EAF1] bg-white p-0 shadow-[0_24px_60px_rgba(2,6,23,0.18)] sm:max-w-md">
+          <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
+            <DialogTitle className="text-xl font-black text-[#020617]">
               {isCreating ? "Create Diet Tag" : "Edit Diet Tag"}
             </DialogTitle>
-            <DialogDescription>
-              {isCreating 
-                ? "Add a new dietary preference or restriction tag"
-                : "Update the diet tag details"
-              }
+            <DialogDescription className="font-semibold text-[#94A3B8]">
+              {isCreating ? "Add a new dietary preference or restriction tag." : "Update the diet tag details."}
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4">
+
+          <div className="space-y-4 p-5">
             <div className="space-y-2">
-              <Label htmlFor="name">Tag Name *</Label>
+              <Label htmlFor="name" className="font-black text-[#020617]">Tag Name *</Label>
               <Input
                 id="name"
                 placeholder="e.g., Vegan, Gluten-Free, Keto"
                 value={formName}
-                onChange={(e) => setFormName(e.target.value)}
+                onChange={(event) => setFormName(event.target.value)}
+                className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description" className="font-black text-[#020617]">Description</Label>
               <Textarea
                 id="description"
                 placeholder="Describe what this dietary tag means..."
                 value={formDescription}
-                onChange={(e) => setFormDescription(e.target.value)}
+                onChange={(event) => setFormDescription(event.target.value)}
                 rows={3}
+                className="rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
               />
             </div>
 
             {formName && (
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-2">Preview:</p>
-                <Badge variant="outline" className={getTagColor(formName)}>
+              <div className="rounded-[18px] bg-[#F6F8FB] p-4 ring-1 ring-[#E5EAF1]">
+                <p className="mb-2 text-xs font-black uppercase tracking-[0.1em] text-[#94A3B8]">Preview</p>
+                <Badge variant="outline" className={`font-black ${getTagColor(formName)}`}>
                   {formName}
                 </Badge>
               </div>
             )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={saving}>
+          <DialogFooter className="border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+            <Button
+              variant="outline"
+              onClick={() => setEditDialogOpen(false)}
+              disabled={saving}
+              className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white"
+            >
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="h-11 rounded-[14px] bg-[#020617] font-black text-white hover:bg-[#020617]/90"
+            >
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {isCreating ? "Create Tag" : "Save Changes"}
             </Button>
@@ -473,28 +464,30 @@ export default function AdminDietTags() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
+        <AlertDialogContent className="border-[#E5EAF1] bg-white p-0 shadow-[0_24px_60px_rgba(2,6,23,0.18)]">
+          <AlertDialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
+            <AlertDialogTitle className="flex items-center gap-3 text-xl font-black text-[#020617]">
+              <span className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#FFF0F2] text-[#FB6B7A] ring-1 ring-[#FB6B7A]/20">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
               Delete Diet Tag
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete the tag "{selectedTag?.name}"? 
+            <AlertDialogDescription className="font-semibold text-[#94A3B8]">
+              Are you sure you want to delete the tag "{selectedTag?.name}"?
               {selectedTag?.meal_count && selectedTag.meal_count > 0 && (
-                <span className="block mt-2 text-destructive">
-                  Warning: This tag is currently assigned to {selectedTag.meal_count} meal(s). 
-                  Deleting it will remove the tag from all meals.
+                <span className="mt-2 block font-bold text-[#FB6B7A]">
+                  Warning: This tag is currently assigned to {selectedTag.meal_count} meal(s). Deleting it will remove the tag from all meals.
                 </span>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+            <AlertDialogCancel className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="h-11 rounded-[14px] bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90"
               onClick={handleDelete}
             >
               Delete Tag

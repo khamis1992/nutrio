@@ -4,7 +4,6 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -511,21 +510,21 @@ const AdminRestaurants = () => {
     switch (status) {
       case "pending":
         return (
-          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+          <Badge variant="outline" className="border-[#FDBA74]/40 bg-[#FFF7ED] text-[#F97316]">
             <Clock className="h-3 w-3 mr-1" />
             Pending
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+          <Badge variant="outline" className="border-[#22C7A1]/20 bg-[#EFFFFA] text-[#22C7A1]">
             <CheckCircle className="h-3 w-3 mr-1" />
             Approved
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
+          <Badge variant="outline" className="border-[#FB6B7A]/20 bg-[#FFF0F2] text-[#FB6B7A]">
             <XCircle className="h-3 w-3 mr-1" />
             Rejected
           </Badge>
@@ -544,150 +543,132 @@ const AdminRestaurants = () => {
   };
 
   return (
-    <AdminLayout title="Manage Restaurants" subtitle={`${stats.pending} pending approval`}>
-      <div className="space-y-6">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Store className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Restaurants</p>
+    <AdminLayout title="Restaurant Network" subtitle={`${stats.pending} partners need review`}>
+      <div className="space-y-5 text-[#020617]">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_18px_42px_rgba(2,6,23,0.07)] ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-4 border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">Operations Control</p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#020617]">Restaurants</h2>
+              <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                Review onboarding, commission rates, owner details, and approval status.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={exportToCSV}
+                className="h-11 gap-2 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
+              >
+                <Download className="h-4 w-4 text-[#38BDF8]" />
+                Export
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={fetchRestaurants}
+                disabled={loading}
+                className="h-11 w-11 rounded-[14px] border-[#E5EAF1] bg-white text-[#020617] hover:bg-[#F6F8FB]"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+              <Button
+                onClick={() => setAddDialogOpen(true)}
+                className="h-11 gap-2 rounded-[14px] bg-[#020617] px-4 font-black text-white hover:bg-[#020617]/90"
+              >
+                <Plus className="h-4 w-4" />
+                Add Restaurant
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: "Total Restaurants", value: stats.total, Icon: Store, bg: "bg-[#F6F8FB]", color: "text-[#020617]", ring: "ring-[#E5EAF1]" },
+              { label: "Pending Review", value: stats.pending, Icon: Clock, bg: "bg-[#FFF7ED]", color: "text-[#F97316]", ring: "ring-[#FDBA74]/35" },
+              { label: "Approved", value: stats.approved, Icon: CheckCircle, bg: "bg-[#EFFFFA]", color: "text-[#22C7A1]", ring: "ring-[#22C7A1]/20" },
+              { label: "Rejected", value: stats.rejected, Icon: XCircle, bg: "bg-[#FFF0F2]", color: "text-[#FB6B7A]", ring: "ring-[#FB6B7A]/20" },
+            ].map(({ label, value, Icon, bg, color, ring }) => (
+              <div key={label} className={`rounded-[20px] ${bg} p-4 ring-1 ${ring}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-3xl font-black leading-none text-[#020617]">{value}</p>
+                    <p className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+                  </div>
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-[16px] bg-white ${color} shadow-sm ring-1 ring-white/80`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
+        </section>
 
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-amber-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.pending}</p>
-                  <p className="text-xs text-muted-foreground">Pending</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <section className="rounded-[24px] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "all", label: "All", count: stats.total },
+                { value: "pending", label: "Pending", count: stats.pending },
+                { value: "approved", label: "Approved", count: stats.approved },
+                { value: "rejected", label: "Rejected", count: stats.rejected },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  onClick={() => setActiveTab(tab.value as "all" | "pending" | "approved" | "rejected")}
+                  className={`min-h-10 rounded-[14px] px-4 text-sm font-black transition ${
+                    activeTab === tab.value
+                      ? "bg-[#020617] text-white shadow-[0_10px_20px_rgba(2,6,23,0.14)]"
+                      : "bg-[#F6F8FB] text-[#64748B] ring-1 ring-[#E5EAF1] hover:text-[#020617]"
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] ${activeTab === tab.value ? "bg-white/10 text-white" : "bg-white text-[#94A3B8]"}`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
 
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <CheckCircle className="h-5 w-5 text-emerald-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.approved}</p>
-                  <p className="text-xs text-muted-foreground">Approved</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
-                  <XCircle className="h-5 w-5 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.rejected}</p>
-                  <p className="text-xs text-muted-foreground">Rejected</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2">
-          {[
-            { value: "all", label: "All", count: stats.total },
-            { value: "pending", label: "Pending", count: stats.pending },
-            { value: "approved", label: "Approved", count: stats.approved },
-            { value: "rejected", label: "Rejected", count: stats.rejected },
-          ].map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value as "all" | "pending" | "approved" | "rejected")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <Badge variant="secondary" className="ml-2 text-xs">
-                  {tab.count}
-                </Badge>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+              <div className="relative min-w-[280px] flex-1">
+                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
                 <Input
-                  placeholder="Search restaurants by name, address, owner, or email..."
+                  placeholder="Search by name, address, owner, or email"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] pl-10 font-semibold text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#020617]"
                 />
               </div>
-              <div className="flex gap-2 flex-wrap">
-                <select
-                  value={cuisineFilter}
-                  onChange={(e) => setCuisineFilter(e.target.value)}
-                  className="px-3 py-2 border border-input rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="all">All Cuisines</option>
-                  {cuisineTypes.map((cuisine) => (
-                    <option key={cuisine} value={cuisine}>
-                      {cuisine}
-                    </option>
-                  ))}
-                </select>
-                <Button variant="outline" onClick={exportToCSV} className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Export
-                </Button>
-                <Button variant="outline" size="icon" onClick={fetchRestaurants} disabled={loading}>
-                  <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                </Button>
-                <Button onClick={() => setAddDialogOpen(true)} className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Restaurant
-                </Button>
-              </div>
+              <select
+                value={cuisineFilter}
+                onChange={(e) => setCuisineFilter(e.target.value)}
+                className="h-11 rounded-[14px] border border-[#E5EAF1] bg-[#F6F8FB] px-3 text-sm font-black text-[#020617] outline-none focus:ring-2 focus:ring-[#020617]"
+              >
+                <option value="all">All Cuisines</option>
+                {cuisineTypes.map((cuisine) => (
+                  <option key={cuisine} value={cuisine}>
+                    {cuisine}
+                  </option>
+                ))}
+              </select>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        {/* Bulk Actions */}
         {selectedRestaurants.size > 0 && (
-          <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-center justify-between">
-            <span className="text-sm text-primary font-medium">
+          <div className="flex flex-col gap-3 rounded-[18px] border border-[#7C83F6]/20 bg-[#F3F4FF] p-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm font-black text-[#020617]">
               {selectedRestaurants.size} restaurant{selectedRestaurants.size > 1 ? "s" : ""} selected
             </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" className="rounded-[12px] border-[#22C7A1]/20 bg-white text-[#22C7A1]">
                 Approve Selected
               </Button>
-              <Button variant="outline" size="sm" className="text-red-600 border-red-200">
+              <Button variant="outline" size="sm" className="rounded-[12px] border-[#FB6B7A]/20 bg-white text-[#FB6B7A]">
                 Reject Selected
               </Button>
-              <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={handleDeleteSelected}>
+              <Button variant="outline" size="sm" className="rounded-[12px] border-[#FB6B7A]/20 bg-white text-[#FB6B7A] hover:bg-[#FFF0F2]" onClick={handleDeleteSelected}>
                 <Trash2 className="w-3 h-3 mr-1" />
                 Delete Selected
               </Button>
@@ -695,15 +676,20 @@ const AdminRestaurants = () => {
           </div>
         )}
 
-        {/* Restaurants Table */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold">Restaurants</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+            <div>
+              <h3 className="text-lg font-black text-[#020617]">Partner Directory</h3>
+              <p className="text-xs font-bold text-[#94A3B8]">{filteredRestaurants.length} visible from {restaurants.length} total</p>
+            </div>
+            <Badge variant="outline" className="border-[#38BDF8]/20 bg-[#EFF9FF] text-[#38BDF8]">
+              Live network
+            </Badge>
+          </div>
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
+                <TableRow className="border-[#E5EAF1] hover:bg-transparent">
                   <TableHead className="w-10 pl-6">
                     <Checkbox
                       checked={selectedRestaurants.size === filteredRestaurants.length && filteredRestaurants.length > 0}
@@ -729,8 +715,8 @@ const AdminRestaurants = () => {
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        <p className="text-muted-foreground text-sm">Loading restaurants...</p>
+                        <Loader2 className="w-8 h-8 animate-spin text-[#020617]" />
+                        <p className="text-sm font-semibold text-[#94A3B8]">Loading restaurants...</p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -738,17 +724,17 @@ const AdminRestaurants = () => {
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                          <Store className="w-6 h-6 text-muted-foreground" />
+                        <div className="w-12 h-12 rounded-[18px] bg-[#F6F8FB] flex items-center justify-center ring-1 ring-[#E5EAF1]">
+                          <Store className="w-6 h-6 text-[#94A3B8]" />
                         </div>
-                        <p className="text-muted-foreground">No restaurants found</p>
-                        <p className="text-muted-foreground/70 text-sm">Try adjusting your filters</p>
+                        <p className="font-black text-[#020617]">No restaurants found</p>
+                        <p className="text-sm font-semibold text-[#94A3B8]">Try adjusting your filters</p>
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredRestaurants.map((restaurant) => (
-                    <TableRow key={restaurant.id} className="hover:bg-muted/50 transition-colors">
+                    <TableRow key={restaurant.id} className="border-[#E5EAF1] transition-colors hover:bg-[#F6F8FB]">
                       <TableCell className="pl-6">
                         <Checkbox
                           checked={selectedRestaurants.has(restaurant.id)}
@@ -757,23 +743,23 @@ const AdminRestaurants = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                          <div className="w-11 h-11 rounded-[14px] bg-[#F6F8FB] flex items-center justify-center overflow-hidden ring-1 ring-[#E5EAF1]">
                             {restaurant.logo_url ? (
                               <img src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full object-cover" />
                             ) : (
-                              <Store className="w-5 h-5 text-muted-foreground" />
+                              <Store className="w-5 h-5 text-[#94A3B8]" />
                             )}
                           </div>
                           <div>
                             <p 
-                              className="font-medium cursor-pointer hover:text-primary hover:underline"
+                              className="font-black text-[#020617] cursor-pointer hover:text-[#7C83F6]"
                               onClick={() => navigate(`/admin/restaurants/${restaurant.id}`)}
                             >
                               {restaurant.name}
                             </p>
                             {restaurant.address && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <MapPin className="w-3 h-3" />
+                              <p className="text-xs font-semibold text-[#94A3B8] flex items-center gap-1">
+                                <MapPin className="w-3 h-3 text-[#38BDF8]" />
                                 <span className="truncate max-w-[200px]">{restaurant.address}</span>
                               </p>
                             )}
@@ -782,31 +768,31 @@ const AdminRestaurants = () => {
                       </TableCell>
                       <TableCell>
                         {restaurant.cuisine_type ? (
-                          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+                          <Badge variant="outline" className="bg-[#F3F4FF] text-[#7C83F6] border-[#7C83F6]/20">
                             <Utensils className="w-3 h-3 mr-1" />
                             {restaurant.cuisine_type}
                           </Badge>
                         ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
+                          <span className="text-sm text-[#94A3B8]">-</span>
                         )}
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="text-sm">{restaurant.owner?.full_name || "Unknown"}</p>
+                          <p className="text-sm font-bold text-[#020617]">{restaurant.owner?.full_name || "Unknown"}</p>
                           {restaurant.email && (
-                            <p className="text-xs text-muted-foreground">{restaurant.email}</p>
+                            <p className="text-xs font-semibold text-[#94A3B8]">{restaurant.email}</p>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(restaurant.approval_status)}</TableCell>
                       <TableCell>
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-black text-[#020617]">
                           {restaurant.commission_rate != null ? `${restaurant.commission_rate}%` : "18%"}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
+                        <div className="flex items-center gap-1 text-sm font-semibold text-[#94A3B8]">
+                          <Calendar className="w-3 h-3 text-[#38BDF8]" />
                           {format(new Date(restaurant.created_at), "MMM d, yyyy")}
                         </div>
                       </TableCell>
@@ -817,7 +803,7 @@ const AdminRestaurants = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                                className="h-8 w-8 text-[#22C7A1] hover:text-[#22C7A1] hover:bg-[#EFFFFA]"
                                   onClick={() => openApproveDialog(restaurant)}
                                 disabled={processing}
                               >
@@ -826,7 +812,7 @@ const AdminRestaurants = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                className="h-8 w-8 text-[#FB6B7A] hover:text-[#FB6B7A] hover:bg-[#FFF0F2]"
                                 onClick={() => handleReject(restaurant)}
                                 disabled={processing}
                               >
@@ -836,7 +822,7 @@ const AdminRestaurants = () => {
                           )}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-[#020617] hover:bg-[#F6F8FB]">
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -866,7 +852,7 @@ const AdminRestaurants = () => {
                               {restaurant.approval_status !== "approved" && (
                                 <DropdownMenuItem
                                 onClick={() => openApproveDialog(restaurant)}
-                                  className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-500/10"
+                                  className="text-[#22C7A1] focus:text-[#22C7A1] focus:bg-[#EFFFFA]"
                                 >
                                   <CheckCircle className="w-4 h-4 mr-2" />
                                   Approve
@@ -875,7 +861,7 @@ const AdminRestaurants = () => {
                               {restaurant.approval_status !== "rejected" && (
                                 <DropdownMenuItem
                                   onClick={() => handleReject(restaurant)}
-                                  className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
+                                  className="text-[#FB6B7A] focus:text-[#FB6B7A] focus:bg-[#FFF0F2]"
                                 >
                                   <XCircle className="w-4 h-4 mr-2" />
                                   Reject
@@ -884,7 +870,7 @@ const AdminRestaurants = () => {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => handleDeleteRestaurant(restaurant)}
-                                className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
+                                className="text-[#FB6B7A] focus:text-[#FB6B7A] focus:bg-[#FFF0F2]"
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 Delete Restaurant
@@ -898,17 +884,17 @@ const AdminRestaurants = () => {
                 )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
         {/* Restaurant Detail Sheet */}
         <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <SheetContent className="w-full sm:max-w-xl">
+          <SheetContent className="w-full border-l border-[#E5EAF1] bg-[#F6F8FB] p-0 sm:max-w-xl">
             {selectedRestaurant && (
               <>
-                <SheetHeader className="pb-6 border-b">
+                <SheetHeader className="border-b border-[#E5EAF1] bg-white p-5 text-left">
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[20px] bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
                       {selectedRestaurant.logo_url ? (
                         <img
                           src={selectedRestaurant.logo_url}
@@ -916,98 +902,90 @@ const AdminRestaurants = () => {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <Store className="w-8 h-8 text-muted-foreground" />
+                        <Store className="h-8 w-8 text-[#94A3B8]" />
                       )}
                     </div>
                     <div>
-                      <SheetTitle className="text-xl">{selectedRestaurant.name}</SheetTitle>
-                      <SheetDescription>
+                      <SheetTitle className="text-xl font-black text-[#020617]">{selectedRestaurant.name}</SheetTitle>
+                      <SheetDescription className="mt-2">
                         {getStatusBadge(selectedRestaurant.approval_status)}
                       </SheetDescription>
                     </div>
                   </div>
                 </SheetHeader>
 
-                <div className="mt-6 space-y-6">
+                <div className="space-y-4 p-5">
                   {/* Description */}
                   {selectedRestaurant.description && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                          About
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground">{selectedRestaurant.description}</p>
-                      </CardContent>
-                    </Card>
+                    <section className="rounded-[22px] bg-white p-4 shadow-[0_12px_28px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">About</p>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-[#64748B]">{selectedRestaurant.description}</p>
+                    </section>
                   )}
 
                   {/* Contact Info */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Contact Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                  <section className="rounded-[22px] bg-white p-4 shadow-[0_12px_28px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                      Contact Information
+                    </p>
+                    <div className="mt-4 space-y-3">
                       {selectedRestaurant.address && (
                         <div className="flex items-start gap-3">
-                          <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#EFF9FF] text-[#38BDF8]">
+                            <MapPin className="h-4 w-4" />
+                          </div>
                           <div>
-                            <p className="text-sm font-medium">Address</p>
-                            <p className="text-sm text-muted-foreground">{selectedRestaurant.address}</p>
+                            <p className="text-sm font-black text-[#020617]">Address</p>
+                            <p className="text-sm font-semibold text-[#94A3B8]">{selectedRestaurant.address}</p>
                           </div>
                         </div>
                       )}
                       {selectedRestaurant.phone && (
                         <div className="flex items-start gap-3">
-                          <Phone className="w-4 h-4 text-muted-foreground mt-0.5" />
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#EFFFFA] text-[#22C7A1]">
+                            <Phone className="h-4 w-4" />
+                          </div>
                           <div>
-                            <p className="text-sm font-medium">Phone</p>
-                            <p className="text-sm text-muted-foreground">{selectedRestaurant.phone}</p>
+                            <p className="text-sm font-black text-[#020617]">Phone</p>
+                            <p className="text-sm font-semibold text-[#94A3B8]">{selectedRestaurant.phone}</p>
                           </div>
                         </div>
                       )}
                       {selectedRestaurant.email && (
                         <div className="flex items-start gap-3">
-                          <Mail className="w-4 h-4 text-muted-foreground mt-0.5" />
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#F3F4FF] text-[#7C83F6]">
+                            <Mail className="h-4 w-4" />
+                          </div>
                           <div>
-                            <p className="text-sm font-medium">Email</p>
-                            <p className="text-sm text-muted-foreground">{selectedRestaurant.email}</p>
+                            <p className="text-sm font-black text-[#020617]">Email</p>
+                            <p className="text-sm font-semibold text-[#94A3B8]">{selectedRestaurant.email}</p>
                           </div>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </section>
 
                   {/* Owner Info */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Owner Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Utensils className="w-5 h-5 text-primary" />
+                  <section className="rounded-[22px] bg-white p-4 shadow-[0_12px_28px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Owner Information</p>
+                    <div className="mt-4 flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-[#020617] text-white">
+                          <Utensils className="h-5 w-5" />
                         </div>
                         <div>
-                          <p className="font-medium">{selectedRestaurant.owner?.full_name || "Unknown"}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="font-black text-[#020617]">{selectedRestaurant.owner?.full_name || "Unknown"}</p>
+                          <p className="text-xs font-semibold text-[#94A3B8]">
                             Registered {format(new Date(selectedRestaurant.created_at), "MMM d, yyyy")}
                           </p>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                  </section>
 
                   {/* Actions */}
                   {selectedRestaurant.approval_status === "pending" && (
-                    <div className="flex gap-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       <Button
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                        className="h-12 rounded-[16px] bg-[#020617] font-black text-white hover:bg-[#020617]/90"
                         onClick={() => {
                           openApproveDialog(selectedRestaurant);
                           setIsDetailOpen(false);
@@ -1019,7 +997,7 @@ const AdminRestaurants = () => {
                       </Button>
                       <Button
                         variant="outline"
-                        className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                        className="h-12 rounded-[16px] border-[#FB6B7A]/25 bg-white font-black text-[#FB6B7A] hover:bg-[#FFF0F2] hover:text-[#FB6B7A]"
                         onClick={() => {
                           handleReject(selectedRestaurant);
                           setIsDetailOpen(false);
@@ -1039,63 +1017,69 @@ const AdminRestaurants = () => {
 
         {/* Add Restaurant Dialog */}
         <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) resetAddDialog(); }}>
-          <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Store className="w-5 h-5 text-primary" />
+          <DialogContent className="max-h-[90vh] border-[#E5EAF1] bg-white p-0 shadow-[0_24px_60px_rgba(2,6,23,0.18)] sm:max-w-lg flex flex-col">
+            <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
+              <DialogTitle className="flex items-center gap-2 text-xl font-black text-[#020617]">
+                <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#020617] text-white">
+                  <Store className="h-5 w-5" />
+                </span>
                 Add New Restaurant
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="font-semibold text-[#94A3B8]">
                 Create a new restaurant. You'll be taken to the full detail page to complete the setup.
               </DialogDescription>
             </DialogHeader>
 
-            <ScrollArea className="flex-1 -mx-6 px-6">
-            <div className="space-y-4 py-2">
+            <ScrollArea className="flex-1 px-5">
+            <div className="space-y-4 py-5 text-[#020617]">
               <div className="space-y-2">
-                <Label htmlFor="new-name">Restaurant Name <span className="text-destructive">*</span></Label>
+                <Label htmlFor="new-name" className="font-black text-[#020617]">Restaurant Name <span className="text-[#FB6B7A]">*</span></Label>
                 <Input
                   id="new-name"
                   placeholder="e.g. Healthy Bites"
                   value={newRestaurant.name}
                   onChange={(e) => setNewRestaurant((p) => ({ ...p, name: e.target.value }))}
+                  className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="new-email">Email</Label>
+                  <Label htmlFor="new-email" className="font-black text-[#020617]">Email</Label>
                   <Input
                     id="new-email"
                     type="email"
                     placeholder="info@restaurant.qa"
                     value={newRestaurant.email}
                     onChange={(e) => setNewRestaurant((p) => ({ ...p, email: e.target.value }))}
+                    className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="new-phone">Phone</Label>
+                  <Label htmlFor="new-phone" className="font-black text-[#020617]">Phone</Label>
                   <Input
                     id="new-phone"
                     placeholder="+974 XXXX XXXX"
                     value={newRestaurant.phone}
                     onChange={(e) => setNewRestaurant((p) => ({ ...p, phone: e.target.value }))}
+                    className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="new-cuisine">Cuisine Type</Label>
+                  <Label htmlFor="new-cuisine" className="font-black text-[#020617]">Cuisine Type</Label>
                   <Input
                     id="new-cuisine"
                     placeholder="e.g. Healthy, Arabic"
                     value={newRestaurant.cuisine_type}
                     onChange={(e) => setNewRestaurant((p) => ({ ...p, cuisine_type: e.target.value }))}
+                    className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="new-commission">Commission Rate (%)</Label>
+                  <Label htmlFor="new-commission" className="font-black text-[#020617]">Commission Rate (%)</Label>
                   <Input
                     id="new-commission"
                     type="number"
@@ -1105,53 +1089,57 @@ const AdminRestaurants = () => {
                     placeholder="18"
                     value={newRestaurant.commission_rate}
                     onChange={(e) => setNewRestaurant((p) => ({ ...p, commission_rate: e.target.value }))}
+                    className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="new-description">Description</Label>
+                <Label htmlFor="new-description" className="font-black text-[#020617]">Description</Label>
                 <Input
                   id="new-description"
                   placeholder="Short description of the restaurant"
                   value={newRestaurant.description}
                   onChange={(e) => setNewRestaurant((p) => ({ ...p, description: e.target.value }))}
+                  className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
                 />
               </div>
 
               {/* QNAS Location Picker */}
-              <div className="rounded-xl border-2 border-blue-300 bg-blue-600 p-4 space-y-3">
+              <div className="space-y-3 rounded-[20px] border border-[#38BDF8]/20 bg-[#EFF9FF] p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-white" />
-                    <span className="text-sm font-bold text-white">Qatar Address (QNAS)</span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-white text-[#38BDF8] ring-1 ring-[#38BDF8]/15">
+                      <MapPin className="h-4 w-4" />
+                    </span>
+                    <span className="text-sm font-black text-[#020617]">Qatar Address (QNAS)</span>
                   </div>
-                  {addLoadingZones && <span className="text-xs text-blue-200 animate-pulse">Loading zones…</span>}
+                  {addLoadingZones && <span className="animate-pulse text-xs font-bold text-[#38BDF8]">Loading zones...</span>}
                   {!addLoadingZones && addZones.length > 0 && (
-                    <span className="text-xs text-blue-200">{addZones.length} zones loaded</span>
+                    <span className="text-xs font-bold text-[#38BDF8]">{addZones.length} zones loaded</span>
                   )}
                 </div>
 
                 {/* Zone */}
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-white">Zone | <span>منطقة</span></Label>
+                  <Label className="text-xs font-black text-[#020617]">Zone</Label>
                   <Popover open={addZoneOpen} onOpenChange={setAddZoneOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         role="combobox"
                         disabled={addLoadingZones || addZones.length === 0}
-                        className="w-full justify-between bg-white border-blue-300 text-blue-700 font-medium h-9 hover:bg-blue-50 text-sm"
+                        className="h-10 w-full justify-between rounded-[13px] border-[#E5EAF1] bg-white text-sm font-bold text-[#020617] hover:bg-[#F6F8FB]"
                       >
                         {addZone
                           ? (() => { const z = addZones.find((z) => z.zone_number === addZone); return z ? `${z.zone_number} - ${z.zone_name_en}` : addZone.toString(); })()
-                          : addLoadingZones ? "⏱️ Loading…" : "Select Zone"}
+                          : addLoadingZones ? "Loading..." : "Select Zone"}
                         <Search className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[360px] p-0" align="start">
+                    <PopoverContent className="w-[360px] border-[#E5EAF1] p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Search by zone number or name…" />
+                        <CommandInput placeholder="Search by zone number or name..." />
                         <CommandList>
                           <CommandEmpty>No zones found.</CommandEmpty>
                           <CommandGroup>
@@ -1172,7 +1160,7 @@ const AdminRestaurants = () => {
                                 <span className="font-medium mr-1">{z.zone_number}</span>
                                 {" - "}
                                 <span className="ml-1">{z.zone_name_en}</span>
-                                {z.zone_name_ar && <span className="text-muted-foreground ml-2 text-xs">{z.zone_name_ar}</span>}
+                                {z.zone_name_ar && <span className="ml-2 text-xs text-[#94A3B8]">{z.zone_name_ar}</span>}
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -1184,14 +1172,14 @@ const AdminRestaurants = () => {
 
                 {/* Street */}
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-white">Street | <span>شارع</span></Label>
+                  <Label className="text-xs font-black text-[#020617]">Street</Label>
                   <Select
                     value={addStreet?.toString() ?? ""}
                     onValueChange={(v) => { setAddStreet(Number(v)); setAddBuilding(""); setAddLat(null); setAddLng(null); setAddAddress(""); }}
                     disabled={!addZone || addLoadingStreets}
                   >
-                    <SelectTrigger className="bg-white border-blue-300 text-blue-700 font-medium h-9 text-sm">
-                      <SelectValue placeholder={!addZone ? "Select Street" : addLoadingStreets ? "⏱️ Loading…" : "Select Street"} />
+                    <SelectTrigger className="h-10 rounded-[13px] border-[#E5EAF1] bg-white text-sm font-bold text-[#020617]">
+                      <SelectValue placeholder={!addZone ? "Select Street" : addLoadingStreets ? "Loading..." : "Select Street"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-60">
                       {addStreets.map((s) => (
@@ -1205,7 +1193,7 @@ const AdminRestaurants = () => {
 
                 {/* Building */}
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-white">Building Number | <span>رقم البناية</span></Label>
+                  <Label className="text-xs font-black text-[#020617]">Building Number</Label>
                   <Select
                     value={addBuilding}
                     onValueChange={(v) => {
@@ -1229,8 +1217,8 @@ const AdminRestaurants = () => {
                     }}
                     disabled={!addStreet || addLoadingBuildings}
                   >
-                    <SelectTrigger className="bg-white border-blue-300 text-blue-700 font-medium h-9 text-sm">
-                      <SelectValue placeholder={!addStreet ? "Select Building" : addLoadingBuildings ? "⏱️ Loading…" : "Select Building"} />
+                    <SelectTrigger className="h-10 rounded-[13px] border-[#E5EAF1] bg-white text-sm font-bold text-[#020617]">
+                      <SelectValue placeholder={!addStreet ? "Select Building" : addLoadingBuildings ? "Loading..." : "Select Building"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-60">
                       {addBuildings.map((b) => (
@@ -1242,24 +1230,32 @@ const AdminRestaurants = () => {
 
                 {/* Result */}
                 {addLat && addLng && (
-                  <div className="bg-white/10 rounded-lg p-2 space-y-1">
-                    <p className="text-xs text-green-300 font-medium">✓ Location found — {addLat.toFixed(6)}, {addLng.toFixed(6)}</p>
-                    <p className="text-xs text-white/80 break-words">{addAddress}</p>
+                  <div className="space-y-1 rounded-[14px] bg-white p-3 ring-1 ring-[#22C7A1]/15">
+                    <p className="text-xs font-black text-[#22C7A1]">Location found - {addLat.toFixed(6)}, {addLng.toFixed(6)}</p>
+                    <p className="break-words text-xs font-semibold text-[#94A3B8]">{addAddress}</p>
                   </div>
                 )}
               </div>
 
-              <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+              <p className="rounded-[16px] bg-[#F6F8FB] p-3 text-xs font-semibold text-[#94A3B8] ring-1 ring-[#E5EAF1]">
                 The restaurant will be created as <strong>Approved & Active</strong>. After creation you'll be redirected to the detail page to complete the setup.
               </p>
             </div>
             </ScrollArea>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+            <DialogFooter className="border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+              <Button
+                variant="outline"
+                onClick={() => setAddDialogOpen(false)}
+                className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white"
+              >
                 Cancel
               </Button>
-              <Button onClick={handleCreateRestaurant} disabled={adding || !newRestaurant.name.trim()}>
+              <Button
+                onClick={handleCreateRestaurant}
+                disabled={adding || !newRestaurant.name.trim()}
+                className="h-11 rounded-[14px] bg-[#020617] font-black text-white hover:bg-[#020617]/90"
+              >
                 {adding ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1278,17 +1274,17 @@ const AdminRestaurants = () => {
 
         {/* Approval Dialog with Payout Rate */}
         <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Approve Restaurant</DialogTitle>
-              <DialogDescription>
+          <DialogContent className="border-[#E5EAF1] bg-white p-0 shadow-[0_24px_60px_rgba(2,6,23,0.18)] sm:max-w-md">
+            <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
+              <DialogTitle className="text-xl font-black text-[#020617]">Approve Restaurant</DialogTitle>
+              <DialogDescription className="font-semibold text-[#94A3B8]">
                 Set the payout rate for {restaurantToApprove?.name}. This is the fixed amount the restaurant will receive per meal prepared.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 p-5 text-[#020617]">
               <div className="space-y-2">
-                <Label htmlFor="payout-rate">Payout Rate (QAR per meal) *</Label>
+                <Label htmlFor="payout-rate" className="font-black text-[#020617]">Payout Rate (QAR per meal) *</Label>
                 <Input
                   id="payout-rate"
                   type="number"
@@ -1297,14 +1293,15 @@ const AdminRestaurants = () => {
                   value={payoutRate}
                   onChange={(e) => setPayoutRate(e.target.value)}
                   placeholder="25.00"
+                  className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs font-semibold text-[#94A3B8]">
                   Default is 25 QAR. This can be adjusted later.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="commission-rate">Commission Rate (%) *</Label>
+                <Label htmlFor="commission-rate" className="font-black text-[#020617]">Commission Rate (%) *</Label>
                 <Input
                   id="commission-rate"
                   type="number"
@@ -1314,49 +1311,58 @@ const AdminRestaurants = () => {
                   value={commissionRate}
                   onChange={(e) => setCommissionRate(e.target.value)}
                   placeholder="18"
+                  className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs font-semibold text-[#94A3B8]">
                   Platform commission percentage. Default is 18%.
                 </p>
               </div>
 
               {/* Live preview */}
               {parseFloat(payoutRate) > 0 && parseFloat(commissionRate) >= 0 && (
-                <div className="rounded-lg bg-muted/60 border p-3 grid grid-cols-3 gap-2 text-center">
+                <div className="grid grid-cols-3 gap-2 rounded-[18px] border border-[#E5EAF1] bg-[#F6F8FB] p-3 text-center">
                   <div>
-                    <p className="text-xs text-muted-foreground">Gross/Meal</p>
-                    <p className="text-sm font-bold">QAR {parseFloat(payoutRate).toFixed(2)}</p>
+                    <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">Gross</p>
+                    <p className="text-sm font-black text-[#020617]">QAR {parseFloat(payoutRate).toFixed(2)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Commission ({commissionRate}%)</p>
-                    <p className="text-sm font-bold text-destructive">
-                      − QAR {(parseFloat(payoutRate) * parseFloat(commissionRate) / 100).toFixed(2)}
+                    <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">Fee</p>
+                    <p className="text-sm font-black text-[#FB6B7A]">
+                      - QAR {(parseFloat(payoutRate) * parseFloat(commissionRate) / 100).toFixed(2)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Restaurant Earns</p>
-                    <p className="text-sm font-bold text-emerald-600">
+                    <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">Earns</p>
+                    <p className="text-sm font-black text-[#22C7A1]">
                       QAR {(parseFloat(payoutRate) * (1 - parseFloat(commissionRate) / 100)).toFixed(2)}
                     </p>
                   </div>
                 </div>
               )}
 
-              <div className="bg-muted/50 p-3 rounded-lg">
-                <p className="text-sm">
+              <div className="rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                <p className="text-sm font-semibold text-[#020617]">
                   <strong>Restaurant:</strong> {restaurantToApprove?.name}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm font-semibold text-[#94A3B8]">
                   {restaurantToApprove?.address}
                 </p>
               </div>
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+            <DialogFooter className="border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+              <Button
+                variant="outline"
+                onClick={() => setApproveDialogOpen(false)}
+                className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white"
+              >
                 Cancel
               </Button>
-              <Button onClick={handleApprove} disabled={processing}>
+              <Button
+                onClick={handleApprove}
+                disabled={processing}
+                className="h-11 rounded-[14px] bg-[#020617] font-black text-white hover:bg-[#020617]/90"
+              >
                 {processing ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

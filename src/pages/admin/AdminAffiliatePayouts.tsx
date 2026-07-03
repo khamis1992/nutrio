@@ -1,19 +1,25 @@
-import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/AdminLayout";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Calendar,
+  CheckCircle,
+  Clock,
+  CreditCard,
+  Download,
+  Search,
+  Star,
+  User,
+  Users,
+  Wallet,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { AdminLayout } from "@/components/AdminLayout";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -29,32 +36,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
-import { format } from "date-fns";
-import {
-  Search,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Users,
-  Wallet,
-  Download,
-  MoreHorizontal,
-  User,
-  CreditCard,
-  Calendar,
-  Star,
-} from "lucide-react";
 
 interface AffiliatePayout {
   id: string;
@@ -85,6 +71,59 @@ interface PayoutStats {
 
 type TabValue = "all" | "pending" | "approved" | "rejected";
 
+const C = {
+  ink: "#020617",
+  muted: "#94A3B8",
+  panel: "#F6F8FB",
+  protein: "#7C83F6",
+  progress: "#22C7A1",
+  water: "#38BDF8",
+  fat: "#FB6B7A",
+};
+
+function statusBadge(status: AffiliatePayout["status"]) {
+  if (status === "pending") {
+    return (
+      <Badge variant="outline" className="border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#F97316]">
+        <Clock className="mr-1 h-3 w-3" />
+        Pending
+      </Badge>
+    );
+  }
+  if (status === "approved") {
+    return (
+      <Badge variant="outline" className="border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">
+        <CheckCircle className="mr-1 h-3 w-3" />
+        Approved
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#BE123C]">
+      <XCircle className="mr-1 h-3 w-3" />
+      Rejected
+    </Badge>
+  );
+}
+
+function tierBadge(tier: string | null) {
+  const normalized = tier || "bronze";
+  const classNameByTier: Record<string, string> = {
+    bronze: "border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#F97316]",
+    silver: "border-[#E5EAF1] bg-[#F6F8FB] text-[#64748B]",
+    gold: "border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]",
+    platinum: "border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#0369A1]",
+    diamond: "border-[#7C83F6]/25 bg-[#7C83F6]/10 text-[#4F46E5]",
+  };
+
+  return (
+    <Badge variant="outline" className={classNameByTier[normalized] || classNameByTier.bronze}>
+      <Star className="mr-1 h-3 w-3" />
+      {normalized.charAt(0).toUpperCase() + normalized.slice(1)}
+    </Badge>
+  );
+}
+
 export default function AdminAffiliatePayouts() {
   const { user } = useAuth();
   const [payouts, setPayouts] = useState<AffiliatePayout[]>([]);
@@ -106,12 +145,6 @@ export default function AdminAffiliatePayouts() {
   const [actionNotes, setActionNotes] = useState("");
   const [processing, setProcessing] = useState(false);
   const [selectedPayouts, setSelectedPayouts] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (user) {
-      fetchPayouts();
-    }
-  }, [user]);
 
   const fetchPayouts = async () => {
     setLoading(true);
@@ -141,18 +174,18 @@ export default function AdminAffiliatePayouts() {
 
       setPayouts(payoutsWithProfiles);
 
-      const pending = payoutsWithProfiles.filter((p) => p.status === "pending");
-      const approved = payoutsWithProfiles.filter((p) => p.status === "approved");
-      const rejected = payoutsWithProfiles.filter((p) => p.status === "rejected");
+      const pending = payoutsWithProfiles.filter((payout) => payout.status === "pending");
+      const approved = payoutsWithProfiles.filter((payout) => payout.status === "approved");
+      const rejected = payoutsWithProfiles.filter((payout) => payout.status === "rejected");
 
       setStats({
-        totalPending: pending.reduce((sum, p) => sum + Number(p.amount), 0),
-        totalApproved: approved.reduce((sum, p) => sum + Number(p.amount), 0),
-        totalRejected: rejected.reduce((sum, p) => sum + Number(p.amount), 0),
+        totalPending: pending.reduce((sum, payout) => sum + Number(payout.amount), 0),
+        totalApproved: approved.reduce((sum, payout) => sum + Number(payout.amount), 0),
+        totalRejected: rejected.reduce((sum, payout) => sum + Number(payout.amount), 0),
         pendingCount: pending.length,
         approvedCount: approved.length,
         rejectedCount: rejected.length,
-        uniqueAffiliates: new Set(payoutsWithProfiles.map((p) => p.user_id)).size,
+        uniqueAffiliates: new Set(payoutsWithProfiles.map((payout) => payout.user_id)).size,
       });
     } catch (error) {
       console.error("Error fetching payouts:", error);
@@ -161,6 +194,32 @@ export default function AdminAffiliatePayouts() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      fetchPayouts();
+    }
+  }, [user]);
+
+  const filteredPayouts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return payouts.filter((payout) => {
+      const matchesSearch =
+        !query ||
+        payout.user_profile?.full_name?.toLowerCase().includes(query) ||
+        payout.payout_method.toLowerCase().includes(query) ||
+        payout.id.toLowerCase().includes(query);
+      const matchesTab = activeTab === "all" || payout.status === activeTab;
+      return matchesSearch && matchesTab;
+    });
+  }, [activeTab, payouts, searchQuery]);
+
+  const tabs: { value: TabValue; label: string; count: number }[] = [
+    { value: "pending", label: "Pending", count: stats.pendingCount },
+    { value: "approved", label: "Approved", count: stats.approvedCount },
+    { value: "rejected", label: "Rejected", count: stats.rejectedCount },
+    { value: "all", label: "All", count: payouts.length },
+  ];
 
   const handleAction = async () => {
     if (!selectedPayout || !actionType) return;
@@ -211,7 +270,6 @@ export default function AdminAffiliatePayouts() {
     setProcessing(true);
     try {
       const newStatus = action === "approve" ? "approved" : "rejected";
-
       const { error } = await supabase
         .from("affiliate_payouts")
         .update({
@@ -236,20 +294,20 @@ export default function AdminAffiliatePayouts() {
   const handleExportCSV = () => {
     const csvRows = [
       ["ID", "Affiliate", "Tier", "Amount", "Method", "Status", "Requested At", "Processed At", "Notes"],
-      ...filteredPayouts.map(p => [
-        p.id,
-        p.user_profile?.full_name || "Unknown",
-        p.user_profile?.affiliate_tier || "Bronze",
-        p.amount,
-        p.payout_method.replace("_", " "),
-        p.status,
-        format(new Date(p.requested_at), "yyyy-MM-dd HH:mm"),
-        p.processed_at ? format(new Date(p.processed_at), "yyyy-MM-dd HH:mm") : "-",
-        p.notes || "",
+      ...filteredPayouts.map((payout) => [
+        payout.id,
+        payout.user_profile?.full_name || "Unknown",
+        payout.user_profile?.affiliate_tier || "Bronze",
+        payout.amount,
+        payout.payout_method.replace("_", " "),
+        payout.status,
+        format(new Date(payout.requested_at), "yyyy-MM-dd HH:mm"),
+        payout.processed_at ? format(new Date(payout.processed_at), "yyyy-MM-dd HH:mm") : "-",
+        payout.notes || "",
       ]),
     ];
 
-    const csvContent = csvRows.map(row => row.join(",")).join("\n");
+    const csvContent = csvRows.map((row) => row.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -263,93 +321,36 @@ export default function AdminAffiliatePayouts() {
   };
 
   const togglePayoutSelection = (payoutId: string) => {
-    const newSelected = new Set(selectedPayouts);
-    if (newSelected.has(payoutId)) {
-      newSelected.delete(payoutId);
-    } else {
-      newSelected.add(payoutId);
-    }
-    setSelectedPayouts(newSelected);
+    setSelectedPayouts((current) => {
+      const next = new Set(current);
+      if (next.has(payoutId)) {
+        next.delete(payoutId);
+      } else {
+        next.add(payoutId);
+      }
+      return next;
+    });
   };
 
   const toggleAllSelection = () => {
     if (selectedPayouts.size === filteredPayouts.length) {
       setSelectedPayouts(new Set());
     } else {
-      setSelectedPayouts(new Set(filteredPayouts.map(p => p.id)));
+      setSelectedPayouts(new Set(filteredPayouts.map((payout) => payout.id)));
     }
   };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
-        return (
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-            <Clock className="h-3 w-3 mr-1" />
-            Pending
-          </Badge>
-        );
-      case "approved":
-        return (
-          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-            <CheckCircle className="h-3 w-3 mr-1" />
-            Approved
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-            <XCircle className="h-3 w-3 mr-1" />
-            Rejected
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const getTierBadge = (tier: string | null) => {
-    const colors: Record<string, string> = {
-      bronze: "bg-orange-50 text-orange-700 border-orange-200",
-      silver: "bg-slate-50 text-slate-700 border-slate-200",
-      gold: "bg-yellow-50 text-yellow-700 border-yellow-200",
-      platinum: "bg-cyan-50 text-cyan-700 border-cyan-200",
-      diamond: "bg-violet-50 text-violet-700 border-violet-200",
-    };
-    return (
-      <Badge variant="outline" className={colors[tier || "bronze"] || colors.bronze}>
-        <Star className="h-3 w-3 mr-1" />
-        {tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "Bronze"}
-      </Badge>
-    );
-  };
-
-  const tabs: { value: TabValue; label: string; count: number }[] = [
-    { value: "pending", label: "Pending", count: stats.pendingCount },
-    { value: "approved", label: "Approved", count: stats.approvedCount },
-    { value: "rejected", label: "Rejected", count: stats.rejectedCount },
-    { value: "all", label: "All", count: payouts.length },
-  ];
-
-  const filteredPayouts = payouts.filter((payout) => {
-    const matchesSearch =
-      payout.user_profile?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payout.payout_method.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payout.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTab = activeTab === "all" || payout.status === activeTab;
-    return matchesSearch && matchesTab;
-  });
 
   if (loading) {
     return (
       <AdminLayout title="Affiliate Payouts" subtitle="Manage affiliate payout requests">
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => (
-              <Skeleton key={i} className="h-32 rounded-xl" />
+        <div className="space-y-5 bg-[#F6F8FB]">
+          <Skeleton className="h-36 rounded-[28px]" />
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((item) => (
+              <Skeleton key={item} className="h-28 rounded-[24px]" />
             ))}
           </div>
-          <Skeleton className="h-96 rounded-xl" />
+          <Skeleton className="h-96 rounded-[28px]" />
         </div>
       </AdminLayout>
     );
@@ -357,398 +358,316 @@ export default function AdminAffiliatePayouts() {
 
   return (
     <AdminLayout title="Affiliate Payouts" subtitle="Manage affiliate payout requests">
-      <div className="space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Pending Payouts</p>
-                  <p className="text-3xl font-bold mt-1">{formatCurrency(stats.totalPending)}</p>
-                  <p className="text-xs text-amber-600 mt-1">{stats.pendingCount} requests waiting</p>
-                </div>
-                <div className="p-3 rounded-full bg-amber-500/10">
-                  <Clock className="h-6 w-6 text-amber-500" />
-                </div>
+      <div className="space-y-5 bg-[#F6F8FB] pb-8 text-[#020617]">
+        <div className="overflow-hidden rounded-[28px] bg-white p-5 ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#F6F8FB] px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-[#7C83F6]">
+                <span className="h-2 w-2 rounded-full bg-[#22C7A1]" />
+                Affiliate finance
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Approved</p>
-                  <p className="text-3xl font-bold mt-1">{formatCurrency(stats.totalApproved)}</p>
-                  <p className="text-xs text-emerald-600 mt-1">{stats.approvedCount} paid out</p>
-                </div>
-                <div className="p-3 rounded-full bg-emerald-500/10">
-                  <CheckCircle className="h-6 w-6 text-emerald-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Rejected</p>
-                  <p className="text-3xl font-bold mt-1">{formatCurrency(stats.totalRejected)}</p>
-                  <p className="text-xs text-red-600 mt-1">{stats.rejectedCount} declined</p>
-                </div>
-                <div className="p-3 rounded-full bg-red-500/10">
-                  <XCircle className="h-6 w-6 text-red-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Unique Affiliates</p>
-                  <p className="text-3xl font-bold mt-1">{stats.uniqueAffiliates}</p>
-                  <p className="text-xs text-violet-600 mt-1">Active partners</p>
-                </div>
-                <div className="p-3 rounded-full bg-violet-500/10">
-                  <Users className="h-6 w-6 text-violet-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <h1 className="mt-3 text-[28px] font-black leading-tight text-[#020617]">Affiliate payouts</h1>
+              <p className="mt-1 max-w-[42rem] text-sm font-semibold leading-6 text-[#64748B]">
+                Review affiliate payout requests, verify payment details, and process approvals with a clean operations queue.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleExportCSV}
+              className="min-h-12 rounded-full border-[#E5EAF1] bg-white px-5 font-black text-[#020617] shadow-none"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
         </div>
 
-        {/* Search and Actions */}
-        <Card className="border-dashed">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Pending", value: formatCurrency(stats.totalPending), note: `${stats.pendingCount} waiting`, icon: Clock, color: C.fat },
+            { label: "Approved", value: formatCurrency(stats.totalApproved), note: `${stats.approvedCount} paid out`, icon: CheckCircle, color: C.progress },
+            { label: "Rejected", value: formatCurrency(stats.totalRejected), note: `${stats.rejectedCount} declined`, icon: XCircle, color: C.water },
+            { label: "Affiliates", value: stats.uniqueAffiliates, note: "Active partners", icon: Users, color: C.protein },
+          ].map(({ label, value, note, icon: Icon, color }) => (
+            <div key={label} className="rounded-[24px] bg-white p-4 ring-1 ring-[#E5EAF1]">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-[#94A3B8]">{label}</p>
+                  <p className="mt-1 truncate text-2xl font-black text-[#020617]">{value}</p>
+                  <p className="mt-1 text-xs font-bold text-[#94A3B8]">{note}</p>
+                </div>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}18`, color }}>
+                  <Icon className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <Card className="rounded-[26px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
           <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
-              <div className="relative flex-1 w-full max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="flex flex-col gap-3">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
                 <Input
                   placeholder="Search by name, method, or ID..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 min-h-[44px]"
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="min-h-12 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] pl-11 font-semibold text-[#020617] placeholder:text-[#94A3B8]"
                 />
               </div>
-              <Button variant="outline" onClick={handleExportCSV} className="min-h-[44px]">
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {tabs.map((tab) => {
+                  const active = activeTab === tab.value;
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => setActiveTab(tab.value)}
+                      className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-black transition-colors ${
+                        active ? "bg-[#020617] text-white" : "bg-[#F6F8FB] text-[#64748B] ring-1 ring-[#E5EAF1]"
+                      }`}
+                    >
+                      {tab.label} <span className={active ? "text-white/70" : "text-[#94A3B8]"}>{tab.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Tabs and Table */}
-        <Card>
-          <CardContent className="p-0">
-            {/* Tabs */}
-            <div className="border-b px-4 py-3">
-              <div className="flex flex-wrap gap-2">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.value}
-                    onClick={() => setActiveTab(tab.value)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${
-                      activeTab === tab.value
-                        ? "bg-primary text-white"
-                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                    }`}
-                  >
-                    {tab.label}
-                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                      activeTab === tab.value
-                        ? "bg-white/20 text-white"
-                        : "bg-background text-muted-foreground"
-                    }`}>
-                      {tab.count}
-                    </span>
-                  </button>
-                ))}
+        {selectedPayouts.size > 0 && (
+          <div className="flex flex-col gap-3 rounded-[24px] bg-white p-3 ring-1 ring-[#E5EAF1] sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm font-black text-[#020617]">{selectedPayouts.size} selected</span>
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkAction("approve")}
+                disabled={processing}
+                className="rounded-full border-[#22C7A1]/25 bg-[#22C7A1]/10 font-black text-[#047857] shadow-none"
+              >
+                <CheckCircle className="mr-1 h-4 w-4" />
+                Approve All
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkAction("reject")}
+                disabled={processing}
+                className="rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#BE123C] shadow-none"
+              >
+                <XCircle className="mr-1 h-4 w-4" />
+                Reject All
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <Card className="rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
+          <CardContent className="p-4">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#94A3B8]">Requests</p>
+                <h2 className="text-xl font-black text-[#020617]">Payout queue</h2>
               </div>
+              <label className="flex items-center gap-2 rounded-full bg-[#F6F8FB] px-3 py-2 text-xs font-black text-[#64748B]">
+                <Checkbox
+                  checked={filteredPayouts.length > 0 && selectedPayouts.size === filteredPayouts.length}
+                  onCheckedChange={toggleAllSelection}
+                />
+                Select all
+              </label>
             </div>
 
-            {/* Bulk Actions */}
-            {selectedPayouts.size > 0 && (
-              <div className="px-4 py-3 bg-muted/50 border-b flex items-center gap-4">
-                <span className="text-sm font-medium">{selectedPayouts.size} selected</span>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleBulkAction("approve")}
-                    disabled={processing}
-                    className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Approve All
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleBulkAction("reject")}
-                    disabled={processing}
-                    className="text-red-600 border-red-200 hover:bg-red-50"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Reject All
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Table */}
             {filteredPayouts.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center mb-4">
-                  <Wallet className="h-8 w-8 text-muted-foreground" />
+              <div className="rounded-[24px] border border-dashed border-[#CBD5E1] bg-[#F6F8FB] px-6 py-14 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-[#7C83F6] ring-1 ring-[#E5EAF1]">
+                  <Wallet className="h-8 w-8" />
                 </div>
-                <p className="text-muted-foreground">No payout requests found</p>
+                <p className="font-black text-[#020617]">No payout requests found</p>
+                <p className="mt-1 text-sm font-semibold text-[#94A3B8]">Try another tab or search term.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">
-                        <Checkbox
-                          checked={filteredPayouts.length > 0 && selectedPayouts.size === filteredPayouts.length}
-                          onCheckedChange={toggleAllSelection}
-                        />
-                      </TableHead>
-                      <TableHead>Affiliate</TableHead>
-                      <TableHead>Tier</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Requested</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredPayouts.map((payout) => (
-                      <TableRow 
-                        key={payout.id}
-                        className="cursor-pointer hover:bg-muted/50"
+              <div className="grid gap-4 xl:grid-cols-2">
+                {filteredPayouts.map((payout) => (
+                  <div
+                    key={payout.id}
+                    className="rounded-[26px] bg-[#F6F8FB] p-4 ring-1 ring-[#E5EAF1] transition hover:ring-[#CBD5E1]"
+                  >
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={selectedPayouts.has(payout.id)}
+                        onCheckedChange={() => togglePayoutSelection(payout.id)}
+                        className="mt-1"
+                      />
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 text-left"
                         onClick={() => {
                           setSelectedPayout(payout);
                           setDetailOpen(true);
                         }}
                       >
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={selectedPayouts.has(payout.id)}
-                            onCheckedChange={() => togglePayoutSelection(payout.id)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                              <User className="h-4 w-4 text-primary" />
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[#7C83F6] ring-1 ring-[#E5EAF1]">
+                              <User className="h-5 w-5" />
                             </div>
-                            <div>
-                              <p className="font-medium">
+                            <div className="min-w-0">
+                              <p className="truncate text-base font-black text-[#020617]">
                                 {payout.user_profile?.full_name || "Unknown User"}
                               </p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="truncate text-xs font-semibold text-[#94A3B8]">
                                 Balance: {formatCurrency(payout.user_profile?.affiliate_balance || 0)}
                               </p>
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell>{getTierBadge(payout.user_profile?.affiliate_tier || null)}</TableCell>
-                        <TableCell className="text-right font-semibold text-emerald-600">
-                          {formatCurrency(payout.amount)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="h-4 w-4 text-muted-foreground" />
-                            <span className="capitalize">{payout.payout_method.replace("_", " ")}</span>
+                          <div className="flex flex-wrap gap-2 sm:justify-end">
+                            {tierBadge(payout.user_profile?.affiliate_tier || null)}
+                            {statusBadge(payout.status)}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            {format(new Date(payout.requested_at), "MMM d, yyyy")}
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+                          <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
+                            <Wallet className="mb-2 h-4 w-4 text-[#22C7A1]" />
+                            <p className="text-sm font-black text-[#020617]">{formatCurrency(payout.amount)}</p>
+                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">Amount</p>
                           </div>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(payout.status)}</TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {payout.status === "pending" && (
-                                <>
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setSelectedPayout(payout);
-                                      setActionType("approve");
-                                    }}
-                                    className="text-emerald-600"
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    Approve
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setSelectedPayout(payout);
-                                      setActionType("reject");
-                                    }}
-                                    className="text-red-600"
-                                  >
-                                    <XCircle className="h-4 w-4 mr-2" />
-                                    Reject
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                          <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
+                            <CreditCard className="mb-2 h-4 w-4 text-[#38BDF8]" />
+                            <p className="truncate text-sm font-black capitalize text-[#020617]">{payout.payout_method.replace("_", " ")}</p>
+                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">Method</p>
+                          </div>
+                          <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
+                            <Calendar className="mb-2 h-4 w-4 text-[#7C83F6]" />
+                            <p className="text-sm font-black text-[#020617]">{format(new Date(payout.requested_at), "MMM d")}</p>
+                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">Requested</p>
+                          </div>
+                          <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
+                            <Star className="mb-2 h-4 w-4 fill-[#FB6B7A] text-[#FB6B7A]" />
+                            <p className="truncate text-sm font-black text-[#020617]">#{payout.id.slice(0, 6)}</p>
+                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">Request</p>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+
+                    {payout.status === "pending" && (
+                      <div className="mt-4 grid grid-cols-2 gap-2 border-t border-[#E5EAF1] pt-4">
+                        <Button
+                          variant="outline"
+                          className="min-h-10 rounded-full border-[#22C7A1]/25 bg-[#22C7A1]/10 font-black text-[#047857] shadow-none"
+                          onClick={() => {
+                            setSelectedPayout(payout);
+                            setActionType("approve");
+                          }}
+                        >
+                          <CheckCircle className="mr-1 h-4 w-4" />
+                          Approve
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="min-h-10 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#BE123C] shadow-none"
+                          onClick={() => {
+                            setSelectedPayout(payout);
+                            setActionType("reject");
+                          }}
+                        >
+                          <XCircle className="mr-1 h-4 w-4" />
+                          Reject
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Detail Sheet */}
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent className="w-full sm:max-w-lg">
+        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>Payout Request Details</SheetTitle>
-            <SheetDescription>
-              View complete payout information
+            <SheetTitle className="text-2xl font-black text-[#020617]">Payout Request Details</SheetTitle>
+            <SheetDescription className="font-semibold text-[#94A3B8]">
+              View complete payout information.
             </SheetDescription>
           </SheetHeader>
-          
+
           {selectedPayout && (
-            <div className="mt-6 space-y-6">
-              <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                <div>
-                  <p className="text-sm text-emerald-600">Payout Amount</p>
-                  <p className="text-3xl font-bold text-emerald-700">{formatCurrency(selectedPayout.amount)}</p>
-                </div>
-                <Wallet className="h-8 w-8 text-emerald-500" />
+            <div className="mt-6 space-y-5">
+              <div className="rounded-[24px] bg-[#22C7A1]/10 p-4 ring-1 ring-[#22C7A1]/20">
+                <p className="text-sm font-black text-[#047857]">Payout Amount</p>
+                <p className="mt-1 text-3xl font-black text-[#020617]">{formatCurrency(selectedPayout.amount)}</p>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <User className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Affiliate</p>
-                    <p className="font-medium">{selectedPayout.user_profile?.full_name || "Unknown"}</p>
-                    <div className="mt-1">{getTierBadge(selectedPayout.user_profile?.affiliate_tier || null)}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <CreditCard className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Payout Method</p>
-                    <p className="font-medium capitalize">{selectedPayout.payout_method.replace("_", " ")}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Calendar className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Requested At</p>
-                    <p className="font-medium">{format(new Date(selectedPayout.requested_at), "MMMM d, yyyy 'at' h:mm a")}</p>
-                  </div>
-                </div>
-
-                {selectedPayout.processed_at && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <CheckCircle className="h-4 w-4 text-primary" />
+              <div className="grid gap-3">
+                {[
+                  { label: "Affiliate", value: selectedPayout.user_profile?.full_name || "Unknown", icon: User, color: C.protein },
+                  { label: "Payout Method", value: selectedPayout.payout_method.replace("_", " "), icon: CreditCard, color: C.water },
+                  { label: "Requested At", value: format(new Date(selectedPayout.requested_at), "MMMM d, yyyy 'at' h:mm a"), icon: Calendar, color: C.fat },
+                  ...(selectedPayout.processed_at
+                    ? [{ label: "Processed At", value: format(new Date(selectedPayout.processed_at), "MMMM d, yyyy 'at' h:mm a"), icon: CheckCircle, color: C.progress }]
+                    : []),
+                ].map(({ label, value, icon: Icon, color }) => (
+                  <div key={label} className="flex items-start gap-3 rounded-2xl bg-[#F6F8FB] p-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white" style={{ color }}>
+                      <Icon className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Processed At</p>
-                      <p className="font-medium">{format(new Date(selectedPayout.processed_at), "MMMM d, yyyy 'at' h:mm a")}</p>
+                      <p className="text-xs font-bold text-[#94A3B8]">{label}</p>
+                      <p className="font-black capitalize text-[#020617]">{value}</p>
                     </div>
                   </div>
-                )}
+                ))}
               </div>
 
               {selectedPayout.payout_details && Object.keys(selectedPayout.payout_details).length > 0 && (
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-3">Payment Details</h4>
-                  <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                    {selectedPayout.payout_details.email && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">PayPal Email</span>
-                        <span className="font-medium">{selectedPayout.payout_details.email}</span>
+                <div className="border-t border-[#E5EAF1] pt-4">
+                  <h4 className="mb-3 font-black text-[#020617]">Payment Details</h4>
+                  <div className="space-y-2 rounded-2xl bg-[#F6F8FB] p-4">
+                    {Object.entries(selectedPayout.payout_details).map(([key, value]) => (
+                      <div key={key} className="flex justify-between gap-3 text-sm">
+                        <span className="font-semibold capitalize text-[#94A3B8]">{key.replace("_", " ")}</span>
+                        <span className="text-right font-black text-[#020617]">
+                          {key === "account_number" ? `****${value.slice(-4)}` : value}
+                        </span>
                       </div>
-                    )}
-                    {selectedPayout.payout_details.bank_name && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Bank Name</span>
-                        <span className="font-medium">{selectedPayout.payout_details.bank_name}</span>
-                      </div>
-                    )}
-                    {selectedPayout.payout_details.account_number && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Account Number</span>
-                        <span className="font-medium">****{selectedPayout.payout_details.account_number.slice(-4)}</span>
-                      </div>
-                    )}
-                    {selectedPayout.payout_details.iban && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">IBAN</span>
-                        <span className="font-medium">{selectedPayout.payout_details.iban}</span>
-                      </div>
-                    )}
+                    ))}
                   </div>
                 </div>
               )}
 
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-3">Status Information</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Current Status:</span>
-                    {getStatusBadge(selectedPayout.status)}
-                  </div>
-                  {selectedPayout.notes && (
-                    <div className="bg-muted/50 rounded-lg p-3 mt-2">
-                      <p className="text-sm text-muted-foreground mb-1">Notes:</p>
-                      <p className="text-sm">{selectedPayout.notes}</p>
-                    </div>
-                  )}
+              <div className="border-t border-[#E5EAF1] pt-4">
+                <h4 className="mb-3 font-black text-[#020617]">Status Information</h4>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-[#94A3B8]">Current Status:</span>
+                  {statusBadge(selectedPayout.status)}
                 </div>
+                {selectedPayout.notes && (
+                  <div className="mt-3 rounded-2xl bg-[#F6F8FB] p-3">
+                    <p className="mb-1 text-sm font-bold text-[#94A3B8]">Notes:</p>
+                    <p className="text-sm font-semibold text-[#020617]">{selectedPayout.notes}</p>
+                  </div>
+                )}
               </div>
 
               {selectedPayout.status === "pending" && (
-                <div className="flex gap-2 pt-4">
-                  <Button
-                    className="flex-1"
-                    onClick={() => setActionType("approve")}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Approve Payout
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <Button className="min-h-11 rounded-full bg-[#020617] font-black text-white shadow-none" onClick={() => setActionType("approve")}>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Approve
                   </Button>
                   <Button
                     variant="outline"
-                    className="text-red-600 border-red-200 hover:bg-red-50"
+                    className="min-h-11 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#BE123C] shadow-none"
                     onClick={() => setActionType("reject")}
                   >
-                    <XCircle className="h-4 w-4 mr-2" />
+                    <XCircle className="mr-2 h-4 w-4" />
                     Reject
                   </Button>
                 </div>
@@ -758,7 +677,6 @@ export default function AdminAffiliatePayouts() {
         </SheetContent>
       </Sheet>
 
-      {/* Action Dialog */}
       <Dialog
         open={!!selectedPayout && !!actionType}
         onOpenChange={() => {
@@ -768,12 +686,12 @@ export default function AdminAffiliatePayouts() {
           setActionNotes("");
         }}
       >
-        <DialogContent>
+        <DialogContent className="rounded-[28px]">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-2xl font-black text-[#020617]">
               {actionType === "approve" ? "Approve Payout" : "Reject Payout"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="font-semibold text-[#94A3B8]">
               {actionType === "approve"
                 ? "Confirm that you have processed this payout to the affiliate."
                 : "Provide a reason for rejecting this payout request."}
@@ -782,51 +700,30 @@ export default function AdminAffiliatePayouts() {
 
           {selectedPayout && (
             <div className="space-y-4">
-              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Affiliate</span>
-                  <span className="font-medium">
-                    {selectedPayout.user_profile?.full_name || "Unknown"}
-                  </span>
+              <div className="rounded-2xl bg-[#F6F8FB] p-4">
+                <div className="flex justify-between gap-3">
+                  <span className="font-semibold text-[#94A3B8]">Affiliate</span>
+                  <span className="font-black text-[#020617]">{selectedPayout.user_profile?.full_name || "Unknown"}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Amount</span>
-                  <span className="font-bold text-emerald-600 text-lg">
-                    {formatCurrency(selectedPayout.amount)}
-                  </span>
+                <div className="mt-2 flex justify-between gap-3">
+                  <span className="font-semibold text-[#94A3B8]">Amount</span>
+                  <span className="text-lg font-black text-[#047857]">{formatCurrency(selectedPayout.amount)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Method</span>
-                  <span className="capitalize">
-                    {selectedPayout.payout_method.replace("_", " ")}
-                  </span>
+                <div className="mt-2 flex justify-between gap-3">
+                  <span className="font-semibold text-[#94A3B8]">Method</span>
+                  <span className="font-black capitalize text-[#020617]">{selectedPayout.payout_method.replace("_", " ")}</span>
                 </div>
-                {selectedPayout.payout_details?.email && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">PayPal Email</span>
-                    <span>{selectedPayout.payout_details.email}</span>
-                  </div>
-                )}
-                {selectedPayout.payout_details?.bank_name && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Bank</span>
-                    <span>{selectedPayout.payout_details.bank_name}</span>
-                  </div>
-                )}
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">
+                <label className="text-sm font-black text-[#020617]">
                   Notes {actionType === "reject" && "(required)"}
                 </label>
                 <Textarea
-                  placeholder={
-                    actionType === "approve"
-                      ? "Add any notes about this payout (optional)"
-                      : "Explain why this payout is being rejected..."
-                  }
+                  placeholder={actionType === "approve" ? "Add payout notes (optional)" : "Explain why this payout is being rejected..."}
                   value={actionNotes}
-                  onChange={(e) => setActionNotes(e.target.value)}
+                  onChange={(event) => setActionNotes(event.target.value)}
+                  className="rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
                 />
               </div>
             </div>
@@ -835,6 +732,7 @@ export default function AdminAffiliatePayouts() {
           <DialogFooter>
             <Button
               variant="outline"
+              className="rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none"
               onClick={() => {
                 setActionType(null);
                 setActionNotes("");
@@ -843,11 +741,11 @@ export default function AdminAffiliatePayouts() {
               Cancel
             </Button>
             <Button
-              variant={actionType === "approve" ? "default" : "destructive"}
+              className={actionType === "approve" ? "rounded-full bg-[#020617] font-black text-white shadow-none" : "rounded-full bg-[#FB6B7A] font-black text-white shadow-none"}
               onClick={handleAction}
               disabled={processing || (actionType === "reject" && !actionNotes.trim())}
             >
-              {processing && <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />}
+              {processing && <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />}
               {actionType === "approve" ? "Confirm Approval" : "Confirm Rejection"}
             </Button>
           </DialogFooter>

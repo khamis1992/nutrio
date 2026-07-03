@@ -5,14 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -29,7 +21,6 @@ import {
   Store,
   RefreshCw,
   Eye,
-  DollarSign,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +28,16 @@ import { formatCurrency } from "@/lib/currency";
 import { format } from "date-fns";
 
 type ApprovalStatus = "pending" | "approved" | "rejected";
+
+const C = {
+  ink: "#020617",
+  muted: "#94A3B8",
+  panel: "#F6F8FB",
+  calories: "#22C7A1",
+  water: "#38BDF8",
+  protein: "#7C83F6",
+  fat: "#FB6B7A",
+};
 
 interface MealApproval {
   id: string;
@@ -56,18 +57,18 @@ interface MealApproval {
 const STATUS_CONFIG: Record<ApprovalStatus, { label: string; color: string; bgColor: string }> = {
   pending: {
     label: "Pending",
-    color: "text-amber-600",
-    bgColor: "bg-amber-500/10 border-amber-500/20",
+    color: "text-[#7C83F6]",
+    bgColor: "bg-[#7C83F6]/10 border-[#7C83F6]/20",
   },
   approved: {
     label: "Approved",
-    color: "text-green-600",
-    bgColor: "bg-green-500/10 border-green-500/20",
+    color: "text-[#22C7A1]",
+    bgColor: "bg-[#22C7A1]/10 border-[#22C7A1]/20",
   },
   rejected: {
     label: "Rejected",
-    color: "text-red-600",
-    bgColor: "bg-red-500/10 border-red-500/20",
+    color: "text-[#FB6B7A]",
+    bgColor: "bg-[#FB6B7A]/10 border-[#FB6B7A]/20",
   },
 };
 
@@ -228,7 +229,7 @@ const AdminMealApprovals = () => {
   const getStatusBadge = (status: ApprovalStatus) => {
     const config = STATUS_CONFIG[status];
     return (
-      <Badge variant="outline" className={config.bgColor}>
+      <Badge variant="outline" className={`${config.bgColor} ${config.color} rounded-full px-2.5 py-1 text-[11px] font-black`}>
         {status === "pending" && <Clock className="h-3 w-3 mr-1" />}
         {status === "approved" && <CheckCircle className="h-3 w-3 mr-1" />}
         {status === "rejected" && <XCircle className="h-3 w-3 mr-1" />}
@@ -239,261 +240,219 @@ const AdminMealApprovals = () => {
 
   return (
     <AdminLayout title="Meal Approvals" subtitle="Review meals priced above 50 QAR">
-      <div className="space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Utensils className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-amber-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.pending}</p>
-                  <p className="text-xs text-muted-foreground">Pending</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.approved}</p>
-                  <p className="text-xs text-muted-foreground">Approved</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
-                  <XCircle className="h-5 w-5 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.rejected}</p>
-                  <p className="text-xs text-muted-foreground">Rejected</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2">
-          {(["all", "pending", "approved", "rejected"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
-                activeTab === tab
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {tab}
-              {tab !== "all" && stats[tab] > 0 && (
-                <Badge variant="secondary" className="ml-2 text-xs">
-                  {stats[tab]}
-                </Badge>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Search & Refresh */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by meal name or restaurant..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Button variant="outline" size="icon" onClick={fetchMeals} disabled={loading}>
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-              </Button>
+      <div className="space-y-5 bg-[#F6F8FB] p-3 text-[#020617] sm:p-5">
+        <section className="overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_42px_rgba(2,6,23,0.06)] ring-1 ring-[#020617]/5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#22C7A1]">Approval queue</p>
+              <h2 className="mt-1 text-[28px] font-black tracking-[-0.04em] text-[#020617]">Meal review desk</h2>
+              <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[#94A3B8]">
+                Review high-value meals, validate pricing, and publish approved items for customers.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <Button
+              onClick={fetchMeals}
+              disabled={loading}
+              className="h-11 rounded-full bg-[#020617] px-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.18)] hover:bg-[#020617]/90"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
 
-        {/* Table */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold">Meals Requiring Approval</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Meal</TableHead>
-                  <TableHead>Restaurant</TableHead>
-                  <TableHead>Price (QAR)</TableHead>
-                  <TableHead>Platform Fee (18%)</TableHead>
-                  <TableHead>Restaurant Payout</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead className="w-36">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        <p className="text-muted-foreground text-sm">Loading...</p>
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[
+              { label: "Total meals", value: stats.total, icon: Utensils, color: C.water, bg: "bg-[#38BDF8]/10" },
+              { label: "Pending", value: stats.pending, icon: Clock, color: C.protein, bg: "bg-[#7C83F6]/10" },
+              { label: "Approved", value: stats.approved, icon: CheckCircle, color: C.calories, bg: "bg-[#22C7A1]/10" },
+              { label: "Rejected", value: stats.rejected, icon: XCircle, color: C.fat, bg: "bg-[#FB6B7A]/10" },
+            ].map(({ label, value, icon: Icon, color, bg }) => (
+              <div key={label} className="rounded-[22px] bg-[#F6F8FB] p-4 ring-1 ring-[#020617]/5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${bg}`} style={{ color }}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-[26px] font-black leading-none text-[#020617]">{value}</p>
+                </div>
+                <p className="mt-3 text-[11px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[26px] bg-white p-3 shadow-[0_14px_34px_rgba(2,6,23,0.05)] ring-1 ring-[#020617]/5">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap gap-2 rounded-[22px] bg-[#F6F8FB] p-1">
+              {(["all", "pending", "approved", "rejected"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`min-h-10 rounded-[18px] px-4 text-sm font-black capitalize transition-all ${
+                    activeTab === tab
+                      ? "bg-[#020617] text-white shadow-[0_8px_20px_rgba(2,6,23,0.16)]"
+                      : "text-[#94A3B8] hover:bg-white hover:text-[#020617]"
+                  }`}
+                >
+                  {tab}
+                  {tab !== "all" && stats[tab] > 0 && (
+                    <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[11px] ${
+                      activeTab === tab ? "bg-white/15 text-white" : "bg-white text-[#020617]"
+                    }`}>
+                      {stats[tab]}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="relative min-w-0 flex-1 xl:max-w-md">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+              <Input
+                placeholder="Search meal or restaurant"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-11 rounded-full border-0 bg-[#F6F8FB] pl-11 text-[#020617] placeholder:text-[#94A3B8] ring-1 ring-[#020617]/5 focus-visible:ring-[#22C7A1]"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <div>
+              <h3 className="text-[18px] font-black text-[#020617]">Meals requiring approval</h3>
+              <p className="text-sm font-medium text-[#94A3B8]">{filteredMeals.length} matching item{filteredMeals.length === 1 ? "" : "s"}</p>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="rounded-[28px] bg-white p-10 text-center shadow-sm ring-1 ring-[#020617]/5">
+              <Loader2 className="mx-auto h-9 w-9 animate-spin text-[#22C7A1]" />
+              <p className="mt-3 text-sm font-bold text-[#94A3B8]">Loading approvals...</p>
+            </div>
+          ) : filteredMeals.length === 0 ? (
+            <div className="rounded-[28px] bg-white p-10 text-center shadow-sm ring-1 ring-[#020617]/5">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F6F8FB] text-[#94A3B8]">
+                <Utensils className="h-7 w-7" />
+              </div>
+              <p className="mt-4 text-base font-black text-[#020617]">No meals found</p>
+              <p className="mt-1 text-sm font-medium text-[#94A3B8]">Try a different status or search term.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 2xl:grid-cols-2">
+              {filteredMeals.map((meal) => {
+                const platformFee = meal.price * 0.18;
+                const payout = meal.price * 0.82;
+                return (
+                  <article
+                    key={meal.id}
+                    className="overflow-hidden rounded-[28px] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)] ring-1 ring-[#020617]/5"
+                  >
+                    <div className="grid gap-4 p-4 lg:grid-cols-[96px_minmax(0,1fr)_260px] lg:items-center">
+                      <div className="h-24 w-full overflow-hidden rounded-[22px] bg-[#F6F8FB] lg:h-24 lg:w-24">
+                        {meal.image_url ? (
+                          <img src={meal.image_url} alt={meal.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-[#38BDF8]">
+                            <Utensils className="h-8 w-8" />
+                          </div>
+                        )}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredMeals.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                          <Utensils className="w-6 h-6 text-muted-foreground" />
+
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {getStatusBadge(meal.approval_status)}
+                          <span className="rounded-full bg-[#F6F8FB] px-2.5 py-1 text-[11px] font-black text-[#94A3B8]">
+                            {format(new Date(meal.created_at), "MMM d, yyyy")}
+                          </span>
                         </div>
-                        <p className="text-muted-foreground">No meals found</p>
+                        <h4 className="mt-3 truncate text-[18px] font-black text-[#020617]">{meal.name}</h4>
+                        <div className="mt-1 flex min-w-0 items-center gap-1.5 text-sm font-bold text-[#94A3B8]">
+                          <Store className="h-4 w-4 shrink-0 text-[#38BDF8]" />
+                          <span className="truncate">{meal.restaurant?.name || "Unknown restaurant"}</span>
+                        </div>
+                        {meal.description && (
+                          <p className="mt-2 line-clamp-2 text-sm font-medium leading-5 text-[#94A3B8]">{meal.description}</p>
+                        )}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredMeals.map((meal) => (
-                    <TableRow key={meal.id} className="hover:bg-muted/50 transition-colors">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          {meal.image_url ? (
-                            <img
-                              src={meal.image_url}
-                              alt={meal.name}
-                              className="w-10 h-10 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <Utensils className="w-5 h-5 text-primary" />
-                            </div>
-                          )}
-                          <p className="font-medium">{meal.name}</p>
+
+                      <div className="rounded-[22px] bg-[#F6F8FB] p-3">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-wide text-[#94A3B8]">Price</p>
+                            <p className="mt-1 text-sm font-black text-[#22C7A1]">{formatCurrency(meal.price)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-wide text-[#94A3B8]">Fee</p>
+                            <p className="mt-1 text-sm font-black text-[#FB6B7A]">{formatCurrency(platformFee)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-wide text-[#94A3B8]">Payout</p>
+                            <p className="mt-1 text-sm font-black text-[#7C83F6]">{formatCurrency(payout)}</p>
+                          </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Store className="w-3 h-3" />
-                          {meal.restaurant?.name || "Unknown"}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-semibold text-primary">
-                          {formatCurrency(meal.price)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-destructive">
-                          {formatCurrency(meal.price * 0.18)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm font-medium text-green-600">
-                          {formatCurrency(meal.price * 0.82)}
-                        </span>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(meal.approval_status)}</TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">
-                          {format(new Date(meal.created_at), "MMM d, yyyy")}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
+                        <div className="mt-3 flex flex-wrap gap-2">
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
+                            variant="outline"
+                            className="h-9 flex-1 rounded-full border-[#020617]/10 bg-white text-[#020617] hover:bg-white"
                             onClick={() => {
                               setSelectedMeal(meal);
                               setIsDetailOpen(true);
                             }}
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="mr-2 h-4 w-4" />
+                            View
                           </Button>
                           {meal.approval_status === "pending" && (
                             <>
                               <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                                className="h-9 flex-1 rounded-full bg-[#22C7A1] text-white hover:bg-[#22C7A1]/90"
                                 onClick={() => handleApprove(meal)}
                                 disabled={processingId === meal.id}
                               >
-                                {processingId === meal.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="w-4 h-4" />
-                                )}
+                                {processingId === meal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                Approve
                               </Button>
                               <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                className="h-9 flex-1 rounded-full bg-[#FB6B7A] text-white hover:bg-[#FB6B7A]/90"
                                 onClick={() => handleReject(meal)}
                                 disabled={processingId === meal.id}
                               >
-                                <XCircle className="w-4 h-4" />
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Reject
                               </Button>
                             </>
                           )}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
 
       {/* Detail Sheet */}
       <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <SheetContent className="w-full sm:max-w-md">
+        <SheetContent className="w-full bg-[#F6F8FB] text-[#020617] sm:max-w-md">
           {selectedMeal && (
             <>
-              <SheetHeader className="pb-6 border-b">
+              <SheetHeader className="border-b border-[#020617]/10 pb-6">
                 <div className="flex items-center gap-4">
                   {selectedMeal.image_url ? (
                     <img
                       src={selectedMeal.image_url}
                       alt={selectedMeal.name}
-                      className="w-16 h-16 rounded-lg object-cover"
+                      className="h-16 w-16 rounded-2xl object-cover"
                     />
                   ) : (
-                    <div className="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Utensils className="w-8 h-8 text-primary" />
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#38BDF8]/10">
+                      <Utensils className="h-8 w-8 text-[#38BDF8]" />
                     </div>
                   )}
-                  <div>
-                    <SheetTitle className="text-xl">{selectedMeal.name}</SheetTitle>
+                  <div className="min-w-0">
+                    <SheetTitle className="truncate text-xl font-black text-[#020617]">{selectedMeal.name}</SheetTitle>
                     <SheetDescription>{getStatusBadge(selectedMeal.approval_status)}</SheetDescription>
                   </div>
                 </div>
@@ -501,41 +460,41 @@ const AdminMealApprovals = () => {
 
               <div className="mt-6 space-y-5">
                 {selectedMeal.description && (
-                  <p className="text-sm text-muted-foreground">{selectedMeal.description}</p>
+                  <p className="rounded-2xl bg-white p-4 text-sm font-medium leading-6 text-[#94A3B8] ring-1 ring-[#020617]/5">{selectedMeal.description}</p>
                 )}
 
-                <Card>
+                <Card className="border-0 bg-white shadow-sm ring-1 ring-[#020617]/5">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                    <CardTitle className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
                       Restaurant
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-2">
-                      <Store className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium">{selectedMeal.restaurant?.name || "Unknown"}</span>
+                      <Store className="h-4 w-4 text-[#38BDF8]" />
+                      <span className="font-bold text-[#020617]">{selectedMeal.restaurant?.name || "Unknown"}</span>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-0 bg-white shadow-sm ring-1 ring-[#020617]/5">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                    <CardTitle className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
                       Pricing Breakdown
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Meal Price (set by restaurant)</span>
-                      <span className="font-semibold text-primary">{formatCurrency(selectedMeal.price)}</span>
+                      <span className="font-medium text-[#94A3B8]">Meal Price (set by restaurant)</span>
+                      <span className="font-black text-[#22C7A1]">{formatCurrency(selectedMeal.price)}</span>
                     </div>
-                    <div className="flex justify-between text-sm text-destructive">
+                    <div className="flex justify-between text-sm text-[#FB6B7A]">
                       <span>Platform Fee (18%)</span>
                       <span>- {formatCurrency(selectedMeal.price * 0.18)}</span>
                     </div>
-                    <div className="flex justify-between text-sm font-semibold border-t pt-2">
+                    <div className="flex justify-between border-t border-[#020617]/10 pt-2 text-sm font-black">
                       <span>Restaurant Payout</span>
-                      <span className="text-green-600">{formatCurrency(selectedMeal.price * 0.82)}</span>
+                      <span className="text-[#7C83F6]">{formatCurrency(selectedMeal.price * 0.82)}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -543,7 +502,7 @@ const AdminMealApprovals = () => {
                 {selectedMeal.approval_status === "pending" && (
                   <div className="flex gap-3">
                     <Button
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-2"
+                      className="flex-1 gap-2 rounded-full bg-[#22C7A1] text-white hover:bg-[#22C7A1]/90"
                       onClick={() => handleApprove(selectedMeal)}
                       disabled={processingId === selectedMeal.id}
                     >
@@ -555,8 +514,7 @@ const AdminMealApprovals = () => {
                       Approve
                     </Button>
                     <Button
-                      variant="destructive"
-                      className="flex-1 gap-2"
+                      className="flex-1 gap-2 rounded-full bg-[#FB6B7A] text-white hover:bg-[#FB6B7A]/90"
                       onClick={() => handleReject(selectedMeal)}
                       disabled={processingId === selectedMeal.id}
                     >
@@ -567,7 +525,7 @@ const AdminMealApprovals = () => {
                 )}
 
                 {selectedMeal.approval_status !== "pending" && (
-                  <div className="text-sm text-muted-foreground text-center py-2">
+                  <div className="py-2 text-center text-sm font-medium text-[#94A3B8]">
                     This meal has already been {selectedMeal.approval_status}.
                   </div>
                 )}

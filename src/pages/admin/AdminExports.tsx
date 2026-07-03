@@ -12,6 +12,16 @@ import { format, subDays, subMonths } from "date-fns";
 type ExportType = "users" | "subscriptions" | "orders";
 type DateRange = "7days" | "30days" | "90days" | "all";
 
+const C = {
+  text: "#020617",
+  muted: "#94A3B8",
+  surface: "#F6F8FB",
+  water: "#38BDF8",
+  danger: "#FB6B7A",
+  protein: "#7C83F6",
+  progress: "#22C7A1",
+};
+
 const AdminExports = () => {
   const [exporting, setExporting] = useState<ExportType | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>("30days");
@@ -193,41 +203,74 @@ const AdminExports = () => {
       title: "Users Report",
       description: "Export all user profiles including demographics and health goals",
       icon: Users,
-      action: exportUsers
+      action: exportUsers,
+      color: C.protein,
     },
     {
       type: "subscriptions" as ExportType,
       title: "Subscriptions Report",
       description: "Export all subscription data including plans, status, and pricing",
       icon: CreditCard,
-      action: exportSubscriptions
+      action: exportSubscriptions,
+      color: C.progress,
     },
     {
       type: "orders" as ExportType,
       title: "Orders Report",
       description: "Export all orders with restaurant details and delivery information",
       icon: ShoppingBag,
-      action: exportOrders
+      action: exportOrders,
+      color: C.water,
     }
   ];
 
   return (
-    <AdminLayout title="Data Export" subtitle="Download reports as CSV files">
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5" />
+    <AdminLayout>
+      <div className="space-y-6 bg-[#F6F8FB] p-1 text-[#020617]">
+        <div className="overflow-hidden rounded-3xl bg-white shadow-[0_18px_44px_rgba(2,6,23,0.06)] ring-1 ring-slate-100">
+          <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-white shadow-[0_14px_28px_rgba(34,199,161,0.22)]" style={{ backgroundColor: C.progress }}>
+                <FileSpreadsheet className="h-7 w-7" />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em]" style={{ color: C.progress }}>
+                  Data operations
+                </p>
+                <h1 className="mt-1 text-3xl font-black tracking-tight" style={{ color: C.text }}>
+                  Data Export
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm font-medium leading-6" style={{ color: C.muted }}>
+                  Download operational CSV reports for users, subscriptions, and orders with a controlled date range.
+                </p>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-[#F6F8FB] px-4 py-3">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">Selected range</p>
+              <p className="mt-1 text-2xl font-black capitalize text-[#020617]">{dateRange.replace("days", " days")}</p>
+            </div>
+          </div>
+          <div className="grid border-t border-slate-100 bg-[#F6F8FB]/70 px-6 py-4 text-sm font-semibold sm:grid-cols-3">
+            <span style={{ color: C.muted }}>Available exports: <strong className="text-[#020617]">{exports.length}</strong></span>
+            <span style={{ color: C.muted }}>Format: <strong className="text-[#020617]">CSV</strong></span>
+            <span style={{ color: C.muted }}>Status: <strong className="text-[#020617]">{exporting ? "Exporting" : "Ready"}</strong></span>
+          </div>
+        </div>
+
+        <Card className="rounded-3xl border-0 bg-white shadow-[0_18px_44px_rgba(2,6,23,0.06)] ring-1 ring-slate-100">
+          <CardHeader className="border-b border-slate-100 px-6 py-5">
+            <CardTitle className="flex items-center gap-2 text-xl font-black text-[#020617]">
+              <FileSpreadsheet className="h-5 w-5 text-[#22C7A1]" />
               Export Settings
             </CardTitle>
-            <CardDescription>Configure your export preferences</CardDescription>
+            <CardDescription className="font-medium text-[#94A3B8]">Configure your export preferences</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap items-end gap-4">
               <div className="space-y-2">
-                <Label>Date Range</Label>
+                <Label className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">Date Range</Label>
                 <Select value={dateRange} onValueChange={(value: DateRange) => setDateRange(value)}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="h-12 w-[220px] rounded-2xl border-0 bg-[#F6F8FB] font-bold text-[#020617] focus:ring-2 focus:ring-[#22C7A1]/30">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -238,25 +281,32 @@ const AdminExports = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="rounded-2xl bg-[#F6F8FB] px-4 py-3 text-sm font-semibold text-[#94A3B8]">
+                Exports include records created within the selected range.
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {exports.map((exportItem) => (
-            <Card key={exportItem.type} className="flex flex-col">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <exportItem.icon className="h-5 w-5 text-primary" />
-                  {exportItem.title}
-                </CardTitle>
-                <CardDescription>{exportItem.description}</CardDescription>
+            <Card key={exportItem.type} className="flex flex-col overflow-hidden rounded-3xl border-0 bg-white shadow-[0_18px_44px_rgba(2,6,23,0.06)] ring-1 ring-slate-100">
+              <CardHeader className="p-6">
+                <div className="mb-5 flex items-center justify-between">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: `${exportItem.color}18`, color: exportItem.color }}>
+                    <exportItem.icon className="h-6 w-6" />
+                  </div>
+                  <span className="rounded-full bg-[#F6F8FB] px-3 py-1 text-xs font-black text-[#94A3B8]">CSV</span>
+                </div>
+                <CardTitle className="text-xl font-black text-[#020617]">{exportItem.title}</CardTitle>
+                <CardDescription className="mt-2 min-h-12 font-medium leading-6 text-[#94A3B8]">{exportItem.description}</CardDescription>
               </CardHeader>
-              <CardContent className="mt-auto">
+              <CardContent className="mt-auto p-6 pt-0">
                 <Button
                   onClick={exportItem.action}
                   disabled={exporting !== null}
-                  className="w-full"
+                  className="h-12 w-full rounded-2xl text-sm font-black text-white shadow-[0_14px_28px_rgba(2,6,23,0.14)] hover:opacity-95 disabled:opacity-60"
+                  style={{ backgroundColor: exportItem.color }}
                 >
                   {exporting === exportItem.type ? (
                     <>

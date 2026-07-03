@@ -399,28 +399,28 @@ export default function AdminNotifications() {
     switch (status) {
       case "active":
         return (
-          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+          <Badge variant="outline" className="rounded-full border-[#22C7A1]/25 bg-[#22C7A1]/10 px-3 py-1 text-[#22C7A1]">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             Active
           </Badge>
         );
       case "scheduled":
         return (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+          <Badge variant="outline" className="rounded-full border-[#7C83F6]/25 bg-[#7C83F6]/10 px-3 py-1 text-[#7C83F6]">
             <Clock className="h-3 w-3 mr-1" />
             Scheduled
           </Badge>
         );
       case "expired":
         return (
-          <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
+          <Badge variant="outline" className="rounded-full border-[#94A3B8]/25 bg-[#F6F8FB] px-3 py-1 text-[#94A3B8]">
             <Calendar className="h-3 w-3 mr-1" />
             Expired
           </Badge>
         );
       default:
         return (
-          <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+          <Badge variant="outline" className="rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 px-3 py-1 text-[#FB6B7A]">
             <XCircle className="h-3 w-3 mr-1" />
             Inactive
           </Badge>
@@ -432,28 +432,28 @@ export default function AdminNotifications() {
     switch (type) {
       case "warning":
         return (
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+          <Badge variant="outline" className="rounded-full border-[#7C83F6]/25 bg-[#7C83F6]/10 px-3 py-1 text-[#7C83F6]">
             <AlertTriangle className="h-3 w-3 mr-1" />
             Warning
           </Badge>
         );
       case "success":
         return (
-          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+          <Badge variant="outline" className="rounded-full border-[#22C7A1]/25 bg-[#22C7A1]/10 px-3 py-1 text-[#22C7A1]">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             Success
           </Badge>
         );
       case "error":
         return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+          <Badge variant="outline" className="rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 px-3 py-1 text-[#FB6B7A]">
             <XCircle className="h-3 w-3 mr-1" />
             Error
           </Badge>
         );
       default:
         return (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+          <Badge variant="outline" className="rounded-full border-[#38BDF8]/25 bg-[#38BDF8]/10 px-3 py-1 text-[#0284C7]">
             <Info className="h-3 w-3 mr-1" />
             Info
           </Badge>
@@ -479,7 +479,7 @@ export default function AdminNotifications() {
       partners: "Partners",
     };
     return (
-      <div className="flex items-center gap-2">
+      <div className="inline-flex items-center gap-2 rounded-full border border-[#E5EAF1] bg-[#F6F8FB] px-3 py-1 text-sm font-bold text-[#020617]">
         {getAudienceIcon(audience)}
         <span className="capitalize">{labels[audience] || audience}</span>
       </div>
@@ -510,13 +510,13 @@ export default function AdminNotifications() {
   if (loading) {
     return (
       <AdminLayout title="Announcements" subtitle="Manage platform announcements and notifications">
-        <div className="space-y-6">
+        <div className="space-y-6 bg-[#F6F8FB] text-[#020617]">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => (
-              <Skeleton key={i} className="h-32 rounded-xl" />
+              <Skeleton key={i} className="h-32 rounded-[24px] bg-white" />
             ))}
           </div>
-          <Skeleton className="h-96 rounded-xl" />
+          <Skeleton className="h-96 rounded-[28px] bg-white" />
         </div>
       </AdminLayout>
     );
@@ -524,64 +524,95 @@ export default function AdminNotifications() {
 
   return (
     <AdminLayout title="Announcements" subtitle="Manage platform announcements and notifications">
-      <div className="space-y-6">
+      <div className="space-y-6 bg-[#F6F8FB] text-[#020617]">
+        <section className="overflow-hidden rounded-[28px] border border-[#E2E8F0] bg-white shadow-[0_18px_45px_rgba(2,6,23,0.06)]">
+          <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-[#22C7A1]/15 text-[#047857]">
+                <Megaphone className="h-7 w-7" />
+              </div>
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#22C7A1]">
+                  Broadcast center
+                </p>
+                <h2 className="mt-1 text-[28px] font-black leading-tight text-[#020617]">
+                  Notifications
+                </h2>
+                <p className="mt-1 max-w-lg text-sm font-semibold leading-5 text-[#94A3B8]">
+                  Compose announcements, target audiences, schedule visibility, and send platform updates.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => {
+                resetForm();
+                setFormOpen(true);
+              }}
+              className="h-12 rounded-2xl bg-[#020617] px-5 font-extrabold text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] hover:bg-[#020617]/90"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Announcement
+            </Button>
+          </div>
+        </section>
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-6">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Announcements</p>
-                  <p className="text-3xl font-bold mt-1">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground mt-1">All time</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">Total Announcements</p>
+                  <p className="mt-2 text-2xl font-black text-[#020617]">{stats.total}</p>
+                  <p className="mt-1 text-xs font-semibold text-[#38BDF8]">All time</p>
                 </div>
-                <div className="p-3 rounded-full bg-primary/10">
-                  <Megaphone className="h-6 w-6 text-primary" />
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#38BDF8]/12">
+                  <Megaphone className="h-6 w-6 text-[#38BDF8]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Currently Active</p>
-                  <p className="text-3xl font-bold mt-1">{stats.active}</p>
-                  <p className="text-xs text-emerald-600 mt-1">Visible now</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">Currently Active</p>
+                  <p className="mt-2 text-2xl font-black text-[#020617]">{stats.active}</p>
+                  <p className="mt-1 text-xs font-semibold text-[#22C7A1]">Visible now</p>
                 </div>
-                <div className="p-3 rounded-full bg-emerald-500/10">
-                  <Eye className="h-6 w-6 text-emerald-500" />
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#22C7A1]/10">
+                  <Eye className="h-6 w-6 text-[#22C7A1]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
-                  <p className="text-3xl font-bold mt-1">{stats.scheduled}</p>
-                  <p className="text-xs text-blue-600 mt-1">Pending start</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">Scheduled</p>
+                  <p className="mt-2 text-2xl font-black text-[#020617]">{stats.scheduled}</p>
+                  <p className="mt-1 text-xs font-semibold text-[#7C83F6]">Pending start</p>
                 </div>
-                <div className="p-3 rounded-full bg-blue-500/10">
-                  <Clock className="h-6 w-6 text-blue-500" />
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#7C83F6]/10">
+                  <Clock className="h-6 w-6 text-[#7C83F6]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Expired</p>
-                  <p className="text-3xl font-bold mt-1">{stats.expired}</p>
-                  <p className="text-xs text-slate-600 mt-1">Past end date</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">Expired</p>
+                  <p className="mt-2 text-2xl font-black text-[#020617]">{stats.expired}</p>
+                  <p className="mt-1 text-xs font-semibold text-[#FB6B7A]">Past end date</p>
                 </div>
-                <div className="p-3 rounded-full bg-slate-500/10">
-                  <Calendar className="h-6 w-6 text-slate-500" />
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#FB6B7A]/10">
+                  <Calendar className="h-6 w-6 text-[#FB6B7A]" />
                 </div>
               </div>
             </CardContent>
@@ -589,20 +620,20 @@ export default function AdminNotifications() {
         </div>
 
         {/* Search and Actions */}
-        <Card className="border-dashed">
+        <Card className="rounded-[28px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
               <div className="relative flex-1 w-full max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
                 <Input
                   placeholder="Search announcements..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 min-h-[44px]"
+                  className="min-h-[48px] rounded-2xl border-[#E2E8F0] bg-[#F6F8FB] pl-11 font-bold text-[#020617] placeholder:text-[#94A3B8]"
                 />
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleExportCSV} className="min-h-[44px]">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button variant="outline" onClick={handleExportCSV} className="min-h-[48px] rounded-2xl border-[#E2E8F0] bg-white px-5 font-extrabold text-[#020617] hover:bg-[#F6F8FB]">
                   <Download className="h-4 w-4 mr-2" />
                   Export CSV
                 </Button>
@@ -611,7 +642,7 @@ export default function AdminNotifications() {
                     resetForm();
                     setFormOpen(true);
                   }} 
-                  className="min-h-[44px]"
+                  className="min-h-[48px] rounded-2xl bg-[#22C7A1] px-5 font-extrabold text-white hover:bg-[#1DB492]"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   New Announcement
@@ -622,26 +653,26 @@ export default function AdminNotifications() {
         </Card>
 
         {/* Tabs and Table */}
-        <Card>
+        <Card className="overflow-hidden rounded-[28px] border-[#E2E8F0] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
           <CardContent className="p-0">
             {/* Tabs */}
-            <div className="border-b px-4 py-3">
-              <div className="flex flex-wrap gap-2">
+            <div className="border-b border-[#E2E8F0] bg-white px-4 py-4">
+              <div className="flex gap-2 overflow-x-auto">
                 {tabs.map((tab) => (
                   <button
                     key={tab.value}
                     onClick={() => setActiveTab(tab.value)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${
+                    className={`min-h-[44px] shrink-0 rounded-2xl px-4 py-2 text-sm font-extrabold transition-colors ${
                       activeTab === tab.value
-                        ? "bg-primary text-white"
-                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                        ? "bg-[#020617] text-white shadow-[0_12px_28px_rgba(2,6,23,0.18)]"
+                        : "border border-[#E2E8F0] bg-[#F6F8FB] text-[#64748B] hover:bg-white hover:text-[#020617]"
                     }`}
                   >
                     {tab.label}
-                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                    <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
                       activeTab === tab.value
                         ? "bg-white/20 text-white"
-                        : "bg-background text-muted-foreground"
+                        : "bg-white text-[#94A3B8]"
                     }`}>
                       {tab.count}
                     </span>
@@ -652,13 +683,13 @@ export default function AdminNotifications() {
 
             {/* Bulk Actions */}
             {selectedAnnouncements.size > 0 && (
-              <div className="px-4 py-3 bg-muted/50 border-b flex items-center gap-4">
-                <span className="text-sm font-medium">{selectedAnnouncements.size} selected</span>
+              <div className="flex flex-col gap-3 border-b border-[#E2E8F0] bg-[#22C7A1]/10 px-4 py-3 sm:flex-row sm:items-center">
+                <span className="text-sm font-bold text-[#020617]">{selectedAnnouncements.size} selected</span>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={handleBulkDelete}
-                  className="text-red-600 border-red-200 hover:bg-red-50"
+                  className="rounded-xl border-[#FB6B7A]/25 bg-white text-[#FB6B7A] hover:bg-[#FB6B7A]/10"
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
                   Delete All
@@ -669,29 +700,92 @@ export default function AdminNotifications() {
             {/* Table */}
             {filteredAnnouncements.length === 0 ? (
               <div className="text-center py-16">
-                <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center mb-4">
-                  <Bell className="h-8 w-8 text-muted-foreground" />
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-[#F6F8FB]">
+                  <Bell className="h-8 w-8 text-[#94A3B8]" />
                 </div>
-                <p className="text-muted-foreground">
+                <p className="text-lg font-black text-[#020617]">
                   {searchQuery ? "No announcements match your search" : "No announcements yet"}
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="grid gap-3 p-4 md:hidden">
+                {filteredAnnouncements.map((announcement) => (
+                  <article
+                    key={announcement.id}
+                    className="rounded-[24px] border border-[#E2E8F0] bg-[#F6F8FB] p-4"
+                    onClick={() => {
+                      setSelectedAnnouncement(announcement);
+                      setDetailOpen(true);
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-lg font-black text-[#020617]">{announcement.title}</p>
+                        <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#94A3B8]">
+                          {announcement.message}
+                        </p>
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedAnnouncements.has(announcement.id)}
+                          onCheckedChange={() => toggleAnnouncementSelection(announcement.id)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {getTypeBadge(announcement.type)}
+                      {getStatusBadge(announcement)}
+                      {getAudienceBadge(announcement.target_audience)}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-[#E2E8F0] pt-3">
+                      <div>
+                        <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#94A3B8]">Starts</p>
+                        <p className="text-sm font-black text-[#020617]">
+                          {format(new Date(announcement.starts_at), "MMM d, yyyy")}
+                        </p>
+                      </div>
+                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 rounded-2xl border-[#E2E8F0] bg-white text-[#020617]"
+                          onClick={() => handleEdit(announcement)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 rounded-2xl border-[#7C83F6]/25 bg-white text-[#7C83F6]"
+                          onClick={() => handleSendNotification(announcement)}
+                          disabled={sending}
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
+                  <TableHeader className="bg-[#F6F8FB]">
+                    <TableRow className="border-[#E2E8F0] hover:bg-[#F6F8FB]">
                       <TableHead className="w-12">
                         <Checkbox
                           checked={filteredAnnouncements.length > 0 && selectedAnnouncements.size === filteredAnnouncements.length}
                           onCheckedChange={toggleAllSelection}
                         />
                       </TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Audience</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Schedule</TableHead>
+                      <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">Title</TableHead>
+                      <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">Type</TableHead>
+                      <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">Audience</TableHead>
+                      <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">Status</TableHead>
+                      <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">Schedule</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -699,7 +793,7 @@ export default function AdminNotifications() {
                     {filteredAnnouncements.map((announcement) => (
                       <TableRow 
                         key={announcement.id}
-                        className="cursor-pointer hover:bg-muted/50"
+                        className="cursor-pointer border-[#E2E8F0] hover:bg-[#F6F8FB]"
                         onClick={() => {
                           setSelectedAnnouncement(announcement);
                           setDetailOpen(true);
@@ -713,8 +807,8 @@ export default function AdminNotifications() {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{announcement.title}</p>
-                            <p className="text-sm text-muted-foreground line-clamp-1">
+                            <p className="font-bold text-[#020617]">{announcement.title}</p>
+                            <p className="line-clamp-1 text-sm font-medium text-[#94A3B8]">
                               {announcement.message}
                             </p>
                           </div>
@@ -724,9 +818,9 @@ export default function AdminNotifications() {
                         <TableCell>{getStatusBadge(announcement)}</TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            <p>{format(new Date(announcement.starts_at), "MMM d, yyyy")}</p>
+                            <p className="font-bold text-[#020617]">{format(new Date(announcement.starts_at), "MMM d, yyyy")}</p>
                             {announcement.ends_at && (
-                              <p className="text-muted-foreground">
+                              <p className="font-medium text-[#94A3B8]">
                                 to {format(new Date(announcement.ends_at), "MMM d, yyyy")}
                               </p>
                             )}
@@ -735,7 +829,7 @@ export default function AdminNotifications() {
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -768,7 +862,7 @@ export default function AdminNotifications() {
                                   setSelectedAnnouncement(announcement);
                                   setDeleteDialogOpen(true);
                                 }}
-                                className="text-red-600"
+                                className="text-[#FB6B7A]"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete
@@ -781,6 +875,7 @@ export default function AdminNotifications() {
                   </TableBody>
                 </Table>
               </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -788,56 +883,56 @@ export default function AdminNotifications() {
 
       {/* Detail Sheet */}
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent className="w-full sm:max-w-lg">
+        <SheetContent className="w-full overflow-y-auto border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>Announcement Details</SheetTitle>
-            <SheetDescription>
+            <SheetTitle className="text-[#020617]">Announcement Details</SheetTitle>
+            <SheetDescription className="text-[#94A3B8]">
               View complete announcement information
             </SheetDescription>
           </SheetHeader>
           
           {selectedAnnouncement && (
             <div className="mt-6 space-y-6">
-              <div className={`p-4 rounded-lg border ${
-                selectedAnnouncement.type === "warning" ? "bg-amber-50 border-amber-100" :
-                selectedAnnouncement.type === "success" ? "bg-emerald-50 border-emerald-100" :
-                selectedAnnouncement.type === "error" ? "bg-red-50 border-red-100" :
-                "bg-blue-50 border-blue-100"
+              <div className={`rounded-[24px] border p-4 ${
+                selectedAnnouncement.type === "warning" ? "border-[#7C83F6]/20 bg-[#7C83F6]/10" :
+                selectedAnnouncement.type === "success" ? "border-[#22C7A1]/20 bg-[#22C7A1]/10" :
+                selectedAnnouncement.type === "error" ? "border-[#FB6B7A]/20 bg-[#FB6B7A]/10" :
+                "border-[#38BDF8]/20 bg-[#38BDF8]/10"
               }`}>
                 <div className="flex items-center gap-2 mb-2">
                   {getTypeBadge(selectedAnnouncement.type)}
                   {getStatusBadge(selectedAnnouncement)}
                 </div>
-                <h3 className="text-lg font-semibold">{selectedAnnouncement.title}</h3>
+                <h3 className="text-lg font-black text-[#020617]">{selectedAnnouncement.title}</h3>
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Message</p>
-                  <p className="text-sm">{selectedAnnouncement.message}</p>
+                <div className="rounded-[24px] border border-[#E5EAF1] bg-white p-4">
+                  <p className="mb-1 text-sm font-bold text-[#94A3B8]">Message</p>
+                  <p className="text-sm font-medium leading-6 text-[#020617]">{selectedAnnouncement.message}</p>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Users className="h-4 w-4 text-primary" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#38BDF8]/10">
+                    <Users className="h-4 w-4 text-[#38BDF8]" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Target Audience</p>
-                    <p className="font-medium">{getAudienceBadge(selectedAnnouncement.target_audience)}</p>
+                    <p className="text-sm font-medium text-[#94A3B8]">Target Audience</p>
+                    <div className="mt-1">{getAudienceBadge(selectedAnnouncement.target_audience)}</div>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Calendar className="h-4 w-4 text-primary" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#7C83F6]/10">
+                    <Calendar className="h-4 w-4 text-[#7C83F6]" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Schedule</p>
-                    <p className="font-medium">
+                    <p className="text-sm font-medium text-[#94A3B8]">Schedule</p>
+                    <p className="font-bold text-[#020617]">
                       From: {format(new Date(selectedAnnouncement.starts_at), "MMMM d, yyyy 'at' h:mm a")}
                     </p>
                     {selectedAnnouncement.ends_at && (
-                      <p className="text-muted-foreground">
+                      <p className="font-medium text-[#94A3B8]">
                         Until: {format(new Date(selectedAnnouncement.ends_at), "MMMM d, yyyy 'at' h:mm a")}
                       </p>
                     )}
@@ -845,19 +940,19 @@ export default function AdminNotifications() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Bell className="h-4 w-4 text-primary" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#22C7A1]/10">
+                    <Bell className="h-4 w-4 text-[#22C7A1]" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Created</p>
-                    <p className="font-medium">{format(new Date(selectedAnnouncement.created_at), "MMMM d, yyyy 'at' h:mm a")}</p>
+                    <p className="text-sm font-medium text-[#94A3B8]">Created</p>
+                    <p className="font-bold text-[#020617]">{format(new Date(selectedAnnouncement.created_at), "MMMM d, yyyy 'at' h:mm a")}</p>
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-2 pt-4">
                 <Button
-                  className="flex-1"
+                  className="min-h-[44px] flex-1 rounded-2xl bg-[#020617] text-white hover:bg-[#020617]/90"
                   onClick={() => {
                     setDetailOpen(false);
                     handleEdit(selectedAnnouncement);
@@ -870,13 +965,14 @@ export default function AdminNotifications() {
                   variant="outline"
                   onClick={() => handleSendNotification(selectedAnnouncement)}
                   disabled={sending}
+                  className="min-h-[44px] rounded-2xl border-[#7C83F6]/25 text-[#7C83F6] hover:bg-[#7C83F6]/10"
                 >
                   <Send className="h-4 w-4 mr-2" />
                   Send
                 </Button>
                 <Button
                   variant="outline"
-                  className="text-red-600 border-red-200 hover:bg-red-50"
+                  className="min-h-[44px] rounded-2xl border-[#FB6B7A]/25 text-[#FB6B7A] hover:bg-[#FB6B7A]/10"
                   onClick={() => setDeleteDialogOpen(true)}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -889,12 +985,12 @@ export default function AdminNotifications() {
 
       {/* Create/Edit Sheet */}
       <Sheet open={formOpen} onOpenChange={setFormOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent className="w-full overflow-y-auto border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>
+            <SheetTitle className="text-[#020617]">
               {selectedAnnouncement ? "Edit Announcement" : "Create Announcement"}
             </SheetTitle>
-            <SheetDescription>
+            <SheetDescription className="text-[#94A3B8]">
               {selectedAnnouncement
                 ? "Update the announcement details"
                 : "Create a new platform announcement"}
@@ -903,34 +999,36 @@ export default function AdminNotifications() {
           
           <div className="mt-6 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
+              <Label htmlFor="title" className="font-bold text-[#020617]">Title *</Label>
               <Input
                 id="title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="Announcement title"
+                className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-white text-[#020617] placeholder:text-[#94A3B8]"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="message">Message *</Label>
+              <Label htmlFor="message" className="font-bold text-[#020617]">Message *</Label>
               <Textarea
                 id="message"
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 placeholder="Write your announcement..."
                 rows={4}
+                className="rounded-2xl border-[#E5EAF1] bg-white text-[#020617] placeholder:text-[#94A3B8]"
               />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Type</Label>
+                <Label className="font-bold text-[#020617]">Type</Label>
                 <Select
                   value={formData.type}
                   onValueChange={(value) => setFormData({ ...formData, type: value as "info" | "warning" | "success" | "error" })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-white text-[#020617]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -942,12 +1040,12 @@ export default function AdminNotifications() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Target Audience</Label>
+                <Label className="font-bold text-[#020617]">Target Audience</Label>
                 <Select
                   value={formData.target_audience}
                   onValueChange={(value) => setFormData({ ...formData, target_audience: value as "all" | "users" | "partners" })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-white text-[#020617]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -961,44 +1059,46 @@ export default function AdminNotifications() {
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="starts_at">Start Date *</Label>
+                <Label htmlFor="starts_at" className="font-bold text-[#020617]">Start Date *</Label>
                 <Input
                   id="starts_at"
                   type="datetime-local"
                   value={formData.starts_at}
                   onChange={(e) => setFormData({ ...formData, starts_at: e.target.value })}
+                  className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-white text-[#020617]"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ends_at">End Date (optional)</Label>
+                <Label htmlFor="ends_at" className="font-bold text-[#020617]">End Date (optional)</Label>
                 <Input
                   id="ends_at"
                   type="datetime-local"
                   value={formData.ends_at}
                   onChange={(e) => setFormData({ ...formData, ends_at: e.target.value })}
+                  className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-white text-[#020617]"
                 />
               </div>
             </div>
             
-            <div className="flex items-center gap-2 pt-2">
+            <div className="flex min-h-[52px] items-center gap-3 rounded-2xl border border-[#E5EAF1] bg-white px-4">
               <Switch
                 id="is_active"
                 checked={formData.is_active}
                 onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
               />
-              <Label htmlFor="is_active">Active immediately</Label>
+              <Label htmlFor="is_active" className="font-bold text-[#020617]">Active immediately</Label>
             </div>
 
             <div className="flex gap-2 pt-4">
               <Button 
-                className="flex-1" 
+                className="min-h-[44px] flex-1 rounded-2xl bg-[#020617] text-white hover:bg-[#020617]/90" 
                 onClick={handleSubmit} 
                 disabled={saving}
               >
                 {saving && <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />}
                 {selectedAnnouncement ? "Update" : "Create"}
               </Button>
-              <Button variant="outline" onClick={() => setFormOpen(false)}>
+              <Button variant="outline" onClick={() => setFormOpen(false)} className="min-h-[44px] rounded-2xl border-[#E5EAF1] text-[#020617] hover:bg-white">
                 Cancel
               </Button>
             </div>
@@ -1008,16 +1108,16 @@ export default function AdminNotifications() {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="border-[#E5EAF1] bg-white text-[#020617]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Announcement</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-[#020617]">Delete Announcement</AlertDialogTitle>
+            <AlertDialogDescription className="text-[#94A3B8]">
               Are you sure you want to delete "{selectedAnnouncement?.title}"? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogCancel className="min-h-[44px] rounded-2xl border-[#E5EAF1] text-[#020617] hover:bg-[#F6F8FB]">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="min-h-[44px] rounded-2xl bg-[#FB6B7A] text-white hover:bg-[#EF5A6B]">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

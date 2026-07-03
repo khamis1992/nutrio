@@ -1,9 +1,24 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Calendar,
+  Check,
+  DollarSign,
+  Edit,
+  Loader2,
+  Plus,
+  Sparkles,
+  ToggleLeft,
+  ToggleRight,
+  Trash2,
+  X,
+} from "lucide-react";
+
 import { AdminLayout } from "@/components/AdminLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -11,8 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Sheet,
   SheetContent,
@@ -20,19 +33,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Check,
-  X,
-  Loader2,
-  DollarSign,
-  Calendar,
-  Sparkles,
-  ToggleLeft,
-  ToggleRight,
-} from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
@@ -50,14 +51,26 @@ interface SubscriptionPlan {
   created_at: string | null;
 }
 
+const C = {
+  ink: "#020617",
+  muted: "#94A3B8",
+  panel: "#F6F8FB",
+  protein: "#7C83F6",
+  progress: "#22C7A1",
+  water: "#38BDF8",
+  fat: "#FB6B7A",
+};
+
+function planLabel(tier: string) {
+  return tier.replace(/-/g, " ");
+}
+
 const AdminSubscriptions = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPlanEditOpen, setIsPlanEditOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [processing, setProcessing] = useState(false);
-
-  // Form state
   const [planForm, setPlanForm] = useState({
     tier: "",
     billing_interval: "monthly",
@@ -70,10 +83,6 @@ const AdminSubscriptions = () => {
   });
   const [featureInput, setFeatureInput] = useState("");
 
-  useEffect(() => {
-    fetchPlans();
-  }, []);
-
   const fetchPlans = async () => {
     setLoading(true);
     try {
@@ -84,21 +93,20 @@ const AdminSubscriptions = () => {
 
       if (error) throw error;
 
-      if (data) {
-        const formattedPlans: SubscriptionPlan[] = data.map((p) => ({
-          id: p.id,
-          tier: p.tier,
-          billing_interval: p.billing_interval,
-          price_qar: p.price_qar,
-          meals_per_week: "meals_per_week" in p ? (p as Record<string, unknown>).meals_per_week ?? null : null,
-          meals_per_month: p.meals_per_month,
-          discount_percent: p.discount_percent,
-          features: p.features as string[] | null,
-          is_active: p.is_active,
-          created_at: p.created_at,
-        }));
-        setPlans(formattedPlans);
-      }
+      const formattedPlans: SubscriptionPlan[] = (data || []).map((plan) => ({
+        id: plan.id,
+        tier: plan.tier,
+        billing_interval: plan.billing_interval,
+        price_qar: plan.price_qar,
+        meals_per_week: "meals_per_week" in plan ? (plan as Record<string, unknown>).meals_per_week as number | null : null,
+        meals_per_month: plan.meals_per_month,
+        discount_percent: plan.discount_percent,
+        features: plan.features as string[] | null,
+        is_active: plan.is_active,
+        created_at: plan.created_at,
+      }));
+
+      setPlans(formattedPlans);
     } catch (error) {
       console.error("Error fetching plans:", error);
       toast({
@@ -109,6 +117,24 @@ const AdminSubscriptions = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const resetPlanForm = () => {
+    setPlanForm({
+      tier: "",
+      billing_interval: "monthly",
+      price_qar: 0,
+      meals_per_week: 0,
+      meals_per_month: 0,
+      discount_percent: 0,
+      is_active: true,
+      features: [],
+    });
+    setFeatureInput("");
   };
 
   const openPlanEdit = (plan?: SubscriptionPlan) => {
@@ -131,35 +157,22 @@ const AdminSubscriptions = () => {
     setIsPlanEditOpen(true);
   };
 
-  const resetPlanForm = () => {
-    setPlanForm({
-      tier: "",
-      billing_interval: "monthly",
-      price_qar: 0,
-      meals_per_week: 0,
-      meals_per_month: 0,
-      discount_percent: 0,
-      is_active: true,
-      features: [],
-    });
-    setFeatureInput("");
-  };
-
   const addFeature = () => {
-    if (featureInput.trim() && !planForm.features.includes(featureInput.trim())) {
-      setPlanForm({
-        ...planForm,
-        features: [...planForm.features, featureInput.trim()],
-      });
+    const feature = featureInput.trim();
+    if (feature && !planForm.features.includes(feature)) {
+      setPlanForm((current) => ({
+        ...current,
+        features: [...current.features, feature],
+      }));
       setFeatureInput("");
     }
   };
 
   const removeFeature = (feature: string) => {
-    setPlanForm({
-      ...planForm,
-      features: planForm.features.filter((f) => f !== feature),
-    });
+    setPlanForm((current) => ({
+      ...current,
+      features: current.features.filter((item) => item !== feature),
+    }));
   };
 
   const handleAddPlan = async () => {
@@ -178,21 +191,18 @@ const AdminSubscriptions = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Plan created successfully",
-      });
-
+      toast({ title: "Success", description: "Plan created successfully" });
       fetchPlans();
       setIsPlanEditOpen(false);
       resetPlanForm();
     } catch (error: unknown) {
-      const isDuplicate = error instanceof Error && (error.message?.includes("unique") || (error as Record<string, unknown>).code === "23505");
+      const message = error instanceof Error ? error.message : "Failed to create plan";
+      const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code) : "";
       toast({
         title: "Error",
-        description: isDuplicate
-          ? `A ${planForm.tier} / ${planForm.billing_interval} plan already exists. Choose a different tier or billing interval.`
-          : error?.message || "Failed to create plan",
+        description: message.includes("unique") || code === "23505"
+          ? `A ${planForm.tier} / ${planForm.billing_interval} plan already exists.`
+          : message,
         variant: "destructive",
       });
     } finally {
@@ -220,16 +230,13 @@ const AdminSubscriptions = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Plan updated successfully",
-      });
-
+      toast({ title: "Success", description: "Plan updated successfully" });
       fetchPlans();
       setIsPlanEditOpen(false);
       setSelectedPlan(null);
       resetPlanForm();
     } catch (error) {
+      console.error("Error updating plan:", error);
       toast({
         title: "Error",
         description: "Failed to update plan",
@@ -241,51 +248,41 @@ const AdminSubscriptions = () => {
   };
 
   const handleDeletePlan = async (planId: string) => {
-    const plan = plans.find(p => p.id === planId);
+    const plan = plans.find((item) => item.id === planId);
     if (!plan) return;
 
-    const confirmed = confirm(
-      `Are you sure you want to permanently delete "${plan.tier}" plan? This cannot be undone.`
-    );
-    
+    const confirmed = confirm(`Are you sure you want to permanently delete "${planLabel(plan.tier)}" plan? This cannot be undone.`);
     if (!confirmed) return;
 
     try {
-      // First, try to delete the plan directly
       const { error } = await supabase
         .from("subscription_plans")
         .delete()
         .eq("id", planId);
 
       if (error) {
-        // If delete fails due to foreign key, offer to deactivate instead
-        const deactivateConfirm = confirm(
-          `Cannot delete "${plan.tier}" plan because it has subscriptions using it.\n\nWould you like to deactivate it instead?`
-        );
-        
-        if (deactivateConfirm) {
-          const { error: deactivateError } = await supabase
-            .from("subscription_plans")
-            .update({ is_active: false })
-            .eq("id", planId);
+        const deactivateConfirm = confirm(`Cannot delete "${planLabel(plan.tier)}" because subscriptions use it.\n\nDeactivate it instead?`);
+        if (!deactivateConfirm) return;
 
-          if (deactivateError) throw deactivateError;
+        const { error: deactivateError } = await supabase
+          .from("subscription_plans")
+          .update({ is_active: false })
+          .eq("id", planId);
 
-          toast({
-            title: "Plan Deactivated",
-            description: `"${plan.tier}" plan has been deactivated instead of deleted`,
-          });
-          fetchPlans();
-          return;
-        }
-        return; // User cancelled
+        if (deactivateError) throw deactivateError;
+
+        toast({
+          title: "Plan Deactivated",
+          description: `"${planLabel(plan.tier)}" plan has been deactivated.`,
+        });
+        fetchPlans();
+        return;
       }
 
       toast({
         title: "Success",
-        description: `"${plan.tier}" plan has been deleted`,
+        description: `"${planLabel(plan.tier)}" plan has been deleted.`,
       });
-
       fetchPlans();
     } catch (error: unknown) {
       toast({
@@ -307,11 +304,11 @@ const AdminSubscriptions = () => {
 
       toast({
         title: plan.is_active ? "Plan Deactivated" : "Plan Activated",
-        description: `${plan.tier} plan is now ${plan.is_active ? "inactive" : "active"}`,
+        description: `${planLabel(plan.tier)} is now ${plan.is_active ? "inactive" : "active"}.`,
       });
-
       fetchPlans();
     } catch (error) {
+      console.error("Error toggling plan:", error);
       toast({
         title: "Error",
         description: "Failed to update plan status",
@@ -320,222 +317,185 @@ const AdminSubscriptions = () => {
     }
   };
 
-  // Calculate stats
-  const stats = {
+  const stats = useMemo(() => ({
     totalPlans: plans.length,
-    activePlans: plans.filter((p) => p.is_active).length,
-    monthlyPlans: plans.filter((p) => p.billing_interval === "monthly").length,
-    annualPlans: plans.filter((p) => p.billing_interval === "annual").length,
+    activePlans: plans.filter((plan) => plan.is_active).length,
+    monthlyPlans: plans.filter((plan) => plan.billing_interval === "monthly").length,
+    annualPlans: plans.filter((plan) => plan.billing_interval === "annual").length,
     avgPrice: plans.length > 0
-      ? plans.reduce((acc, p) => acc + (p.price_qar || 0), 0) / plans.length
+      ? plans.reduce((acc, plan) => acc + (plan.price_qar || 0), 0) / plans.length
       : 0,
-  };
+  }), [plans]);
 
   return (
-    <AdminLayout
-      title="Subscription Plans"
-      subtitle={`${stats.activePlans} active plans`}
-    >
-      <div className="space-y-6">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.totalPlans}</p>
-                  <p className="text-xs text-muted-foreground">Total Plans</p>
-                </div>
+    <AdminLayout title="Subscription Plans" subtitle={`${stats.activePlans} active plans`}>
+      <div className="space-y-5 bg-[#F6F8FB] pb-8 text-[#020617]">
+        <div className="overflow-hidden rounded-[28px] bg-white p-5 ring-1 ring-[#E5EAF1]">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#F6F8FB] px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-[#7C83F6]">
+                <span className="h-2 w-2 rounded-full bg-[#22C7A1]" />
+                Plans
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border-emerald-500/20">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                  <Check className="h-5 w-5 text-emerald-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.activePlans}</p>
-                  <p className="text-xs text-muted-foreground">Active</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-blue-500/5 to-blue-500/10 border-blue-500/20">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.monthlyPlans}</p>
-                  <p className="text-xs text-muted-foreground">Monthly</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-violet-500/5 to-violet-500/10 border-violet-500/20">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-violet-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.avgPrice)}</p>
-                  <p className="text-xs text-muted-foreground">Avg Price</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Plans Table */}
-        <Card>
-          <CardHeader className="pb-4 flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-semibold">All Plans</CardTitle>
-            <Button onClick={() => openPlanEdit()} className="gap-2">
-              <Plus className="w-4 h-4" />
+              <h1 className="mt-3 text-[28px] font-black leading-tight text-[#020617]">Subscription plans</h1>
+              <p className="mt-1 max-w-[42rem] text-sm font-semibold leading-6 text-[#64748B]">
+                Manage customer subscription tiers, meal allowance, pricing, discounts, and plan availability.
+              </p>
+            </div>
+            <Button
+              onClick={() => openPlanEdit()}
+              className="min-h-12 rounded-full bg-[#020617] px-5 font-black text-white shadow-none hover:bg-[#020617]/90"
+            >
+              <Plus className="mr-2 h-4 w-4" />
               Add Plan
             </Button>
-          </CardHeader>
-          <CardContent className="p-0">
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[
+            { label: "Total Plans", value: stats.totalPlans, icon: Sparkles, color: C.protein },
+            { label: "Active", value: stats.activePlans, icon: Check, color: C.progress },
+            { label: "Monthly", value: stats.monthlyPlans, icon: Calendar, color: C.water },
+            { label: "Avg Price", value: formatCurrency(stats.avgPrice), icon: DollarSign, color: C.fat },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="rounded-[24px] bg-white p-4 ring-1 ring-[#E5EAF1]">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}18`, color }}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-2xl font-black leading-none text-[#020617]">{value}</p>
+                  <p className="mt-1 text-xs font-bold text-[#94A3B8]">{label}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <Card className="rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
+          <CardContent className="p-4">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#94A3B8]">Catalog</p>
+                <h2 className="text-xl font-black text-[#020617]">All plans</h2>
+              </div>
+              <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">
+                {stats.activePlans} active
+              </Badge>
+            </div>
+
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <Loader2 className="h-8 w-8 animate-spin text-[#7C83F6]" />
               </div>
             ) : plans.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <Sparkles className="h-8 w-8 text-muted-foreground" />
+              <div className="rounded-[24px] border border-dashed border-[#CBD5E1] bg-[#F6F8FB] px-6 py-12 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-[#7C83F6] ring-1 ring-[#E5EAF1]">
+                  <Sparkles className="h-8 w-8" />
                 </div>
-                <p className="text-muted-foreground font-medium">No plans yet</p>
-                <p className="text-sm text-muted-foreground/70 mb-4">
-                  Create your first subscription plan
-                </p>
-                <Button onClick={() => openPlanEdit()}>
-                  <Plus className="w-4 h-4 mr-2" />
+                <p className="font-black text-[#020617]">No plans yet</p>
+                <p className="mb-4 mt-1 text-sm font-semibold text-[#94A3B8]">Create your first subscription plan.</p>
+                <Button onClick={() => openPlanEdit()} className="rounded-full bg-[#020617] font-black text-white shadow-none">
+                  <Plus className="mr-2 h-4 w-4" />
                   Create Plan
                 </Button>
               </div>
             ) : (
-              <div className="grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-3">
-                {plans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className={`relative rounded-2xl border-2 p-5 transition-all ${
-                      plan.is_active
-                        ? "border-primary/30 bg-card hover:border-primary/50"
-                        : "border-muted bg-muted/30 opacity-70"
-                    }`}
-                  >
-                    {/* Status Toggle */}
-                    <button
-                      onClick={() => handleToggleActive(plan)}
-                      className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
-                      title={plan.is_active ? "Deactivate plan" : "Activate plan"}
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {plans.map((plan) => {
+                  const weeklyMeals = plan.meals_per_week ?? Math.round((plan.meals_per_month || 0) / 4);
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`relative rounded-[26px] bg-[#F6F8FB] p-4 ring-1 transition ${
+                        plan.is_active ? "ring-[#22C7A1]/35" : "opacity-70 ring-[#E5EAF1]"
+                      }`}
                     >
-                      {plan.is_active ? (
-                        <ToggleRight className="h-6 w-6 text-emerald-500" />
-                      ) : (
-                        <ToggleLeft className="h-6 w-6" />
-                      )}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActive(plan)}
+                        className="absolute right-4 top-4 rounded-full bg-white p-2 text-[#020617] ring-1 ring-[#E5EAF1]"
+                        title={plan.is_active ? "Deactivate plan" : "Activate plan"}
+                      >
+                        {plan.is_active ? (
+                          <ToggleRight className="h-6 w-6 text-[#22C7A1]" />
+                        ) : (
+                          <ToggleLeft className="h-6 w-6 text-[#94A3B8]" />
+                        )}
+                      </button>
 
-                    {/* Plan Header */}
-                    <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge
-                          variant="outline"
-                          className={`capitalize ${
-                            plan.is_active
-                              ? "bg-primary/10 text-primary border-primary/20"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {plan.tier.replace(/-/g, " ")}
+                      <div className="pr-12">
+                        <Badge className={plan.is_active ? "border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]" : "border border-[#E5EAF1] bg-white text-[#94A3B8]"}>
+                          {plan.is_active ? "Active" : "Inactive"}
                         </Badge>
-                        <Badge variant="secondary" className="text-xs capitalize">
-                          {plan.billing_interval}
-                        </Badge>
+                        <h3 className="mt-3 text-xl font-black capitalize text-[#020617]">{planLabel(plan.tier)}</h3>
+                        <p className="text-sm font-bold capitalize text-[#94A3B8]">{plan.billing_interval}</p>
                       </div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold">
-                          {formatCurrency(plan.price_qar || 0)}
-                        </span>
-                        <span className="text-muted-foreground text-sm">/month</span>
-                      </div>
-                      {plan.discount_percent && plan.discount_percent > 0 && (
-                        <p className="text-xs text-emerald-600 font-medium mt-1">
-                          {plan.discount_percent}% discount applied
-                        </p>
-                      )}
-                    </div>
 
-                    {/* Plan Details */}
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Meals/week</span>
-                        <span className="font-medium">{plan.meals_per_week ?? Math.round((plan.meals_per_month || 0) / 4)}</span>
+                      <div className="mt-5 rounded-[22px] bg-white p-4 ring-1 ring-[#E5EAF1]">
+                        <div className="flex items-end gap-1">
+                          <span className="text-3xl font-black text-[#020617]">{formatCurrency(plan.price_qar || 0)}</span>
+                          <span className="pb-1 text-xs font-bold text-[#94A3B8]">/month</span>
+                        </div>
+                        {plan.discount_percent && plan.discount_percent > 0 ? (
+                          <p className="mt-1 text-xs font-black text-[#22C7A1]">{plan.discount_percent}% discount applied</p>
+                        ) : null}
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Meals/month</span>
-                        <span className="font-medium">{plan.meals_per_month || 0}</span>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
+                          <p className="text-lg font-black text-[#7C83F6]">{weeklyMeals}</p>
+                          <p className="text-[10px] font-black uppercase text-[#94A3B8]">Meals/week</p>
+                        </div>
+                        <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
+                          <p className="text-lg font-black text-[#38BDF8]">{plan.meals_per_month || 0}</p>
+                          <p className="text-[10px] font-black uppercase text-[#94A3B8]">Meals/month</p>
+                        </div>
                       </div>
+
                       {plan.features && plan.features.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {plan.features.slice(0, 3).map((feature, idx) => (
-                            <Badge
-                              key={idx}
-                              variant="outline"
-                              className="text-xs bg-muted/50"
-                            >
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {plan.features.slice(0, 4).map((feature) => (
+                            <Badge key={feature} variant="outline" className="border-[#E5EAF1] bg-white text-xs font-bold text-[#64748B]">
                               {feature}
                             </Badge>
                           ))}
-                          {plan.features.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{plan.features.length - 3} more
+                          {plan.features.length > 4 && (
+                            <Badge variant="outline" className="border-[#E5EAF1] bg-white text-xs font-bold text-[#94A3B8]">
+                              +{plan.features.length - 4}
                             </Badge>
                           )}
                         </div>
                       )}
-                    </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-2 pt-3 border-t">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => openPlanEdit(plan)}
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleDeletePlan(plan.id)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 border-t border-[#E5EAF1] pt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="min-h-10 rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none"
+                          onClick={() => openPlanEdit(plan)}
+                        >
+                          <Edit className="mr-1 h-3.5 w-3.5" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="min-h-10 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 px-3 text-[#BE123C] shadow-none"
+                          onClick={() => handleDeletePlan(plan.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Plan Edit Sheet */}
         <Sheet
           open={isPlanEditOpen}
           onOpenChange={(open) => {
@@ -546,46 +506,42 @@ const AdminSubscriptions = () => {
             }
           }}
         >
-          <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-md">
             <SheetHeader className="pb-4">
-              <SheetTitle>
+              <SheetTitle className="text-2xl font-black text-[#020617]">
                 {selectedPlan ? "Edit Plan" : "Create New Plan"}
               </SheetTitle>
-              <SheetDescription>
-                {selectedPlan
-                  ? "Update the subscription plan details"
-                  : "Add a new subscription plan tier"}
+              <SheetDescription className="font-semibold text-[#94A3B8]">
+                {selectedPlan ? "Update the subscription plan details." : "Add a new subscription plan tier."}
               </SheetDescription>
             </SheetHeader>
+
             <div className="space-y-4 py-4">
-              {/* Plan Name / Tier */}
               <div className="space-y-2">
-                <Label>Plan Name</Label>
+                <Label className="font-black text-[#020617]">Plan Name</Label>
                 <Input
                   value={planForm.tier}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setPlanForm({
                       ...planForm,
-                      tier: e.target.value.toLowerCase().replace(/\s+/g, "-"),
+                      tier: event.target.value.toLowerCase().replace(/\s+/g, "-"),
                     })
                   }
-                  placeholder="e.g. gold, silver, family, student"
+                  placeholder="e.g. gold, silver, family"
+                  className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Lowercase letters and hyphens only. Each plan name + billing interval must be unique.
+                <p className="text-xs font-semibold text-[#94A3B8]">
+                  Each plan name + billing interval must be unique.
                 </p>
               </div>
 
-              {/* Billing Interval */}
               <div className="space-y-2">
-                <Label>Billing Interval</Label>
+                <Label className="font-black text-[#020617]">Billing Interval</Label>
                 <Select
                   value={planForm.billing_interval}
-                  onValueChange={(v) =>
-                    setPlanForm({ ...planForm, billing_interval: v })
-                  }
+                  onValueChange={(value) => setPlanForm({ ...planForm, billing_interval: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -595,112 +551,94 @@ const AdminSubscriptions = () => {
                 </Select>
               </div>
 
-              {/* Price */}
-              <div className="space-y-2">
-                <Label>Price (QAR)</Label>
-                <Input
-                  type="number"
-                  value={planForm.price_qar}
-                  onChange={(e) =>
-                    setPlanForm({
-                      ...planForm,
-                      price_qar: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                  placeholder="0.00"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="font-black text-[#020617]">Price (QAR)</Label>
+                  <Input
+                    type="number"
+                    value={planForm.price_qar}
+                    onChange={(event) => setPlanForm({ ...planForm, price_qar: parseFloat(event.target.value) || 0 })}
+                    className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="font-black text-[#020617]">Discount (%)</Label>
+                  <Input
+                    type="number"
+                    value={planForm.discount_percent}
+                    onChange={(event) => setPlanForm({ ...planForm, discount_percent: parseInt(event.target.value) || 0 })}
+                    className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
+                  />
+                </div>
               </div>
 
-              {/* Meals per Week */}
               <div className="space-y-2">
-                <Label>Meals per Week</Label>
+                <Label className="font-black text-[#020617]">Meals per Week</Label>
                 <Input
                   type="number"
                   min={0}
                   value={planForm.meals_per_week}
-                  onChange={(e) => {
-                    const weekly = parseInt(e.target.value) || 0;
+                  onChange={(event) => {
+                    const weekly = parseInt(event.target.value) || 0;
                     setPlanForm({
                       ...planForm,
                       meals_per_week: weekly,
                       meals_per_month: weekly * 4,
                     });
                   }}
-                  placeholder="e.g. 5"
+                  className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
                 />
                 {planForm.meals_per_week > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    ≈ {planForm.meals_per_week * 4} meals / month
+                  <p className="text-xs font-semibold text-[#94A3B8]">
+                    Around {planForm.meals_per_week * 4} meals / month
                   </p>
                 )}
               </div>
 
-              {/* Discount */}
-              <div className="space-y-2">
-                <Label>Discount (%)</Label>
-                <Input
-                  type="number"
-                  value={planForm.discount_percent}
-                  onChange={(e) =>
-                    setPlanForm({
-                      ...planForm,
-                      discount_percent: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  placeholder="0"
-                />
-              </div>
-
-              {/* Active Status */}
-              <div className="flex items-center justify-between">
-                <Label>Active</Label>
+              <div className="flex items-center justify-between rounded-2xl bg-[#F6F8FB] p-3">
+                <Label className="font-black text-[#020617]">Active</Label>
                 <Switch
                   checked={planForm.is_active}
-                  onCheckedChange={(checked) =>
-                    setPlanForm({ ...planForm, is_active: checked })
-                  }
+                  onCheckedChange={(checked) => setPlanForm({ ...planForm, is_active: checked })}
                 />
               </div>
 
-              {/* Features */}
               <div className="space-y-2">
-                <Label>Features</Label>
+                <Label className="font-black text-[#020617]">Features</Label>
                 <div className="flex gap-2">
                   <Input
                     value={featureInput}
-                    onChange={(e) => setFeatureInput(e.target.value)}
+                    onChange={(event) => setFeatureInput(event.target.value)}
                     placeholder="Add a feature"
-                    onKeyPress={(e) => e.key === "Enter" && addFeature()}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addFeature();
+                      }
+                    }}
+                    className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
                   />
-                  <Button type="button" variant="outline" size="icon" onClick={addFeature}>
-                    <Plus className="w-4 h-4" />
+                  <Button type="button" variant="outline" size="icon" onClick={addFeature} className="h-11 w-11 rounded-full border-[#E5EAF1] bg-white shadow-none">
+                    <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   {planForm.features.map((feature) => (
-                    <Badge
-                      key={feature}
-                      variant="secondary"
-                      className="gap-1 pr-1"
-                    >
+                    <Badge key={feature} variant="secondary" className="gap-1 rounded-full bg-[#F6F8FB] pr-1 font-bold text-[#020617]">
                       {feature}
-                      <button
-                        type="button"
-                        onClick={() => removeFeature(feature)}
-                        className="hover:text-destructive"
-                      >
-                        <X className="w-3 h-3" />
+                      <button type="button" onClick={() => removeFeature(feature)} className="rounded-full p-0.5 text-[#FB6B7A]">
+                        <X className="h-3 w-3" />
                       </button>
                     </Badge>
                   ))}
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-2 pt-4">
+              <div className="grid grid-cols-2 gap-2 pt-4">
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className="min-h-11 rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none"
                   onClick={() => {
                     setIsPlanEditOpen(false);
                     setSelectedPlan(null);
@@ -710,16 +648,12 @@ const AdminSubscriptions = () => {
                   Cancel
                 </Button>
                 <Button
-                  className="flex-1"
+                  className="min-h-11 rounded-full bg-[#020617] font-black text-white shadow-none hover:bg-[#020617]/90"
                   onClick={selectedPlan ? handleUpdatePlan : handleAddPlan}
                   disabled={processing || !planForm.tier}
                 >
-                  {processing ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Check className="w-4 h-4 mr-2" />
-                  )}
-                  {selectedPlan ? "Save Changes" : "Create Plan"}
+                  {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                  {selectedPlan ? "Save" : "Create"}
                 </Button>
               </div>
             </div>

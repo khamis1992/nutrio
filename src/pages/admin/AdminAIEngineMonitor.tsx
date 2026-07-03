@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, subHours } from "date-fns";
+import { AdminLayout } from "@/components/AdminLayout";
 
 interface AIEngineStatus {
   layer_name: string;
@@ -113,17 +114,20 @@ export default function AdminAIEngineMonitor() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px] bg-slate-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-      </div>
+      <AdminLayout>
+        <div className="flex min-h-[400px] items-center justify-center bg-slate-50">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
+        </div>
+      </AdminLayout>
     );
   }
 
   if (engineStatus.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <AdminLayout>
+      <div className="bg-slate-50 p-1">
         <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-          <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="px-4 py-4">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
@@ -151,7 +155,7 @@ export default function AdminAIEngineMonitor() {
             </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="px-4 py-8">
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Server className="w-16 h-16 text-slate-300 mb-4" />
             <h3 className="text-lg font-semibold text-slate-600 mb-2">No AI Engine Data Yet</h3>
@@ -161,6 +165,7 @@ export default function AdminAIEngineMonitor() {
           </div>
         </div>
       </div>
+      </AdminLayout>
     );
   }
 
@@ -177,10 +182,11 @@ export default function AdminAIEngineMonitor() {
   const totalRequests = engineStatus.reduce((acc, s) => acc + s.total_requests, 0);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <AdminLayout>
+    <div className="bg-slate-50 p-1">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
@@ -209,7 +215,7 @@ export default function AdminAIEngineMonitor() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="px-4 py-8">
         {/* Overall Health */}
         <Card className={cn(
           "mb-8 border-2",
@@ -476,5 +482,6 @@ export default function AdminAIEngineMonitor() {
         </div>
       </div>
     </div>
+    </AdminLayout>
   );
 }

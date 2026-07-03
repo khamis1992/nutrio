@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Loader2, 
   DollarSign, 
@@ -36,6 +34,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+
+const C = {
+  ink: "#020617",
+  muted: "#94A3B8",
+  panel: "#F6F8FB",
+  water: "#38BDF8",
+  fat: "#FB6B7A",
+  protein: "#7C83F6",
+  calories: "#22C7A1",
+};
 
 interface FeaturedListing {
   id: string;
@@ -254,22 +262,25 @@ export default function AdminFeatured() {
     const isExpired = new Date(listing.ends_at) <= now;
     
     if (listing.status === "cancelled") {
-      return <Badge variant="destructive">Cancelled</Badge>;
+      return <Badge variant="outline" className="rounded-full border-[#FB6B7A]/20 bg-[#FB6B7A]/10 px-2.5 py-1 text-[11px] font-black text-[#FB6B7A]">Cancelled</Badge>;
     }
     if (isExpired || listing.status === "expired") {
-      return <Badge variant="secondary">Expired</Badge>;
+      return <Badge variant="outline" className="rounded-full border-[#94A3B8]/20 bg-[#F6F8FB] px-2.5 py-1 text-[11px] font-black text-[#94A3B8]">Expired</Badge>;
     }
     if (listing.status === "pending") {
-      return <Badge variant="outline" className="border-warning text-warning">Pending</Badge>;
+      return <Badge variant="outline" className="rounded-full border-[#7C83F6]/20 bg-[#7C83F6]/10 px-2.5 py-1 text-[11px] font-black text-[#7C83F6]">Pending</Badge>;
     }
-    return <Badge variant="default" className="bg-primary">Active</Badge>;
+    return <Badge variant="outline" className="rounded-full border-[#22C7A1]/20 bg-[#22C7A1]/10 px-2.5 py-1 text-[11px] font-black text-[#22C7A1]">Active</Badge>;
   };
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex h-64 items-center justify-center bg-[#F6F8FB]">
+          <div className="rounded-[28px] bg-white p-8 text-center shadow-[0_18px_42px_rgba(2,6,23,0.06)] ring-1 ring-[#020617]/5">
+            <Loader2 className="mx-auto h-9 w-9 animate-spin text-[#22C7A1]" />
+            <p className="mt-3 text-sm font-bold text-[#94A3B8]">Loading featured listings...</p>
+          </div>
         </div>
       </AdminLayout>
     );
@@ -277,189 +288,152 @@ export default function AdminFeatured() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              Featured Listings
-            </h1>
-            <p className="text-muted-foreground">
-              Manage restaurant featured listings and view revenue
-            </p>
+      <div className="space-y-5 bg-[#F6F8FB] p-3 text-[#020617] sm:p-5">
+        <section className="overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_42px_rgba(2,6,23,0.06)] ring-1 ring-[#020617]/5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#7C83F6]">Featured inventory</p>
+              <h1 className="mt-1 text-[30px] font-black tracking-[-0.04em] text-[#020617]">Featured Listings</h1>
+              <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[#94A3B8]">
+                Manage promoted restaurant placements, package duration, and featured revenue.
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowAddDialog(true)}
+              className="h-11 rounded-full bg-[#020617] px-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.18)] hover:bg-[#020617]/90"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Featured Listing
+            </Button>
           </div>
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Featured Listing
-          </Button>
-        </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-primary" />
+          <div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+            {[
+              { label: "Total Revenue", value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: C.calories, bg: "bg-[#22C7A1]/10" },
+              { label: "This Month", value: formatCurrency(stats.thisMonthRevenue), icon: TrendingUp, color: C.protein, bg: "bg-[#7C83F6]/10" },
+              { label: "Active Listings", value: String(stats.activeListings), icon: CheckCircle, color: C.water, bg: "bg-[#38BDF8]/10" },
+              { label: "Total Listings", value: String(stats.totalListings), icon: Store, color: C.fat, bg: "bg-[#FB6B7A]/10" },
+            ].map(({ label, value, icon: Icon, color, bg }) => (
+              <div key={label} className="rounded-[22px] bg-[#F6F8FB] p-4 ring-1 ring-[#020617]/5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${bg}`} style={{ color }}>
+                    <Icon className="h-5 w-5" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
-                </div>
+                <p className="mt-4 truncate text-[22px] font-black leading-tight text-[#020617]">{value}</p>
+                <p className="mt-1 text-[11px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-accent" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">This Month</p>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.thisMonthRevenue)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Listings</p>
-                  <p className="text-2xl font-bold">{stats.activeListings}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
-                  <Store className="w-6 h-6 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Listings</p>
-                  <p className="text-2xl font-bold">{stats.totalListings}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            ))}
+          </div>
+        </section>
 
-        {/* Listings Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>All Featured Listings</CardTitle>
-            <CardDescription>
-              View and manage all restaurant featured listing purchases
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-            {listings.length === 0 ? (
-              <div className="text-center py-12">
-                <h3 className="font-semibold mb-2">No featured listings yet</h3>
-                <p className="text-sm text-muted-foreground">
-                  When partners purchase featured listings, they'll appear here.
-                </p>
+        <section className="space-y-3">
+          <div className="flex items-end justify-between gap-4 px-1">
+            <div>
+              <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#020617]">All Featured Listings</h2>
+              <p className="text-sm font-medium text-[#94A3B8]">View and manage all restaurant featured purchases.</p>
+            </div>
+          </div>
+
+          {listings.length === 0 ? (
+            <div className="rounded-[28px] bg-white p-10 text-center shadow-sm ring-1 ring-[#020617]/5">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F6F8FB] text-[#94A3B8]">
+                <Store className="h-7 w-7" />
               </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Restaurant</TableHead>
-                    <TableHead>Package</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {listings.map((listing) => (
-                    <TableRow key={listing.id}>
-                      <TableCell className="font-medium">{listing.restaurant_name}</TableCell>
-                      <TableCell className="capitalize">{listing.package_type}</TableCell>
-                      <TableCell>{formatCurrency(listing.price_paid)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Calendar className="h-3 w-3" />
-                          {format(new Date(listing.starts_at), "MMM d")} -{" "}
-                          {format(new Date(listing.ends_at), "MMM d, yyyy")}
+              <h3 className="mt-4 text-base font-black text-[#020617]">No featured listings yet</h3>
+              <p className="mt-1 text-sm font-medium text-[#94A3B8]">When partners purchase featured listings, they'll appear here.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 2xl:grid-cols-2">
+              {listings.map((listing) => {
+                const isActive = listing.status === "active" && new Date(listing.ends_at) > new Date();
+                return (
+                  <article
+                    key={listing.id}
+                    className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.05)] ring-1 ring-[#020617]/5"
+                  >
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {getStatusBadge(listing)}
+                          <span className="rounded-full bg-[#F6F8FB] px-2.5 py-1 text-[11px] font-black capitalize text-[#94A3B8]">
+                            {listing.package_type}
+                          </span>
                         </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(listing)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {listing.status === "pending" && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="min-h-[44px] min-w-[44px]"
-                                onClick={() => updateStatus(listing.id, "active")}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="min-h-[44px] min-w-[44px]"
-                                onClick={() => updateStatus(listing.id, "cancelled")}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                          {listing.status === "active" && new Date(listing.ends_at) > new Date() && (
+                        <h3 className="mt-3 truncate text-[18px] font-black text-[#020617]">{listing.restaurant_name}</h3>
+                        <div className="mt-2 flex flex-wrap gap-2 text-sm font-bold text-[#94A3B8]">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#F6F8FB] px-2.5 py-1">
+                            <Calendar className="h-3.5 w-3.5 text-[#38BDF8]" />
+                            {format(new Date(listing.starts_at), "MMM d")} - {format(new Date(listing.ends_at), "MMM d, yyyy")}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#22C7A1]/10 px-2.5 py-1 text-[#22C7A1]">
+                            <DollarSign className="h-3.5 w-3.5" />
+                            {formatCurrency(listing.price_paid)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {listing.status === "pending" && (
+                          <>
                             <Button
-                              variant="outline"
-                              size="sm"
-                              className="min-h-[44px] min-w-[44px]"
+                              className="h-10 rounded-full bg-[#22C7A1] px-4 text-white hover:bg-[#22C7A1]/90"
+                              onClick={() => updateStatus(listing.id, "active")}
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Approve
+                            </Button>
+                            <Button
+                              className="h-10 rounded-full bg-[#FB6B7A] px-4 text-white hover:bg-[#FB6B7A]/90"
                               onClick={() => updateStatus(listing.id, "cancelled")}
                             >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Cancel
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Reject
                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+                          </>
+                        )}
+                        {isActive && (
+                          <Button
+                            variant="outline"
+                            className="h-10 rounded-full border-[#FB6B7A]/20 bg-[#FB6B7A]/10 px-4 text-[#FB6B7A] hover:bg-[#FB6B7A]/15"
+                            onClick={() => updateStatus(listing.id, "cancelled")}
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Cancel
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </section>
         
         {/* Add Featured Listing Dialog */}
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="border-0 bg-[#F6F8FB] text-[#020617] shadow-[0_24px_60px_rgba(2,6,23,0.16)] sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Add Featured Listing</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-[22px] font-black text-[#020617]">Add Featured Listing</DialogTitle>
+              <DialogDescription className="font-medium text-[#94A3B8]">
                 Create a new featured listing for a restaurant
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Restaurant</Label>
+                <Label className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Restaurant</Label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
                   <Input
                     placeholder="Search restaurants..."
                     value={restaurantSearch}
                     onChange={(e) => setRestaurantSearch(e.target.value)}
-                    className="pl-10 mb-2"
+                    className="mb-2 h-11 rounded-2xl border-0 bg-white pl-10 text-[#020617] placeholder:text-[#94A3B8] ring-1 ring-[#020617]/5 focus-visible:ring-[#38BDF8]"
                   />
                 </div>
                 <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 rounded-2xl border-0 bg-white text-[#020617] ring-1 ring-[#020617]/5">
                     <SelectValue placeholder={filteredRestaurants.length === 0 ? "No restaurants found" : `Select a restaurant (${filteredRestaurants.length} available)`} />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
@@ -479,9 +453,9 @@ export default function AdminFeatured() {
               </div>
               
               <div className="space-y-2">
-                <Label>Package Type</Label>
+                <Label className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Package Type</Label>
                 <Select value={selectedPackage} onValueChange={setSelectedPackage}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 rounded-2xl border-0 bg-white text-[#020617] ring-1 ring-[#020617]/5">
                     <SelectValue placeholder="Select package" />
                   </SelectTrigger>
                   <SelectContent>
@@ -493,21 +467,29 @@ export default function AdminFeatured() {
               </div>
               
               <div className="space-y-2">
-                <Label>Custom Price (optional)</Label>
+                <Label className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Custom Price (optional)</Label>
                 <input
                   type="number"
                   placeholder="Leave empty for default price"
                   value={customPrice}
                   onChange={(e) => setCustomPrice(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
+                  className="h-11 w-full rounded-2xl border-0 bg-white px-4 text-sm font-medium text-[#020617] outline-none ring-1 ring-[#020617]/5 placeholder:text-[#94A3B8] focus:ring-2 focus:ring-[#22C7A1]"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+              <Button
+                variant="outline"
+                className="rounded-full border-[#020617]/10 bg-white text-[#020617] hover:bg-white"
+                onClick={() => setShowAddDialog(false)}
+              >
                 Cancel
               </Button>
-              <Button onClick={handleAddListing} disabled={isSubmitting}>
+              <Button
+                className="rounded-full bg-[#020617] text-white hover:bg-[#020617]/90"
+                onClick={handleAddListing}
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
