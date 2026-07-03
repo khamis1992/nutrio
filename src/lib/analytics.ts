@@ -1,13 +1,21 @@
-import posthog from "posthog-js";
+type PostHogClient = typeof import("posthog-js").default;
 
-export function initPostHog() {
+let posthogClient: PostHogClient | null = null;
+let posthogLoader: Promise<PostHogClient> | null = null;
+
+function loadPostHog() {
+  posthogLoader ??= import("posthog-js").then((module) => module.default);
+  return posthogLoader;
+}
+
+export async function initPostHog() {
   if (import.meta.env.DEV) {
-
     return;
   }
 
   const apiKey = import.meta.env.VITE_POSTHOG_KEY;
-  const apiHost = import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com";
+  const apiHost =
+    import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com";
 
   if (!apiKey) {
     if (import.meta.env.DEV) {
@@ -15,6 +23,9 @@ export function initPostHog() {
     }
     return;
   }
+
+  const posthog = await loadPostHog();
+  posthogClient = posthog;
 
   posthog.init(apiKey, {
     api_host: apiHost,
@@ -38,39 +49,45 @@ export function initPostHog() {
 
 // User identification
 export function identifyUser(userId: string, traits?: Record<string, unknown>) {
-  if (import.meta.env.DEV || !posthog.__loaded) return;
+  if (import.meta.env.DEV) return;
 
-  posthog.identify(userId, {
-    ...traits,
-    // Don't send PII
-    email: undefined,
-    phone: undefined,
+  void loadPostHog().then((posthog) => {
+    posthogClient = posthog;
+    if (!posthog.__loaded) return;
+
+    posthog.identify(userId, {
+      ...traits,
+      email: undefined,
+      phone: undefined,
+    });
   });
 }
 
 export function resetUser() {
-  if (import.meta.env.DEV || !posthog.__loaded) return;
+  if (import.meta.env.DEV || !posthogClient?.__loaded) return;
 
-  posthog.reset();
+  posthogClient.reset();
 }
 
 // Event tracking
 export function trackEvent(
   eventName: string,
-  properties?: Record<string, unknown>
+  properties?: Record<string, unknown>,
 ) {
   if (import.meta.env.DEV) {
-
     return;
   }
 
-  if (!posthog.__loaded) return;
+  if (!posthogClient?.__loaded) return;
 
-  posthog.capture(eventName, sanitizeProperties(properties));
+  posthogClient.capture(eventName, sanitizeProperties(properties));
 }
 
 // Page views
-export function trackPageView(pageName: string, properties?: Record<string, unknown>) {
+export function trackPageView(
+  pageName: string,
+  properties?: Record<string, unknown>,
+) {
   trackEvent("$pageview", {
     page_name: pageName,
     ...properties,
@@ -119,11 +136,15 @@ export function trackOrderStarted(orderId: string, amount: number) {
   trackEvent(AnalyticsEvents.ORDER_STARTED, { order_id: orderId, amount });
 }
 
-export function trackOrderCompleted(orderId: string, amount: number, items: number) {
-  trackEvent(AnalyticsEvents.ORDER_COMPLETED, { 
-    order_id: orderId, 
-    amount, 
-    item_count: items 
+export function trackOrderCompleted(
+  orderId: string,
+  amount: number,
+  items: number,
+) {
+  trackEvent(AnalyticsEvents.ORDER_COMPLETED, {
+    order_id: orderId,
+    amount,
+    item_count: items,
   });
 }
 
@@ -131,10 +152,13 @@ export function trackSubscriptionStarted(planId: string, amount: number) {
   trackEvent(AnalyticsEvents.SUBSCRIPTION_STARTED, { plan_id: planId, amount });
 }
 
-export function trackWalletTopupCompleted(amount: number, paymentMethod: string) {
-  trackEvent(AnalyticsEvents.WALLET_TOPUP_COMPLETED, { 
-    amount, 
-    payment_method: paymentMethod 
+export function trackWalletTopupCompleted(
+  amount: number,
+  paymentMethod: string,
+) {
+  trackEvent(AnalyticsEvents.WALLET_TOPUP_COMPLETED, {
+    amount,
+    payment_method: paymentMethod,
   });
 }
 
@@ -146,10 +170,19 @@ export function trackError(error: Error, context?: string) {
 }
 
 // Sanitize properties to remove PII
-export function sanitizeProperties(props?: Record<string, unknown>): Record<string, unknown> {
+export function sanitizeProperties(
+  props?: Record<string, unknown>,
+): Record<string, unknown> {
   if (!props) return {};
 
-  const sensitiveKeys = ["email", "phone", "password", "token", "secret", "credit_card"];
+  const sensitiveKeys = [
+    "email",
+    "phone",
+    "password",
+    "token",
+    "secret",
+    "credit_card",
+  ];
   const sanitized = { ...props };
 
   for (const key of Object.keys(sanitized)) {
@@ -162,24 +195,27 @@ export function sanitizeProperties(props?: Record<string, unknown>): Record<stri
 }
 
 // Feature flags (for future use)
-export function isFeatureEnabled(featureKey: string, defaultValue = false): boolean {
-  if (import.meta.env.DEV || !posthog.__loaded) return defaultValue;
+export function isFeatureEnabled(
+  featureKey: string,
+  defaultValue = false,
+): boolean {
+  if (import.meta.env.DEV || !posthogClient?.__loaded) return defaultValue;
 
-  return posthog.isFeatureEnabled(featureKey) ?? defaultValue;
+  return posthogClient.isFeatureEnabled(featureKey) ?? defaultValue;
 }
 
 // PostHog Experiments integration
 export function getFeatureFlagPayload<T = Record<string, unknown>>(
   featureKey: string,
-  defaultValue?: T
+  defaultValue?: T,
 ): T | undefined {
-  if (import.meta.env.DEV || !posthog.__loaded) return defaultValue;
-  return (posthog.getFeatureFlagPayload(featureKey) as T) ?? defaultValue;
+  if (import.meta.env.DEV || !posthogClient?.__loaded) return defaultValue;
+  return (posthogClient.getFeatureFlagPayload(featureKey) as T) ?? defaultValue;
 }
 
 export function getExperimentVariant(experimentKey: string): string | null {
-  if (import.meta.env.DEV || !posthog.__loaded) return null;
-  return posthog.getFeatureFlag(experimentKey);
+  if (import.meta.env.DEV || !posthogClient?.__loaded) return null;
+  return posthogClient.getFeatureFlag(experimentKey);
 }
 
 // Scroll depth tracking
@@ -203,7 +239,9 @@ export function trackScrollDepthStart(container?: HTMLElement) {
       for (const threshold of SCROLL_DEPTH_THRESHOLDS) {
         if (scrollPercent >= threshold && !scrollDepthFired!.has(threshold)) {
           scrollDepthFired!.add(threshold);
-          trackEvent("$pageview", { scroll_depth: Math.round(threshold * 100) });
+          trackEvent("$pageview", {
+            scroll_depth: Math.round(threshold * 100),
+          });
         }
       }
     }, 150);
@@ -217,37 +255,69 @@ export function trackScrollDepthStart(container?: HTMLElement) {
 }
 
 // Widget interaction events
-export function trackWidgetView(widgetName: string, properties?: Record<string, unknown>) {
+export function trackWidgetView(
+  widgetName: string,
+  properties?: Record<string, unknown>,
+) {
   trackEvent("widget_viewed", { widget_name: widgetName, ...properties });
 }
 
-export function trackWidgetInteract(widgetName: string, action: string, properties?: Record<string, unknown>) {
-  trackEvent("widget_interacted", { widget_name: widgetName, action, ...properties });
+export function trackWidgetInteract(
+  widgetName: string,
+  action: string,
+  properties?: Record<string, unknown>,
+) {
+  trackEvent("widget_interacted", {
+    widget_name: widgetName,
+    action,
+    ...properties,
+  });
 }
 
-export function trackWidgetDismiss(widgetName: string, properties?: Record<string, unknown>) {
+export function trackWidgetDismiss(
+  widgetName: string,
+  properties?: Record<string, unknown>,
+) {
   trackEvent("widget_dismissed", { widget_name: widgetName, ...properties });
 }
 
 // Funnel tracking
-export function trackFunnelStep(funnelName: string, step: number, stepName: string, properties?: Record<string, unknown>) {
-  trackEvent("funnel_step", { funnel_name: funnelName, step, step_name: stepName, ...properties });
+export function trackFunnelStep(
+  funnelName: string,
+  step: number,
+  stepName: string,
+  properties?: Record<string, unknown>,
+) {
+  trackEvent("funnel_step", {
+    funnel_name: funnelName,
+    step,
+    step_name: stepName,
+    ...properties,
+  });
 }
 
 // Rage-click detection
-let rageClickTracker: { element: string; count: number; timer: ReturnType<typeof setTimeout> | null; lastTime: number } | null = null;
+let rageClickTracker: {
+  element: string;
+  count: number;
+  timer: ReturnType<typeof setTimeout> | null;
+  lastTime: number;
+} | null = null;
 
 export function installRageClickDetector() {
   const handler = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
-    const id = target.id || target.className?.toString()?.slice(0, 50) || target.tagName;
+    const id =
+      target.id || target.className?.toString()?.slice(0, 50) || target.tagName;
 
     if (rageClickTracker && rageClickTracker.element === id) {
       const now = Date.now();
       if (now - rageClickTracker.lastTime < 2000) {
         rageClickTracker.count++;
         if (rageClickTracker.timer) clearTimeout(rageClickTracker.timer);
-        rageClickTracker.timer = setTimeout(() => { rageClickTracker = null; }, 2500);
+        rageClickTracker.timer = setTimeout(() => {
+          rageClickTracker = null;
+        }, 2500);
 
         if (rageClickTracker.count >= 3) {
           trackEvent("dead_click", {
@@ -259,15 +329,23 @@ export function installRageClickDetector() {
           return;
         }
       } else {
-        rageClickTracker = { element: id, count: 1, timer: null, lastTime: now };
+        rageClickTracker = {
+          element: id,
+          count: 1,
+          timer: null,
+          lastTime: now,
+        };
       }
     } else {
-      rageClickTracker = { element: id, count: 1, timer: null, lastTime: Date.now() };
+      rageClickTracker = {
+        element: id,
+        count: 1,
+        timer: null,
+        lastTime: Date.now(),
+      };
     }
   };
 
   document.addEventListener("click", handler, { passive: true });
   return () => document.removeEventListener("click", handler);
 }
-
-export default posthog;

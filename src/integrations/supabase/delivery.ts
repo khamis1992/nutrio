@@ -486,70 +486,119 @@ export async function getDriverJobHistory(driverId: string, limit = 20) {
 // ==================== ADMIN MANAGEMENT ====================
 
 /**
- * Get all pending deliveries
+ * Get all pending deliveries.
+ * Uses separate queries instead of PostgREST embedded resources because
+ * cross-schema FKs (public → auth) are not resolved by PostgREST's schema cache.
  */
 export async function getPendingDeliveries() {
-  const { data, error } = await supabase
+  const { data: jobs, error } = await supabase
     .from("delivery_jobs")
-    .select(`
-      *,
-      driver:driver_id(*),
-      schedule:schedule_id(
-        *,
-        meal:meal_id(name, image_url),
-        user:user_id(
-          email,
-          raw_user_meta_data
-        )
-      )
-    `)
+    .select("*")
     .eq("status", "pending")
     .order("created_at", { ascending: true });
-  
+
   if (error) throw error;
-  return data;
+  if (!jobs || jobs.length === 0) return [];
+
+  return enrichDeliveryJobs(jobs);
 }
 
 /**
- * Get all active deliveries
+ * Get all active deliveries.
  */
 export async function getActiveDeliveries() {
-  const { data, error } = await supabase
+  const { data: jobs, error } = await supabase
     .from("delivery_jobs")
-    .select(`
-      *,
-      driver:driver_id(*),
-      schedule:schedule_id(
-        *,
-        meal:meal_id(name, image_url),
-        user:user_id(
-          email,
-          raw_user_meta_data
-        )
-      )
-    `)
+    .select("*")
     .in("status", ["assigned", "accepted", "picked_up"])
     .order("created_at", { ascending: true });
-  
+
   if (error) throw error;
-  return data;
+  if (!jobs || jobs.length === 0) return [];
+
+  return enrichDeliveryJobs(jobs);
+}
+
+async function enrichDeliveryJobs(jobs: Record<string, unknown>[]) {
+  const driverIds = [...new Set(jobs.map((j) => j.driver_id as string).filter(Boolean))];
+  const scheduleIds = [...new Set(jobs.map((j) => j.schedule_id as string).filter(Boolean))];
+
+  const [drivers, schedules] = await Promise.all([
+    driverIds.length > 0
+      ? supabase.from("drivers").select("*").in("id", driverIds).then((r) => r.data || [])
+      : [],
+    scheduleIds.length > 0
+      ? supabase.from("meal_schedules").select("*").in("id", scheduleIds).then((r) => r.data || [])
+      : [],
+  ]);
+
+  const mealIds = [...new Set(schedules.map((s) => s.meal_id as string).filter(Boolean))];
+  const userIds = [...new Set(schedules.map((s) => s.user_id as string).filter(Boolean))];
+
+  const [meals, profiles] = await Promise.all([
+    mealIds.length > 0
+      ? supabase.from("meals").select("id, name, image_url").in("id", mealIds).then((r) => r.data || [])
+      : [],
+    userIds.length > 0
+      ? supabase.from("profiles").select("id, full_name").in("id", userIds).then((r) => r.data || [])
+      : [],
+  ]);
+
+  const driverMap = Object.fromEntries(drivers.map((d) => [d.id, d]));
+  const scheduleMap = Object.fromEntries(schedules.map((s) => [s.id, s]));
+  const mealMap = Object.fromEntries(meals.map((m) => [m.id, m]));
+  const profileMap = Object.fromEntries(profiles.map((p) => [p.id, p]));
+
+  return jobs.map((job) => {
+    const schedule = scheduleMap[job.schedule_id as string];
+    const meal = schedule ? mealMap[schedule.meal_id as string] : null;
+    const profile = schedule ? profileMap[schedule.user_id as string] : null;
+
+    return {
+      ...job,
+      driver: driverMap[job.driver_id as string] || null,
+      schedule: schedule
+        ? {
+            ...schedule,
+            meal: meal
+              ? { id: meal.id, name: meal.name, image_url: meal.image_url }
+              : null,
+            user: profile
+              ? { email: null, raw_user_meta_data: { name: profile.full_name } }
+              : null,
+          }
+        : null,
+    };
+  });
 }
 
 /**
- * Get all online drivers with locations
+ * Get all online drivers with locations.
  */
 export async function getOnlineDrivers() {
-  const { data, error } = await supabase
+  const { data: drivers, error } = await supabase
     .from("drivers")
-    .select(`
-      *,
-      user:user_id(email, raw_user_meta_data)
-    `)
+    .select("*")
     .eq("is_online", true)
     .eq("is_active", true);
-  
+
   if (error) throw error;
-  return data;
+  if (!drivers || drivers.length === 0) return [];
+
+  const userIds = [...new Set(drivers.map((d) => d.user_id as string).filter(Boolean))];
+
+  const { data: profiles } = userIds.length > 0
+    ? await supabase.from("profiles").select("id, full_name").in("id", userIds)
+    : { data: [] };
+
+  const profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
+
+  return drivers.map((d) => ({
+    ...d,
+    user: profileMap[d.user_id as string]
+      ? { email: null, raw_user_meta_data: { name: profileMap[d.user_id as string].full_name } }
+      : null,
+  }));
 }
 
 /**

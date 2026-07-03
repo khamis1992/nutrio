@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 
 export interface WorkoutSetLog {
   id: string;
@@ -160,6 +161,7 @@ export function useWorkoutSession() {
             console.error("Error auto-completing exercises:", completionError);
           }
         }
+        await syncCommunityChallengeProgressQuietly(userId);
 
         return { success: true, data: data as WorkoutSession };
       } catch (err) {

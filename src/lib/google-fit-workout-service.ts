@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 
 import { supabase } from "@/integrations/supabase/client";
+import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 import type { GoogleFitAuth } from "@/services/health/googleFit";
 import type { WorkoutData } from "@/lib/health-types";
 
@@ -83,6 +84,7 @@ export async function fetchAndSaveGoogleFitWorkouts(
   const workouts = await getWorkouts(auth ?? { accessToken: "", expiresAt: 0 }, startDate, endDate);
 
   await Promise.all(workouts.map((workout) => saveWorkoutSession(userId, workout)));
+  await syncCommunityChallengeProgressQuietly(userId);
 
   return workouts;
 }

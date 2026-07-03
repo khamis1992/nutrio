@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
+import { getQatarDay } from "@/lib/dateUtils";
 
 export interface CommunityChallenge {
   id: string;
@@ -13,76 +14,216 @@ export interface CommunityChallenge {
   target_value: number;
   reward_points: number;
   xp_reward: number;
+  wallet_reward_amount?: number;
   participant_count: number;
   start_date: string;
   end_date: string;
   is_joined: boolean;
   user_progress: number;
   user_rank: number;
-  is_local?: boolean;
+  is_test?: boolean;
+  test_leaderboard?: Array<{
+    user_name: string;
+    avatar_url: string | null;
+    current_progress: number;
+    rank: number;
+  }>;
 }
 
-interface PerformanceSnapshotRow {
-  snapshot_date: string;
-  nutrition_score: number | null;
-  protein_consumed_g: number | null;
-  protein_target_g: number | null;
-  water_percent: number | null;
+type ChallengeRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  challenge_type: string | null;
+  difficulty_level: string | null;
+  category: string | null;
+  target_value: number;
+  reward_points: number | null;
+  xp_reward: number | null;
+  wallet_reward_amount?: number | null;
+  participant_count: number | null;
+  start_date: string;
+  end_date: string;
+};
+
+type ParticipantRow = {
+  challenge_id: string;
+  current_progress: number | null;
+  completed_at: string | null;
+};
+
+const TEST_CHALLENGE_ID = "community-test-one-day";
+
+function getTestJoinKey(userId: string, day: string) {
+  return `nutrio:${TEST_CHALLENGE_ID}:joined:${userId}:${day}`;
 }
 
-function buildPerformanceChallenges(rows: PerformanceSnapshotRow[]): CommunityChallenge[] {
-  const today = new Date();
-  const end = new Date(today);
-  end.setDate(end.getDate() + 6);
+function buildCommunityTestChallenge(userId: string, loggedMealsToday: number): CommunityChallenge {
+  const today = getQatarDay();
+  const tomorrowDate = new Date(`${today}T00:00:00+03:00`);
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const isJoined = localStorage.getItem(getTestJoinKey(userId, today)) === "true";
+  const progress = isJoined ? Math.min(loggedMealsToday, 1) : 0;
 
-  const highFuelDays = rows.filter((row) => (row.nutrition_score || 0) >= 80).length;
-  const proteinDays = rows.filter((row) => (row.protein_target_g || 0) > 0 && (row.protein_consumed_g || 0) >= (row.protein_target_g || 0)).length;
-  const hydrationDays = rows.filter((row) => (row.water_percent || 0) >= 100).length;
-
-  const base = {
-    difficulty_level: "medium",
-    category: "performance",
-    reward_points: 0,
-    participant_count: 1,
-    start_date: today.toISOString().split("T")[0],
-    end_date: end.toISOString().split("T")[0],
-    is_joined: true,
-    user_rank: 1,
-    is_local: true,
+  return {
+    id: TEST_CHALLENGE_ID,
+    title: "One-Day Community Test",
+    description: "Test event for today: log one meal and join the community leaderboard.",
+    challenge_type: "meals",
+    difficulty_level: "easy",
+    category: "nutrition",
+    target_value: 1,
+    reward_points: 25,
+    xp_reward: 25,
+    wallet_reward_amount: 5,
+    participant_count: 0,
+    start_date: today,
+    end_date: getQatarDay(tomorrowDate),
+    is_joined: isJoined,
+    user_progress: progress,
+    user_rank: isJoined ? 1 : 0,
+    is_test: true,
   };
+}
+
+async function countTodayLoggedMeals(userId: string) {
+  const today = getQatarDay();
+  const { count, error } = await supabase
+    .from("meal_history")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("logged_at", `${today}T00:00:00+03:00`)
+    .lte("logged_at", `${today}T23:59:59+03:00`);
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+async function getCurrentUserLeaderboardName(userId: string) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("full_name, avatar_url")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return {
+    name: data?.full_name?.trim() || "You",
+    avatarUrl: data?.avatar_url || null,
+  };
+}
+
+async function buildTestChallengeList(userId: string) {
+  const [loggedMealsToday, profile] = await Promise.all([
+    countTodayLoggedMeals(userId),
+    getCurrentUserLeaderboardName(userId),
+  ]);
+  const testChallenge = buildCommunityTestChallenge(userId, loggedMealsToday);
 
   return [
-    {
-      ...base,
-      id: "local-fuel-score",
-      title: "Fuel Score Streak",
-      description: "Hit 80+ Fuel Readiness on 5 days this week.",
-      challenge_type: "streak",
-      target_value: 5,
-      xp_reward: 120,
-      user_progress: highFuelDays,
-    },
-    {
-      ...base,
-      id: "local-protein-week",
-      title: "Protein Week",
-      description: "Reach your protein target on 5 days this week.",
-      challenge_type: "nutrition",
-      target_value: 5,
-      xp_reward: 100,
-      user_progress: proteinDays,
-    },
-    {
-      ...base,
-      id: "local-hydration-week",
-      title: "Hydration Week",
-      description: "Reach your water target on 5 days this week.",
-      challenge_type: "hydration",
-      target_value: 5,
-      xp_reward: 80,
-      user_progress: hydrationDays,
-    },
+    testChallenge.is_joined
+      ? {
+          ...testChallenge,
+          participant_count: 1,
+          test_leaderboard: [
+            {
+              user_name: profile.name,
+              avatar_url: profile.avatarUrl,
+              current_progress: testChallenge.user_progress,
+              rank: 1,
+            },
+          ],
+        }
+      : testChallenge,
   ];
+}
+
+export async function fetchActiveChallengesFromTable(userId: string): Promise<CommunityChallenge[]> {
+  const today = getQatarDay();
+  const challengeSelect =
+    "id,title,description,challenge_type,difficulty_level,category,target_value,reward_points,xp_reward,wallet_reward_amount,participant_count,start_date,end_date";
+  const legacyChallengeSelect =
+    "id,title,description,challenge_type,difficulty_level,category,target_value,reward_points,xp_reward,participant_count,start_date,end_date";
+
+  const query = (columns: string, includeDateWindow: boolean) => {
+    let request = supabase
+      .from("community_challenges")
+      .select(columns)
+      .eq("is_active", true);
+
+    if (includeDateWindow) {
+      request = request.lte("start_date", today).gte("end_date", today);
+    }
+
+    return request.order("start_date", { ascending: false });
+  };
+
+  let { data, error } = await query(challengeSelect, true);
+
+  if (error && error.message.includes("wallet_reward_amount")) {
+    const fallback = await query(legacyChallengeSelect, true);
+    data = fallback.data?.map((row) => ({ ...row, wallet_reward_amount: 0 })) ?? null;
+    error = fallback.error;
+  }
+
+  if (error) throw error;
+
+  if ((data?.length ?? 0) === 0) {
+    const enabledFallback = await query(challengeSelect, false);
+    data = enabledFallback.data;
+    error = enabledFallback.error;
+
+    if (error && error.message.includes("wallet_reward_amount")) {
+      const legacyEnabledFallback = await query(legacyChallengeSelect, false);
+      data = legacyEnabledFallback.data?.map((row) => ({ ...row, wallet_reward_amount: 0 })) ?? null;
+      error = legacyEnabledFallback.error;
+    }
+
+    if (error) throw error;
+  }
+
+  const rows = (data ?? []) as ChallengeRow[];
+  if (rows.length === 0) return [];
+
+  const challengeIds = rows.map((challenge) => challenge.id);
+  const { data: participantData, error: participantError } = await supabase
+    .from("challenge_participants")
+    .select("challenge_id,current_progress,completed_at")
+    .eq("user_id", userId)
+    .in("challenge_id", challengeIds);
+
+  if (participantError) throw participantError;
+
+  const participantByChallenge = new Map(
+    ((participantData ?? []) as ParticipantRow[]).map((participant) => [
+      participant.challenge_id,
+      participant,
+    ]),
+  );
+
+  return rows.map((challenge) => {
+    const participant = participantByChallenge.get(challenge.id);
+
+    return {
+      id: challenge.id,
+      title: challenge.title,
+      description: challenge.description ?? "",
+      challenge_type: challenge.challenge_type ?? "meals",
+      difficulty_level: challenge.difficulty_level ?? "easy",
+      category: challenge.category ?? "community",
+      target_value: Number(challenge.target_value || 0),
+      reward_points: Number(challenge.reward_points || 0),
+      xp_reward: Number(challenge.xp_reward || 0),
+      wallet_reward_amount: Number(challenge.wallet_reward_amount || 0),
+      participant_count: Number(challenge.participant_count || 0),
+      start_date: challenge.start_date,
+      end_date: challenge.end_date,
+      is_joined: Boolean(participant),
+      user_progress: Number(participant?.current_progress || 0),
+      user_rank: 0,
+    };
+  });
 }
 
 export function useCommunityChallenges() {
@@ -97,28 +238,15 @@ export function useCommunityChallenges() {
       return;
     }
     try {
-      const { data, error } = await supabase.rpc("get_active_challenges", {
-        p_user_id: user.id,
-      });
-      if (error) throw error;
-      const remoteChallenges = (data as CommunityChallenge[]) ?? [];
+      const remoteChallenges = await fetchActiveChallengesFromTable(user.id);
       if (remoteChallenges.length > 0) {
         setChallenges(remoteChallenges);
         return;
       }
 
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 6);
-      const { data: snapshots, error: snapshotError } = await supabase
-        .from("daily_performance_snapshots" as never)
-        .select("snapshot_date, nutrition_score, protein_consumed_g, protein_target_g, water_percent")
-        .eq("user_id", user.id)
-        .gte("snapshot_date", weekAgo.toISOString().split("T")[0]);
-
-      if (snapshotError) throw snapshotError;
-      setChallenges(buildPerformanceChallenges((snapshots as unknown as PerformanceSnapshotRow[]) ?? []));
-    } catch (err) {
-      console.error("useCommunityChallenges fetch error:", err);
+      setChallenges(await buildTestChallengeList(user.id));
+    } catch {
+      setChallenges(await buildTestChallengeList(user.id));
     } finally {
       setLoading(false);
     }
@@ -145,9 +273,28 @@ export function useCommunityChallenges() {
           void fetch();
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "meal_history",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          void fetch();
+        },
+      )
       .subscribe();
 
+    const refresh = () => {
+      void fetch();
+    };
+
+    window.addEventListener("nutrio:meal-progress-changed", refresh);
+
     return () => {
+      window.removeEventListener("nutrio:meal-progress-changed", refresh);
       void supabase.removeChannel(channel);
     };
   }, [fetch, user?.id]);
@@ -155,7 +302,12 @@ export function useCommunityChallenges() {
   const joinChallenge = useCallback(async (challengeId: string) => {
     if (!user?.id) return;
     const challenge = challenges.find((item) => item.id === challengeId);
-    if (challenge?.is_local) return;
+    if (!challenge) return;
+    if (challenge.is_test) {
+      localStorage.setItem(getTestJoinKey(user.id, getQatarDay()), "true");
+      await fetch();
+      return;
+    }
     setJoiningId(challengeId);
     try {
       const { error } = await supabase.rpc("join_challenge", {

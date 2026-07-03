@@ -20,42 +20,31 @@ interface ToastOptions {
  */
 function toast(options: ToastOptions) {
   const { title, description, variant = "default", duration, action } = options;
-
-  const message = description ? `${title}\n${description}` : title;
+  const actionOption = action
+    ? {
+        label: action.label,
+        onClick: action.onClick,
+      }
+    : undefined;
 
   switch (variant) {
     case "destructive":
       return sonnerToast.error(title, {
         description,
         duration,
-        action: action
-          ? {
-              label: action.label,
-              onClick: action.onClick,
-            }
-          : undefined,
+        action: actionOption,
       });
     case "success":
       return sonnerToast.success(title, {
         description,
         duration,
-        action: action
-          ? {
-              label: action.label,
-              onClick: action.onClick,
-            }
-          : undefined,
+        action: actionOption,
       });
     default:
-      return sonnerToast(message, {
-        description: title && description ? undefined : description,
+      return sonnerToast(title, {
+        description,
         duration,
-        action: action
-          ? {
-              label: action.label,
-              onClick: action.onClick,
-            }
-          : undefined,
+        action: actionOption,
       });
   }
 }

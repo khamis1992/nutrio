@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { checkIPLocation } from "@/lib/ipCheck";
@@ -38,22 +38,35 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     let authResolved = false;
     let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (!isMounted) return;
         authResolved = true;
+
+        const newUserId = session?.user?.id ?? null;
+
+        // Prevent redundant state updates that trigger cascading re-renders.
+        // Supabase can fire onAuthStateChange multiple times during init
+        // (INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED) with the same user.
+        // Only update state when the user identity actually changes.
+        if (newUserId === lastUserIdRef.current && lastUserIdRef.current !== null) {
+          // Same user — skip state updates to avoid re-render cascade
+          if (loading) setLoading(false);
+          return;
+        }
+
+        lastUserIdRef.current = newUserId;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Initialize push notifications when user signs in on native platform
         if (session?.user && Capacitor.isNativePlatform()) {
           pushNotificationService.initialize().catch((err) =>
             console.error("Failed to initialize push notifications:", err)
@@ -62,12 +75,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     );
 
-    // THEN check for existing session — with error handling so loading is
-    // always resolved even if Supabase is unreachable or keys are missing.
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         if (!isMounted) return;
         authResolved = true;
+        const newUserId = session?.user?.id ?? null;
+        if (newUserId === lastUserIdRef.current && lastUserIdRef.current !== null) {
+          if (loading) setLoading(false);
+          return;
+        }
+        lastUserIdRef.current = newUserId;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -79,13 +96,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setLoading(false);
       });
 
-    // Safety timeout: force-clear loading if auth check takes too long
-    // Only nullify user/session if auth never resolved (Supabase unreachable)
-    // Uses authResolved ref instead of stale `loading` closure to avoid
-    // clearing a valid session that was set by onAuthStateChange
     safetyTimeout = setTimeout(() => {
       if (isMounted && !authResolved) {
-        console.warn('[AuthContext] Auth check timed out after 30s — clearing auth state');
+        console.warn('[AuthContext] Auth check timed out after 10s — clearing auth state');
         setSession(null);
         setUser(null);
         setLoading(false);

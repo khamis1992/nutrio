@@ -202,13 +202,22 @@ export function useNutritionGoals(userId: string | undefined) {
         .update(updates)
         .eq("id", activeGoal.id);
       if (error) throw error;
+
+      await logGoalEvent(
+        activeGoal.id,
+        "smart_adjusted",
+        activeGoal as unknown as Record<string, unknown>,
+        { ...activeGoal, ...updates } as unknown as Record<string, unknown>,
+        "Smart goal adjustment",
+      );
+
       await fetchGoals();
       return true;
     } catch (error) {
       console.error("Error updating goal targets:", error);
       return false;
     }
-  }, [userId, activeGoal, fetchGoals]);
+  }, [userId, activeGoal, fetchGoals, logGoalEvent]);
 
   const updateActiveGoal = useCallback(async (
     updates: Partial<Omit<NutritionGoal, "id">>,

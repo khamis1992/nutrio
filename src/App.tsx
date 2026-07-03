@@ -41,7 +41,6 @@ const PartnerProfile = lazy(() => import("./pages/partner/PartnerProfile"));
 const PartnerPayouts = lazy(() => import("./pages/partner/PartnerPayouts"));
 const PartnerOnboarding = lazy(() => import("./pages/partner/PartnerOnboarding"));
 const PartnerBoost = lazy(() => import("./pages/partner/PartnerBoost"));
-const PartnerAddons = lazy(() => import("./pages/partner/PartnerAddons"));
 const PendingApproval = lazy(() => import("./pages/partner/PendingApproval"));
 const PartnerEarningsDashboard = lazy(() => import("./pages/partner/PartnerEarningsDashboard"));
 // Admin pages
@@ -138,7 +137,7 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster position="top-right" />
+      <Toaster position="top-center" />
       <BrowserRouter basename={isNative ? undefined : "/nutrio"}>
         <AuthProvider>
           <AnalyticsProvider>
@@ -200,7 +199,7 @@ const App = () => (
               path="/partner/addons" 
               element={
                 <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerAddons />
+                  <Navigate to="/partner/menu?tab=addons" replace />
                 </ProtectedRoute>
               } 
             />

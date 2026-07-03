@@ -26,6 +26,7 @@ const SubscriptionPlans = lazy(() => import("@/pages/subscription/SubscriptionPl
 const Notifications = lazy(() => import("@/pages/Notifications"));
 const Favorites = lazy(() => import("@/pages/Favorites"));
 const Settings = lazy(() => import("@/pages/Settings"));
+const NutritionGoals = lazy(() => import("@/pages/NutritionGoals"));
 const Affiliate = lazy(() => import("@/pages/Affiliate"));
 const ReferralTracking = lazy(() => import("@/pages/ReferralTracking"));
 const Addresses = lazy(() => import("@/pages/Addresses"));
@@ -35,6 +36,7 @@ const InvoiceHistory = lazy(() => import("@/pages/InvoiceHistory"));
 const Checkout = lazy(() => import("@/pages/Checkout"));
 const OrderHistory = lazy(() => import("@/pages/OrderHistory"));
 const OrderDetail = lazy(() => import("@/pages/OrderDetail"));
+const DeliveryTracking = lazy(() => import("@/pages/DeliveryTracking"));
 const RecoveryPartners = lazy(() => import("@/pages/recovery/RecoveryPartners"));
 const RecoveryDetail = lazy(() => import("@/pages/recovery/RecoveryDetail"));
 const MyBookings = lazy(() => import("@/pages/recovery/MyBookings"));
@@ -48,14 +50,16 @@ const RecipeDetail = lazy(() => import("@/pages/RecipeDetail"));
 const Marketplace = lazy(() => import("@/pages/Marketplace"));
 const ApplyCoach = lazy(() => import("@/pages/coach/ApplyCoach"));
 const CoachMessages = lazy(() => import("@/pages/CoachMessages"));
-// PHASE 2: Coach portal — gate behind coach role before enabling
-// const CoachOnboarding = lazy(() => import("@/pages/nutrio/CoachOnboarding"));
-// const CoachSubscription = lazy(() => import("@/pages/nutrio/CoachSubscription"));
+const CoachOnboarding = lazy(() => import("@/pages/nutrio/CoachOnboarding"));
+const CoachSubscription = lazy(() => import("@/pages/nutrio/CoachSubscription"));
 const CoachPrograms = lazy(() => import("@/pages/nutrio/CoachPrograms"));
 const GuidedWorkout = lazy(() => import("@/pages/nutrio/GuidedWorkout"));
-// const CoachSchedule = lazy(() => import("@/pages/coach/CoachSchedule"));
-// const WorkoutHistory = lazy(() => import("@/pages/nutrio/WorkoutHistory"));
+const ClientCoachSchedule = lazy(() => import("@/pages/nutrio/CoachSchedule"));
+const WorkoutHistory = lazy(() => import("@/pages/nutrio/WorkoutHistory"));
+const Friends = lazy(() => import("@/pages/Friends"));
+const FriendLeaderboard = lazy(() => import("@/pages/FriendLeaderboard"));
 const AIReport = lazy(() => import("@/pages/AIReport"));
+const Medications = lazy(() => import("@/pages/Medications"));
 
 export const customerRoutes = (
   <>
@@ -168,11 +172,23 @@ export const customerRoutes = (
     />
     <Route
       path="/goals"
-      element={<Navigate to="/progress?tab=goals" replace />}
+      element={<Navigate to="/nutrition-goals" replace />}
     />
     <Route
       path="/nutrition-goals"
-      element={<Navigate to="/progress?tab=goals" replace />}
+      element={
+        <ProtectedRoute>
+          <NutritionGoals />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/edit-goal"
+      element={
+        <ProtectedRoute>
+          <NutritionGoals />
+        </ProtectedRoute>
+      }
     />
     <Route
       path="/body-metrics"
@@ -232,7 +248,7 @@ export const customerRoutes = (
     />
     <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
     <Route path="/order/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
-    {/* DELIVERY TRACKING: 594-line component exists at pages/DeliveryTracking.tsx but is unreachable. Restore when ready. */}
+    <Route path="/tracking" element={<ProtectedRoute><DeliveryTracking /></ProtectedRoute>} />
     <Route path="/plans" element={<Navigate to="/subscription/plans" replace />} />
     <Route path="/subscribe" element={<Navigate to="/subscription" replace />} />
     <Route path="/cart" element={<Navigate to="/checkout" replace />} />
@@ -384,6 +400,8 @@ export const customerRoutes = (
         </ProtectedRoute>
       }
     />
+    <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
+    <Route path="/friend-leaderboard" element={<ProtectedRoute><FriendLeaderboard /></ProtectedRoute>} />
     <Route
       path="/become-coach"
       element={
@@ -400,11 +418,11 @@ export const customerRoutes = (
         </ProtectedRoute>
       }
     />
-    {/* PHASE 2: Coach portal — <Route path="/coach-onboarding" element={<ProtectedRoute><CoachOnboarding /></ProtectedRoute>} /> */}
-    {/* <Route path="/coach-subscription" element={<ProtectedRoute><CoachSubscription /></ProtectedRoute>} /> */}
+    <Route path="/coach-onboarding" element={<ProtectedRoute><CoachOnboarding /></ProtectedRoute>} />
+    <Route path="/coach-subscription" element={<ProtectedRoute><CoachSubscription /></ProtectedRoute>} />
     <Route path="/coach-programs" element={<ProtectedRoute><CoachPrograms /></ProtectedRoute>} />
     <Route path="/coach-programs/workout/:programId/day/:dayNumber" element={<ProtectedRoute><GuidedWorkout /></ProtectedRoute>} />
-    {/* <Route path="/workout-history" element={<ProtectedRoute><WorkoutHistory /></ProtectedRoute>} /> */}
+    <Route path="/workout-history" element={<ProtectedRoute><WorkoutHistory /></ProtectedRoute>} />
     <Route
       path="/ai-report"
       element={
@@ -413,10 +431,11 @@ export const customerRoutes = (
         </ProtectedRoute>
       }
     />
-    {/* <Route path="/coach-schedule" element={<ProtectedRoute><CoachSchedule /></ProtectedRoute>} /> */}
+    <Route path="/coach-schedule" element={<ProtectedRoute><ClientCoachSchedule /></ProtectedRoute>} />
     <Route path="/recipes" element={<ProtectedRoute><Recipes /></ProtectedRoute>} />
     <Route path="/recipes/new" element={<ProtectedRoute><RecipeNew /></ProtectedRoute>} />
     <Route path="/recipes/:id" element={<ProtectedRoute><RecipeDetail /></ProtectedRoute>} />
     <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
+    <Route path="/medications" element={<ProtectedRoute><Medications /></ProtectedRoute>} />
   </>
 );

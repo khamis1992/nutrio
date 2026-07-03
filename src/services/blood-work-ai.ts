@@ -1,79 +1,113 @@
 import type { BloodMarker } from "@/lib/blood-markers";
-import { supabase } from "@/integrations/supabase/client";
 
 interface UserProfile {
+  fullName?: string | null;
   age?: number;
-  gender?: string;
-  weight?: number;
-  height?: number;
-  healthGoals?: string;
+  gender?: string | null;
+  currentWeightKg?: number | null;
+  targetWeightKg?: number | null;
+  heightCm?: number | null;
+  healthGoal?: string | null;
+  activityLevel?: string | null;
+  dailyCalorieTarget?: number | null;
+  proteinTargetG?: number | null;
+  carbsTargetG?: number | null;
+  fatTargetG?: number | null;
+  trendSummary?: string;
+}
+
+function formatProfileValue(value: string | number | null | undefined, suffix = "") {
+  if (value === null || value === undefined || value === "") return "Not provided";
+  return `${value}${suffix}`;
+}
+
+function buildCustomerContext(profile: UserProfile) {
+  return [
+    `Name: ${formatProfileValue(profile.fullName)}`,
+    `Age: ${formatProfileValue(profile.age)}`,
+    `Gender: ${formatProfileValue(profile.gender)}`,
+    `Current weight: ${formatProfileValue(profile.currentWeightKg, " kg")}`,
+    `Target weight: ${formatProfileValue(profile.targetWeightKg, " kg")}`,
+    `Height: ${formatProfileValue(profile.heightCm, " cm")}`,
+    `Health goal: ${formatProfileValue(profile.healthGoal)}`,
+    `Activity level: ${formatProfileValue(profile.activityLevel)}`,
+    `Daily calorie target: ${formatProfileValue(profile.dailyCalorieTarget, " kcal")}`,
+    `Macro targets: protein ${formatProfileValue(profile.proteinTargetG, "g")}, carbs ${formatProfileValue(profile.carbsTargetG, "g")}, fat ${formatProfileValue(profile.fatTargetG, "g")}`,
+  ].join("\n");
 }
 
 export async function analyzeBloodWork(
   markers: BloodMarker[],
   profile: UserProfile
 ): Promise<string> {
-  const systemPrompt = `You are a clinical nutritionist and health analyst. Analyze blood test results and provide:
-1. Summary of findings (which markers are abnormal)
-2. Potential health implications
+  const systemPrompt = `You are Nutrio's AI nutrition insight assistant. Analyze blood test markers for wellness and nutrition guidance only.
+
+Critical rules:
+- Never mention DeepSeek, OpenRouter, model names, or any third-party AI provider.
+- Do not invent customer demographics. Use only the verified customer context supplied by Nutrio.
+- If name, age, gender, height, weight, or goals are missing, write "not provided" and do not guess.
+- Do not diagnose disease, declare a medical condition, or replace a healthcare professional.
+- Explain that this is an AI-generated guidance summary, not a medical report or diagnosis.
+- Base concerns only on supplied marker values and their normal ranges.
+- If report trend context is available, use it to explain whether relevant markers are improving, stable, or moving in the wrong direction.
+
+Provide:
+1. Summary of findings, including abnormal markers
+2. Potential health considerations without diagnosis
 3. Specific diet and nutrition recommendations
 4. Lifestyle changes suggested
 5. Which markers to watch over time
 
 Use clear, simple language. Be encouraging but honest about concerns.
+Do not create a separate customer profile or customer context section in the final report. Nutrio already displays verified customer details in the app UI.
 Format with markdown headers and bullet points.`;
 
   const markerList = markers
     .map(
-      (m) =>
-        `- ${m.marker_name}: ${m.value} ${m.unit} (Normal: ${m.normal_min ?? "N/A"} - ${m.normal_max ?? "N/A"}) [${m.status.toUpperCase()}]`
+      (marker) =>
+        `- ${marker.marker_name}: ${marker.value} ${marker.unit} (Normal: ${marker.normal_min ?? "N/A"} - ${marker.normal_max ?? "N/A"}) [${marker.status.toUpperCase()}]`
     )
     .join("\n");
 
-  const userPrompt = `Analyze these blood markers for a ${profile.age ?? "unknown"}yo ${profile.gender ?? "person"}${profile.healthGoals ? ` with health goals: ${profile.healthGoals}` : ""}.
+  const userPrompt = `Create a Nutrio AI guidance summary using only this verified customer context and these blood markers.
+
+Verified customer context:
+${buildCustomerContext(profile)}
 
 Blood Test Results:
 ${markerList}
 
-Please provide a comprehensive analysis with actionable diet and lifestyle recommendations.`;
+Report trend context:
+${profile.trendSummary || "No previous comparable report is available yet."}
 
-  const { data, error } = await supabase.functions.invoke("proxy-openrouter", {
-    body: { systemPrompt, userPrompt },
+Please provide an organized, customer-specific wellness and nutrition summary. Do not add any demographic detail that is not listed above.`;
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !publishableKey) {
+    throw new Error("Supabase configuration is missing.");
+  }
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/proxy-openrouter`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: publishableKey,
+      Authorization: `Bearer ${publishableKey}`,
+    },
+    body: JSON.stringify({ systemPrompt, userPrompt }),
   });
-  if (error || !data?.content) {
-    return getFallbackAnalysis(markers);
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(data?.details || data?.error || `AI analysis failed with status ${response.status}.`);
+  }
+
+  if (!data?.content) {
+    throw new Error(data?.details || data?.error || "AI analysis service returned an empty response.");
   }
 
   return data.content;
-}
-
-function getFallbackAnalysis(markers: BloodMarker[]): string {
-  const abnormal = markers.filter((m) => m.status !== "normal");
-  const critical = markers.filter((m) => m.status === "critical");
-
-  let analysis = "## 📊 Blood Work Analysis\n\n";
-
-  if (abnormal.length === 0) {
-    analysis += "**Great news!** All your markers are within normal ranges. Keep up your healthy lifestyle! ✅\n\n";
-  } else {
-    analysis += `### Summary\n${abnormal.length} of ${markers.length} markers are outside normal ranges.`;
-    if (critical.length > 0) {
-      analysis += `\n\n⚠️ **Critical values detected:** ${critical.map((m) => m.marker_name).join(", ")}. Please consult your healthcare provider.`;
-    }
-    analysis += "\n\n### Recommendations\n";
-    abnormal.forEach((m) => {
-      if (m.marker_name.includes("Vitamin D") || m.marker_name.includes("B12")) {
-        analysis += `- **${m.marker_name}**: Consider adding vitamin-rich foods or supplements. Consult your doctor.\n`;
-      } else if (m.marker_name.includes("Glucose") || m.marker_name.includes("HbA1c")) {
-        analysis += `- **${m.marker_name}**: Focus on low-glycemic foods, reduce refined sugars, and increase fiber intake.\n`;
-      } else if (["LDL", "Cholesterol", "Triglycerides"].some((n) => m.marker_name.includes(n))) {
-        analysis += `- **${m.marker_name}**: Reduce saturated fats, increase omega-3 fatty acids, and add more soluble fiber.\n`;
-      } else {
-        analysis += `- **${m.marker_name}**: Follow up with your healthcare provider for personalized advice.\n`;
-      }
-    });
-  }
-
-  analysis += "\n---\n*This is a general analysis. Always consult your healthcare provider for medical advice.*";
-  return analysis;
 }

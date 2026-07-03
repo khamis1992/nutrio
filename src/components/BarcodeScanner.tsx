@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 import { isNative } from "@/lib/capacitor";
+import { supabase } from "@/integrations/supabase/client";
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -14,24 +15,6 @@ interface BarcodeScannerProps {
   onScan: (product: ScannedProduct) => void;
   onClose: () => void;
   isOpen: boolean;
-}
-
-interface OpenFoodFactsProduct {
-  status: number;
-  product?: {
-    product_name?: string;
-    product_name_en?: string;
-    brands?: string;
-    nutriments?: {
-      "energy-kcal_100g"?: number;
-      proteins_100g?: number;
-      carbohydrates_100g?: number;
-      fat_100g?: number;
-      fiber_100g?: number;
-    };
-    image_url?: string;
-    image_front_url?: string;
-  };
 }
 
 export interface ScannedProduct {
@@ -263,38 +246,23 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
     }
   };
 
-  // Fetch product data from Open Food Facts API
   const fetchProductData = async (barcode: string) => {
     isScanningRef.current = false;
     setIsScanning(false);
     setLoadingProduct(true);
     
     try {
-      const response = await fetch(
-        `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`
-      );
-      const data: OpenFoodFactsProduct = await response.json();
+      const { data, error } = await supabase.functions.invoke("lookup-barcode", {
+        body: { barcode },
+      });
 
-      if (data.status === 1 && data.product) {
-        const product = data.product;
-        const nutriments = product.nutriments || {};
+      if (error) throw new Error(error.message || "Lookup failed");
 
-        const scannedProduct: ScannedProduct = {
-          name: product.product_name_en || product.product_name || "Unknown Product",
-          barcode: barcode,
-          brand: product.brands,
-          calories: Math.round(nutriments["energy-kcal_100g"] || 0),
-          protein: Math.round(nutriments.proteins_100g || 0),
-          carbs: Math.round(nutriments.carbohydrates_100g || 0),
-          fat: Math.round(nutriments.fat_100g || 0),
-          fiber: Math.round(nutriments.fiber_100g || 0),
-          imageUrl: product.image_front_url || product.image_url,
-        };
-
-        setProductData(scannedProduct);
-        toast.success(`Found: ${scannedProduct.name}`);
+      if (data.success && data.product) {
+        setProductData(data.product);
+        toast.success(`Found: ${data.product.name}`);
       } else {
-        toast.error("Product not found in database");
+        toast.error(data.error || "Product not found in database");
         setTimeout(() => {
           isScanningRef.current = true;
           setIsScanning(true);
@@ -302,7 +270,7 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
         }, 1500);
       }
     } catch (err) {
-      console.error("Failed to fetch product:", err);
+      console.error("Failed to lookup product:", err);
       toast.error("Failed to lookup product");
       setTimeout(() => {
         isScanningRef.current = true;
@@ -573,32 +541,18 @@ export function useBarcodeScanning() {
     setError(null);
     
     try {
-      const response = await fetch(
-        `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`
-      );
-      const data: OpenFoodFactsProduct = await response.json();
-      
-      if (data.status === 1 && data.product) {
-        const product = data.product;
-        const nutriments = product.nutriments || {};
+      const { data, error } = await supabase.functions.invoke("lookup-barcode", {
+        body: { barcode },
+      });
 
-        const scanned: ScannedProduct = {
-          name: product.product_name_en || product.product_name || "Unknown Product",
-          barcode: barcode,
-          brand: product.brands,
-          calories: Math.round(nutriments["energy-kcal_100g"] || 0),
-          protein: Math.round(nutriments.proteins_100g || 0),
-          carbs: Math.round(nutriments.carbohydrates_100g || 0),
-          fat: Math.round(nutriments.fat_100g || 0),
-          fiber: Math.round(nutriments.fiber_100g || 0),
-          imageUrl: product.image_front_url || product.image_url,
-        };
-        
-        setScannedProduct(scanned);
+      if (error) throw new Error(error.message || "Lookup failed");
+
+      if (data.success && data.product) {
+        setScannedProduct(data.product);
         toast.success("Product found!");
       } else {
-        setError("Product not found in database");
-        toast.error("Product not found in database");
+        setError(data.error || "Product not found in database");
+        toast.error(data.error || "Product not found in database");
       }
     } catch (err) {
       setError("Failed to lookup product");

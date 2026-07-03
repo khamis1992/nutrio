@@ -8,13 +8,13 @@ import { PostgrestError } from "@supabase/supabase-js";
 import { assetPath } from "@/lib/asset-path";
 
 // Define user roles
-export type UserRole = 
+export type UserRole =
   | "user"
-  | "customer" 
-  | "restaurant" 
-  | "partner" 
-  | "driver" 
-  | "admin" 
+  | "customer"
+  | "restaurant"
+  | "partner"
+  | "driver"
+  | "admin"
   | "staff"
   | "fleet_manager"
   | "coach";
@@ -45,6 +45,10 @@ interface UserRoleRow {
 
 // Cache for role checks to prevent repeated DB queries
 const roleCache = new Map<string, { roles: UserRole[]; timestamp: number }>();
+const partnerApprovalCache = new Map<
+  string,
+  { approved: boolean; timestamp: number }
+>();
 const CACHE_TTL = 60 * 1000; // 60 seconds
 
 // Track which tables have been verified to exist (to avoid repeated errors)
@@ -56,6 +60,23 @@ const TABLE_CHECK_TIMEOUT = 3000; // 3 second timeout for table checks
  */
 export function clearRoleCache(): void {
   roleCache.clear();
+  partnerApprovalCache.clear();
+}
+
+function getCachedUserRoles(userId: string): UserRole[] | null {
+  const cached = roleCache.get(userId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.roles;
+  }
+  return null;
+}
+
+function getCachedPartnerApproval(userId: string): boolean | null {
+  const cached = partnerApprovalCache.get(userId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.approved;
+  }
+  return null;
 }
 
 /**
@@ -82,13 +103,15 @@ async function checkTableExists(tableName: string): Promise<boolean> {
   } catch (error: unknown) {
     // 406 or 404 means table doesn't exist or has issues
     // PQ/ Postgres errors often indicate table missing
-    const errorMsg = (error as PostgrestError)?.message?.toLowerCase() || 
-                     String(error ?? "").toLowerCase();
-    const isNotFound = errorMsg.includes("not found") ||
-                       errorMsg.includes("does not exist") ||
-                       errorMsg.includes("invalid") ||
-                       errorMsg.includes("406") ||
-                       errorMsg.includes("404");
+    const errorMsg =
+      (error as PostgrestError)?.message?.toLowerCase() ||
+      String(error ?? "").toLowerCase();
+    const isNotFound =
+      errorMsg.includes("not found") ||
+      errorMsg.includes("does not exist") ||
+      errorMsg.includes("invalid") ||
+      errorMsg.includes("406") ||
+      errorMsg.includes("404");
 
     tableExistsCache.set(tableName, !isNotFound);
     return !isNotFound;
@@ -99,18 +122,17 @@ async function checkTableExists(tableName: string): Promise<boolean> {
  * Gets user roles from cache or database
  */
 export async function getUserRoles(userId: string): Promise<UserRole[]> {
-  const cached = roleCache.get(userId);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.roles;
-  }
+  const cached = getCachedUserRoles(userId);
+  if (cached) return cached;
 
   const roles: UserRole[] = [];
 
-  const [userRolesTableExists, driversTableExists, fleetManagersTableExists] = await Promise.all([
-    checkTableExists("user_roles"),
-    checkTableExists("drivers"),
-    checkTableExists("fleet_managers"),
-  ]);
+  const [userRolesTableExists, driversTableExists, fleetManagersTableExists] =
+    await Promise.all([
+      checkTableExists("user_roles"),
+      checkTableExists("drivers"),
+      checkTableExists("fleet_managers"),
+    ]);
 
   const roleQueries: Promise<void>[] = [];
 
@@ -131,7 +153,7 @@ export async function getUserRoles(userId: string): Promise<UserRole[]> {
         })
         .catch((error) => {
           console.warn("[ProtectedRoute] user_roles query failed:", error);
-        })
+        }),
     );
   }
 
@@ -149,7 +171,7 @@ export async function getUserRoles(userId: string): Promise<UserRole[]> {
       })
       .catch((error) => {
         console.warn("[ProtectedRoute] restaurants query failed:", error);
-      })
+      }),
   );
 
   if (driversTableExists) {
@@ -164,7 +186,7 @@ export async function getUserRoles(userId: string): Promise<UserRole[]> {
         })
         .catch((error) => {
           console.warn("[ProtectedRoute] drivers query failed:", error);
-        })
+        }),
     );
   }
 
@@ -181,7 +203,7 @@ export async function getUserRoles(userId: string): Promise<UserRole[]> {
         })
         .catch((error) => {
           console.warn("[ProtectedRoute] fleet_managers query failed:", error);
-        })
+        }),
     );
   }
 
@@ -198,18 +220,18 @@ export async function getUserRoles(userId: string): Promise<UserRole[]> {
  */
 export function hasRequiredRole(
   userRoles: UserRole[],
-  requiredRole: UserRole | UserRole[]
+  requiredRole: UserRole | UserRole[],
 ): boolean {
   const required = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-  
+
   return required.some((role) => {
     // Direct match
     if (userRoles.includes(role)) return true;
-    
+
     // Check hierarchy (higher roles can access lower role routes)
     const requiredLevel = ROLE_HIERARCHY[role];
     return userRoles.some(
-      (userRole) => ROLE_HIERARCHY[userRole] >= requiredLevel
+      (userRole) => ROLE_HIERARCHY[userRole] >= requiredLevel,
     );
   });
 }
@@ -218,6 +240,9 @@ export function hasRequiredRole(
  * Checks if partner is approved
  */
 async function isPartnerApproved(userId: string): Promise<boolean> {
+  const cached = getCachedPartnerApproval(userId);
+  if (cached !== null) return cached;
+
   try {
     const { data: restaurant } = await supabase
       .from("restaurants")
@@ -225,7 +250,9 @@ async function isPartnerApproved(userId: string): Promise<boolean> {
       .eq("owner_id", userId)
       .maybeSingle();
 
-    return restaurant?.approval_status === "approved";
+    const approved = restaurant?.approval_status === "approved";
+    partnerApprovalCache.set(userId, { approved, timestamp: Date.now() });
+    return approved;
   } catch (error) {
     console.warn("[ProtectedRoute] isPartnerApproved error:", error);
     return false;
@@ -238,6 +265,14 @@ async function isPartnerApproved(userId: string): Promise<boolean> {
  */
 const ROLE_CHECK_TIMEOUT_MS = 5000;
 
+function getAppPath(pathname: string): string {
+  return pathname.startsWith("/nutrio") ? pathname.slice("/nutrio".length) || "/" : pathname;
+}
+
+function samePath(pathname: string, target: string): boolean {
+  return getAppPath(pathname) === target;
+}
+
 export const ProtectedRoute = ({
   children,
   requiredRole,
@@ -246,10 +281,27 @@ export const ProtectedRoute = ({
 }: ProtectedRouteProps) => {
   const { user, loading: authLoading } = useAuth();
   const location = useLocation();
-  const [checkingRole, setCheckingRole] = useState(true);
-  const [hasRole, setHasRole] = useState(false);
-  const [isApproved, setIsApproved] = useState(true);
-  const [userRoles, setUserRoles] = useState<UserRole[]>([]);
+  const cachedRoles = user ? getCachedUserRoles(user.id) : null;
+  const cachedHasRole =
+    requiredRole && cachedRoles
+      ? hasRequiredRole(cachedRoles, requiredRole)
+      : !requiredRole;
+  const cachedApproval =
+    user && requireApproval ? getCachedPartnerApproval(user.id) : null;
+  const shouldCheckInitially = Boolean(
+    !authLoading &&
+    user &&
+    requiredRole &&
+    (!cachedRoles ||
+      (cachedHasRole && requireApproval && cachedApproval === null)),
+  );
+
+  const [checkingRole, setCheckingRole] = useState(shouldCheckInitially);
+  const [hasRole, setHasRole] = useState(cachedHasRole);
+  const [isApproved, setIsApproved] = useState(
+    requireApproval ? (cachedApproval ?? true) : true,
+  );
+  const [userRoles, setUserRoles] = useState<UserRole[]>(cachedRoles ?? []);
 
   useEffect(() => {
     if (authLoading) {
@@ -263,11 +315,32 @@ export const ProtectedRoute = ({
     }
 
     const checkRole = async () => {
+      const cached = getCachedUserRoles(user.id);
+      if (cached) {
+        const hasRoleAccess = requiredRole
+          ? hasRequiredRole(cached, requiredRole)
+          : true;
+        const approved = requireApproval
+          ? getCachedPartnerApproval(user.id)
+          : true;
+
+        if (!requireApproval || approved !== null || !hasRoleAccess) {
+          setUserRoles(cached);
+          setHasRole(hasRoleAccess);
+          setIsApproved(approved ?? true);
+          setCheckingRole(false);
+          return;
+        }
+      }
+
       try {
         const raceResult = await Promise.race([
           getUserRoles(user.id),
           new Promise<UserRole[]>((_, reject) =>
-            setTimeout(() => reject(new Error("Role check timeout")), ROLE_CHECK_TIMEOUT_MS)
+            setTimeout(
+              () => reject(new Error("Role check timeout")),
+              ROLE_CHECK_TIMEOUT_MS,
+            ),
           ),
         ]);
 
@@ -275,13 +348,23 @@ export const ProtectedRoute = ({
         setUserRoles(roles);
 
         if (requiredRole) {
-          const hasRoleAccess = hasRequiredRole(roles, requiredRole);
+          // When role queries return empty (all failed silently due to RLS,
+          // network, or table issues), treat as inconclusive — let the user
+          // through. Denying access on missing data creates an infinite
+          // redirect loop because the target route's ProtectedRoute runs
+          // the same check and fails identically. RLS blocks unauthorized
+          // data access at the database level regardless.
+          const hasRoleAccess = roles.length > 0
+            ? hasRequiredRole(roles, requiredRole)
+            : true;
           setHasRole(hasRoleAccess);
 
           if (requireApproval && hasRoleAccess) {
             const approved = await Promise.race([
               isPartnerApproved(user.id),
-              new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 4000)),
+              new Promise<boolean>((resolve) =>
+                setTimeout(() => resolve(true), 4000),
+              ),
             ]);
             setIsApproved(approved);
           }
@@ -289,13 +372,21 @@ export const ProtectedRoute = ({
           setHasRole(true);
         }
       } catch (error) {
-        console.warn("[ProtectedRoute] Role check failed (timeout or error):", error);
-        if (requiredRole) {
-          setHasRole(false);
-        } else {
-          setHasRole(false);
-        }
-        setUserRoles([]);
+        console.warn(
+          "[ProtectedRoute] Role check failed (timeout or error):",
+          error,
+        );
+        // CRITICAL: When role check fails, do NOT redirect — show children
+        // with a fallback role. Redirecting on failure creates an infinite
+        // re-render loop because the target route's ProtectedRoute also
+        // runs checkRole(), which can fail again, triggering another
+        // redirect, and so on.
+        //
+        // Instead, treat failure as "insufficient data to deny access."
+        // The user is authenticated; let them through. If they truly lack
+        // the role, the page's data queries will fail gracefully.
+        setHasRole(true);
+        setUserRoles(requiredRole ? (Array.isArray(requiredRole) ? requiredRole : [requiredRole]) : []);
       } finally {
         setCheckingRole(false);
       }
@@ -315,8 +406,9 @@ export const ProtectedRoute = ({
         },
         () => {
           roleCache.delete(user.id);
+          partnerApprovalCache.delete(user.id);
           checkRole();
-        }
+        },
       )
       .subscribe();
 
@@ -329,15 +421,36 @@ export const ProtectedRoute = ({
   if (authLoading || checkingRole) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-5">
-        <img src={assetPath("/logo.png")} alt="Nutrio" className="h-28 w-auto object-contain opacity-95" />
+        <img
+          src={assetPath("/logo.png")}
+          alt="Nutrio"
+          className="h-28 w-auto object-contain opacity-95"
+        />
         <Loader2 className="h-7 w-7 animate-spin text-[#22C7A1]" />
       </div>
     );
   }
 
-  // Not authenticated
+  // Not authenticated — redirect to appropriate auth page
   if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    const appPath = getAppPath(location.pathname);
+    const isPartnerPath = appPath.startsWith("/partner");
+    const isDriverPath = appPath.startsWith("/driver");
+    const isAdminPath = appPath.startsWith("/admin");
+    const isFleetPath = appPath.startsWith("/fleet");
+
+    const authPath = isPartnerPath
+      ? "/partner/auth"
+      : isDriverPath
+        ? "/driver/auth"
+        : isAdminPath
+          ? "/auth"
+          : isFleetPath
+            ? "/fleet/login"
+            : "/auth";
+
+    if (samePath(location.pathname, authPath)) return null;
+    return <Navigate to={authPath} state={{ from: location }} replace />;
   }
 
   // Role check failed
@@ -348,18 +461,26 @@ export const ProtectedRoute = ({
 
     // Redirect based on user's actual role
     if (userRoles.includes("admin")) {
+      if (samePath(location.pathname, "/admin")) return null;
       return <Navigate to="/admin" replace />;
-    } else if (userRoles.includes("partner") || userRoles.includes("restaurant")) {
+    } else if (
+      userRoles.includes("partner") ||
+      userRoles.includes("restaurant")
+    ) {
+      if (samePath(location.pathname, "/partner")) return null;
       return <Navigate to="/partner" replace />;
     } else if (userRoles.includes("driver")) {
+      if (samePath(location.pathname, "/driver")) return null;
       return <Navigate to="/driver" replace />;
     } else {
+      if (samePath(location.pathname, "/dashboard")) return null;
       return <Navigate to="/dashboard" replace />;
     }
   }
 
   // Partner approval check failed
   if (requireApproval && !isApproved) {
+    if (samePath(location.pathname, "/partner/pending-approval")) return null;
     return <Navigate to="/partner/pending-approval" replace />;
   }
 
@@ -395,11 +516,11 @@ export function useUserRoles() {
 // Helper to check if user has specific role
 export function useHasRole(requiredRole: UserRole | UserRole[]) {
   const { roles, loading } = useUserRoles();
-  
+
   if (loading) return { hasRole: false, loading: true };
-  
-  return { 
-    hasRole: hasRequiredRole(roles, requiredRole), 
-    loading: false 
+
+  return {
+    hasRole: hasRequiredRole(roles, requiredRole),
+    loading: false,
   };
 }

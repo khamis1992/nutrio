@@ -60,9 +60,7 @@ const Root = () => {
 
   return (
     <>
-      {!splashDone && (
-        <SplashVideo onComplete={() => setSplashDone(true)} />
-      )}
+      {!splashDone && <SplashVideo onComplete={() => setSplashDone(true)} />}
       {splashDone && AppWrapper}
     </>
   );

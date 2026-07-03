@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 
 interface CoachPricingInfo {
   coachId: string;
@@ -90,6 +91,7 @@ export function useCoachSubscription(clientId: string | undefined, coachId: stri
         price: Number(data.price),
         endDate: data.end_date,
       });
+      await syncCommunityChallengeProgressQuietly(clientId);
 
       return { success: true, error: null, data };
     } catch (err) {
@@ -104,6 +106,9 @@ export function useCoachSubscription(clientId: string | undefined, coachId: stri
     try {
       await supabase.from("coach_subscriptions").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", existingSub.id);
       setExistingSub((prev) => prev ? { ...prev, status: "cancelled" } : null);
+      if (clientId) {
+        await syncCommunityChallengeProgressQuietly(clientId);
+      }
       return { success: true };
     } catch (err) {
       return { success: false, error: err as Error };

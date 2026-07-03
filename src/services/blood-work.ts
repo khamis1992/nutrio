@@ -118,11 +118,17 @@ export async function updateRecordAnalysis(
 
 // ─── Upload report PDF to Supabase Storage ─────────────────────────────
 export async function uploadBloodReport(file: File, userId: string): Promise<string> {
-  const ext = file.name.split(".").pop();
-  const path = `${userId}/${Date.now()}-blood-report.${ext}`;
+  if (file.type !== "application/pdf") {
+    throw new Error("Only PDF blood reports can be uploaded.");
+  }
+
+  const path = `${userId}/${Date.now()}-blood-report.pdf`;
   const { error } = await supabase.storage
     .from("blood-reports")
-    .upload(path, file);
+    .upload(path, file, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
   if (error) throw error;
 
   const { data: urlData } = supabase.storage

@@ -16,6 +16,7 @@ interface FormFieldProps<T extends FieldValues> {
   disabled?: boolean
   autoComplete?: string
   className?: string
+  testId?: string
 }
 
 export function FormField<T extends FieldValues>({
@@ -29,6 +30,7 @@ export function FormField<T extends FieldValues>({
   disabled = false,
   autoComplete,
   className,
+  testId,
 }: FormFieldProps<T>) {
   const [visible, setVisible] = useState(false)
   const inputType = showPasswordToggle && visible ? 'text' : type
@@ -55,6 +57,7 @@ export function FormField<T extends FieldValues>({
               placeholder={placeholder ?? label}
               disabled={disabled}
               autoComplete={autoComplete}
+              data-testid={testId ?? `form-field-${name}`}
               className={cn(
                 'h-12 rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-1 focus-visible:ring-[#020617]',
                 Icon && 'pl-11',

@@ -93,6 +93,7 @@ export default defineConfig(({ mode }) => ({
     exclude: [
       '@capacitor-community/google-fit',
       '@perfood/capacitor-healthkit',
+      'tesseract.js',
     ],
   },
   // Optimizations for mobile

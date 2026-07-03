@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 
 export interface DetectedWorkout {
   id: string;
@@ -190,6 +191,7 @@ export function useAutoWorkoutDetection() {
         source: 'auto_detected',
         confirmed: true,
       });
+      await syncCommunityChallengeProgressQuietly(user.id);
       
       // Remove from pending list
       setDetectedWorkouts(prev => prev.filter(w => w.id !== workout.id));
@@ -243,6 +245,7 @@ export function useAutoWorkoutDetection() {
         source: 'manual',
         confirmed: true,
       });
+      await syncCommunityChallengeProgressQuietly(user.id);
 
       return true;
     } catch (error) {

@@ -1,10 +1,18 @@
-import * as Sentry from "@sentry/react";
+type SentryModule = typeof import("@sentry/react");
 
-export function initSentry() {
+let sentryLoader: Promise<SentryModule> | null = null;
+
+function loadSentry() {
+  sentryLoader ??= import("@sentry/react");
+  return sentryLoader;
+}
+
+export async function initSentry() {
   if (import.meta.env.DEV) {
-
     return;
   }
+
+  const Sentry = await loadSentry();
 
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -26,7 +34,6 @@ export function initSentry() {
     release: import.meta.env.VITE_APP_VERSION || "1.0.0",
     // Before sending, filter out PII
     beforeSend(event) {
-      // Filter out sensitive user data
       if (event.user) {
         delete event.user.email;
         delete event.user.ip_address;
@@ -41,32 +48,42 @@ export function captureError(error: Error, context?: Record<string, unknown>) {
     console.error("Error captured:", error, context);
     return;
   }
-  
-  Sentry.captureException(error, {
-    extra: context,
+
+  void loadSentry().then((Sentry) => {
+    Sentry.captureException(error, {
+      extra: context,
+    });
   });
 }
 
-export function captureMessage(message: string, level: Sentry.SeverityLevel = "info") {
+export function captureMessage(
+  message: string,
+  level: import("@sentry/react").SeverityLevel = "info",
+) {
   if (import.meta.env.DEV) {
-
     return;
   }
-  
-  Sentry.captureMessage(message, level);
+
+  void loadSentry().then((Sentry) => {
+    Sentry.captureMessage(message, level);
+  });
 }
 
 export function setUserContext(userId: string, email?: string) {
   if (import.meta.env.DEV) return;
-  
-  Sentry.setUser({
-    id: userId,
-    email: email ? `${userId}@user.local` : undefined, // Hash email for privacy
+
+  void loadSentry().then((Sentry) => {
+    Sentry.setUser({
+      id: userId,
+      email: email ? `${userId}@user.local` : undefined,
+    });
   });
 }
 
 export function clearUserContext() {
   if (import.meta.env.DEV) return;
-  
-  Sentry.setUser(null);
+
+  void loadSentry().then((Sentry) => {
+    Sentry.setUser(null);
+  });
 }

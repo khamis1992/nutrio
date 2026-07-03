@@ -1,5 +1,5 @@
-import * as Sentry from "@sentry/react";
 import React, { Component, ErrorInfo, ReactNode } from "react";
+import { captureError } from "@/lib/sentry";
 
 interface Props {
   children: ReactNode;
@@ -22,14 +22,10 @@ export class SentryErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
-    
-    if (!import.meta.env.DEV) {
-      Sentry.captureException(error, {
-        extra: {
-          componentStack: errorInfo.componentStack,
-        },
-      });
-    }
+
+    captureError(error, {
+      componentStack: errorInfo.componentStack,
+    });
   }
 
   public render() {
@@ -45,7 +41,8 @@ export class SentryErrorBoundary extends Component<Props, State> {
               Something went wrong
             </h1>
             <p className="text-muted-foreground">
-              We apologize for the inconvenience. The error has been reported and we'll fix it soon.
+              We apologize for the inconvenience. The error has been reported
+              and we'll fix it soon.
             </p>
             <button
               onClick={() => window.location.reload()}
@@ -66,11 +63,7 @@ export class SentryErrorBoundary extends Component<Props, State> {
 export function useErrorHandler() {
   return (error: Error, context?: Record<string, unknown>) => {
     console.error("Handled error:", error);
-    
-    if (!import.meta.env.DEV) {
-      Sentry.captureException(error, {
-        extra: context,
-      });
-    }
+
+    captureError(error, context);
   };
 }

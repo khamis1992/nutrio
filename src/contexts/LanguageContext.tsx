@@ -101,12 +101,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const t = (key: TranslationKey | string, params?: Record<string, string | number>): string => {
     let translation = translations[key] ?? key;
+    const values = {
+      year: new Date().getFullYear(),
+      ...params,
+    };
 
-    if (params) {
-      Object.entries(params).forEach(([paramKey, paramValue]) => {
-        translation = translation.replace(`{${paramKey}}`, String(paramValue));
-      });
-    }
+    Object.entries(values).forEach(([paramKey, paramValue]) => {
+      translation = translation.replaceAll(`{${paramKey}}`, String(paramValue));
+    });
 
     return translation;
   };

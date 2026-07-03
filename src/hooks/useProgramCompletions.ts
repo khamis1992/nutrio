@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 
 export interface ExerciseCompletion {
   id: string;
@@ -91,6 +92,7 @@ export function useProgramCompletions(clientId: string | undefined) {
             data as ExerciseCompletion,
           ]);
         }
+        await syncCommunityChallengeProgressQuietly(clientId);
       } catch (err) {
         console.error("Error toggling exercise completion:", err);
       }
@@ -128,6 +130,7 @@ export function useProgramCompletions(clientId: string | undefined) {
           if (error) throw error;
           setMealCompletions((prev) => [...prev, data as MealCompletion]);
         }
+        await syncCommunityChallengeProgressQuietly(clientId);
       } catch (err) {
         console.error("Error toggling meal completion:", err);
       }

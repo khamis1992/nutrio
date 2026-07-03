@@ -27,6 +27,7 @@ interface UseSubscriptionReturn {
   subscription: Subscription | null;
   loading: boolean;
   hasActiveSubscription: boolean;
+  isExpired: boolean;
   isPaused: boolean;
   remainingMeals: number;
   totalMeals: number;
@@ -59,7 +60,7 @@ async function fetchSub(userId: string): Promise<Subscription | null> {
     .from("subscriptions")
     .select(cols)
     .eq("user_id", userId)
-    .in("status", ["active", "pending"])
+    .in("status", ["active", "pending", "expired"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -131,6 +132,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
     (subscription?.status === "cancelled" && subscription?.end_date && new Date(subscription.end_date) >= new Date())
   );
 
+  const isExpired: boolean = subscription?.status === "expired";
   const isPaused: boolean = subscription?.status === "pending";
   const isVip = subscription?.tier === "vip";
   const isUnlimited = subscription?.tier === "vip";
@@ -251,6 +253,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
     subscription: stableSub,
     loading,
     hasActiveSubscription,
+    isExpired,
     isPaused,
     remainingMeals,
     totalMeals,

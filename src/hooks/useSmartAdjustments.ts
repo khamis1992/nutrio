@@ -41,6 +41,9 @@ interface GoalSnapshot {
   target_weight_kg?: number | null;
 }
 
+export const isActionableSmartAdjustment = (suggestion: AdjustmentSuggestion) =>
+  suggestion.id !== "on-track" && !suggestion.safetyBlock;
+
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 
 const HISTORY_KEY = (uid: string) => `smart_adj_history_${uid}`;

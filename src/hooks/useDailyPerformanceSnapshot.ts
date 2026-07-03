@@ -117,7 +117,7 @@ export function useDailyPerformanceSnapshot(input: DailyPerformanceSnapshotInput
         } as never, { onConflict: "user_id,snapshot_date" });
 
       if (error) {
-        console.warn("Failed to sync daily performance snapshot:", error.message);
+        console.warn("Failed to sync daily performance snapshot:", error);
         return;
       }
 
