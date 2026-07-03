@@ -60,30 +60,115 @@ interface RestaurantAddon {
 }
 
 const ADDON_CATEGORIES = [
-  { value: "premium_ingredients", label: "Premium Ingredients", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-  { value: "sides", label: "Sides", color: "bg-green-500/10 text-green-600 border-green-500/20" },
-  { value: "extras", label: "Extras", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  { value: "drinks", label: "Drinks", color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
+  {
+    value: "premium_ingredients",
+    label: "Premium Ingredients",
+    color: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  },
+  {
+    value: "sides",
+    label: "Sides",
+    color: "bg-green-500/10 text-green-600 border-green-500/20",
+  },
+  {
+    value: "extras",
+    label: "Extras",
+    color: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  },
+  {
+    value: "drinks",
+    label: "Drinks",
+    color: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  },
 ];
 
 // Quick templates for common add-ons
 const ADDON_TEMPLATES = [
-  { name: "Extra Protein", description: "Double protein portion", price: 8, category: "premium_ingredients" },
-  { name: "Grilled Chicken", description: "Extra grilled chicken breast", price: 10, category: "premium_ingredients" },
-  { name: "Salmon Fillet", description: "Fresh salmon fillet", price: 15, category: "premium_ingredients" },
-  { name: "Avocado", description: "Fresh sliced avocado", price: 4, category: "premium_ingredients" },
-  { name: "Extra Cheese", description: "Additional cheese topping", price: 3, category: "extras" },
-  { name: "Spicy Sauce", description: "Extra hot sauce", price: 1, category: "extras" },
-  { name: "Garlic Bread", description: "Toasted garlic bread", price: 3, category: "sides" },
-  { name: "Side Rice", description: "Steamed rice portion", price: 3, category: "sides" },
-  { name: "Side Salad", description: "Fresh garden salad", price: 4, category: "sides" },
-  { name: "French Fries", description: "Crispy french fries", price: 4, category: "sides" },
-  { name: "Soft Drink", description: "Coke, Sprite, or Fanta", price: 2, category: "drinks" },
-  { name: "Water Bottle", description: "500ml mineral water", price: 1, category: "drinks" },
-  { name: "Fresh Juice", description: "Orange or apple juice", price: 4, category: "drinks" },
+  {
+    name: "Extra Protein",
+    description: "Double protein portion",
+    price: 8,
+    category: "premium_ingredients",
+  },
+  {
+    name: "Grilled Chicken",
+    description: "Extra grilled chicken breast",
+    price: 10,
+    category: "premium_ingredients",
+  },
+  {
+    name: "Salmon Fillet",
+    description: "Fresh salmon fillet",
+    price: 15,
+    category: "premium_ingredients",
+  },
+  {
+    name: "Avocado",
+    description: "Fresh sliced avocado",
+    price: 4,
+    category: "premium_ingredients",
+  },
+  {
+    name: "Extra Cheese",
+    description: "Additional cheese topping",
+    price: 3,
+    category: "extras",
+  },
+  {
+    name: "Spicy Sauce",
+    description: "Extra hot sauce",
+    price: 1,
+    category: "extras",
+  },
+  {
+    name: "Garlic Bread",
+    description: "Toasted garlic bread",
+    price: 3,
+    category: "sides",
+  },
+  {
+    name: "Side Rice",
+    description: "Steamed rice portion",
+    price: 3,
+    category: "sides",
+  },
+  {
+    name: "Side Salad",
+    description: "Fresh garden salad",
+    price: 4,
+    category: "sides",
+  },
+  {
+    name: "French Fries",
+    description: "Crispy french fries",
+    price: 4,
+    category: "sides",
+  },
+  {
+    name: "Soft Drink",
+    description: "Coke, Sprite, or Fanta",
+    price: 2,
+    category: "drinks",
+  },
+  {
+    name: "Water Bottle",
+    description: "500ml mineral water",
+    price: 1,
+    category: "drinks",
+  },
+  {
+    name: "Fresh Juice",
+    description: "Orange or apple juice",
+    price: 4,
+    category: "drinks",
+  },
 ];
 
-const PartnerAddons = () => {
+export function PartnerAddonsContent({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -98,8 +183,12 @@ const PartnerAddons = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editingAddon, setEditingAddon] = useState<RestaurantAddon | null>(null);
-  const [addonToDelete, setAddonToDelete] = useState<RestaurantAddon | null>(null);
+  const [editingAddon, setEditingAddon] = useState<RestaurantAddon | null>(
+    null,
+  );
+  const [addonToDelete, setAddonToDelete] = useState<RestaurantAddon | null>(
+    null,
+  );
 
   const [formData, setFormData] = useState({
     name: "",
@@ -112,6 +201,8 @@ const PartnerAddons = () => {
   useEffect(() => {
     if (user) {
       fetchRestaurantAndAddons();
+    } else {
+      setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -166,19 +257,24 @@ const PartnerAddons = () => {
   };
 
   const filteredAddons = addons.filter((addon) => {
-    const matchesSearch = addon.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         addon.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === "all" || addon.category === selectedCategory;
+    const matchesSearch =
+      addon.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      addon.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "all" || addon.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const groupedAddons = filteredAddons.reduce((acc, addon) => {
-    if (!acc[addon.category]) {
-      acc[addon.category] = [];
-    }
-    acc[addon.category].push(addon);
-    return acc;
-  }, {} as Record<string, RestaurantAddon[]>);
+  const groupedAddons = filteredAddons.reduce(
+    (acc, addon) => {
+      if (!acc[addon.category]) {
+        acc[addon.category] = [];
+      }
+      acc[addon.category].push(addon);
+      return acc;
+    },
+    {} as Record<string, RestaurantAddon[]>,
+  );
 
   const openAddDialog = () => {
     setEditingAddon(null);
@@ -204,7 +300,7 @@ const PartnerAddons = () => {
     setEditDialogOpen(true);
   };
 
-  const applyTemplate = (template: typeof ADDON_TEMPLATES[0]) => {
+  const applyTemplate = (template: (typeof ADDON_TEMPLATES)[0]) => {
     setFormData({
       name: template.name,
       description: template.description,
@@ -284,7 +380,8 @@ const PartnerAddons = () => {
       console.error("Error saving addon:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save add-on",
+        description:
+          error instanceof Error ? error.message : "Failed to save add-on",
         variant: "destructive",
       });
     } finally {
@@ -323,7 +420,8 @@ const PartnerAddons = () => {
       console.error("Error deleting addon:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete add-on",
+        description:
+          error instanceof Error ? error.message : "Failed to delete add-on",
         variant: "destructive",
       });
     }
@@ -348,8 +446,8 @@ const PartnerAddons = () => {
 
       setAddons((prev) =>
         prev.map((a) =>
-          a.id === addon.id ? { ...a, is_available: !a.is_available } : a
-        )
+          a.id === addon.id ? { ...a, is_available: !a.is_available } : a,
+        ),
       );
     } catch (error) {
       console.error("Error toggling availability:", error);
@@ -362,11 +460,16 @@ const PartnerAddons = () => {
   };
 
   const getCategoryLabel = (category: string) => {
-    return ADDON_CATEGORIES.find((c) => c.value === category)?.label || category;
+    return (
+      ADDON_CATEGORIES.find((c) => c.value === category)?.label || category
+    );
   };
 
   const getCategoryColor = (category: string) => {
-    return ADDON_CATEGORIES.find((c) => c.value === category)?.color || "bg-gray-500/10 text-gray-600 border-gray-500/20";
+    return (
+      ADDON_CATEGORIES.find((c) => c.value === category)?.color ||
+      "bg-gray-500/10 text-gray-600 border-gray-500/20"
+    );
   };
 
   const stats = {
@@ -377,18 +480,20 @@ const PartnerAddons = () => {
   };
 
   if (loading) {
-    return (
-      <PartnerLayout title="Add-ons">
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      </PartnerLayout>
+    const skeleton = (
+      <div className="space-y-4">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
     );
+
+    if (embedded) return skeleton;
+
+    return <PartnerLayout title="Add-ons">{skeleton}</PartnerLayout>;
   }
 
-  return (
-    <PartnerLayout title="Add-ons" subtitle="Manage your restaurant's add-on library">
+  const content = (
+    <>
       <div className="space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -440,7 +545,10 @@ const PartnerAddons = () => {
                 <div>
                   <p className="text-2xl font-bold">
                     {addons.length > 0
-                      ? formatCurrency(addons.reduce((sum, a) => sum + a.price, 0) / addons.length)
+                      ? formatCurrency(
+                          addons.reduce((sum, a) => sum + a.price, 0) /
+                            addons.length,
+                        )
                       : "QAR 0"}
                   </p>
                   <p className="text-xs text-muted-foreground">Avg. Price</p>
@@ -459,7 +567,10 @@ const PartnerAddons = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full sm:w-64"
             />
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <Select
+              value={selectedCategory}
+              onValueChange={setSelectedCategory}
+            >
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
@@ -474,7 +585,10 @@ const PartnerAddons = () => {
             </Select>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" onClick={() => setTemplateDialogOpen(true)}>
+            <Button
+              variant="outline"
+              onClick={() => setTemplateDialogOpen(true)}
+            >
               Templates
             </Button>
             <Button onClick={openAddDialog}>
@@ -489,9 +603,14 @@ const PartnerAddons = () => {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Package className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No add-ons in your library yet</p>
+              <p className="text-muted-foreground mb-4">
+                No add-ons in your library yet
+              </p>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setTemplateDialogOpen(true)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setTemplateDialogOpen(true)}
+                >
                   Use Templates
                 </Button>
                 <Button onClick={openAddDialog}>
@@ -504,7 +623,9 @@ const PartnerAddons = () => {
         ) : filteredAddons.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12">
-              <p className="text-muted-foreground">No add-ons match your search</p>
+              <p className="text-muted-foreground">
+                No add-ons match your search
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -546,7 +667,8 @@ const PartnerAddons = () => {
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground mt-2">
-                          Used in {addon.usage_count} meal{addon.usage_count !== 1 ? 's' : ''}
+                          Used in {addon.usage_count} meal
+                          {addon.usage_count !== 1 ? "s" : ""}
                         </p>
                       </div>
                       <div className="flex items-center gap-4">
@@ -596,11 +718,14 @@ const PartnerAddons = () => {
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground mb-4">
-              Choose from pre-made templates to quickly add common add-ons to your library
+              Choose from pre-made templates to quickly add common add-ons to
+              your library
             </p>
             <div className="space-y-4">
               {ADDON_CATEGORIES.map((category) => {
-                const templates = ADDON_TEMPLATES.filter((t) => t.category === category.value);
+                const templates = ADDON_TEMPLATES.filter(
+                  (t) => t.category === category.value,
+                );
                 if (templates.length === 0) return null;
 
                 return (
@@ -617,10 +742,14 @@ const PartnerAddons = () => {
                         >
                           <div>
                             <p className="font-medium">{template.name}</p>
-                            <p className="text-sm text-muted-foreground">{template.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {template.description}
+                            </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-primary">+{formatCurrency(template.price)}</p>
+                            <p className="font-bold text-primary">
+                              +{formatCurrency(template.price)}
+                            </p>
                           </div>
                         </button>
                       ))}
@@ -631,7 +760,10 @@ const PartnerAddons = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTemplateDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setTemplateDialogOpen(false)}
+            >
               Cancel
             </Button>
           </DialogFooter>
@@ -651,7 +783,9 @@ const PartnerAddons = () => {
               <Label>Name *</Label>
               <Input
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="e.g., Extra Avocado"
               />
             </div>
@@ -660,7 +794,9 @@ const PartnerAddons = () => {
               <Label>Description</Label>
               <Textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 placeholder="Optional description"
                 rows={2}
               />
@@ -677,7 +813,12 @@ const PartnerAddons = () => {
                   min="0"
                   step="0.01"
                   value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      price: parseFloat(e.target.value) || 0,
+                    })
+                  }
                 />
               </div>
 
@@ -685,7 +826,9 @@ const PartnerAddons = () => {
                 <Label>Category</Label>
                 <Select
                   value={formData.category}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, category: value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -729,7 +872,9 @@ const PartnerAddons = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Add-on?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "{addonToDelete?.name}" from your library and remove it from all meals. This action cannot be undone.
+              This will permanently delete "{addonToDelete?.name}" from your
+              library and remove it from all meals. This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -743,8 +888,23 @@ const PartnerAddons = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <PartnerLayout
+      title="Add-ons"
+      subtitle="Manage your restaurant's add-on library"
+    >
+      {content}
     </PartnerLayout>
   );
-};
+}
+
+const PartnerAddons = () => <PartnerAddonsContent />;
 
 export default PartnerAddons;

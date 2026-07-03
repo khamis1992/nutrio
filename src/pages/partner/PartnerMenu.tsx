@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -56,12 +56,20 @@ import { z } from "zod";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { MealAddonsManager } from "@/components/MealAddonsManager";
 import { formatCurrency } from "@/lib/currency";
+import { PartnerAddonsContent } from "./PartnerAddons";
 
-const CATEGORIES = ["All", "Main Course", "Appetizer", "Soup", "Drink", "Dessert"] as const;
+const CATEGORIES = [
+  "All",
+  "Main Course",
+  "Appetizer",
+  "Soup",
+  "Drink",
+  "Dessert",
+] as const;
 type Category = (typeof CATEGORIES)[number];
 
 const SORT_OPTIONS = [
-  { value: "name_asc", label: "Name A–Z" },
+  { value: "name_asc", label: "Name A-Z" },
   { value: "price_asc", label: "Price: Low to High" },
   { value: "price_desc", label: "Price: High to Low" },
   { value: "calories_asc", label: "Calories: Low to High" },
@@ -189,6 +197,7 @@ const emptyMeal: MealFormData = {
 
 export default function PartnerMenu() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -208,14 +217,23 @@ export default function PartnerMenu() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [addonsDialogOpen, setAddonsDialogOpen] = useState(false);
-  const [selectedMealForAddons, setSelectedMealForAddons] = useState<Meal | null>(null);
-  const [libraryAddons, setLibraryAddons] = useState<{ id: string; name: string; price: number; category: string }[]>([]);
+  const [selectedMealForAddons, setSelectedMealForAddons] =
+    useState<Meal | null>(null);
+  const [libraryAddons, setLibraryAddons] = useState<
+    { id: string; name: string; price: number; category: string }[]
+  >([]);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
 
   // View/filter/sort state
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [activeCategory, setActiveCategory] = useState<Category>("All");
   const [sortBy, setSortBy] = useState<SortOption>("name_asc");
+  const activeMenuTab =
+    searchParams.get("tab") === "addons" ? "addons" : "meals";
+
+  const setActiveMenuTab = (tab: "meals" | "addons") => {
+    setSearchParams(tab === "addons" ? { tab: "addons" } : {});
+  };
 
   useEffect(() => {
     if (user) {
@@ -242,7 +260,7 @@ export default function PartnerMenu() {
         (payload) => {
           const updated = payload.new as Meal;
           setMeals((prev) =>
-            prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m))
+            prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)),
           );
           // Notify partner when admin approves or rejects their meal
           if (updated.approval_status === "approved") {
@@ -257,18 +275,21 @@ export default function PartnerMenu() {
               variant: "destructive",
             });
           }
-        }
+        },
       )
       .subscribe();
 
     return () => {
-        channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
 
   const fetchDietTags = async () => {
-    const { data, error } = await supabase.from("diet_tags").select("*").order("name");
+    const { data, error } = await supabase
+      .from("diet_tags")
+      .select("*")
+      .order("name");
     if (!error && data) setDietTags(data);
   };
 
@@ -284,7 +305,10 @@ export default function PartnerMenu() {
         .maybeSingle();
 
       if (restaurantError) throw restaurantError;
-      if (!restaurant) { navigate("/partner"); return; }
+      if (!restaurant) {
+        navigate("/partner");
+        return;
+      }
 
       setRestaurantId(restaurant.id);
 
@@ -309,7 +333,10 @@ export default function PartnerMenu() {
         if (addonsData) {
           const grouped: Record<string, MealAddon[]> = {};
           for (const row of addonsData) {
-            const addon = row.restaurant_addons as unknown as { name: string; price: number } | null;
+            const addon = row.restaurant_addons as unknown as {
+              name: string;
+              price: number;
+            } | null;
             if (!addon) continue;
             if (!grouped[row.meal_id]) grouped[row.meal_id] = [];
             grouped[row.meal_id].push({ name: addon.name, price: addon.price });
@@ -319,7 +346,11 @@ export default function PartnerMenu() {
       }
     } catch (error) {
       console.error("Error fetching meals:", error);
-      toast({ title: "Error", description: "Failed to load menu", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to load menu",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -339,7 +370,10 @@ export default function PartnerMenu() {
 
   // Filtered + sorted meals
   const displayedMeals = useMemo(() => {
-    let list = activeCategory === "All" ? meals : meals.filter((m) => m.category === activeCategory);
+    let list =
+      activeCategory === "All"
+        ? meals
+        : meals.filter((m) => m.category === activeCategory);
 
     list = [...list].sort((a, b) => {
       if (sortBy === "name_asc") return a.name.localeCompare(b.name);
@@ -382,9 +416,15 @@ export default function PartnerMenu() {
       large_protein_increase: Number(meal.large_protein_increase || 0),
       large_price_adjustment: Number(meal.large_price_adjustment || 0),
       supports_high_protein: Boolean(meal.supports_high_protein),
-      high_protein_calories_increase: Number(meal.high_protein_calories_increase || 0),
-      high_protein_protein_increase: Number(meal.high_protein_protein_increase || 0),
-      high_protein_price_adjustment: Number(meal.high_protein_price_adjustment || 0),
+      high_protein_calories_increase: Number(
+        meal.high_protein_calories_increase || 0,
+      ),
+      high_protein_protein_increase: Number(
+        meal.high_protein_protein_increase || 0,
+      ),
+      high_protein_price_adjustment: Number(
+        meal.high_protein_price_adjustment || 0,
+      ),
       category: meal.category || "Main Course",
     });
     setFormErrors({});
@@ -406,13 +446,19 @@ export default function PartnerMenu() {
   const handleInputChange = (field: keyof MealFormData, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (formErrors[field]) {
-      setFormErrors((prev) => { const e = { ...prev }; delete e[field]; return e; });
+      setFormErrors((prev) => {
+        const e = { ...prev };
+        delete e[field];
+        return e;
+      });
     }
   };
 
   const handleTagToggle = (tagId: string) => {
     setSelectedTags((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId],
     );
   };
 
@@ -427,16 +473,27 @@ export default function PartnerMenu() {
       const availableTagNames = dietTags.map((t) => t.name);
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
-      if (!accessToken) throw new Error("Authentication required. Please sign in again.");
+      if (!accessToken)
+        throw new Error("Authentication required. Please sign in again.");
 
-      const { data, error } = await supabase.functions.invoke("analyze-meal-image", {
-        body: { imageUrl, availableTags: availableTagNames },
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "analyze-meal-image",
+        {
+          body: { imageUrl, availableTags: availableTagNames },
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
 
       if (error) {
-        if (error.message?.includes("401") || error.message?.includes("Unauthorized")) {
-          toast({ title: "Session Expired", description: "Your session has expired. Please sign in again.", variant: "destructive" });
+        if (
+          error.message?.includes("401") ||
+          error.message?.includes("Unauthorized")
+        ) {
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please sign in again.",
+            variant: "destructive",
+          });
           navigate("/partner/auth");
           return;
         }
@@ -444,15 +501,25 @@ export default function PartnerMenu() {
       }
 
       if (data?.rateLimit?.remaining === 0) {
-        toast({ title: "Rate Limit Reached", description: "You have reached the limit of 50 AI analyses per hour.", variant: "destructive" });
+        toast({
+          title: "Rate Limit Reached",
+          description: "You have reached the limit of 50 AI analyses per hour.",
+          variant: "destructive",
+        });
       }
 
       const response = data as AIAnalysisResponse;
       if (response?.mealDetails) {
         const details = response.mealDetails;
-        const hasMeaningfulData = details.name || details.calories > 0 || details.description;
+        const hasMeaningfulData =
+          details.name || details.calories > 0 || details.description;
         if (!hasMeaningfulData) {
-          toast({ title: "AI Analysis", description: response.note || "Could not analyze image. Please fill in details manually." });
+          toast({
+            title: "AI Analysis",
+            description:
+              response.note ||
+              "Could not analyze image. Please fill in details manually.",
+          });
           return;
         }
         setFormData((prev) => ({
@@ -464,22 +531,38 @@ export default function PartnerMenu() {
           carbs_g: details.carbs_g || prev.carbs_g,
           fat_g: details.fat_g || prev.fat_g,
           fiber_g: details.fiber_g || prev.fiber_g,
-          prep_time_minutes: details.prep_time_minutes || prev.prep_time_minutes,
+          prep_time_minutes:
+            details.prep_time_minutes || prev.prep_time_minutes,
         }));
         if (details.diet_tags && Array.isArray(details.diet_tags)) {
           const matchedTagIds = dietTags
-            .filter((tag) => details.diet_tags.some((aiTag: string) => aiTag.toLowerCase() === tag.name.toLowerCase()))
+            .filter((tag) =>
+              details.diet_tags.some(
+                (aiTag: string) =>
+                  aiTag.toLowerCase() === tag.name.toLowerCase(),
+              ),
+            )
             .map((tag) => tag.id);
           setSelectedTags(matchedTagIds);
         }
         setAnalysisComplete(true);
         setTimeout(() => setAnalysisComplete(false), 2000);
-        toast({ title: "AI has auto-filled the meal details", description: "Review and adjust the values before saving." });
+        toast({
+          title: "AI has auto-filled the meal details",
+          description: "Review and adjust the values before saving.",
+        });
       }
     } catch (error: unknown) {
       console.error("Error analyzing meal image:", error);
-      const msg = error instanceof Error ? error.message : "Could not analyze image. Please fill in details manually.";
-      toast({ title: "Analysis failed", description: msg, variant: "destructive" });
+      const msg =
+        error instanceof Error
+          ? error.message
+          : "Could not analyze image. Please fill in details manually.";
+      toast({
+        title: "Analysis failed",
+        description: msg,
+        variant: "destructive",
+      });
     } finally {
       setAnalyzing(false);
     }
@@ -489,7 +572,9 @@ export default function PartnerMenu() {
     const result = mealSchema.safeParse(formData);
     if (!result.success) {
       const errors: Record<string, string> = {};
-      result.error.errors.forEach((err) => { errors[err.path[0] as string] = err.message; });
+      result.error.errors.forEach((err) => {
+        errors[err.path[0] as string] = err.message;
+      });
       setFormErrors(errors);
       return false;
     }
@@ -517,51 +602,97 @@ export default function PartnerMenu() {
         is_available: needsApproval ? false : formData.is_available,
         is_vip_exclusive: formData.is_vip_exclusive,
         supports_large: formData.supports_large,
-        large_calories_increase: formData.supports_large ? formData.large_calories_increase : 0,
-        large_protein_increase: formData.supports_large ? formData.large_protein_increase : 0,
-        large_price_adjustment: formData.supports_large ? formData.large_price_adjustment : 0,
+        large_calories_increase: formData.supports_large
+          ? formData.large_calories_increase
+          : 0,
+        large_protein_increase: formData.supports_large
+          ? formData.large_protein_increase
+          : 0,
+        large_price_adjustment: formData.supports_large
+          ? formData.large_price_adjustment
+          : 0,
         supports_high_protein: formData.supports_high_protein,
-        high_protein_calories_increase: formData.supports_high_protein ? formData.high_protein_calories_increase : 0,
-        high_protein_protein_increase: formData.supports_high_protein ? formData.high_protein_protein_increase : 0,
-        high_protein_price_adjustment: formData.supports_high_protein ? formData.high_protein_price_adjustment : 0,
+        high_protein_calories_increase: formData.supports_high_protein
+          ? formData.high_protein_calories_increase
+          : 0,
+        high_protein_protein_increase: formData.supports_high_protein
+          ? formData.high_protein_protein_increase
+          : 0,
+        high_protein_price_adjustment: formData.supports_high_protein
+          ? formData.high_protein_price_adjustment
+          : 0,
         category: formData.category,
       };
 
       if (editingMeal) {
-        const { error } = await supabase.from("meals").update(mealData).eq("id", editingMeal.id);
+        const { error } = await supabase
+          .from("meals")
+          .update(mealData)
+          .eq("id", editingMeal.id);
         if (error) throw error;
 
-        await supabase.from("meal_diet_tags").delete().eq("meal_id", editingMeal.id);
+        await supabase
+          .from("meal_diet_tags")
+          .delete()
+          .eq("meal_id", editingMeal.id);
         if (selectedTags.length > 0) {
-          await supabase.from("meal_diet_tags").insert(selectedTags.map((tagId) => ({ meal_id: editingMeal.id, diet_tag_id: tagId })));
+          await supabase.from("meal_diet_tags").insert(
+            selectedTags.map((tagId) => ({
+              meal_id: editingMeal.id,
+              diet_tag_id: tagId,
+            })),
+          );
         }
         toast({
-          title: needsApproval ? "Meal submitted for approval" : "Meal updated successfully",
-          description: needsApproval ? "Price exceeds 50 QAR. The meal will be reviewed by admin before going live." : undefined,
+          title: needsApproval
+            ? "Meal submitted for approval"
+            : "Meal updated successfully",
+          description: needsApproval
+            ? "Price exceeds 50 QAR. The meal will be reviewed by admin before going live."
+            : undefined,
         });
       } else {
-        const { data, error } = await supabase.from("meals").insert(mealData).select().single();
+        const { data, error } = await supabase
+          .from("meals")
+          .insert(mealData)
+          .select()
+          .single();
         if (error) throw error;
 
         if (selectedTags.length > 0 && data) {
-          await supabase.from("meal_diet_tags").insert(selectedTags.map((tagId) => ({ meal_id: data.id, diet_tag_id: tagId })));
+          await supabase.from("meal_diet_tags").insert(
+            selectedTags.map((tagId) => ({
+              meal_id: data.id,
+              diet_tag_id: tagId,
+            })),
+          );
         }
         if (selectedAddons.length > 0 && data) {
-          await supabase.from("meal_addons").insert(selectedAddons.map((addonId) => ({ meal_id: data.id, restaurant_addon_id: addonId })));
+          await supabase.from("meal_addons").insert(
+            selectedAddons.map((addonId) => ({
+              meal_id: data.id,
+              restaurant_addon_id: addonId,
+            })),
+          );
           for (const addonId of selectedAddons) {
             await supabase.rpc("increment_addon_usage", { addon_id: addonId });
           }
         }
         toast({
-          title: needsApproval ? "Meal submitted for approval" : "Meal created successfully",
-          description: needsApproval ? "Price exceeds 50 QAR. The meal will be reviewed by admin before going live." : undefined,
+          title: needsApproval
+            ? "Meal submitted for approval"
+            : "Meal created successfully",
+          description: needsApproval
+            ? "Price exceeds 50 QAR. The meal will be reviewed by admin before going live."
+            : undefined,
         });
         setDialogOpen(false);
         fetchMeals();
       }
     } catch (error: unknown) {
       console.error("Error saving meal:", error);
-      const msg = error instanceof Error ? error.message : "Failed to save meal";
+      const msg =
+        error instanceof Error ? error.message : "Failed to save meal";
       toast({ title: "Error", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
@@ -571,7 +702,10 @@ export default function PartnerMenu() {
   const handleDelete = async () => {
     if (!mealToDelete) return;
     try {
-      const { error } = await supabase.from("meals").delete().eq("id", mealToDelete.id);
+      const { error } = await supabase
+        .from("meals")
+        .delete()
+        .eq("id", mealToDelete.id);
       if (error) throw error;
       toast({ title: "Meal deleted successfully" });
       setDeleteDialogOpen(false);
@@ -579,7 +713,8 @@ export default function PartnerMenu() {
       fetchMeals();
     } catch (error: unknown) {
       console.error("Error deleting meal:", error);
-      const msg = error instanceof Error ? error.message : "Failed to delete meal";
+      const msg =
+        error instanceof Error ? error.message : "Failed to delete meal";
       toast({ title: "Error", description: msg, variant: "destructive" });
     }
   };
@@ -591,18 +726,40 @@ export default function PartnerMenu() {
         .update({ is_available: !meal.is_available })
         .eq("id", meal.id);
       if (error) throw error;
-      setMeals((prev) => prev.map((m) => m.id === meal.id ? { ...m, is_available: !m.is_available } : m));
+      setMeals((prev) =>
+        prev.map((m) =>
+          m.id === meal.id ? { ...m, is_available: !m.is_available } : m,
+        ),
+      );
     } catch (error) {
       console.error("Error toggling availability:", error);
-      toast({ title: "Error", description: "Failed to update availability", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to update availability",
+        variant: "destructive",
+      });
     }
   };
+
+  const availableMeals = meals.filter((meal) => meal.is_available).length;
+  const pendingMeals = meals.filter(
+    (meal) => meal.approval_status === "pending",
+  ).length;
+  const rejectedMeals = meals.filter(
+    (meal) => meal.approval_status === "rejected",
+  ).length;
+  const activeCategoryCount =
+    activeCategory === "All"
+      ? meals.length
+      : meals.filter((meal) => meal.category === activeCategory).length;
 
   if (loading) {
     return (
       <PartnerLayout title="Menu">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-64 w-full rounded-xl" />)}
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="h-64 w-full rounded-xl" />
+          ))}
         </div>
       </PartnerLayout>
     );
@@ -610,203 +767,480 @@ export default function PartnerMenu() {
 
   return (
     <PartnerLayout title="Menu" subtitle="Manage your restaurant's menu items">
-      <div className="space-y-4">
-        {/* Header row */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold">Menu</h2>
-            <div className="flex items-center border rounded-lg overflow-hidden">
-              <button
-                onClick={() => setViewMode("list")}
-                className={`p-2 transition-colors ${viewMode === "list" ? "bg-muted" : "hover:bg-muted/50"}`}
-                title="List view"
-              >
-                <List className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`p-2 transition-colors ${viewMode === "grid" ? "bg-muted" : "hover:bg-muted/50"}`}
-                title="Grid view"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                {SORT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={openAddDialog} className="gap-2 whitespace-nowrap">
-              <Plus className="h-4 w-4" />
-              Add new
-            </Button>
-          </div>
-        </div>
-
-        {/* Category tabs */}
-        <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as Category)}>
-          <TabsList className="bg-transparent border-b w-full justify-start rounded-none h-auto p-0 gap-1">
-            {CATEGORIES.map((cat) => (
-              <TabsTrigger
-                key={cat}
-                value={cat}
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent pb-2 px-3 text-sm"
-              >
-                {cat}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-
-        {/* Meal grid / list */}
-        {displayedMeals.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <UtensilsCrossed className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">
-                {activeCategory === "All" ? "No meals added yet" : `No meals in "${activeCategory}"`}
-              </p>
-              <Button onClick={openAddDialog} variant="outline" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Your First Meal
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className={viewMode === "grid" ? "grid gap-4 md:grid-cols-2 lg:grid-cols-3" : "flex flex-col gap-3"}>
-            {displayedMeals.map((meal) => {
-              const addons = mealAddons[meal.id] || [];
-              const basePrice = meal.price ?? 0;
-              const addonsTotal = addons.reduce((sum, a) => sum + a.price, 0);
-              const total = basePrice + addonsTotal;
-
-              return (
-                <Card
-                  key={meal.id}
-                  className={`overflow-hidden transition-opacity ${!meal.is_available ? "opacity-60" : ""}`}
+      <div className="-m-6 min-h-screen bg-[#F6F8FB] p-4 text-[#020617] sm:p-6">
+        <div className="mx-auto max-w-7xl space-y-4">
+          <section className="overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white shadow-[0_22px_70px_rgba(2,6,23,0.06)]">
+            <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-[#020617] text-white">
+                  {activeMenuTab === "addons" ? (
+                    <Package className="h-6 w-6" />
+                  ) : (
+                    <UtensilsCrossed className="h-6 w-6" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7C83F6]">
+                    {activeMenuTab === "addons"
+                      ? "Add-ons library"
+                      : "Partner menu"}
+                  </p>
+                  <h1 className="mt-1 text-2xl font-black tracking-tight text-[#020617]">
+                    {activeMenuTab === "addons"
+                      ? "Manage reusable extras"
+                      : "Build and manage meals"}
+                  </h1>
+                  <p className="mt-1 max-w-2xl text-sm font-medium text-[#64748B]">
+                    {activeMenuTab === "addons"
+                      ? "Create sides, drinks, sauces, and premium ingredients that can be attached to meals."
+                      : "Keep meals available, review approvals, and maintain nutrition data customers can trust."}
+                  </p>
+                </div>
+              </div>
+              {activeMenuTab === "meals" && (
+                <Button
+                  onClick={openAddDialog}
+                  className="h-12 rounded-2xl bg-[#020617] px-5 text-white hover:bg-[#020617]/90"
                 >
-                  <CardContent className="p-4 space-y-3">
-                    {/* Top: image + name + category + price */}
-                    <div className="flex items-start gap-3">
-                      <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {meal.image_url ? (
-                          <img src={meal.image_url} alt={meal.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <ImageIcon className="h-7 w-7 text-muted-foreground" />
-                        )}
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add meal
+                </Button>
+              )}
+            </div>
+            {activeMenuTab === "meals" && (
+              <div className="grid grid-cols-2 gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] p-4 lg:grid-cols-4">
+                {[
+                  {
+                    label: "Total meals",
+                    value: meals.length,
+                    icon: Package,
+                    color: "#7C83F6",
+                    bg: "bg-[#7C83F6]/10",
+                  },
+                  {
+                    label: "Available",
+                    value: availableMeals,
+                    icon: CheckCircle2,
+                    color: "#22C7A1",
+                    bg: "bg-[#22C7A1]/10",
+                  },
+                  {
+                    label: "Pending",
+                    value: pendingMeals,
+                    icon: Clock,
+                    color: "#F97316",
+                    bg: "bg-[#F97316]/10",
+                  },
+                  {
+                    label: "Rejected",
+                    value: rejectedMeals,
+                    icon: Trash2,
+                    color: "#FB6B7A",
+                    bg: "bg-[#FB6B7A]/10",
+                  },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="rounded-3xl border border-[#E5EAF1] bg-white p-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                          {stat.label}
+                        </p>
+                        <p className="mt-2 text-2xl font-black text-[#020617]">
+                          {stat.value}
+                        </p>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-1">
-                          <h3 className="font-semibold text-sm leading-tight truncate">{meal.name}</h3>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            {meal.approval_status === "pending" && (
-                              <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
-                                Pending
-                              </span>
-                            )}
-                            {meal.approval_status === "rejected" && (
-                              <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
-                                Rejected
-                              </span>
-                            )}
-                            {meal.is_vip_exclusive && <Crown className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{meal.category}</p>
-                        <div className="flex items-center justify-between mt-1.5">
-                          <span className="text-base font-bold text-green-600">
-                            {meal.price != null && meal.price > 0 ? formatCurrency(meal.price) : "—"}
-                          </span>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Flame className="h-3 w-3" />
-                            {meal.calories} cal
-                            {meal.prep_time_minutes && (
-                              <>
-                                <Clock className="h-3 w-3 ml-1" />
-                                {meal.prep_time_minutes}m
-                              </>
-                            )}
-                          </div>
-                        </div>
+                      <div
+                        className={`flex h-11 w-11 items-center justify-center rounded-2xl ${stat.bg}`}
+                      >
+                        <stat.icon
+                          className="h-5 w-5"
+                          style={{ color: stat.color }}
+                        />
                       </div>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
 
-                    {/* Extras section */}
-                    {addons.length > 0 && (
-                      <div className="border-t pt-3 space-y-1.5">
-                        <div className="grid grid-cols-3 text-xs text-muted-foreground font-medium pb-1">
-                          <span>Extras</span>
-                          <span className="text-center">Add</span>
-                          <span className="text-right">Price</span>
-                        </div>
-                        {addons.map((addon, idx) => (
-                          <div key={idx} className="grid grid-cols-3 text-xs items-center">
-                            <span className="truncate">{addon.name}</span>
-                            <div className="flex justify-center">
-                              <div className="w-4 h-4 rounded border border-green-500 flex items-center justify-center bg-green-50">
-                                <svg className="w-2.5 h-2.5 text-green-600" viewBox="0 0 12 12" fill="none">
-                                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
+          <section className="grid grid-cols-2 gap-2 rounded-[28px] border border-[#E5EAF1] bg-white p-2 shadow-[0_14px_36px_rgba(2,6,23,0.04)]">
+            {[
+              {
+                value: "meals" as const,
+                label: "Meals",
+                helper: `${meals.length} menu items`,
+                icon: UtensilsCrossed,
+              },
+              {
+                value: "addons" as const,
+                label: "Add-ons library",
+                helper: "Reusable extras",
+                icon: Package,
+              },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setActiveMenuTab(tab.value)}
+                className={`flex min-h-16 items-center gap-3 rounded-3xl px-4 text-left transition ${
+                  activeMenuTab === tab.value
+                    ? "bg-[#020617] text-white shadow-[0_14px_28px_rgba(2,6,23,0.16)]"
+                    : "bg-[#F6F8FB] text-[#020617] hover:bg-white"
+                }`}
+              >
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+                    activeMenuTab === tab.value ? "bg-white/10" : "bg-white"
+                  }`}
+                >
+                  <tab.icon
+                    className={`h-5 w-5 ${
+                      activeMenuTab === tab.value
+                        ? "text-white"
+                        : tab.value === "addons"
+                          ? "text-[#7C83F6]"
+                          : "text-[#22C7A1]"
+                    }`}
+                  />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-black">
+                    {tab.label}
+                  </span>
+                  <span
+                    className={`block truncate text-xs font-bold ${
+                      activeMenuTab === tab.value
+                        ? "text-white/55"
+                        : "text-[#94A3B8]"
+                    }`}
+                  >
+                    {tab.helper}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </section>
+
+          {activeMenuTab === "addons" ? (
+            <PartnerAddonsContent embedded />
+          ) : (
+            <>
+              <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-3 shadow-[0_14px_36px_rgba(2,6,23,0.04)]">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <Tabs
+                    value={activeCategory}
+                    onValueChange={(v) => setActiveCategory(v as Category)}
+                    className="min-w-0 flex-1"
+                  >
+                    <TabsList className="flex h-auto w-full justify-start gap-2 overflow-x-auto rounded-3xl bg-[#F6F8FB] p-1">
+                      {CATEGORIES.map((cat) => (
+                        <TabsTrigger
+                          key={cat}
+                          value={cat}
+                          className="min-h-11 shrink-0 rounded-2xl px-4 text-sm font-black text-[#64748B] data-[state=active]:bg-[#020617] data-[state=active]:text-white"
+                        >
+                          {cat}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={sortBy}
+                      onValueChange={(v) => setSortBy(v as SortOption)}
+                    >
+                      <SelectTrigger className="h-11 w-[170px] rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] text-sm font-bold text-[#020617]">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SORT_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex h-11 items-center rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-1">
+                      <button
+                        type="button"
+                        onClick={() => setViewMode("list")}
+                        className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${viewMode === "list" ? "bg-white text-[#020617] shadow-sm" : "text-[#94A3B8]"}`}
+                        title="List view"
+                      >
+                        <List className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode("grid")}
+                        className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${viewMode === "grid" ? "bg-white text-[#020617] shadow-sm" : "text-[#94A3B8]"}`}
+                        title="Grid view"
+                      >
+                        <LayoutGrid className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between rounded-2xl bg-[#F6F8FB] px-4 py-3">
+                  <p className="text-sm font-black text-[#020617]">
+                    {activeCategoryCount} meals in {activeCategory}
+                  </p>
+                  <p className="text-xs font-bold text-[#94A3B8]">
+                    Sorted by{" "}
+                    {SORT_OPTIONS.find((opt) => opt.value === sortBy)?.label}
+                  </p>
+                </div>
+              </section>
+
+              {displayedMeals.length === 0 ? (
+                <section className="rounded-[28px] border border-dashed border-[#E5EAF1] bg-white px-4 py-14 text-center shadow-[0_14px_36px_rgba(2,6,23,0.04)]">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#7C83F6]/10 text-[#7C83F6]">
+                    <UtensilsCrossed className="h-7 w-7" />
+                  </div>
+                  <h2 className="mt-4 text-xl font-black text-[#020617]">
+                    {activeCategory === "All"
+                      ? "No meals added yet"
+                      : `No meals in ${activeCategory}`}
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-md text-sm font-medium text-[#94A3B8]">
+                    Add meals with clear nutrition values, prep time,
+                    availability, and add-ons.
+                  </p>
+                  <Button
+                    onClick={openAddDialog}
+                    className="mt-5 h-11 rounded-2xl bg-[#020617] px-5 text-white hover:bg-[#020617]/90"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add first meal
+                  </Button>
+                </section>
+              ) : (
+                <section
+                  className={
+                    viewMode === "grid"
+                      ? "grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+                      : "flex flex-col gap-3"
+                  }
+                >
+                  {displayedMeals.map((meal) => {
+                    const addons = mealAddons[meal.id] || [];
+                    const basePrice = meal.price ?? 0;
+                    const addonsTotal = addons.reduce(
+                      (sum, addon) => sum + addon.price,
+                      0,
+                    );
+                    const total = basePrice + addonsTotal;
+                    return (
+                      <article
+                        key={meal.id}
+                        className={`overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white shadow-[0_14px_36px_rgba(2,6,23,0.04)] transition ${!meal.is_available ? "opacity-70" : "hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(2,6,23,0.08)]"}`}
+                      >
+                        <div
+                          className={
+                            viewMode === "list"
+                              ? "grid gap-0 sm:grid-cols-[180px_1fr]"
+                              : ""
+                          }
+                        >
+                          <div
+                            className={
+                              viewMode === "list"
+                                ? "h-full min-h-[170px] bg-[#F6F8FB]"
+                                : "h-44 bg-[#F6F8FB]"
+                            }
+                          >
+                            {meal.image_url ? (
+                              <img
+                                src={meal.image_url}
+                                alt={meal.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center">
+                                <ImageIcon className="h-9 w-9 text-[#94A3B8]" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-4 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="rounded-full bg-[#7C83F6]/10 px-3 py-1 text-xs font-black text-[#7C83F6]">
+                                    {meal.category}
+                                  </span>
+                                  {meal.approval_status === "pending" && (
+                                    <span className="rounded-full bg-[#F97316]/10 px-3 py-1 text-xs font-black text-[#F97316]">
+                                      Pending
+                                    </span>
+                                  )}
+                                  {meal.approval_status === "rejected" && (
+                                    <span className="rounded-full bg-[#FB6B7A]/10 px-3 py-1 text-xs font-black text-[#FB6B7A]">
+                                      Rejected
+                                    </span>
+                                  )}
+                                  {meal.is_vip_exclusive && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-[#020617] px-3 py-1 text-xs font-black text-white">
+                                      <Crown className="h-3 w-3" /> VIP
+                                    </span>
+                                  )}
+                                </div>
+                                <h3 className="mt-3 truncate text-lg font-black text-[#020617]">
+                                  {meal.name}
+                                </h3>
+                                {meal.description && (
+                                  <p className="mt-1 line-clamp-2 text-sm font-medium text-[#64748B]">
+                                    {meal.description}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <p className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                                  Price
+                                </p>
+                                <p className="mt-1 text-lg font-black text-[#22C7A1]">
+                                  {meal.price != null && meal.price > 0
+                                    ? formatCurrency(meal.price)
+                                    : "-"}
+                                </p>
                               </div>
                             </div>
-                            <span className="text-right">{formatCurrency(addon.price)}</span>
+                            <div className="grid grid-cols-4 gap-2">
+                              <div className="rounded-2xl bg-[#22C7A1]/10 p-2 text-center">
+                                <Flame className="mx-auto h-4 w-4 text-[#22C7A1]" />
+                                <p className="mt-1 text-sm font-black text-[#020617]">
+                                  {meal.calories}
+                                </p>
+                                <p className="text-[10px] font-bold uppercase text-[#94A3B8]">
+                                  cal
+                                </p>
+                              </div>
+                              <div className="rounded-2xl bg-[#7C83F6]/10 p-2 text-center">
+                                <p className="text-sm font-black text-[#7C83F6]">
+                                  P
+                                </p>
+                                <p className="mt-1 text-sm font-black text-[#020617]">
+                                  {meal.protein_g}g
+                                </p>
+                                <p className="text-[10px] font-bold uppercase text-[#94A3B8]">
+                                  protein
+                                </p>
+                              </div>
+                              <div className="rounded-2xl bg-[#F97316]/10 p-2 text-center">
+                                <p className="text-sm font-black text-[#F97316]">
+                                  C
+                                </p>
+                                <p className="mt-1 text-sm font-black text-[#020617]">
+                                  {meal.carbs_g}g
+                                </p>
+                                <p className="text-[10px] font-bold uppercase text-[#94A3B8]">
+                                  carbs
+                                </p>
+                              </div>
+                              <div className="rounded-2xl bg-[#FB6B7A]/10 p-2 text-center">
+                                <p className="text-sm font-black text-[#FB6B7A]">
+                                  F
+                                </p>
+                                <p className="mt-1 text-sm font-black text-[#020617]">
+                                  {meal.fat_g}g
+                                </p>
+                                <p className="text-[10px] font-bold uppercase text-[#94A3B8]">
+                                  fat
+                                </p>
+                              </div>
+                            </div>
+                            {addons.length > 0 && (
+                              <div className="rounded-3xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                                <div className="mb-2 flex items-center justify-between">
+                                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                                    Add-ons
+                                  </p>
+                                  <p className="text-xs font-black text-[#020617]">
+                                    Total {formatCurrency(total)}
+                                  </p>
+                                </div>
+                                <div className="space-y-1.5">
+                                  {addons.slice(0, 3).map((addon, index) => (
+                                    <div
+                                      key={`${addon.name}-${index}`}
+                                      className="flex items-center justify-between text-xs font-bold"
+                                    >
+                                      <span className="truncate text-[#020617]">
+                                        {addon.name}
+                                      </span>
+                                      <span className="text-[#64748B]">
+                                        {formatCurrency(addon.price)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {addons.length > 3 && (
+                                    <p className="text-xs font-bold text-[#94A3B8]">
+                                      +{addons.length - 3} more add-ons
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between border-t border-[#E5EAF1] pt-3">
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={meal.is_available}
+                                  onCheckedChange={() =>
+                                    toggleAvailability(meal)
+                                  }
+                                  disabled={meal.approval_status === "pending"}
+                                />
+                                <span className="text-xs font-black text-[#64748B]">
+                                  {meal.approval_status === "pending"
+                                    ? "Awaiting approval"
+                                    : meal.is_available
+                                      ? "Available"
+                                      : "Unavailable"}
+                                </span>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-9 w-9 rounded-xl text-[#7C83F6] hover:bg-[#7C83F6]/10"
+                                  onClick={() => {
+                                    setSelectedMealForAddons(meal);
+                                    setAddonsDialogOpen(true);
+                                  }}
+                                  title="Manage Add-ons"
+                                >
+                                  <Package className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-9 w-9 rounded-xl text-[#020617] hover:bg-[#F6F8FB]"
+                                  onClick={() => openEditDialog(meal)}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-9 w-9 rounded-xl text-[#FB6B7A] hover:bg-[#FB6B7A]/10"
+                                  onClick={() => openDeleteDialog(meal)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                           </div>
-                        ))}
-                        <div className="grid grid-cols-2 text-xs font-semibold pt-1 border-t">
-                          <span>Total <span className="text-muted-foreground font-normal">(before tax)</span></span>
-                          <span className="text-right">{formatCurrency(total)}</span>
                         </div>
-                      </div>
-                    )}
-
-                    {/* Footer: availability + actions */}
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={meal.is_available}
-                          onCheckedChange={() => toggleAvailability(meal)}
-                          disabled={meal.approval_status === "pending"}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {meal.approval_status === "pending" ? "Awaiting approval" : meal.is_available ? "Available" : "Unavailable"}
-                        </span>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => { setSelectedMealForAddons(meal); setAddonsDialogOpen(true); }}
-                          title="Manage Add-ons"
-                        >
-                          <Package className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDialog(meal)}>
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => openDeleteDialog(meal)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+                      </article>
+                    );
+                  })}
+                </section>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Add/Edit Dialog */}
@@ -815,7 +1249,9 @@ export default function PartnerMenu() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editingMeal ? "Edit Meal" : "Add New Meal"}
-              {analysisComplete && <CheckCircle2 className="h-5 w-5 text-green-500 animate-in fade-in zoom-in" />}
+              {analysisComplete && (
+                <CheckCircle2 className="h-5 w-5 text-green-500 animate-in fade-in zoom-in" />
+              )}
             </DialogTitle>
           </DialogHeader>
 
@@ -829,7 +1265,9 @@ export default function PartnerMenu() {
             />
 
             <div className="space-y-2">
-              <Label htmlFor="name">Meal Name <span className="text-destructive">*</span></Label>
+              <Label htmlFor="name">
+                Meal Name <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -837,18 +1275,27 @@ export default function PartnerMenu() {
                 placeholder="e.g., Grilled Salmon Salad"
                 className={formErrors.name ? "border-destructive" : ""}
               />
-              {formErrors.name && <p className="text-sm text-destructive">{formErrors.name}</p>}
+              {formErrors.name && (
+                <p className="text-sm text-destructive">{formErrors.name}</p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Category <span className="text-destructive">*</span></Label>
-              <Select value={formData.category} onValueChange={(v) => handleInputChange("category", v)}>
+              <Label htmlFor="category">
+                Category <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={formData.category}
+                onValueChange={(v) => handleInputChange("category", v)}
+              >
                 <SelectTrigger id="category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.filter((c) => c !== "All").map((cat) => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -859,14 +1306,18 @@ export default function PartnerMenu() {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => handleInputChange("description", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("description", e.target.value)
+                }
                 placeholder="Describe the meal, ingredients, flavors..."
                 rows={3}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="price">Price (QAR) <span className="text-destructive">*</span></Label>
+              <Label htmlFor="price">
+                Price (QAR) <span className="text-destructive">*</span>
+              </Label>
               <div className="relative">
                 <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -875,20 +1326,28 @@ export default function PartnerMenu() {
                   min="0"
                   step="0.01"
                   value={formData.price || ""}
-                  onChange={(e) => handleInputChange("price", parseFloat(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleInputChange("price", parseFloat(e.target.value) || 0)
+                  }
                   placeholder="0.00"
                   className={`pl-9 ${formErrors.price ? "border-destructive" : ""}`}
                 />
               </div>
-              {formErrors.price && <p className="text-sm text-destructive">{formErrors.price}</p>}
+              {formErrors.price && (
+                <p className="text-sm text-destructive">{formErrors.price}</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 Platform fee (18%) will be deducted. Your payout per meal:{" "}
-                <span className="font-medium">{formatCurrency((formData.price || 0) * 0.82)}</span>
+                <span className="font-medium">
+                  {formatCurrency((formData.price || 0) * 0.82)}
+                </span>
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="calories">Calories <span className="text-destructive">*</span></Label>
+              <Label htmlFor="calories">
+                Calories <span className="text-destructive">*</span>
+              </Label>
               <div className="relative">
                 <Flame className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -896,54 +1355,110 @@ export default function PartnerMenu() {
                   type="number"
                   min="0"
                   value={formData.calories || ""}
-                  onChange={(e) => handleInputChange("calories", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleInputChange("calories", parseInt(e.target.value) || 0)
+                  }
                   className={`pl-9 ${formErrors.calories ? "border-destructive" : ""}`}
                 />
               </div>
-              {formErrors.calories && <p className="text-sm text-destructive">{formErrors.calories}</p>}
+              {formErrors.calories && (
+                <p className="text-sm text-destructive">
+                  {formErrors.calories}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-4 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="protein">Protein (g)</Label>
-                <Input id="protein" type="number" min="0" step="0.1" value={formData.protein_g || ""}
-                  onChange={(e) => handleInputChange("protein_g", parseFloat(e.target.value) || 0)} />
+                <Input
+                  id="protein"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.protein_g || ""}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "protein_g",
+                      parseFloat(e.target.value) || 0,
+                    )
+                  }
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="carbs">Carbs (g)</Label>
-                <Input id="carbs" type="number" min="0" step="0.1" value={formData.carbs_g || ""}
-                  onChange={(e) => handleInputChange("carbs_g", parseFloat(e.target.value) || 0)} />
+                <Input
+                  id="carbs"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.carbs_g || ""}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "carbs_g",
+                      parseFloat(e.target.value) || 0,
+                    )
+                  }
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fat">Fat (g)</Label>
-                <Input id="fat" type="number" min="0" step="0.1" value={formData.fat_g || ""}
-                  onChange={(e) => handleInputChange("fat_g", parseFloat(e.target.value) || 0)} />
+                <Input
+                  id="fat"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.fat_g || ""}
+                  onChange={(e) =>
+                    handleInputChange("fat_g", parseFloat(e.target.value) || 0)
+                  }
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fiber">Fiber (g)</Label>
-                <Input id="fiber" type="number" min="0" step="0.1" value={formData.fiber_g || ""}
-                  onChange={(e) => handleInputChange("fiber_g", parseFloat(e.target.value) || 0)} />
+                <Input
+                  id="fiber"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.fiber_g || ""}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "fiber_g",
+                      parseFloat(e.target.value) || 0,
+                    )
+                  }
+                />
               </div>
             </div>
 
             <div className="space-y-4 rounded-2xl border bg-muted/20 p-4">
               <div>
-                <Label className="text-base font-semibold">Customer customization</Label>
+                <Label className="text-base font-semibold">
+                  Customer customization
+                </Label>
                 <p className="text-sm text-muted-foreground">
-                  Enable only the options this meal supports. Disabled options are hidden from customers.
+                  Enable only the options this meal supports. Disabled options
+                  are hidden from customers.
                 </p>
               </div>
 
               <div className="space-y-3 rounded-xl border bg-background p-3">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <Label htmlFor="supports-large" className="font-semibold">Large portion</Label>
-                    <p className="text-xs text-muted-foreground">Let customers upgrade this meal size.</p>
+                    <Label htmlFor="supports-large" className="font-semibold">
+                      Large portion
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Let customers upgrade this meal size.
+                    </p>
                   </div>
                   <Switch
                     id="supports-large"
                     checked={formData.supports_large}
-                    onCheckedChange={(checked) => handleInputChange("supports_large", checked)}
+                    onCheckedChange={(checked) =>
+                      handleInputChange("supports_large", checked)
+                    }
                   />
                 </div>
                 {formData.supports_large && (
@@ -955,7 +1470,12 @@ export default function PartnerMenu() {
                         type="number"
                         min="0"
                         value={formData.large_calories_increase || ""}
-                        onChange={(e) => handleInputChange("large_calories_increase", parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "large_calories_increase",
+                            parseInt(e.target.value) || 0,
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2">
@@ -966,7 +1486,12 @@ export default function PartnerMenu() {
                         min="0"
                         step="0.1"
                         value={formData.large_protein_increase || ""}
-                        onChange={(e) => handleInputChange("large_protein_increase", parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "large_protein_increase",
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2">
@@ -977,7 +1502,12 @@ export default function PartnerMenu() {
                         min="0"
                         step="0.01"
                         value={formData.large_price_adjustment || ""}
-                        onChange={(e) => handleInputChange("large_price_adjustment", parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "large_price_adjustment",
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
                       />
                     </div>
                   </div>
@@ -987,13 +1517,19 @@ export default function PartnerMenu() {
               <div className="space-y-3 rounded-xl border bg-background p-3">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <Label htmlFor="supports-hp" className="font-semibold">High-Protein</Label>
-                    <p className="text-xs text-muted-foreground">Let customers add extra protein to this meal.</p>
+                    <Label htmlFor="supports-hp" className="font-semibold">
+                      High-Protein
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Let customers add extra protein to this meal.
+                    </p>
                   </div>
                   <Switch
                     id="supports-hp"
                     checked={formData.supports_high_protein}
-                    onCheckedChange={(checked) => handleInputChange("supports_high_protein", checked)}
+                    onCheckedChange={(checked) =>
+                      handleInputChange("supports_high_protein", checked)
+                    }
                   />
                 </div>
                 {formData.supports_high_protein && (
@@ -1005,7 +1541,12 @@ export default function PartnerMenu() {
                         type="number"
                         min="0"
                         value={formData.high_protein_calories_increase || ""}
-                        onChange={(e) => handleInputChange("high_protein_calories_increase", parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "high_protein_calories_increase",
+                            parseInt(e.target.value) || 0,
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2">
@@ -1016,7 +1557,12 @@ export default function PartnerMenu() {
                         min="0"
                         step="0.1"
                         value={formData.high_protein_protein_increase || ""}
-                        onChange={(e) => handleInputChange("high_protein_protein_increase", parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "high_protein_protein_increase",
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2">
@@ -1027,7 +1573,12 @@ export default function PartnerMenu() {
                         min="0"
                         step="0.01"
                         value={formData.high_protein_price_adjustment || ""}
-                        onChange={(e) => handleInputChange("high_protein_price_adjustment", parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "high_protein_price_adjustment",
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
                       />
                     </div>
                   </div>
@@ -1044,7 +1595,12 @@ export default function PartnerMenu() {
                   type="number"
                   min="1"
                   value={formData.prep_time_minutes || ""}
-                  onChange={(e) => handleInputChange("prep_time_minutes", parseInt(e.target.value) || undefined)}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "prep_time_minutes",
+                      parseInt(e.target.value) || undefined,
+                    )
+                  }
                   className="pl-9"
                 />
               </div>
@@ -1060,10 +1616,16 @@ export default function PartnerMenu() {
                   <label
                     key={tag.id}
                     className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
-                      selectedTags.includes(tag.id) ? "bg-primary/10 border-primary" : "bg-muted/50 border-border hover:bg-muted"
+                      selectedTags.includes(tag.id)
+                        ? "bg-primary/10 border-primary"
+                        : "bg-muted/50 border-border hover:bg-muted"
                     }`}
                   >
-                    <Checkbox checked={selectedTags.includes(tag.id)} onCheckedChange={() => handleTagToggle(tag.id)} className="sr-only" />
+                    <Checkbox
+                      checked={selectedTags.includes(tag.id)}
+                      onCheckedChange={() => handleTagToggle(tag.id)}
+                      className="sr-only"
+                    />
                     <span className="text-sm">{tag.name}</span>
                   </label>
                 ))}
@@ -1075,37 +1637,54 @@ export default function PartnerMenu() {
                 <Label className="flex items-center gap-2">
                   <Package className="h-4 w-4" />
                   Add-ons
-                  <span className="text-xs text-muted-foreground font-normal">(Select from your library)</span>
+                  <span className="text-xs text-muted-foreground font-normal">
+                    (Select from your library)
+                  </span>
                 </Label>
                 <div className="flex flex-wrap gap-2">
                   {libraryAddons.map((addon) => (
                     <label
                       key={addon.id}
                       className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
-                        selectedAddons.includes(addon.id) ? "bg-primary/10 border-primary" : "bg-muted/50 border-border hover:bg-muted"
+                        selectedAddons.includes(addon.id)
+                          ? "bg-primary/10 border-primary"
+                          : "bg-muted/50 border-border hover:bg-muted"
                       }`}
                     >
                       <Checkbox
                         checked={selectedAddons.includes(addon.id)}
-                        onCheckedChange={() => setSelectedAddons((prev) =>
-                          prev.includes(addon.id) ? prev.filter((id) => id !== addon.id) : [...prev, addon.id]
-                        )}
+                        onCheckedChange={() =>
+                          setSelectedAddons((prev) =>
+                            prev.includes(addon.id)
+                              ? prev.filter((id) => id !== addon.id)
+                              : [...prev, addon.id],
+                          )
+                        }
                         className="sr-only"
                       />
                       <span className="text-sm">{addon.name}</span>
-                      <span className="text-xs text-muted-foreground">+{addon.price} QAR</span>
+                      <span className="text-xs text-muted-foreground">
+                        +{addon.price} QAR
+                      </span>
                     </label>
                   ))}
                 </div>
                 {selectedAddons.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No add-ons selected. You can add them later from the menu.</p>
+                  <p className="text-xs text-muted-foreground">
+                    No add-ons selected. You can add them later from the menu.
+                  </p>
                 )}
               </div>
             )}
 
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
-                <Switch checked={formData.is_available} onCheckedChange={(checked) => handleInputChange("is_available", checked)} />
+                <Switch
+                  checked={formData.is_available}
+                  onCheckedChange={(checked) =>
+                    handleInputChange("is_available", checked)
+                  }
+                />
                 <Label>Available</Label>
               </div>
             </div>
@@ -1116,7 +1695,10 @@ export default function PartnerMenu() {
                   type="button"
                   variant="outline"
                   className="w-full"
-                  onClick={() => { setSelectedMealForAddons(editingMeal); setAddonsDialogOpen(true); }}
+                  onClick={() => {
+                    setSelectedMealForAddons(editingMeal);
+                    setAddonsDialogOpen(true);
+                  }}
                 >
                   <Package className="h-4 w-4 mr-2" />
                   Manage Add-ons
@@ -1126,7 +1708,9 @@ export default function PartnerMenu() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleSave} disabled={saving} className="gap-2">
               {saving ? (
                 <>
@@ -1147,12 +1731,16 @@ export default function PartnerMenu() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Meal?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "{mealToDelete?.name}". This action cannot be undone.
+              This will permanently delete "{mealToDelete?.name}". This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1163,7 +1751,9 @@ export default function PartnerMenu() {
       <Dialog open={addonsDialogOpen} onOpenChange={setAddonsDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Manage Add-ons: {selectedMealForAddons?.name}</DialogTitle>
+            <DialogTitle>
+              Manage Add-ons: {selectedMealForAddons?.name}
+            </DialogTitle>
           </DialogHeader>
           {selectedMealForAddons && restaurantId && (
             <MealAddonsManager

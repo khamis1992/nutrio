@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -28,10 +27,7 @@ import {
   Calendar,
   TrendingUp,
   Clock,
-  CheckCircle,
   Wallet,
-  ArrowRight,
-  Minus,
   ChevronDown,
   ChevronUp,
   Download,
@@ -53,8 +49,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { formatCurrency } from "@/lib/currency";
 
-// ── Constants ────────────────────────────────────────────────────────────────
-// PLATFORM_RATE is no longer hardcoded — it comes from restaurants.commission_rate per restaurant
+/**
+ * Payouts reads from partner_payouts table for admin-processed settlement records.
+ * Earnings analytics can differ slightly because each source has its own accounting cutoff.
+ */
+// PLATFORM_RATE is no longer hardcoded. It comes from restaurants.commission_rate per restaurant.
 
 type DateRange = "7d" | "30d" | "90d" | "all";
 
@@ -138,11 +137,16 @@ interface BankDetails {
 
 // ── Pure helpers ─────────────────────────────────────────────────────────────
 
-function filterByDateRange(earnings: EarningRow[], range: DateRange): EarningRow[] {
+function filterByDateRange(
+  earnings: EarningRow[],
+  range: DateRange,
+): EarningRow[] {
   if (range === "all") return earnings;
   const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  return earnings.filter((e) => e.created_at && new Date(e.created_at) >= cutoff);
+  return earnings.filter(
+    (e) => e.created_at && new Date(e.created_at) >= cutoff,
+  );
 }
 
 function getWeekStart(date: Date): Date {
@@ -159,7 +163,10 @@ function getWeekEnd(date: Date): Date {
   return start;
 }
 
-function buildWeeklyEarnings(earnings: EarningRow[], rate = 0.18): WeeklyEarning[] {
+function buildWeeklyEarnings(
+  earnings: EarningRow[],
+  rate = 0.18,
+): WeeklyEarning[] {
   const map = new Map<string, WeeklyEarning>();
   earnings.forEach((e) => {
     if (!e.created_at) return;
@@ -169,7 +176,9 @@ function buildWeeklyEarnings(earnings: EarningRow[], rate = 0.18): WeeklyEarning
     if (!map.has(key)) {
       map.set(key, {
         week_start: key,
-        week_end: getWeekEnd(new Date(e.created_at)).toISOString().split("T")[0],
+        week_end: getWeekEnd(new Date(e.created_at))
+          .toISOString()
+          .split("T")[0],
         gross_amount: 0,
         platform_fee: 0,
         net_amount: 0,
@@ -181,18 +190,32 @@ function buildWeeklyEarnings(earnings: EarningRow[], rate = 0.18): WeeklyEarning
     week.platform_fee += gross * rate;
     week.net_amount += gross * (1 - rate);
   });
-  return Array.from(map.values()).sort((a, b) => b.week_start.localeCompare(a.week_start));
+  return Array.from(map.values()).sort((a, b) =>
+    b.week_start.localeCompare(a.week_start),
+  );
 }
 
-function buildMonthlyEarnings(earnings: EarningRow[], rate = 0.18): MonthlyEarning[] {
+function buildMonthlyEarnings(
+  earnings: EarningRow[],
+  rate = 0.18,
+): MonthlyEarning[] {
   const map = new Map<string, MonthlyEarning>();
   earnings.forEach((e) => {
     if (!e.created_at) return;
     const date = new Date(e.created_at);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    const label = date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    const label = date.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
     if (!map.has(key)) {
-      map.set(key, { month_key: key, month_label: label, gross_amount: 0, platform_fee: 0, net_amount: 0 });
+      map.set(key, {
+        month_key: key,
+        month_label: label,
+        gross_amount: 0,
+        platform_fee: 0,
+        net_amount: 0,
+      });
     }
     const month = map.get(key)!;
     const gross = e.gross_amount ?? 0;
@@ -200,13 +223,17 @@ function buildMonthlyEarnings(earnings: EarningRow[], rate = 0.18): MonthlyEarni
     month.platform_fee += gross * rate;
     month.net_amount += gross * (1 - rate);
   });
-  return Array.from(map.values()).sort((a, b) => b.month_key.localeCompare(a.month_key));
+  return Array.from(map.values()).sort((a, b) =>
+    b.month_key.localeCompare(a.month_key),
+  );
 }
 
 function exportToCsv(earnings: EarningRow[], rate = 0.18) {
   const header = "Date,Order ID,Gross (QAR),Commission (QAR),Net (QAR)";
   const rows = earnings.map((e) => {
-    const date = e.created_at ? new Date(e.created_at).toLocaleDateString() : "";
+    const date = e.created_at
+      ? new Date(e.created_at).toLocaleDateString()
+      : "";
     const gross = (e.gross_amount ?? 0).toFixed(2);
     const commission = ((e.gross_amount ?? 0) * rate).toFixed(2);
     const net = ((e.gross_amount ?? 0) * (1 - rate)).toFixed(2);
@@ -296,15 +323,27 @@ const PartnerPayouts = () => {
       .filter((p) => p.status === "pending" || p.status === "processing")
       .reduce((s, p) => s + p.amount, 0);
 
-    const rawTotalNet = rawEarnings.reduce((s, e) => s + (e.gross_amount ?? 0), 0) * (1 - platformRate);
+    const rawTotalNet =
+      rawEarnings.reduce((s, e) => s + (e.gross_amount ?? 0), 0) *
+      (1 - platformRate);
     const totalAllocated = payouts
       .filter((p) => p.status !== "failed")
       .reduce((s, p) => s + p.amount, 0);
     const availableForPayout = Math.max(0, rawTotalNet - totalAllocated);
 
-    setSummary({ totalGross, totalCommission, totalNet, thisMonthNet, pendingAmount, commissionRate: Math.round(platformRate * 100), availableForPayout });
+    setSummary({
+      totalGross,
+      totalCommission,
+      totalNet,
+      thisMonthNet,
+      pendingAmount,
+      commissionRate: Math.round(platformRate * 100),
+      availableForPayout,
+    });
     setWeeklyEarnings(buildWeeklyEarnings(filtered, platformRate).slice(0, 12));
-    setMonthlyEarnings(buildMonthlyEarnings(filtered, platformRate).slice(0, 12));
+    setMonthlyEarnings(
+      buildMonthlyEarnings(filtered, platformRate).slice(0, 12),
+    );
   }, [rawEarnings, dateRange, payouts, platformRate]);
 
   // ── Data fetch ────────────────────────────────────────────────────────────
@@ -326,20 +365,27 @@ const PartnerPayouts = () => {
       const [earningsRes, payoutsRes, bankRes] = await Promise.all([
         supabase
           .from("partner_earnings")
-          .select("gross_amount, platform_fee, net_amount, delivery_fee, created_at, order_id")
+          .select(
+            "gross_amount, platform_fee, net_amount, delivery_fee, created_at, order_id",
+          )
           .eq("restaurant_id", restaurant.id)
           .order("created_at", { ascending: false }),
         supabase
           .from("partner_payouts")
-          .select("id, amount, status, period_start, period_end, processed_at, created_at, reference_number, payout_method")
+          .select(
+            "id, amount, status, period_start, period_end, processed_at, created_at, reference_number, payout_method",
+          )
           .eq("restaurant_id", restaurant.id)
           .order("created_at", { ascending: false }),
         // payout_frequency added via migration — select * to include it without type errors
-        (supabase
+        supabase
           .from("restaurant_details")
           .select("*")
           .eq("restaurant_id", restaurant.id)
-          .maybeSingle() as unknown as Promise<{ data: Record<string, unknown> | null; error: unknown }>),
+          .maybeSingle() as unknown as Promise<{
+          data: Record<string, unknown> | null;
+          error: unknown;
+        }>,
       ]);
 
       setRawEarnings(earningsRes.data || []);
@@ -369,7 +415,9 @@ const PartnerPayouts = () => {
     try {
       const now = new Date();
       const periodEnd = now.toISOString().split("T")[0];
-      const periodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const periodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
       const { error } = await supabase.from("partner_payouts").insert({
         restaurant_id: restaurantId,
         amount: summary.availableForPayout,
@@ -379,7 +427,9 @@ const PartnerPayouts = () => {
         payout_method: "bank_transfer",
       });
       if (error) throw error;
-      toast.success("Payout request submitted. The admin team will process it within 3–5 business days.");
+      toast.success(
+        "Payout request submitted. The admin team will process it within 3-5 business days.",
+      );
       setShowPayoutDialog(false);
       fetchPayoutData();
     } catch {
@@ -404,7 +454,9 @@ const PartnerPayouts = () => {
       };
       const { error } = await (supabase
         .from("restaurant_details")
-        .upsert(upsertData as never, { onConflict: "restaurant_id" }) as unknown as Promise<{ error: unknown }>);
+        .upsert(upsertData as never, {
+          onConflict: "restaurant_id",
+        }) as unknown as Promise<{ error: unknown }>);
       if (error) throw error;
       toast.success("Bank details saved successfully.");
       setBankEditing(false);
@@ -426,34 +478,23 @@ const PartnerPayouts = () => {
 
   // ── Derived display values ─────────────────────────────────────────────────
 
-  const isBankConfigured = !!(bankDetails.bank_name && bankDetails.bank_account_number);
+  const isBankConfigured = !!(
+    bankDetails.bank_name && bankDetails.bank_account_number
+  );
 
-  const chartData = [...weeklyEarnings].reverse().slice(-8).map((w) => ({
-    label: new Date(w.week_start + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    net: parseFloat(w.net_amount.toFixed(2)),
-    gross: parseFloat(w.gross_amount.toFixed(2)),
-  }));
+  const chartData = [...weeklyEarnings]
+    .reverse()
+    .slice(-8)
+    .map((w) => ({
+      label: new Date(w.week_start + "T00:00:00").toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      net: parseFloat(w.net_amount.toFixed(2)),
+      gross: parseFloat(w.gross_amount.toFixed(2)),
+    }));
 
   // ── Status helpers ────────────────────────────────────────────────────────
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed": return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "processing": return <Clock className="h-4 w-4 text-amber-500" />;
-      default: return <Clock className="h-4 w-4 text-blue-500" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed": return "bg-green-500/10 text-green-600 border-green-500/20";
-      case "processing": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
-      case "failed": return "bg-red-500/10 text-red-600 border-red-500/20";
-      default: return "bg-blue-500/10 text-blue-600 border-blue-500/20";
-    }
-  };
-
-  // ── Breakdown row renderer (shared for weekly + monthly) ──────────────────
 
   const renderBreakdownRow = (
     key: string,
@@ -461,67 +502,98 @@ const PartnerPayouts = () => {
     gross: number,
     commission: number,
     net: number,
-    orders: EarningRow[]
+    orders: EarningRow[],
   ) => {
     const isExpanded = expandedRows.has(key);
     return (
-      <div key={key} className="rounded-lg bg-muted/50 overflow-hidden">
-        <div className="p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />
-              <span>{dateLabel}</span>
+      <div
+        key={key}
+        className="overflow-hidden rounded-[22px] border border-[#E5EAF1] bg-white shadow-sm"
+      >
+        <div className="space-y-4 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">
+                <Calendar className="h-3.5 w-3.5 text-[#7C83F6]" />
+                {dateLabel}
+              </div>
+              <p className="mt-1 text-sm font-semibold text-[#020617]">
+                {formatCurrency(net)} net settlement
+              </p>
             </div>
             <button
               onClick={() => toggleRow(key)}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="flex min-h-10 items-center gap-1 rounded-full border border-[#E5EAF1] bg-[#F6F8FB] px-3 text-xs font-bold text-[#020617] transition hover:border-[#020617]"
             >
-              {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {isExpanded ? (
+                <ChevronUp className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" />
+              )}
               {orders.length} {orders.length === 1 ? "order" : "orders"}
             </button>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="text-center flex-1 min-w-[80px]">
-              <p className="text-xs text-muted-foreground">Gross</p>
-              <p className="font-semibold text-sm">{formatCurrency(gross)}</p>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-[#F6F8FB] p-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#94A3B8]">
+                Gross
+              </p>
+              <p className="mt-1 text-sm font-black text-[#020617]">
+                {formatCurrency(gross)}
+              </p>
             </div>
-            <Minus className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-            <div className="text-center flex-1 min-w-[80px]">
-              <p className="text-xs text-muted-foreground">Commission ({summary.commissionRate}%)</p>
-              <p className="font-semibold text-sm text-destructive">{formatCurrency(commission)}</p>
+            <div className="rounded-2xl bg-[#FB6B7A]/10 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#FB6B7A]">
+                Fee {summary.commissionRate}%
+              </p>
+              <p className="mt-1 text-sm font-black text-[#020617]">
+                -{formatCurrency(commission)}
+              </p>
             </div>
-            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-            <div className="text-center flex-1 min-w-[80px]">
-              <p className="text-xs text-muted-foreground">Your Earnings</p>
-              <p className="font-semibold text-sm text-green-600">{formatCurrency(net)}</p>
+            <div className="rounded-2xl bg-[#22C7A1]/10 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#0B9B7E]">
+                Net
+              </p>
+              <p className="mt-1 text-sm font-black text-[#020617]">
+                {formatCurrency(net)}
+              </p>
             </div>
           </div>
         </div>
 
         {isExpanded && (
-          <div className="border-t border-border/50 bg-background/50">
+          <div className="border-t border-[#E5EAF1] bg-[#F6F8FB]">
             {orders.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">No orders in this period</p>
+              <p className="py-4 text-center text-xs font-medium text-[#94A3B8]">
+                No orders in this period
+              </p>
             ) : (
-              <div className="divide-y divide-border/30">
+              <div className="divide-y divide-[#E5EAF1]">
                 {orders.map((o, i) => (
-                  <div key={i} className="flex items-center justify-between px-4 py-2.5 text-xs">
-                    <div>
-                      <span className="text-muted-foreground">Order </span>
-                      <span className="font-mono">
-                        {o.order_id ? o.order_id.slice(0, 8) + "…" : "—"}
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-3 px-4 py-3 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <span className="text-[#94A3B8]">Order </span>
+                      <span className="font-mono font-bold text-[#020617]">
+                        {o.order_id ? `${o.order_id.slice(0, 8)}...` : "-"}
                       </span>
                       {o.created_at && (
-                        <span className="ml-2 text-muted-foreground">
+                        <span className="ml-2 text-[#94A3B8]">
                           {new Date(o.created_at).toLocaleDateString()}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-muted-foreground">{formatCurrency(o.gross_amount ?? 0)}</span>
-                      <span className="text-green-600 font-medium">
-                        {formatCurrency((o.gross_amount ?? 0) * (1 - platformRate))}
+                    <div className="flex shrink-0 items-center gap-3 font-bold">
+                      <span className="text-[#94A3B8]">
+                        {formatCurrency(o.gross_amount ?? 0)}
+                      </span>
+                      <span className="text-[#0B9B7E]">
+                        {formatCurrency(
+                          (o.gross_amount ?? 0) * (1 - platformRate),
+                        )}
                       </span>
                     </div>
                   </div>
@@ -534,446 +606,687 @@ const PartnerPayouts = () => {
     );
   };
 
-  // ── Status config for payout history items ───────────────────────────────
-
-  const statusConfig: Record<string, { label: string; border: string; badge: string; dotColor: string }> = {
+  const statusConfig: Record<
+    string,
+    { label: string; border: string; badge: string; dotColor: string }
+  > = {
     completed: {
       label: "Completed",
-      border: "border-l-emerald-500",
-      badge: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-      dotColor: "bg-emerald-500",
+      border: "border-l-[#22C7A1]",
+      badge: "border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#0B9B7E]",
+      dotColor: "bg-[#22C7A1]",
+    },
+    paid: {
+      label: "Paid",
+      border: "border-l-[#22C7A1]",
+      badge: "border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#0B9B7E]",
+      dotColor: "bg-[#22C7A1]",
     },
     processing: {
       label: "Processing",
-      border: "border-l-blue-500",
-      badge: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-      dotColor: "bg-blue-500",
+      border: "border-l-[#F97316]",
+      badge: "border-[#F97316]/25 bg-[#F97316]/10 text-[#F97316]",
+      dotColor: "bg-[#F97316]",
     },
     pending: {
       label: "Pending",
-      border: "border-l-amber-400",
-      badge: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-      dotColor: "bg-amber-400",
+      border: "border-l-[#38BDF8]",
+      badge: "border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#0284C7]",
+      dotColor: "bg-[#38BDF8]",
     },
     failed: {
       label: "Failed",
-      border: "border-l-red-500",
-      badge: "bg-red-500/10 text-red-600 border-red-500/20",
-      dotColor: "bg-red-500",
+      border: "border-l-[#FB6B7A]",
+      badge: "border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#FB6B7A]",
+      dotColor: "bg-[#FB6B7A]",
     },
   };
-
-  // ── Loading state ─────────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <PartnerLayout title="Payouts">
-        <div className="space-y-4">
-          <Skeleton className="h-36 w-full rounded-2xl" />
-          <div className="flex gap-2">
-            <Skeleton className="h-9 w-48 rounded-lg" />
-            <Skeleton className="h-9 w-32 rounded-lg ml-auto" />
+        <div className="-m-6 min-h-screen bg-[#F6F8FB] p-4 sm:p-6">
+          <div className="mx-auto max-w-7xl space-y-4">
+            <Skeleton className="h-48 w-full rounded-[28px] bg-white" />
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Skeleton className="h-24 rounded-[22px] bg-white" />
+              <Skeleton className="h-24 rounded-[22px] bg-white" />
+              <Skeleton className="h-24 rounded-[22px] bg-white" />
+              <Skeleton className="h-24 rounded-[22px] bg-white" />
+            </div>
+            <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+              <Skeleton className="h-80 rounded-[26px] bg-white" />
+              <Skeleton className="h-80 rounded-[26px] bg-white" />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
-          <Skeleton className="h-52 w-full" />
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <Skeleton className="h-64 lg:col-span-3" />
-            <Skeleton className="h-64 lg:col-span-2" />
-          </div>
-          <Skeleton className="h-64 w-full" />
         </div>
       </PartnerLayout>
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
-    <PartnerLayout title="Payouts" subtitle="Track your earnings and manage payouts">
-      <div className="space-y-6">
+    <PartnerLayout
+      title="Payouts"
+      subtitle="Track earnings, bank setup, and settlement history"
+    >
+      <div className="-m-6 min-h-screen bg-[#F6F8FB] p-4 text-[#020617] sm:p-6">
+        <div className="mx-auto max-w-7xl space-y-4">
+          <section className="overflow-hidden rounded-[30px] border border-[#E5EAF1] bg-white shadow-sm">
+            <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="space-y-5 p-5 sm:p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-[#7C83F6]/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#7C83F6]">
+                      <Wallet className="h-3.5 w-3.5" />
+                      Settlement center
+                    </div>
+                    <h1 className="mt-3 text-2xl font-black tracking-tight text-[#020617] sm:text-3xl">
+                      Partner payouts
+                    </h1>
+                    <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-[#64748B]">
+                      Review net earnings, request transfers, and keep bank
+                      details ready for the next settlement cycle.
+                    </p>
+                  </div>
+                  <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#22C7A1]/10 text-[#0B9B7E] sm:flex">
+                    <DollarSign className="h-6 w-6" />
+                  </div>
+                </div>
 
-        {/* ── Hero: Available for Payout ───────────────────────────────────── */}
-        <div className="rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/80 p-6 text-primary-foreground shadow-lg">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div>
-              <p className="text-primary-foreground/70 text-sm font-medium mb-1">Available for Payout</p>
-              <p className="text-4xl font-bold tracking-tight">{formatCurrency(summary.availableForPayout)}</p>
-              {summary.pendingAmount > 0 && (
-                <p className="text-primary-foreground/60 text-xs mt-1.5 flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatCurrency(summary.pendingAmount)} pending processing
-                </p>
-              )}
-              {!isBankConfigured && (
-                <p className="text-amber-200 text-xs mt-1.5 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Set up bank account below to request payouts
-                </p>
-              )}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                      Gross
+                    </p>
+                    <p className="mt-1 text-lg font-black text-[#020617]">
+                      {formatCurrency(summary.totalGross)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-[#FB6B7A]/20 bg-[#FB6B7A]/10 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#FB6B7A]">
+                      Fee {summary.commissionRate}%
+                    </p>
+                    <p className="mt-1 text-lg font-black text-[#020617]">
+                      -{formatCurrency(summary.totalCommission)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-[#22C7A1]/20 bg-[#22C7A1]/10 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#0B9B7E]">
+                      Net
+                    </p>
+                    <p className="mt-1 text-lg font-black text-[#020617]">
+                      {formatCurrency(summary.totalNet)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-[#38BDF8]/20 bg-[#38BDF8]/10 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#0284C7]">
+                      This month
+                    </p>
+                    <p className="mt-1 text-lg font-black text-[#020617]">
+                      {formatCurrency(summary.thisMonthNet)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[#020617] p-5 text-white sm:p-6">
+                <div className="flex h-full flex-col justify-between gap-6 rounded-[24px] border border-white/10 bg-white/5 p-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/55">
+                      Available for payout
+                    </p>
+                    <p className="mt-3 text-4xl font-black tracking-tight">
+                      {formatCurrency(summary.availableForPayout)}
+                    </p>
+                    <div className="mt-4 space-y-2 text-sm font-semibold text-white/70">
+                      {summary.pendingAmount > 0 && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-[#F97316]" />
+                          {formatCurrency(summary.pendingAmount)} pending
+                          processing
+                        </div>
+                      )}
+                      {!isBankConfigured && (
+                        <div className="flex items-start gap-2 text-[#F97316]">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                          Set up bank account below before requesting a payout.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    size="lg"
+                    className="min-h-12 rounded-2xl bg-white font-black text-[#020617] hover:bg-white/90"
+                    disabled={
+                      summary.availableForPayout <= 0 || !isBankConfigured
+                    }
+                    onClick={() => setShowPayoutDialog(true)}
+                  >
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Request payout
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-3 rounded-[24px] border border-[#E5EAF1] bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="grid grid-cols-4 gap-1 rounded-2xl bg-[#F6F8FB] p-1">
+              {DATE_RANGE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setDateRange(opt.value)}
+                  className={`min-h-10 rounded-xl px-3 text-xs font-black transition ${
+                    dateRange === opt.value
+                      ? "bg-[#020617] text-white shadow-sm"
+                      : "text-[#64748B] hover:text-[#020617]"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
             <Button
-              size="lg"
-              variant="secondary"
-              className="shrink-0 font-semibold"
-              disabled={summary.availableForPayout <= 0 || !isBankConfigured}
-              onClick={() => setShowPayoutDialog(true)}
+              variant="outline"
+              className="min-h-11 rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
+              onClick={() =>
+                exportToCsv(
+                  filterByDateRange(rawEarnings, dateRange),
+                  platformRate,
+                )
+              }
+              disabled={rawEarnings.length === 0}
             >
-              <Wallet className="h-4 w-4 mr-2" />
-              Request Payout
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
             </Button>
-          </div>
+          </section>
 
-          {/* Inline earnings summary */}
-          <div className="mt-5 pt-4 border-t border-primary-foreground/20 grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-xs text-primary-foreground/60 mb-0.5">Gross Revenue</p>
-              <p className="font-semibold text-sm sm:text-base">{formatCurrency(summary.totalGross)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-primary-foreground/60 mb-0.5">Fee ({summary.commissionRate}%)</p>
-              <p className="font-semibold text-sm sm:text-base text-red-200">−{formatCurrency(summary.totalCommission)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-primary-foreground/60 mb-0.5">Net Earnings</p>
-              <p className="font-semibold text-sm sm:text-base text-green-200">{formatCurrency(summary.totalNet)}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Date filter + secondary stats ────────────────────────────────── */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Segmented pill control */}
-          <div className="flex items-center bg-muted rounded-lg p-1 gap-0.5">
-            {DATE_RANGE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setDateRange(opt.value)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                  dateRange === opt.value
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          {/* This month callout */}
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              <span>This month:</span>
-              <span className="font-semibold text-foreground">{formatCurrency(summary.thisMonthNet)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Earnings trend chart ──────────────────────────────────────────── */}
-        {chartData.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
+          <section className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
+            <div className="rounded-[28px] border border-[#E5EAF1] bg-white p-5 shadow-sm">
+              <div className="mb-5 flex items-start justify-between gap-3">
                 <div>
-                  <CardTitle className="text-base">Weekly Earnings Trend</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">{RANGE_LABELS[dateRange]} · Net vs Gross</p>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7C83F6]">
+                    Earnings trend
+                  </p>
+                  <h2 className="mt-1 text-xl font-black tracking-tight text-[#020617]">
+                    Weekly net performance
+                  </h2>
+                  <p className="mt-1 text-sm font-medium text-[#94A3B8]">
+                    {RANGE_LABELS[dateRange]} view, net compared with gross
+                    revenue.
+                  </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground h-8 text-xs"
-                  onClick={() => exportToCsv(filterByDateRange(rawEarnings, dateRange), platformRate)}
-                  disabled={rawEarnings.length === 0}
-                >
-                  <Download className="h-3.5 w-3.5 mr-1.5" />
-                  Export CSV
-                </Button>
+                <div className="rounded-2xl bg-[#22C7A1]/10 p-3 text-[#0B9B7E]">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
               </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis
-                    tickFormatter={(v) => `${v}`}
-                    tick={{ fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                    width={52}
-                  />
-                  <Tooltip
-                    formatter={(value: number, name: string) => [
-                      formatCurrency(value),
-                      name === "net" ? "Net Earnings" : "Gross Revenue",
-                    ]}
-                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                    cursor={{ fill: "hsl(var(--muted))" }}
-                  />
-                  <Bar dataKey="gross" fill="hsl(var(--muted-foreground)/0.15)" radius={[3, 3, 0, 0]} name="gross" />
-                  <Bar dataKey="net" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} name="net" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* ── Payout history + Bank account (side by side on desktop) ──────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 6, right: 4, left: 0, bottom: 4 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#E5EAF1"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: "#94A3B8", fontWeight: 700 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => `${v}`}
+                      tick={{ fontSize: 11, fill: "#94A3B8", fontWeight: 700 }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={52}
+                    />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [
+                        formatCurrency(value),
+                        name === "net" ? "Net earnings" : "Gross revenue",
+                      ]}
+                      contentStyle={{
+                        fontSize: 12,
+                        borderRadius: 16,
+                        borderColor: "#E5EAF1",
+                        color: "#020617",
+                      }}
+                      cursor={{ fill: "#F6F8FB" }}
+                    />
+                    <Bar
+                      dataKey="gross"
+                      fill="#E5EAF1"
+                      radius={[6, 6, 0, 0]}
+                      name="gross"
+                    />
+                    <Bar
+                      dataKey="net"
+                      fill="#22C7A1"
+                      radius={[6, 6, 0, 0]}
+                      name="net"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-64 flex-col items-center justify-center rounded-[24px] border border-dashed border-[#E5EAF1] bg-[#F6F8FB] text-center">
+                  <TrendingUp className="mb-3 h-8 w-8 text-[#94A3B8]" />
+                  <p className="text-sm font-bold text-[#020617]">
+                    No earnings in this range
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-[#94A3B8]">
+                    Completed orders will build your weekly trend.
+                  </p>
+                </div>
+              )}
+            </div>
 
-          {/* Payout History — 3/5 width */}
-          <Card className="lg:col-span-3">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Payout History</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2.5">
+            <div className="rounded-[28px] border border-[#E5EAF1] bg-white p-5 shadow-sm">
+              <div className="mb-5 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7C83F6]">
+                    History
+                  </p>
+                  <h2 className="mt-1 text-xl font-black tracking-tight text-[#020617]">
+                    Payout requests
+                  </h2>
+                </div>
+                <Badge className="rounded-full border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] hover:bg-[#F6F8FB]">
+                  {payouts.length} records
+                </Badge>
+              </div>
+
               {payouts.length === 0 ? (
-                <div className="text-center py-10">
-                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-                    <Wallet className="h-5 w-5 text-muted-foreground/60" />
+                <div className="rounded-[24px] border border-dashed border-[#E5EAF1] bg-[#F6F8FB] p-8 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#94A3B8]">
+                    <Wallet className="h-5 w-5" />
                   </div>
-                  <p className="text-sm text-muted-foreground">No payout requests yet</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {summary.availableForPayout > 0
-                      ? "Use the 'Request Payout' button above to get started"
-                      : "Earnings will appear here once you have completed orders"}
+                  <p className="text-sm font-black text-[#020617]">
+                    No payout requests yet
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-[#94A3B8]">
+                    Request history appears here after your first transfer.
                   </p>
                 </div>
               ) : (
-                payouts.map((payout) => {
-                  const cfg = statusConfig[payout.status] ?? statusConfig.pending;
-                  return (
-                    <div
-                      key={payout.id}
-                      className={`flex items-center gap-4 p-3.5 rounded-lg bg-muted/40 border-l-[3px] ${cfg.border}`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-semibold text-sm">{formatCurrency(payout.amount)}</p>
-                          <Badge variant="outline" className={`text-xs shrink-0 ${cfg.badge}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${cfg.dotColor}`} />
+                <div className="space-y-3">
+                  {payouts.map((payout) => {
+                    const cfg =
+                      statusConfig[payout.status] - statusConfig.pending;
+                    return (
+                      <div
+                        key={payout.id}
+                        className={`rounded-[22px] border border-[#E5EAF1] border-l-4 ${cfg.border} bg-[#F6F8FB] p-4`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-lg font-black text-[#020617]">
+                              {formatCurrency(payout.amount)}
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-[#94A3B8]">
+                              {new Date(
+                                payout.period_start,
+                              ).toLocaleDateString()}{" "}
+                              -{" "}
+                              {new Date(payout.period_end).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={`rounded-full font-black ${cfg.badge}`}
+                          >
+                            <span
+                              className={`mr-1.5 h-1.5 w-1.5 rounded-full ${cfg.dotColor}`}
+                            />
                             {cfg.label}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>
-                            {new Date(payout.period_start).toLocaleDateString()} –{" "}
-                            {new Date(payout.period_end).toLocaleDateString()}
-                          </span>
-                        </div>
                         {(payout.reference_number || payout.payout_method) && (
-                          <div className="flex items-center gap-3 mt-1">
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-[#64748B]">
                             {payout.payout_method && (
-                              <span className="text-xs text-muted-foreground capitalize">
+                              <span>
                                 {payout.payout_method.replace(/_/g, " ")}
                               </span>
                             )}
                             {payout.reference_number && (
-                              <span className="text-xs font-mono text-muted-foreground">
+                              <span className="font-mono">
                                 Ref: {payout.reference_number}
                               </span>
                             )}
                           </div>
                         )}
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
-          {/* Bank Account — 2/5 width */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base">Bank Account</CardTitle>
+          <section className="grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
+            <div className="rounded-[28px] border border-[#E5EAF1] bg-white p-5 shadow-sm">
+              <div className="mb-5 flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#38BDF8]/10 text-[#0284C7]">
+                    <Building2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7C83F6]">
+                      Bank account
+                    </p>
+                    <h2 className="mt-1 text-xl font-black tracking-tight text-[#020617]">
+                      Transfer details
+                    </h2>
+                  </div>
                 </div>
                 {!bankEditing ? (
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setBankEditing(true)}>
+                  <Button
+                    variant="outline"
+                    className="rounded-2xl border-[#E5EAF1] font-black text-[#020617]"
+                    onClick={() => setBankEditing(true)}
+                  >
                     {isBankConfigured ? "Edit" : "Set up"}
                   </Button>
                 ) : (
-                  <div className="flex gap-1.5">
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setBankEditing(false)}>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="rounded-2xl border-[#E5EAF1]"
+                      onClick={() => setBankEditing(false)}
+                    >
                       Cancel
                     </Button>
-                    <Button size="sm" className="h-7 text-xs" onClick={handleSaveBank} disabled={bankSaving}>
-                      {bankSaving ? "Saving…" : "Save"}
+                    <Button
+                      className="rounded-2xl bg-[#020617] font-black text-white hover:bg-[#020617]/90"
+                      onClick={handleSaveBank}
+                      disabled={bankSaving}
+                    >
+                      {bankSaving ? "Saving..." : "Save"}
                     </Button>
                   </div>
                 )}
               </div>
+
               {!isBankConfigured && !bankEditing && (
-                <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-md px-2.5 py-1.5 mt-2">
-                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                  Not configured — required for payouts
+                <div className="mb-4 flex items-start gap-2 rounded-2xl border border-[#F97316]/25 bg-[#F97316]/10 p-3 text-xs font-bold text-[#F97316]">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  Add bank details to enable payout requests.
                 </div>
               )}
-            </CardHeader>
 
-            <CardContent>
               {bankEditing ? (
                 <div className="space-y-3">
                   {[
-                    { id: "bank_name", label: "Bank Name", placeholder: "e.g. Qatar National Bank", field: "bank_name" as keyof BankDetails },
-                    { id: "bank_account_name", label: "Account Holder", placeholder: "As on the account", field: "bank_account_name" as keyof BankDetails },
-                    { id: "bank_account_number", label: "Account Number", placeholder: "Account number", field: "bank_account_number" as keyof BankDetails },
-                    { id: "bank_iban", label: "IBAN", placeholder: "QA...", field: "bank_iban" as keyof BankDetails },
-                    { id: "swift_code", label: "SWIFT / BIC", placeholder: "e.g. QNBAQAQA", field: "swift_code" as keyof BankDetails },
+                    {
+                      id: "bank_name",
+                      label: "Bank Name",
+                      placeholder: "e.g. Qatar National Bank",
+                      field: "bank_name" as keyof BankDetails,
+                    },
+                    {
+                      id: "bank_account_name",
+                      label: "Account Holder",
+                      placeholder: "As on the account",
+                      field: "bank_account_name" as keyof BankDetails,
+                    },
+                    {
+                      id: "bank_account_number",
+                      label: "Account Number",
+                      placeholder: "Account number",
+                      field: "bank_account_number" as keyof BankDetails,
+                    },
+                    {
+                      id: "bank_iban",
+                      label: "IBAN",
+                      placeholder: "QA...",
+                      field: "bank_iban" as keyof BankDetails,
+                    },
+                    {
+                      id: "swift_code",
+                      label: "SWIFT / BIC",
+                      placeholder: "e.g. QNBAQAQA",
+                      field: "swift_code" as keyof BankDetails,
+                    },
                   ].map(({ id, label, placeholder, field }) => (
-                    <div key={id} className="space-y-1">
-                      <Label htmlFor={id} className="text-xs">{label}</Label>
+                    <div key={id} className="space-y-1.5">
+                      <Label
+                        htmlFor={id}
+                        className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]"
+                      >
+                        {label}
+                      </Label>
                       <Input
                         id={id}
                         value={bankDetails[field]}
-                        onChange={(e) => setBankDetails((prev) => ({ ...prev, [field]: e.target.value }))}
+                        onChange={(e) =>
+                          setBankDetails((prev) => ({
+                            ...prev,
+                            [field]: e.target.value,
+                          }))
+                        }
                         placeholder={placeholder}
-                        className="h-8 text-sm"
+                        className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617]"
                       />
                     </div>
                   ))}
-                  <div className="space-y-1">
-                    <Label htmlFor="payout_frequency" className="text-xs">Payout Schedule</Label>
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="payout_frequency"
+                      className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]"
+                    >
+                      Payout Schedule
+                    </Label>
                     <Select
                       value={bankDetails.payout_frequency}
-                      onValueChange={(v) => setBankDetails((prev) => ({ ...prev, payout_frequency: v }))}
+                      onValueChange={(v) =>
+                        setBankDetails((prev) => ({
+                          ...prev,
+                          payout_frequency: v,
+                        }))
+                      }
                     >
-                      <SelectTrigger id="payout_frequency" className="h-8 text-sm">
+                      <SelectTrigger
+                        id="payout_frequency"
+                        className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617]"
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {PAYOUT_FREQUENCY_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2.5 text-sm">
+                <div className="space-y-2.5">
                   {[
                     { label: "Bank", value: bankDetails.bank_name },
                     { label: "Holder", value: bankDetails.bank_account_name },
                     {
                       label: "Account",
                       value: bankDetails.bank_account_number
-                        ? "••••" + bankDetails.bank_account_number.slice(-4)
+                        ? "****" + bankDetails.bank_account_number.slice(-4)
                         : "",
                     },
                     {
                       label: "IBAN",
-                      value: bankDetails.bank_iban ? "••••" + bankDetails.bank_iban.slice(-4) : "",
+                      value: bankDetails.bank_iban
+                        ? "****" + bankDetails.bank_iban.slice(-4)
+                        : "",
                     },
                     { label: "SWIFT", value: bankDetails.swift_code },
                     {
                       label: "Schedule",
-                      value: PAYOUT_FREQUENCY_OPTIONS.find((o) => o.value === bankDetails.payout_frequency)?.label ?? bankDetails.payout_frequency,
+                      value:
+                        PAYOUT_FREQUENCY_OPTIONS.find(
+                          (o) => o.value === bankDetails.payout_frequency,
+                        )?.label ?? bankDetails.payout_frequency,
                     },
                   ].map(({ label, value }) => (
-                    <div key={label} className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-xs w-16 shrink-0">{label}</span>
-                      <span className={value ? "font-medium text-sm" : "text-muted-foreground italic text-xs"}>
+                    <div
+                      key={label}
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] px-4 py-3"
+                    >
+                      <span className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                        {label}
+                      </span>
+                      <span
+                        className={
+                          value
+                            ? "text-right text-sm font-black text-[#020617]"
+                            : "text-right text-xs font-bold italic text-[#94A3B8]"
+                        }
+                      >
                         {value || "Not set"}
                       </span>
                     </div>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
 
-        {/* ── Earnings Breakdown (weekly/monthly tabs + drill-down) ─────────── */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Earnings Breakdown</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="weekly">
-              <TabsList className="mb-4 h-8">
-                <TabsTrigger value="weekly" className="text-xs">Weekly</TabsTrigger>
-                <TabsTrigger value="monthly" className="text-xs">Monthly</TabsTrigger>
-              </TabsList>
+            <div className="rounded-[28px] border border-[#E5EAF1] bg-white p-5 shadow-sm">
+              <div className="mb-5 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7C83F6]">
+                    Breakdown
+                  </p>
+                  <h2 className="mt-1 text-xl font-black tracking-tight text-[#020617]">
+                    Earnings details
+                  </h2>
+                </div>
+              </div>
 
-              <TabsContent value="weekly" className="space-y-2.5">
-                {weeklyEarnings.length === 0 ? (
-                  <div className="text-center py-10">
-                    <TrendingUp className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
-                    <p className="text-sm text-muted-foreground">No earnings in this period</p>
-                  </div>
-                ) : (
-                  weeklyEarnings.map((week) => {
-                    const orders = rawEarnings.filter((e) => {
-                      if (!e.created_at) return false;
-                      const d = new Date(e.created_at);
-                      return (
-                        d >= new Date(week.week_start + "T00:00:00") &&
-                        d <= new Date(week.week_end + "T23:59:59")
+              <Tabs defaultValue="weekly">
+                <TabsList className="mb-4 grid h-12 grid-cols-2 rounded-2xl bg-[#F6F8FB] p-1">
+                  <TabsTrigger
+                    value="weekly"
+                    className="rounded-xl text-xs font-black data-[state=active]:bg-[#020617] data-[state=active]:text-white"
+                  >
+                    Weekly
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="monthly"
+                    className="rounded-xl text-xs font-black data-[state=active]:bg-[#020617] data-[state=active]:text-white"
+                  >
+                    Monthly
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="weekly" className="space-y-3">
+                  {weeklyEarnings.length === 0 ? (
+                    <div className="rounded-[24px] border border-dashed border-[#E5EAF1] bg-[#F6F8FB] p-10 text-center">
+                      <TrendingUp className="mx-auto mb-3 h-8 w-8 text-[#94A3B8]" />
+                      <p className="text-sm font-bold text-[#020617]">
+                        No earnings in this period
+                      </p>
+                    </div>
+                  ) : (
+                    weeklyEarnings.map((week) => {
+                      const orders = rawEarnings.filter((e) => {
+                        if (!e.created_at) return false;
+                        const d = new Date(e.created_at);
+                        return (
+                          d >= new Date(week.week_start + "T00:00:00") &&
+                          d <= new Date(week.week_end + "T23:59:59")
+                        );
+                      });
+                      const dateLabel = `${new Date(week.week_start + "T00:00:00").toLocaleDateString()} - ${new Date(week.week_end + "T00:00:00").toLocaleDateString()}`;
+                      return renderBreakdownRow(
+                        week.week_start,
+                        dateLabel,
+                        week.gross_amount,
+                        week.platform_fee,
+                        week.net_amount,
+                        orders,
                       );
-                    });
-                    const dateLabel = `${new Date(week.week_start + "T00:00:00").toLocaleDateString()} – ${new Date(week.week_end + "T00:00:00").toLocaleDateString()}`;
-                    return renderBreakdownRow(week.week_start, dateLabel, week.gross_amount, week.platform_fee, week.net_amount, orders);
-                  })
-                )}
-              </TabsContent>
+                    })
+                  )}
+                </TabsContent>
 
-              <TabsContent value="monthly" className="space-y-2.5">
-                {monthlyEarnings.length === 0 ? (
-                  <div className="text-center py-10">
-                    <TrendingUp className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
-                    <p className="text-sm text-muted-foreground">No earnings in this period</p>
-                  </div>
-                ) : (
-                  monthlyEarnings.map((month) => {
-                    const orders = rawEarnings.filter((e) => {
-                      if (!e.created_at) return false;
-                      const d = new Date(e.created_at);
-                      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-                      return key === month.month_key;
-                    });
-                    return renderBreakdownRow(month.month_key, month.month_label, month.gross_amount, month.platform_fee, month.net_amount, orders);
-                  })
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-
+                <TabsContent value="monthly" className="space-y-3">
+                  {monthlyEarnings.length === 0 ? (
+                    <div className="rounded-[24px] border border-dashed border-[#E5EAF1] bg-[#F6F8FB] p-10 text-center">
+                      <TrendingUp className="mx-auto mb-3 h-8 w-8 text-[#94A3B8]" />
+                      <p className="text-sm font-bold text-[#020617]">
+                        No earnings in this period
+                      </p>
+                    </div>
+                  ) : (
+                    monthlyEarnings.map((month) => {
+                      const orders = rawEarnings.filter((e) => {
+                        if (!e.created_at) return false;
+                        const d = new Date(e.created_at);
+                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                        return key === month.month_key;
+                      });
+                      return renderBreakdownRow(
+                        month.month_key,
+                        month.month_label,
+                        month.gross_amount,
+                        month.platform_fee,
+                        month.net_amount,
+                        orders,
+                      );
+                    })
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          </section>
+        </div>
       </div>
 
-      {/* ── Payout request dialog ─────────────────────────────────────────────── */}
       <AlertDialog open={showPayoutDialog} onOpenChange={setShowPayoutDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-[28px] border-[#E5EAF1]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Payout Request</AlertDialogTitle>
+            <AlertDialogTitle className="text-[#020617]">
+              Confirm payout request
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-4 text-sm">
-                <div className="rounded-xl bg-muted/60 p-4 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">You are requesting</p>
-                  <p className="text-3xl font-bold text-foreground">{formatCurrency(summary.availableForPayout)}</p>
+                <div className="rounded-[24px] bg-[#F6F8FB] p-4 text-center">
+                  <p className="mb-1 text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    You are requesting
+                  </p>
+                  <p className="text-3xl font-black text-[#020617]">
+                    {formatCurrency(summary.availableForPayout)}
+                  </p>
                   {isBankConfigured && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      via bank transfer to <span className="font-medium text-foreground">{bankDetails.bank_name}</span>
+                    <p className="mt-2 text-xs font-bold text-[#94A3B8]">
+                      via bank transfer to{" "}
+                      <span className="text-[#020617]">
+                        {bankDetails.bank_name}
+                      </span>
                     </p>
                   )}
                 </div>
-                <p className="text-muted-foreground text-xs">
-                  The admin team will review and process your request within 3–5 business days.
+                <p className="text-xs font-medium text-[#94A3B8]">
+                  The admin team will review and process your request within 3-5
+                  business days.
                 </p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRequestPayout} disabled={requestingPayout}>
-              {requestingPayout ? "Submitting…" : "Confirm Request"}
+            <AlertDialogCancel className="rounded-2xl border-[#E5EAF1] font-black">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-2xl bg-[#020617] font-black text-white hover:bg-[#020617]/90"
+              onClick={handleRequestPayout}
+              disabled={requestingPayout}
+            >
+              {requestingPayout ? "Submitting..." : "Confirm request"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

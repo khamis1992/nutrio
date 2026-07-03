@@ -1,14 +1,25 @@
-import { useState, useEffect } from "react";
-import { PartnerLayout } from "@/components/PartnerLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Check, Clock, Zap, Crown, Loader2, Calendar, DollarSign } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { formatCurrency } from "@/lib/currency";
+import { useEffect, useState } from "react";
 import { format, differenceInDays, differenceInHours } from "date-fns";
+import {
+  Calendar,
+  Check,
+  Clock,
+  Crown,
+  DollarSign,
+  Loader2,
+  Search,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PartnerLayout } from "@/components/PartnerLayout";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/currency";
+import { toast } from "sonner";
 
 interface FeaturedListing {
   id: string;
@@ -20,7 +31,7 @@ interface FeaturedListing {
   created_at: string;
 }
 
-interface Package {
+interface BoostPackage {
   type: "weekly" | "biweekly" | "monthly";
   name: string;
   price: number;
@@ -29,27 +40,52 @@ interface Package {
   popular?: boolean;
 }
 
-const defaultPackages: Package[] = [
+const defaultPackages: BoostPackage[] = [
   { type: "weekly", name: "Weekly Boost", price: 49, duration: 7 },
-  { type: "biweekly", name: "Bi-Weekly Boost", price: 89, duration: 14, discount: 10 },
-  { type: "monthly", name: "Monthly Boost", price: 149, duration: 30, discount: 25, popular: true },
+  {
+    type: "biweekly",
+    name: "Bi-Weekly Boost",
+    price: 89,
+    duration: 14,
+    discount: 10,
+  },
+  {
+    type: "monthly",
+    name: "Monthly Boost",
+    price: 149,
+    duration: 30,
+    discount: 25,
+    popular: true,
+  },
 ];
 
 export default function PartnerBoost() {
+  return (
+    <PartnerLayout
+      title="Boost"
+      subtitle="Get featured at the top of search results and attract more customers"
+    >
+      <BoostContent />
+    </PartnerLayout>
+  );
+}
+
+function BoostContent() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
-  const [activeListing, setActiveListing] = useState<FeaturedListing | null>(null);
+  const [activeListing, setActiveListing] = useState<FeaturedListing | null>(
+    null,
+  );
   const [pastListings, setPastListings] = useState<FeaturedListing[]>([]);
-  const [packages, setPackages] = useState<Package[]>(defaultPackages);
+  const [packages, setPackages] = useState<BoostPackage[]>(defaultPackages);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
 
       try {
-        // Fetch restaurant
         const { data: restaurant, error: restaurantError } = await supabase
           .from("restaurants")
           .select("id")
@@ -64,7 +100,6 @@ export default function PartnerBoost() {
 
         setRestaurantId(restaurant.id);
 
-        // Fetch featured listings
         const { data: listings, error: listingsError } = await supabase
           .from("featured_listings")
           .select("*")
@@ -73,21 +108,21 @@ export default function PartnerBoost() {
 
         if (listingsError) throw listingsError;
 
-        // Find active listing
         const now = new Date();
         const active = listings?.find(
-          (l) => l.status === "active" && new Date(l.ends_at) > now
+          (listing) =>
+            listing.status === "active" && new Date(listing.ends_at) > now,
         );
         setActiveListing(active || null);
 
-        // Set past listings
         setPastListings(
           listings?.filter(
-            (l) => l.status === "expired" || (l.status === "active" && new Date(l.ends_at) <= now)
-          ) || []
+            (listing) =>
+              listing.status === "expired" ||
+              (listing.status === "active" && new Date(listing.ends_at) <= now),
+          ) || [],
         );
 
-        // Fetch pricing from platform settings
         const { data: pricingData } = await supabase
           .from("platform_settings")
           .select("value")
@@ -95,11 +130,33 @@ export default function PartnerBoost() {
           .maybeSingle();
 
         if (pricingData?.value) {
-          const prices = pricingData.value as { weekly: number; biweekly: number; monthly: number };
+          const prices = pricingData.value as {
+            weekly: number;
+            biweekly: number;
+            monthly: number;
+          };
           setPackages([
-            { type: "weekly", name: "Weekly Boost", price: prices.weekly || 49, duration: 7 },
-            { type: "biweekly", name: "Bi-Weekly Boost", price: prices.biweekly || 89, duration: 14, discount: 10 },
-            { type: "monthly", name: "Monthly Boost", price: prices.monthly || 149, duration: 30, discount: 25, popular: true },
+            {
+              type: "weekly",
+              name: "Weekly Boost",
+              price: prices.weekly || 49,
+              duration: 7,
+            },
+            {
+              type: "biweekly",
+              name: "Bi-Weekly Boost",
+              price: prices.biweekly || 89,
+              duration: 14,
+              discount: 10,
+            },
+            {
+              type: "monthly",
+              name: "Monthly Boost",
+              price: prices.monthly || 149,
+              duration: 30,
+              discount: 25,
+              popular: true,
+            },
           ]);
         }
       } catch (err) {
@@ -113,7 +170,7 @@ export default function PartnerBoost() {
     fetchData();
   }, [user]);
 
-  const handlePurchase = async (pkg: Package) => {
+  const handlePurchase = async (pkg: BoostPackage) => {
     if (!restaurantId) {
       toast.error("No restaurant found");
       return;
@@ -143,10 +200,12 @@ export default function PartnerBoost() {
       if (error) throw error;
 
       setActiveListing(data);
-      toast.success(`🎉 ${pkg.name} activated! Your restaurant is now featured.`);
+      toast.success(`${pkg.name} activated. Your restaurant is now featured.`);
     } catch (err: unknown) {
       console.error("Error purchasing boost:", err);
-      toast.error(err instanceof Error ? err.message : "Failed to purchase boost");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to purchase boost",
+      );
     } finally {
       setPurchasing(null);
     }
@@ -157,227 +216,355 @@ export default function PartnerBoost() {
     const now = new Date();
     const days = differenceInDays(end, now);
     const hours = differenceInHours(end, now) % 24;
-    
-    if (days > 0) {
-      return `${days}d ${hours}h remaining`;
-    }
+
+    if (days > 0) return `${days}d ${hours}h remaining`;
     return `${hours}h remaining`;
   };
 
   if (loading) {
     return (
-      <PartnerLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="-m-6 min-h-screen bg-[#F6F8FB] p-4 sm:p-6">
+        <div className="mx-auto max-w-6xl space-y-4">
+          <Skeleton className="h-52 rounded-[30px] bg-white" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <Skeleton className="h-72 rounded-[28px] bg-white" />
+            <Skeleton className="h-72 rounded-[28px] bg-white" />
+            <Skeleton className="h-72 rounded-[28px] bg-white" />
+          </div>
         </div>
-      </PartnerLayout>
+      </div>
     );
   }
 
   if (!restaurantId) {
     return (
-      <PartnerLayout>
-        <Card>
-          <CardContent className="p-12 text-center">
-            <h3 className="font-semibold text-lg mb-2">No Restaurant Found</h3>
-            <p className="text-muted-foreground">
-              You need to register a restaurant before you can boost it.
-            </p>
-          </CardContent>
-        </Card>
-      </PartnerLayout>
+      <div className="-m-6 min-h-screen bg-[#F6F8FB] p-4 text-[#020617] sm:p-6">
+        <div className="mx-auto max-w-3xl rounded-[30px] border border-[#E5EAF1] bg-white p-10 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F97316]/10 text-[#F97316]">
+            <Crown className="h-6 w-6" />
+          </div>
+          <h3 className="text-xl font-black text-[#020617]">
+            No Restaurant Found
+          </h3>
+          <p className="mt-2 text-sm font-medium leading-6 text-[#64748B]">
+            You need to register a restaurant before you can boost it.
+          </p>
+        </div>
+      </div>
     );
   }
 
+  const activePackageName = activeListing
+    ? `${activeListing.package_type.charAt(0).toUpperCase()}${activeListing.package_type.slice(1)} Boost`
+    : "No active boost";
+
   return (
-    <PartnerLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            Boost Your Restaurant
-          </h1>
-          <p className="text-muted-foreground">
-            Get featured at the top of search results and attract more customers
-          </p>
-        </div>
-
-        {/* Active Boost Status */}
-        {activeListing && (
-          <Card className="border-primary/50 bg-primary/5">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center">
-                    <Crown className="w-7 h-7 text-primary" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-lg">Currently Featured</p>
-                      <Badge variant="default" className="bg-primary">Active</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {activeListing.package_type.charAt(0).toUpperCase() + activeListing.package_type.slice(1)} package • {getTimeRemaining(activeListing.ends_at)}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Expires</p>
-                  <p className="font-semibold">{format(new Date(activeListing.ends_at), "MMM d, yyyy")}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Pricing Cards */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-3">
-          {packages.map((pkg) => (
-            <Card
-              key={pkg.type}
-              className={`relative ${pkg.popular ? "border-primary shadow-lg" : ""}`}
-            >
-              {pkg.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="bg-primary text-primary-foreground">Most Popular</Badge>
-                </div>
-              )}
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-lg">{pkg.name}</CardTitle>
-                <CardDescription>{pkg.duration} days of featuring</CardDescription>
-              </CardHeader>
-              <CardContent className="text-center space-y-4">
+    <div className="-m-6 min-h-screen bg-[#F6F8FB] p-4 text-[#020617] sm:p-6">
+      <div className="mx-auto max-w-6xl space-y-4">
+        <section className="overflow-hidden rounded-[30px] border border-[#E5EAF1] bg-white shadow-sm">
+          <div className="grid gap-0 lg:grid-cols-[1.06fr_0.94fr]">
+            <div className="space-y-5 p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <span className="text-4xl font-bold">{formatCurrency(pkg.price)}</span>
-                  {pkg.discount && (
-                    <Badge variant="secondary" className="ml-2">
-                      Save {pkg.discount}%
-                    </Badge>
-                  )}
-                </div>
-                
-                <ul className="space-y-2 text-sm text-left">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary" />
-                    Top of search results
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary" />
-                    Featured badge on profile
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary" />
-                    Homepage spotlight
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary" />
-                    Priority in browse section
-                  </li>
-                </ul>
-
-                <Button
-                  className="w-full"
-                  variant={pkg.popular ? "default" : "outline"}
-                  onClick={() => handlePurchase(pkg)}
-                  disabled={!!activeListing || purchasing !== null}
-                >
-                  {purchasing === pkg.type ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : activeListing ? (
-                    "Already Active"
-                  ) : (
-                    <>
-                      <Zap className="h-4 w-4 mr-2" />
-                      Get {pkg.name}
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Benefits Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Why Boost Your Restaurant?</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-3">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                </div>
-                <div>
-                  <p className="font-semibold">3x More Visibility</p>
-                  <p className="text-sm text-muted-foreground">
-                    Featured restaurants get 3x more views on average
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[#7C83F6]/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#7C83F6]">
+                    <Zap className="h-3.5 w-3.5" />
+                    Featured placement
+                  </div>
+                  <h1 className="mt-3 text-2xl font-black tracking-tight text-[#020617] sm:text-3xl">
+                    Boost your restaurant
+                  </h1>
+                  <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-[#64748B]">
+                    Push your restaurant higher in discovery surfaces and make
+                    your profile easier to spot when customers browse meals.
                   </p>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center shrink-0">
-                  <DollarSign className="w-5 h-5 text-warning" />
+                <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#020617] text-white sm:flex">
+                  <Crown className="h-6 w-6" />
                 </div>
-                <div>
-                  <p className="font-semibold">Increase Revenue</p>
-                  <p className="text-sm text-muted-foreground">
-                    Partners report 40% more orders during featured periods
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-2xl border border-[#22C7A1]/20 bg-[#22C7A1]/10 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#0B9B7E]">
+                    Visibility
+                  </p>
+                  <p className="mt-1 text-sm font-black text-[#020617]">
+                    Top search
                   </p>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                  <Crown className="w-5 h-5 text-accent" />
+                <div className="rounded-2xl border border-[#38BDF8]/20 bg-[#38BDF8]/10 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#0284C7]">
+                    Badge
+                  </p>
+                  <p className="mt-1 text-sm font-black text-[#020617]">
+                    Featured
+                  </p>
                 </div>
-                <div>
-                  <p className="font-semibold">Premium Badge</p>
-                  <p className="text-sm text-muted-foreground">
-                    Stand out with a featured badge on your profile
+                <div className="rounded-2xl border border-[#F97316]/20 bg-[#F97316]/10 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#F97316]">
+                    Plans
+                  </p>
+                  <p className="mt-1 text-sm font-black text-[#020617]">
+                    {packages.length}
                   </p>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Past Boosts */}
+            <div className="bg-[#020617] p-5 text-white sm:p-6">
+              <div className="flex h-full flex-col justify-between gap-6 rounded-[24px] border border-white/10 bg-white/5 p-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/55">
+                    Current boost
+                  </p>
+                  <p className="mt-3 text-3xl font-black tracking-tight">
+                    {activePackageName}
+                  </p>
+                  <p className="mt-3 text-sm font-semibold leading-6 text-white/65">
+                    {activeListing
+                      ? `${getTimeRemaining(activeListing.ends_at)}. Expires ${format(new Date(activeListing.ends_at), "MMM d, yyyy")}.`
+                      : "Choose a package below to activate featured placement."}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl bg-white/10 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+                      Status
+                    </p>
+                    <p className="mt-1 text-lg font-black text-white">
+                      {activeListing ? "Active" : "Ready"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-white/10 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+                      History
+                    </p>
+                    <p className="mt-1 text-lg font-black text-white">
+                      {pastListings.length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {activeListing && (
+          <section className="rounded-[28px] border border-[#22C7A1]/25 bg-[#22C7A1]/10 p-5 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#0B9B7E] shadow-sm">
+                  <Crown className="h-7 w-7" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-lg font-black text-[#020617]">
+                      Currently featured
+                    </p>
+                    <Badge className="rounded-full bg-[#22C7A1] font-black text-white hover:bg-[#22C7A1]">
+                      Active
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-sm font-bold text-[#64748B]">
+                    {activePackageName} •{" "}
+                    {getTimeRemaining(activeListing.ends_at)}
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white px-4 py-3 text-left sm:text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                  Expires
+                </p>
+                <p className="mt-1 font-black text-[#020617]">
+                  {format(new Date(activeListing.ends_at), "MMM d, yyyy")}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className="grid gap-4 md:grid-cols-3">
+          {packages.map((pkg) => {
+            const isPurchasing = purchasing === pkg.type;
+            return (
+              <article
+                key={pkg.type}
+                className={`relative overflow-hidden rounded-[28px] border bg-white p-5 shadow-sm ${
+                  pkg.popular
+                    ? "border-[#7C83F6] ring-4 ring-[#7C83F6]/10"
+                    : "border-[#E5EAF1]"
+                }`}
+              >
+                {pkg.popular && (
+                  <div className="absolute right-4 top-4">
+                    <Badge className="rounded-full bg-[#7C83F6] font-black text-white hover:bg-[#7C83F6]">
+                      Most popular
+                    </Badge>
+                  </div>
+                )}
+
+                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#020617] text-white">
+                  <Zap className="h-6 w-6" />
+                </div>
+                <p className="text-xl font-black text-[#020617]">{pkg.name}</p>
+                <p className="mt-1 text-sm font-bold text-[#94A3B8]">
+                  {pkg.duration} days of featuring
+                </p>
+
+                <div className="mt-5 flex items-end gap-2">
+                  <span className="text-4xl font-black tracking-tight text-[#020617]">
+                    {formatCurrency(pkg.price)}
+                  </span>
+                  {pkg.discount && (
+                    <Badge className="mb-1 rounded-full bg-[#F97316]/10 font-black text-[#F97316] hover:bg-[#F97316]/10">
+                      Save {pkg.discount}%
+                    </Badge>
+                  )}
+                </div>
+
+                <ul className="mt-5 space-y-3 text-sm font-bold text-[#64748B]">
+                  {[
+                    "Top of search results",
+                    "Featured badge on profile",
+                    "Homepage spotlight",
+                    "Priority in browse section",
+                  ].map((item) => (
+                    <li key={item} className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#22C7A1]/10 text-[#0B9B7E]">
+                        <Check className="h-3.5 w-3.5" />
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+
+                <Button
+                  className={`mt-6 min-h-12 w-full rounded-2xl font-black ${
+                    pkg.popular
+                      ? "bg-[#020617] text-white hover:bg-[#020617]/90"
+                      : "border border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] hover:bg-white"
+                  }`}
+                  onClick={() => handlePurchase(pkg)}
+                  disabled={!!activeListing || purchasing !== null}
+                >
+                  {isPurchasing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : activeListing ? (
+                    "Already active"
+                  ) : (
+                    <>
+                      <Zap className="mr-2 h-4 w-4" />
+                      Get {pkg.name}
+                    </>
+                  )}
+                </Button>
+              </article>
+            );
+          })}
+        </section>
+
+        <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-5 shadow-sm">
+          <div className="mb-5">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7C83F6]">
+              Impact
+            </p>
+            <h2 className="mt-1 text-xl font-black tracking-tight text-[#020617]">
+              Why boost your restaurant?
+            </h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              {
+                icon: Search,
+                title: "More visibility",
+                text: "Featured restaurants are easier to find across discovery and browse surfaces.",
+                color: "text-[#38BDF8]",
+                bg: "bg-[#38BDF8]/10",
+              },
+              {
+                icon: DollarSign,
+                title: "More revenue",
+                text: "Boost periods are designed to bring more attention to your menu and offers.",
+                color: "text-[#0B9B7E]",
+                bg: "bg-[#22C7A1]/10",
+              },
+              {
+                icon: Sparkles,
+                title: "Premium signal",
+                text: "A featured badge helps your restaurant stand out in crowded customer views.",
+                color: "text-[#7C83F6]",
+                bg: "bg-[#7C83F6]/10",
+              },
+            ].map((benefit) => (
+              <div
+                key={benefit.title}
+                className="rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-4"
+              >
+                <div
+                  className={`mb-3 flex h-11 w-11 items-center justify-center rounded-2xl ${benefit.bg} ${benefit.color}`}
+                >
+                  <benefit.icon className="h-5 w-5" />
+                </div>
+                <p className="font-black text-[#020617]">{benefit.title}</p>
+                <p className="mt-2 text-sm font-medium leading-6 text-[#64748B]">
+                  {benefit.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {pastListings.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Boost History
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {pastListings.map((listing) => (
-                  <div
-                    key={listing.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium capitalize">{listing.package_type} Boost</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(listing.starts_at), "MMM d")} - {format(new Date(listing.ends_at), "MMM d, yyyy")}
-                        </p>
-                      </div>
+          <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-5 shadow-sm">
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7C83F6]">
+                  History
+                </p>
+                <h2 className="mt-1 text-xl font-black tracking-tight text-[#020617]">
+                  Past boosts
+                </h2>
+              </div>
+              <Clock className="h-5 w-5 text-[#94A3B8]" />
+            </div>
+
+            <div className="space-y-3">
+              {pastListings.map((listing) => (
+                <div
+                  key={listing.id}
+                  className="grid gap-3 rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-4 sm:grid-cols-[1fr_auto] sm:items-center"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#7C83F6]">
+                      <Calendar className="h-4 w-4" />
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold">{formatCurrency(listing.price_paid)}</p>
-                      <Badge variant="secondary">Expired</Badge>
+                    <div>
+                      <p className="font-black capitalize text-[#020617]">
+                        {listing.package_type} Boost
+                      </p>
+                      <p className="text-sm font-bold text-[#94A3B8]">
+                        {format(new Date(listing.starts_at), "MMM d")} -{" "}
+                        {format(new Date(listing.ends_at), "MMM d, yyyy")}
+                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    <p className="font-black text-[#020617]">
+                      {formatCurrency(listing.price_paid)}
+                    </p>
+                    <Badge className="rounded-full bg-[#E5EAF1] font-black text-[#64748B] hover:bg-[#E5EAF1]">
+                      Expired
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
       </div>
-    </PartnerLayout>
+    </div>
   );
 }
