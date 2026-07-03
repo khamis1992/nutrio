@@ -24,7 +24,7 @@ npx playwright install chromium
 ### 2. Configure Environment
 Create `.env` file:
 ```env
-BASE_URL=http://localhost:8080
+BASE_URL=http://localhost:5173/nutrio
 TEST_USER_EMAIL=khamis--1992@hotmail.com
 TEST_USER_PASSWORD=Khamees1992#
 ```

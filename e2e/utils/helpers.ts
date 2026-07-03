@@ -27,7 +27,7 @@ export const TEST_USERS = {
 
 // Portal URLs
 export const URLS = {
-  base: 'http://localhost:5173',
+  base: 'http://localhost:5173/nutrio',
   auth: '/auth',
   dashboard: '/dashboard',
   meals: '/meals',
