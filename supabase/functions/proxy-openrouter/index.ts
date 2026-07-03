@@ -1,14 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface OpenRouterRequest {
+interface AIProxyRequest {
   systemPrompt: string;
   userPrompt: string;
   model?: string;
@@ -20,14 +20,14 @@ serve(async (req) => {
   }
 
   try {
-    if (!OPENROUTER_API_KEY) {
+    if (!DEEPSEEK_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "OpenRouter API key not configured" }),
+        JSON.stringify({ error: "DeepSeek API key not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { systemPrompt, userPrompt, model }: OpenRouterRequest = await req.json();
+    const { systemPrompt, userPrompt, model }: AIProxyRequest = await req.json();
 
     if (!systemPrompt || !userPrompt) {
       return new Response(
@@ -36,93 +36,57 @@ serve(async (req) => {
       );
     }
 
-    const models = model
-      ? [model]
-      : [
-          "arcee-ai/trinity-large-preview:free",
-          "google/gemini-2.5-flash-lite:free",
-          "openai/gpt-oss-120b:free",
-          "deepseek/deepseek-v3-0324:free",
-          "x-ai/grok-4.1-fast:free",
-        ];
+    const selectedModel = model || "deepseek-chat";
 
-    for (const m of models) {
-      try {
-        const response = await fetch(OPENROUTER_API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "HTTP-Referer": "https://nutrio.app",
-            "X-Title": "Nutrio",
-          },
-          body: JSON.stringify({
-            model: m,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0.6,
-            max_tokens: 2000,
-          }),
-        });
+    const response = await fetch(DEEPSEEK_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: selectedModel,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.5,
+        max_tokens: 2000,
+      }),
+    });
 
-        if (response.ok) {
-          const data = await response.json();
-          return new Response(
-            JSON.stringify({ content: data.choices?.[0]?.message?.content || "" }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      } catch {
-        continue;
-      }
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return new Response(
+        JSON.stringify({
+          error: "DeepSeek request failed",
+          status: response.status,
+          details: data?.error?.message || data?.message || "Unknown DeepSeek error",
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
-    const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+    const content = data?.choices?.[0]?.message?.content;
 
-    if (DEEPSEEK_API_KEY) {
-      try {
-        const dsResponse = await fetch(DEEPSEEK_API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "deepseek-chat",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0.6,
-            max_tokens: 2000,
-          }),
-        });
-
-        if (dsResponse.ok) {
-          const dsData = await dsResponse.json();
-          const content = dsData.choices?.[0]?.message?.content;
-          if (content) {
-            return new Response(
-              JSON.stringify({ content, provider: "deepseek" }),
-              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-        }
-      } catch {
-        /* fallback failed, continue */
-      }
+    if (!content) {
+      return new Response(
+        JSON.stringify({ error: "DeepSeek returned an empty response" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     return new Response(
-      JSON.stringify({ error: "All models failed (OpenRouter + DeepSeek)" }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ content, provider: "deepseek", model: selectedModel }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
+      JSON.stringify({
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
