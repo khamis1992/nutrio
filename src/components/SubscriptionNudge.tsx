@@ -32,7 +32,6 @@ export function SubscriptionNudge() {
     totalMeals,
     mealsUsed,
     isUnlimited,
-    isVip,
     hasActiveSubscription,
     tier,
   } = useSubscription();
@@ -51,7 +50,6 @@ export function SubscriptionNudge() {
     }
     const wasDismissed = localStorage.getItem(storageKey) === "1";
     setDismissed(wasDismissed);
-    // Delay visibility for animation
     const timer = setTimeout(() => !wasDismissed && setVisible(true), 3000);
     return () => clearTimeout(timer);
   }, [subscription, hasActiveSubscription, isUnlimited, storageKey]);
@@ -62,11 +60,10 @@ export function SubscriptionNudge() {
     setDismissed(true);
   }, [storageKey]);
 
-  // No nudge conditions: loading, no subscription, VIP/unlimited, already dismissed
   if (loading || !subscription || !hasActiveSubscription || isUnlimited || !visible) return null;
 
   const nextTier = NEXT_TIER[tier];
-  if (!nextTier) return null; // no upgrade path (already VIP)
+  if (!nextTier) return null;
 
   const now = new Date();
   const cycleStart = new Date(subscription.month_start_date);
@@ -78,8 +75,6 @@ export function SubscriptionNudge() {
   const exhaustionDay = burnRate > 0 ? Math.ceil(remainingMeals / burnRate) : Infinity;
   const cyclePct = Math.round((daysElapsed / daysInCycle) * 100);
   const usagePct = Math.round((mealsUsed / totalMeals) * 100);
-
-  // ── Nudge thresholds ────────────────────────────────────────────────────
 
   type NudgeLevel = "critical" | "high" | "moderate" | null;
 
@@ -98,8 +93,6 @@ export function SubscriptionNudge() {
   }
 
   if (!level) return null;
-
-  // ── Copy ────────────────────────────────────────────────────────────────
 
   const copy = {
     critical: {
@@ -121,12 +114,10 @@ export function SubscriptionNudge() {
   const tierLabel = TIER_LABELS[tier];
   const tierColor = TIER_COLORS[nextTier] || TIER_COLORS.premium;
 
-  // ── Render ──────────────────────────────────────────────────────────────
-
   return (
     <div
       className={cn(
-        "relative rounded-2xl shadow-sm border p-4 transition-all duration-300 animate-in slide-in-from-top-4",
+        "relative rounded-[28px] shadow-[0_12px_28px_rgba(0,0,0,0.03)] border p-5 transition-all duration-300 animate-in slide-in-from-top-4 text-left",
         level === "critical"
           ? "border-red-200 bg-red-50/80"
           : level === "high"
@@ -134,19 +125,17 @@ export function SubscriptionNudge() {
             : "border-blue-100 bg-blue-50/60",
       )}
     >
-      {/* Dismiss button */}
       <button
         onClick={handleDismiss}
-        className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200/50 transition-colors"
+        className="absolute top-3.5 right-3.5 w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200/50 transition-colors"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-4 h-4" />
       </button>
 
-      <div className="flex items-start gap-3">
-        {/* Icon */}
+      <div className="flex items-start gap-4">
         <div
           className={cn(
-            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+            "w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-white/20",
             level === "critical"
               ? "bg-red-100"
               : level === "high"
@@ -155,36 +144,35 @@ export function SubscriptionNudge() {
           )}
         >
           {level === "critical" ? (
-            <TrendingUp className="w-5 h-5 text-red-500" />
+            <TrendingUp className="w-5.5 h-5.5 text-red-500" />
           ) : (
-            <Crown className={cn("w-5 h-5", tierColor.icon)} />
+            <Crown className={cn("w-5.5 h-5.5", tierColor.icon)} />
           )}
         </div>
 
         <div className="flex-1 min-w-0 pr-6">
           <h4
             className={cn(
-              "text-sm font-bold mb-0.5",
-              level === "critical" ? "text-red-700" : level === "high" ? "text-amber-700" : "text-blue-700",
+              "text-[15px] font-black tracking-tight mb-1",
+              level === "critical" ? "text-red-800" : level === "high" ? "text-amber-800" : "text-blue-800",
             )}
           >
             {copy[level].title}
           </h4>
-          <p className="text-xs text-gray-500 leading-relaxed mb-3">
+          <p className="text-[12px] font-medium text-slate-500 leading-relaxed mb-3">
             {copy[level].message}
           </p>
 
-          {/* Usage bar */}
-          <div className="mb-3">
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-400">
+          <div className="mb-4">
+            <div className="flex justify-between text-[11px] font-black text-slate-400 mb-1.5">
+              <span>
                 {mealsUsed}/{totalMeals} meals used
               </span>
-              <span className="text-gray-400">
+              <span>
                 {daysRemaining}d left
               </span>
             </div>
-            <div className="h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
+            <div className="h-2 bg-gray-200/40 rounded-full overflow-hidden">
               <div
                 className={cn(
                   "h-full rounded-full transition-all duration-700",
@@ -195,11 +183,10 @@ export function SubscriptionNudge() {
             </div>
           </div>
 
-          {/* CTA */}
           <Link
             to="/subscription"
             className={cn(
-              "inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-[0.97]",
+              "inline-flex items-center gap-1.5 px-4.5 py-2.5 rounded-xl text-[12px] font-black tracking-wide uppercase transition-all active:scale-[0.97] shadow-sm",
               level === "critical"
                 ? "bg-red-500 text-white hover:bg-red-600"
                 : level === "high"
@@ -208,7 +195,7 @@ export function SubscriptionNudge() {
             )}
           >
             Upgrade to {tierLabel}
-            <ArrowUpRight className="w-3 h-3" />
+            <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={2.4} />
           </Link>
         </div>
       </div>

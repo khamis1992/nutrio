@@ -1318,33 +1318,33 @@ const Dashboard = () => {
       <div className="absolute inset-0 pointer-events-none bg-[#F6F8FB]" />
 
       {/* ── Floating Header ─────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 border-b border-white/70 bg-[#F6F8FB]/85 backdrop-blur-xl">
+      <div className="sticky top-0 z-30 border-b border-[#E2E8F0]/50 bg-white/80 backdrop-blur-xl shadow-[0_2px_15px_rgba(0,0,0,0.02)]">
         <div className="mx-auto max-w-[480px] px-4 pt-[env(safe-area-inset-top)]">
-          <div className="flex h-[68px] items-center justify-between">
-            <Link to="/profile" className="flex items-center gap-2.5">
-              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-slate-100/60 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.06)]">
+          <div className="flex h-[72px] items-center justify-between">
+            <Link to="/profile" className="flex items-center gap-3 group">
+              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border-2 border-white bg-[#F8FAFC] shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-slate-100 group-hover:scale-105 transition-transform duration-300">
                 {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt={userName} className="h-full w-full object-cover" />
+                  <img src={profile.avatar_url} alt={userName} className="h-full w-full object-cover animate-fade-in" />
                 ) : (
-                  <span className="text-[14px] font-bold text-[#22C7A1]">{userName.charAt(0)}</span>
+                  <span className="text-[15px] font-black text-[#22C7A1]">{userName.charAt(0)}</span>
                 )}
               </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#22C7A1]">{timeGreeting}</p>
-                <h1 className="text-[17px] font-black leading-none tracking-[-0.03em] text-[#020617]">{userName}</h1>
+              <div className="text-left">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#10B981]">{timeGreeting}</p>
+                <h1 className="text-[18px] font-black leading-none tracking-tight text-slate-900 mt-1">{userName}</h1>
               </div>
             </Link>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               {/* Favorites */}
               <button
                 type="button"
                 data-testid="dashboard-favorites-btn"
                 onClick={() => navigate("/favorites")}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#FB6B7A] shadow-sm ring-1 ring-[#E5EAF1] transition active:scale-95"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#FB6B7A] border border-[#E2E8F0] shadow-sm hover:bg-[#FFF1F2] hover:border-[#FECDD3] transition-all duration-300 active:scale-95"
                 aria-label={t("favorites_label")}
               >
-                <Heart className="h-5 w-5" strokeWidth={2.2} />
+                <Heart className="h-5 w-5 fill-current" strokeWidth={2.2} />
               </button>
 
               {/* Notifications */}
@@ -1353,12 +1353,12 @@ const Dashboard = () => {
                   type="button"
                   data-testid="dashboard-notifications-btn"
                   onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
-                  className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-[#E5EAF1]"
+                  className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 border border-[#E2E8F0] shadow-sm hover:bg-slate-50 transition-all duration-300"
                   aria-label={t("Notifications")}
                 >
-                  <Bell className="h-4.5 w-4.5" strokeWidth={2.1} />
+                  <Bell className="h-5 w-5" strokeWidth={2.2} />
                   {displayedUnreadCount > 0 && (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[#FF1D25] px-1 text-[9px] font-extrabold leading-none text-white ring-2 ring-white">
+                    <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#EF4444] px-1 text-[9px] font-black leading-none text-white ring-2 ring-white shadow-sm animate-pulse">
                       {displayedUnreadCount > 9 ? "9+" : displayedUnreadCount}
                     </span>
                   )}
@@ -1452,20 +1452,20 @@ const Dashboard = () => {
           </div>
 
           {/* ── Tab Bar ────────────────────────────────────────────── */}
-          <div className="flex gap-1 pb-2">
+          <div className="flex gap-2 pb-2.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {tabs.map(({ key, label, icon: Icon, path }) => (
               <button
                 key={key}
                 type="button"
                 data-testid={`dashboard-tab-${key}`}
                 onClick={() => navigate(path)}
-                className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold transition-all ${
+                className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-extrabold transition-all duration-300 active:scale-95 shrink-0 ${
                   activeTab === key
-                    ? "bg-[#020617] text-white shadow-[0_4px_12px_rgba(2,6,23,0.18)]"
-                    : "bg-white/70 text-[#94A3B8] ring-1 ring-[#E5EAF1]"
+                    ? "bg-slate-900 text-white shadow-[0_8px_20px_rgba(15,23,42,0.14)] border border-slate-900"
+                    : "bg-white text-slate-500 border border-slate-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.01)] hover:bg-slate-50"
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
+                <Icon className="h-4 w-4" strokeWidth={2.2} />
                 {label}
               </button>
             ))}
@@ -1486,136 +1486,148 @@ const Dashboard = () => {
             transition={{ duration: 0.3 }}
             className="space-y-3"
           >
-            {/* ── Bento Row 1: Score (2/3) + Balance (1/3) ──────────── */}
-            <div>
-              {/* Score tile — spans 2 */}
-              <motion.div
-                className="rounded-[24px] bg-white p-4 text-left shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80"
+            {/* ── Bento Row 1: Premium Daily Score Card ──────────── */}
+            <motion.div
+              className="overflow-hidden rounded-[32px] border border-[#E5EAF1] bg-white p-5 text-left shadow-[0_16px_38px_rgba(2,6,23,0.06)]"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">{dateLabel}</p>
+                  <h2 className="mt-1 text-[22px] font-black leading-tight text-[#020617]">
+                    {t("progress_daily_score")}
+                  </h2>
+                  <p className="mt-1 text-[12px] font-bold text-[#64748B]">
+                    {calRemaining} {t("cal_short")} {t("dashboard_remaining")}
+                  </p>
+                </div>
+                
+                <div className="relative flex h-[88px] w-[88px] items-center justify-center">
+                  <svg className="absolute h-full w-full -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="#F1F5F9" strokeWidth="8" />
+                    <motion.circle
+                      cx="50"
+                      cy="50"
+                      r="42"
+                      fill="none"
+                      stroke={ringColor}
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={2 * Math.PI * 42}
+                      initial={prefersReducedMotion ? undefined : { strokeDashoffset: 2 * Math.PI * 42 }}
+                      animate={{ strokeDashoffset: (2 * Math.PI * 42) - (Math.min(dailyScore, 100) / 100) * (2 * Math.PI * 42) }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                    />
+                  </svg>
+                  <div className="flex flex-col items-center justify-center">
+                    <span className="text-[24px] font-black leading-none text-[#020617]">{dailyScore}</span>
+                    <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wider text-[#94A3B8]">pts</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4 Stats Grid */}
+              <div className="mt-5 grid grid-cols-4 gap-2">
+                {[
+                  { label: t("cal_label_short"), value: `${animatedCalories}`, Icon: Flame, color: "#10B981", bg: "#E6FBF3", border: "#A7F3D0" },
+                  { label: t("meals_label_short"), value: `${animatedBalance}`, Icon: Crown, color: "#FB6B7A", bg: "#FFF1F2", border: "#FECDD3" },
+                  { label: t("water"), value: `${Math.round(waterPct)}%`, Icon: Droplets, color: "#0EA5E9", bg: "#F0F9FF", border: "#BAE6FD", path: "/water-tracker" },
+                  { label: t("steps_label_short"), value: `${stepsToday}`, Icon: Footprints, color: "#6366F1", bg: "#EEF2FF", border: "#C7D2FE" },
+                ].map(({ label, value, Icon, color, bg, border, path }) => {
+                  const content = (
+                    <>
+                      {path ? (
+                        <ArrowUpRight className="absolute end-2 top-2 h-3 w-3" style={{ color }} strokeWidth={2.8} />
+                      ) : null}
+                      <span className="flex h-10 w-10 items-center justify-center rounded-2xl mx-auto shadow-sm" style={{ color, backgroundColor: bg, border: `1px solid ${border}` }}>
+                        <Icon className="h-5 w-5" strokeWidth={2.1} />
+                      </span>
+                      <p className="mt-2.5 text-[15px] font-black leading-none text-[#020617]">{value}</p>
+                      <p className="mt-1 truncate text-[9px] font-bold uppercase tracking-wide text-[#64748B]">{label}</p>
+                    </>
+                  );
+
+                  return path ? (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => navigate(path)}
+                      className="relative rounded-2xl bg-white p-2.5 text-center border border-[#E2E8F0] shadow-sm transition active:scale-95"
+                      aria-label={label}
+                    >
+                      {content}
+                    </button>
+                  ) : (
+                    <div key={label} className="relative rounded-2xl bg-[#F8FAFC] p-2.5 text-center border border-[#E2E8F0] shadow-[inset_0_1px_2px_rgba(0,0,0,0.01)]">
+                      {content}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Premium Plan Button */}
+              <button
+                type="button"
+                data-testid="dashboard-subscription-card"
+                onClick={() => navigate("/subscription")}
+                className="mt-4 flex min-h-[58px] w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-[#0F172A] to-[#1E293B] px-4 py-3 text-start shadow-md transition active:scale-[0.99] group"
+                aria-label={t("open_subscription")}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#7C83F6]">{dateLabel}</p>
-                    <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#94A3B8]">{t("progress_daily_score")}</p>
-                    <p className="mt-0.5 text-[28px] font-black leading-none tracking-[-0.05em] text-[#020617]">
-                      {dailyScore}<span className="text-[14px] font-bold text-[#94A3B8]">/100</span>
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-amber-400 shadow-inner">
+                    <Crown className="h-4.5 w-4.5" strokeWidth={2.2} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-black leading-tight text-white">{planName}</p>
+                    <p className="mt-0.5 text-[11px] font-bold text-slate-300">
+                      {isUnlimited ? t("unlimited_meals") : t("meals_left_value", { count: balanceDisplay })}
                     </p>
-                    <p className="mt-1.5 text-[11px] font-semibold text-[#94A3B8]">{calRemaining} {t("cal_short")} {t("dashboard_remaining")}</p>
-                  </div>
-                  <div className="relative flex h-[72px] w-[72px] items-center justify-center">
-                    <svg className="absolute h-full w-full -rotate-90" viewBox="0 0 80 80" aria-hidden="true">
-                      <circle cx="40" cy="40" r="34" fill="none" stroke="#E5EAF1" strokeWidth="7" />
-                      <motion.circle
-                        cx="40" cy="40" r="34" fill="none" stroke={ringColor}
-                        strokeWidth="7" strokeLinecap="round"
-                        strokeDasharray={2 * Math.PI * 34}
-                        initial={prefersReducedMotion ? undefined : { strokeDashoffset: 2 * Math.PI * 34 }}
-                        animate={{ strokeDashoffset: (2 * Math.PI * 34) - (Math.min(dailyScore, 100) / 100) * (2 * Math.PI * 34) }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                      />
-                    </svg>
-                    <span className="text-[20px] font-black text-[#020617]">{dailyScore}</span>
                   </div>
                 </div>
-                <div className="mt-3 grid grid-cols-4 gap-1.5">
-                  {[
-                    { label: t("cal_label_short"), value: `${animatedCalories}`, Icon: Flame, color: "text-[#22C7A1]" },
-                    { label: t("meals_label_short"), value: `${animatedBalance}`, Icon: Crown, color: "text-[#FB6B7A]" },
-                    { label: t("water_tracking_label"), value: `${Math.round(waterPct)}%`, Icon: Droplets, color: "text-[#38BDF8]", path: "/water-tracker" },
-                    { label: t("steps_label_short"), value: `${stepsToday}`, Icon: Footprints, color: "text-[#7C83F6]" },
-                  ].map(({ label, value, Icon, color, path }) => {
-                    const content = (
-                      <>
-                        {path ? (
-                          <ArrowUpRight className="absolute end-1.5 top-1.5 h-3 w-3 text-[#38BDF8]" strokeWidth={2.8} />
-                        ) : null}
-                        <Icon className={`mx-auto h-3.5 w-3.5 ${color}`} strokeWidth={2} />
-                        <p className="mt-1 text-[11px] font-black leading-none text-[#020617]">{value}</p>
-                        <p className={`mt-0.5 text-[8px] font-bold uppercase tracking-wider ${path ? "text-[#38BDF8]" : "text-[#94A3B8]"}`}>{label}</p>
-                      </>
-                    );
-
-                    return path ? (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => navigate(path)}
-                        className="relative rounded-xl bg-[#EFF9FF] px-1.5 py-2 text-center ring-1 ring-[#BAE6FD] transition active:scale-95"
-                        aria-label={label}
-                      >
-                        {content}
-                      </button>
-                    ) : (
-                      <div key={label} className="rounded-xl bg-[#F6F8FB] px-1.5 py-2 text-center ring-1 ring-[#E5EAF1]/80">
-                        {content}
-                      </div>
-                    );
-                  })}
+                <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[#22C7A1] group-hover:text-white transition-colors">
+                  {t("manage")}
+                  <ChevronRight className="h-4 w-4 shrink-0 text-[#22C7A1] group-hover:translate-x-0.5 transition-transform" strokeWidth={2.6} />
                 </div>
+              </button>
+            </motion.div>
 
-              {/* Subscription tile — spans 1 */}
-                <button
-                  type="button"
-                  data-testid="dashboard-subscription-card"
-                  onClick={() => navigate("/subscription")}
-                    className="mt-3 flex min-h-11 w-full items-center justify-between gap-3 rounded-[16px] bg-[#F6F8FB] px-3 py-2.5 text-start ring-1 ring-[#E5EAF1] transition active:scale-[0.99]"
-                  aria-label={t("open_subscription")}
-                >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FFF0F2] text-[#FB6B7A] ring-1 ring-[#FB6B7A]/20">
-                      <Crown className="h-4 w-4" strokeWidth={2.2} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-[12px] font-black leading-tight text-[#020617]">{planName}</p>
-                      <p className="text-[10px] font-bold text-[#94A3B8]">
-                        {isUnlimited ? t("unlimited_meals") : t("meals_left_value", { count: balanceDisplay })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.08em] text-[#94A3B8]">
-                    {t("manage")}
-                    <ChevronRight className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} />
-                  </div>
-                </button>
-              </motion.div>
-            </div>
 
-            {/* ── Quick Action Row ──────────────────────────────────── */}
             {activeGoal && (
               <button
                 type="button"
                 data-testid="dashboard-goal-card"
                 onClick={() => navigate("/progress?tab=goals")}
-                className="w-full rounded-[22px] border border-[#E5EAF1] bg-white p-4 text-start shadow-[0_10px_24px_rgba(2,6,23,0.05)] transition active:scale-[0.99]"
+                className="w-full rounded-[28px] border border-[#E5EAF1] bg-white p-5 text-start shadow-[0_12px_30px_rgba(2,6,23,0.04)] transition active:scale-[0.99] hover:border-indigo-100"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">{t("goal_alignment")}</p>
-                    <h2 className="mt-1 text-[17px] font-black leading-tight text-[#020617]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C83F6]">{t("goal_alignment")}</p>
+                    <h2 className="mt-1.5 text-[18px] font-black leading-tight text-[#020617] tracking-tight">
                       {t(activeGoal.goal_type === "muscle_gain" ? "goal_muscle_gain" : activeGoal.goal_type === "maintenance" ? "goal_maintenance" : activeGoal.goal_type === "general_health" ? "goal_general_health" : "goal_weight_loss")}
                     </h2>
-                    <p className="mt-1 text-[11px] font-bold leading-relaxed text-[#64748B]">{goalAlignmentDescription}</p>
+                    <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#64748B]">{goalAlignmentDescription}</p>
                   </div>
                   <div className={cn(
-                    "shrink-0 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] ring-1",
+                    "shrink-0 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] ring-1",
                     hasGoalAlignmentData
-                      ? "bg-[#EEF2FF] text-[#7C83F6] ring-[#7C83F6]/20"
-                      : "bg-[#F6F8FB] text-[#64748B] ring-[#E5EAF1]"
+                      ? "bg-[#EEF2FF] text-[#7C83F6] ring-[#7C83F6]/20 shadow-sm"
+                      : "bg-[#F8FAFC] text-[#64748B] ring-[#E5EAF1]"
                   )}>
                     {goalAlignmentLabel}
                   </div>
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <div className="flex min-h-[54px] flex-col items-center justify-center rounded-2xl bg-[#F6F8FB] px-2 py-2 text-center ring-1 ring-[#E5EAF1]">
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-[#94A3B8]">{t("cal_label_short")}</p>
-                    <p className="text-sm font-black text-[#22C7A1]">{activeGoal.daily_calorie_target}</p>
+                
+                <div className="mt-4 grid grid-cols-3 gap-2.5">
+                  <div className="flex min-h-[58px] flex-col items-center justify-center rounded-2xl bg-[#F8FAFC] px-2 py-2.5 text-center border border-[#E2E8F0] shadow-[inset_0_1px_2px_rgba(0,0,0,0.005)]">
+                    <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#94A3B8]">{t("cal_label_short")}</p>
+                    <p className="text-[15px] font-black text-[#10B981] mt-1">{activeGoal.daily_calorie_target}</p>
                   </div>
-                  <div className="flex min-h-[54px] flex-col items-center justify-center rounded-2xl bg-[#F6F8FB] px-2 py-2 text-center ring-1 ring-[#E5EAF1]">
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-[#94A3B8]">{t("protein_label")}</p>
-                    <p className="text-sm font-black text-[#7C83F6]">{activeGoal.protein_target_g}g</p>
+                  <div className="flex min-h-[58px] flex-col items-center justify-center rounded-2xl bg-[#F8FAFC] px-2 py-2.5 text-center border border-[#E2E8F0] shadow-[inset_0_1px_2px_rgba(0,0,0,0.005)]">
+                    <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#94A3B8]">{t("protein_label")}</p>
+                    <p className="text-[15px] font-black text-[#7C83F6] mt-1">{activeGoal.protein_target_g}g</p>
                   </div>
-                  <div className="flex min-h-[54px] flex-col items-center justify-center rounded-2xl bg-[#F6F8FB] px-2 py-2 text-center ring-1 ring-[#E5EAF1]">
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-[#94A3B8]">{t("tracked")}</p>
-                    <p className="truncate text-sm font-black text-[#020617]">{weeklyLoggedDays}/7</p>
+                  <div className="flex min-h-[58px] flex-col items-center justify-center rounded-2xl bg-[#F8FAFC] px-2 py-2.5 text-center border border-[#E2E8F0] shadow-[inset_0_1px_2px_rgba(0,0,0,0.005)]">
+                    <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#94A3B8]">{t("tracked")}</p>
+                    <p className="truncate text-[15px] font-black text-[#020617] mt-1">{weeklyLoggedDays}/7</p>
                   </div>
                 </div>
               </button>
@@ -1625,85 +1637,132 @@ const Dashboard = () => {
               type="button"
               data-testid="dashboard-nutrition-card"
               onClick={() => navigate(nutritionMatchedMeal ? `/meals/${nutritionMatchedMeal.id}` : nutritionPerformance.actionPath)}
-              className="w-full overflow-hidden rounded-[24px] border border-[#E5EAF1] bg-white p-4 text-start shadow-[0_10px_24px_rgba(2,6,23,0.05)] transition active:scale-[0.99]"
+              className="w-full overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white p-5 text-start shadow-[0_12px_30px_rgba(2,6,23,0.04)] transition active:scale-[0.99] hover:border-emerald-100"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">Fuel readiness</p>
-                  <h2 className="mt-1 text-[18px] font-black leading-tight text-[#020617]">{nutritionPerformance.label}</h2>
-                  <p className="mt-1 text-[12px] font-bold leading-5 text-[#64748B]">{nutritionPerformance.summary}</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">Fuel readiness</p>
+                  <h2 className="mt-1.5 text-[19px] font-black leading-tight text-[#020617] tracking-tight">{nutritionPerformance.label}</h2>
+                  <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#64748B]">{nutritionPerformance.summary}</p>
                 </div>
-                <div className={`flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[18px] ring-1 ${nutritionFocusVisual.iconClass}`}>
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm ring-1 ${nutritionFocusVisual.iconClass}`}>
                   <NutritionFocusIcon className="h-5 w-5" strokeWidth={2.3} />
                 </div>
               </div>
-              <div className="mt-3 rounded-[18px] bg-[#F6F8FB] px-3 py-2.5 ring-1 ring-[#E5EAF1]">
-                <p className="text-[11px] font-bold leading-5 text-[#64748B]">{nutritionPerformance.primaryReason}</p>
+              
+              <div className="mt-4 rounded-2xl bg-[#F8FAFC] px-4 py-3 border border-[#E2E8F0]">
+                <p className="text-[12px] font-semibold leading-relaxed text-slate-600">{nutritionPerformance.primaryReason}</p>
               </div>
-              <div className="mt-3 flex items-center justify-between gap-3">
+              
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   {nutritionMatchedMeal?.image_url ? (
                     <img
                       src={nutritionMatchedMeal.image_url}
                       alt={nutritionMatchedMeal.name}
-                      className="h-12 w-12 shrink-0 rounded-[16px] object-cover ring-1 ring-[#E5EAF1]"
+                      className="h-12 w-12 shrink-0 rounded-2xl object-cover ring-2 ring-slate-100 shadow-sm"
                     />
                   ) : (
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] ring-1 ${nutritionFocusVisual.fallbackClass}`}>
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm ring-1 ${nutritionFocusVisual.fallbackClass}`}>
                       <NutritionFocusIcon className="h-5 w-5" strokeWidth={2.2} />
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">Smart next meal</p>
-                    <p className="mt-0.5 truncate text-[12px] font-black text-[#020617]">
-                      {nutritionMatchedMeal?.name || `${nutritionPerformance.mealNeed.protein}g protein / ${nutritionPerformance.mealNeed.calories} kcal budget`}
+                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">Smart next meal</p>
+                    <p className="mt-1 truncate text-[13px] font-black text-[#020617]">
+                      {nutritionMatchedMeal?.name || `${nutritionPerformance.mealNeed.protein}g protein / ${nutritionPerformance.mealNeed.calories} kcal`}
                     </p>
-                    <p className="mt-0.5 truncate text-[10px] font-bold text-[#64748B]">
+                    <p className="mt-0.5 truncate text-[11px] font-bold text-[#64748B]">
                       {nutritionMatchedMeal?.matchReason || nutritionPerformance.primaryReason}
                     </p>
                   </div>
                 </div>
-                <span className="shrink-0 rounded-full bg-[#020617] px-3 py-2 text-[11px] font-black text-white">
+                <span className="shrink-0 rounded-full bg-slate-900 px-3.5 py-2 text-[11px] font-black text-white hover:bg-slate-800 shadow-sm transition">
                   {nutritionMatchedMeal ? "View meal" : nutritionPerformance.actionLabel}
                 </span>
               </div>
             </button>
 
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { label: t("order"), testid: "dashboard-fab-order", Icon: ConciergeBell, action: () => navigate("/meals"), bg: "bg-[#22C7A1] text-white" },
-                { label: t("log"), testid: "dashboard-fab-log", Icon: Plus, action: () => setLogMealOpen(true), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
-                { label: "Coaches", testid: "dashboard-fab-coaches", Icon: Medal, action: () => navigate(hasActiveCoach ? "/coach-programs" : "/coaches"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
-                { label: t("community"), testid: "dashboard-fab-community", Icon: Users, action: () => navigate("/community"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
-              ].map(({ label, testid, Icon, action, bg }) => (
-                <motion.button
-                  key={label}
-                  type="button"
-                  data-testid={testid}
-                  onClick={action}
-                  whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
-                  className={`flex flex-col items-center justify-center gap-1.5 rounded-[18px] py-3 ${bg} shadow-[0_12px_35px_rgba(15,23,42,0.06)]`}
-                >
-                  <Icon className="h-4.5 w-4.5" strokeWidth={2.2} />
-                  <span className="text-[11px] font-bold">{label}</span>
-                </motion.button>
-              ))}
+            {/* ── Quick Action Grid ─────────────────────────────────── */}
+            <div className="rounded-[28px] border border-[#E5EAF1] bg-white p-2.5 shadow-[0_16px_38px_rgba(15,23,42,0.05)]">
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  {
+                    label: t("order"),
+                    sublabel: "Meals",
+                    testid: "dashboard-fab-order",
+                    Icon: ConciergeBell,
+                    action: () => navigate("/meals"),
+                    primary: true,
+                    bg: "bg-[#22C7A1] text-white hover:bg-[#1eb394] shadow-[0_12px_24px_rgba(34,199,161,0.25)]",
+                    iconClass: "bg-white/18 text-white",
+                  },
+                  {
+                    label: t("log"),
+                    sublabel: "Macros",
+                    testid: "dashboard-fab-log",
+                    Icon: Plus,
+                    action: () => setLogMealOpen(true),
+                    primary: false,
+                    bg: "bg-[#F8FAFC] text-[#020617] border border-[#E2E8F0] active:bg-white",
+                    iconClass: "bg-white text-[#22C7A1] shadow-sm ring-1 ring-slate-200/50",
+                  },
+                  {
+                    label: "Coaches",
+                    sublabel: "Programs",
+                    testid: "dashboard-fab-coaches",
+                    Icon: Medal,
+                    action: () => navigate(hasActiveCoach ? "/coach-programs" : "/coaches"),
+                    primary: false,
+                    bg: "bg-[#F8FAFC] text-[#020617] border border-[#E2E8F0] active:bg-white",
+                    iconClass: "bg-white text-amber-500 shadow-sm ring-1 ring-slate-200/50",
+                  },
+                  {
+                    label: t("community"),
+                    sublabel: "Social",
+                    testid: "dashboard-fab-community",
+                    Icon: Users,
+                    action: () => navigate("/community"),
+                    primary: false,
+                    bg: "bg-[#F8FAFC] text-[#020617] border border-[#E2E8F0] active:bg-white",
+                    iconClass: "bg-white text-[#7C83F6] shadow-sm ring-1 ring-slate-200/50",
+                  },
+                ].map(({ label, sublabel, testid, Icon, action, bg, iconClass, primary }) => (
+                  <motion.button
+                    key={label}
+                    type="button"
+                    data-testid={testid}
+                    onClick={action}
+                    whileTap={prefersReducedMotion ? undefined : { scale: 0.96 }}
+                    className={cn(
+                      "flex min-h-[82px] flex-col items-center justify-center rounded-2xl px-1 py-2.5 text-center transition-all",
+                      bg
+                    )}
+                  >
+                    <span className={cn("mb-2 flex h-9 w-9 items-center justify-center rounded-[14px]", iconClass)}>
+                      <Icon className="h-5 w-5" strokeWidth={primary ? 2.6 : 2.2} />
+                    </span>
+                    <span className="max-w-full truncate text-[11px] font-black leading-none">{label}</span>
+                    <span className={cn("mt-1 max-w-full truncate text-[9px] font-bold leading-none", primary ? "text-white/70" : "text-[#94A3B8]")}>
+                      {sublabel}
+                    </span>
+                  </motion.button>
+                ))}
+              </div>
             </div>
 
-            {/* ── Daily Focus ───────────────────────────────────────── */}
-            {/* ── Today's Meals ─────────────────────────────────────── */}
-            <div className="overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white shadow-[0_16px_45px_rgba(15,23,42,0.07)]">
-              <div className="flex items-center justify-between px-4 pb-3 pt-4">
+            <div className="overflow-hidden rounded-[32px] border border-[#E5EAF1] bg-white shadow-[0_16px_38px_rgba(15,23,42,0.05)]">
+              <div className="flex items-center justify-between px-5 pb-3.5 pt-5">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-orange-600">{t("meals")}</p>
-                  <h2 className="mt-0.5 text-[18px] font-black tracking-normal text-slate-950">{t("dashboard_today_meals")}</h2>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-orange-500">{t("meals")}</p>
+                  <h2 className="mt-1 text-[19px] font-black leading-tight text-slate-900 tracking-tight">{t("dashboard_today_meals")}</h2>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-[#EFFFFA] px-3 py-1.5 text-[11px] font-black text-[#22C7A1]">
+                <div className="flex items-center gap-3">
+                  <span className="rounded-full bg-[#EFFFFA] px-3 py-1.5 text-[11px] font-black text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
                     {todayMeals.filter((meal) => meal.meal).length}/4
                   </span>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-orange-50 text-orange-600 ring-1 ring-orange-100">
-                    <UtensilsCrossed className="h-4.5 w-4.5" strokeWidth={2} />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 border border-orange-100">
+                    <UtensilsCrossed className="h-5 w-5" strokeWidth={2} />
                   </div>
                 </div>
               </div>
@@ -1798,143 +1857,148 @@ const Dashboard = () => {
                               setExpandedMeal(`${slot.type}-${meal.schedule_id}`);
                             }
                           }}
-                          className={`relative flex min-h-[92px] items-center gap-3.5 overflow-hidden rounded-[24px] bg-white p-3 ring-1 ring-white/80 transition active:scale-[0.99] ${hasMeal ? "cursor-pointer shadow-[0_8px_22px_rgba(15,23,42,0.045)]" : ""}`}
+                          className={cn(
+                            "relative flex min-h-[108px] items-center gap-4 overflow-hidden rounded-[28px] border p-3.5 transition-all duration-300 active:scale-[0.99]",
+                            hasMeal
+                              ? "cursor-pointer bg-white border-[#E5EAF1] shadow-[0_12px_28px_rgba(15,23,42,0.035)] hover:border-[#22C7A1]/20 hover:shadow-md"
+                              : "bg-[#F8FAFC] border-dashed border-slate-200"
+                          )}
                         >
                           {hasMeal ? (
                             <>
                               {meal.meal?.image_url ? (
-                                <div className="relative h-[68px] w-[68px] shrink-0">
-                                  <img src={meal.meal.image_url} alt={meal.meal.name} className="h-full w-full rounded-[22px] object-cover shadow-sm ring-1 ring-slate-100" />
-                                  <span className={`absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br ${slot.color} text-white ring-2 ring-white`}>
-                                    <IconSlot className="h-[14px] w-[14px]" strokeWidth={2} />
+                                <div className="relative h-[76px] w-[77px] shrink-0">
+                                  <img src={meal.meal.image_url} alt={meal.meal.name} className="h-full w-full rounded-2xl object-cover shadow-sm ring-1 ring-slate-100 border border-slate-100" />
+                                  <span className={cn("absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br text-white ring-2 ring-white shadow-sm", slot.color)}>
+                                    <IconSlot className="h-4 w-4" strokeWidth={2.2} />
                                   </span>
                                 </div>
                               ) : (
-                                <div className={`flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br ${slot.color} text-white shadow-sm ring-1 ring-white`}>
-                                  <IconSlot className="h-[22px] w-[22px]" strokeWidth={1.8} />
+                                <div className={cn("flex h-[76px] w-[77px] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-inner border border-white/20", slot.color)}>
+                                  <IconSlot className="h-6 w-6" strokeWidth={2} />
                                 </div>
                               )}
-                              <div className="min-w-0 flex-1">
+                              <div className="min-w-0 flex-1 text-left">
                                 <div className="flex items-center gap-1.5">
-                                  <span className={`h-1.5 w-1.5 rounded-full ${slot.accent}`} />
-                                  <p className={`truncate text-[10px] font-black uppercase tracking-[0.1em] ${slot.text}`}>{slot.label}</p>
+                                  <span className={cn("h-1.5 w-1.5 rounded-full animate-pulse", slot.accent)} />
+                                  <p className={cn("truncate text-[9px] font-black uppercase tracking-[0.14em]", slot.text)}>{slot.label}</p>
                                 </div>
-                                <p className="mt-1 truncate text-[16px] font-black leading-tight text-[#020617]">{meal.meal?.name || slot.label}</p>
+                                <p className="mt-1 truncate text-[16px] font-black text-slate-900 tracking-tight leading-tight">{meal.meal?.name || slot.label}</p>
                                 <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] font-bold text-[#64748B]">
                                   {meal.restaurant?.name && <span className="truncate">{meal.restaurant.name}</span>}
                                   {meal.meal?.calories && <><span className="text-slate-300">·</span><span>{meal.meal.calories} cal</span></>}
-                                  {meal.delivery_time_slot && <><span className="text-slate-300">·</span><span>{meal.delivery_time_slot}</span></>}
+                                  {meal.delivery_time_slot && <><span className="text-slate-300">·</span><span className="text-[#22C7A1] font-extrabold">{meal.delivery_time_slot}</span></>}
                                 </p>
                               </div>
-                              <div className="flex h-9 w-9 shrink-0 rotate-90 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1]">
-                                <NextIcon className="h-3 w-3" strokeWidth={2} />
+                              <div className="flex h-10 w-11 shrink-0 rotate-90 items-center justify-center rounded-full bg-[#F1F5F9] text-slate-700 border border-slate-200/50 hover:bg-slate-100 transition-colors">
+                                <NextIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
                               </div>
                             </>
                           ) : (
                             <>
-                              <div className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[19px] ${slot.bg} ${slot.text} ring-1 ${slot.ring}`}>
-                                <IconSlot className="h-[20px] w-[20px]" strokeWidth={1.8} />
+                              <div className={cn("flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-2xl shadow-sm border border-slate-200/50 bg-white text-slate-400")}>
+                                <IconSlot className="h-6 w-6" strokeWidth={2} />
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <p className={`text-[13px] font-black ${slot.text}`}>{slot.label}</p>
-                                <p className="mt-0.5 text-[11px] font-bold text-[#94A3B8]">{t("dashboard_no_meal_planned")}</p>
+                              <div className="min-w-0 flex-1 text-left">
+                                <p className="text-[14px] font-black text-slate-900 tracking-tight">{slot.label}</p>
+                                <p className="mt-1 text-[11px] font-semibold text-[#94A3B8]">{t("dashboard_no_meal_planned")}</p>
                               </div>
-                              <Link to="/meals" className="flex h-9 shrink-0 items-center gap-1 rounded-full bg-white px-3 text-[10px] font-black text-[#020617] ring-1 ring-[#E5EAF1] transition active:scale-95">
-                                <Plus className="h-3 w-3" strokeWidth={2.5} />Order Now
+                              <Link to="/meals" className="flex h-10 shrink-0 items-center gap-1 rounded-xl bg-slate-900 hover:bg-slate-800 px-3.5 text-[11px] font-black text-white shadow-sm transition active:scale-95">
+                                <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />Order
                               </Link>
                             </>
                           )}
                         </motion.div>
                         {hasMeal && (
                           <div className="overflow-hidden">
-                              <div className="mx-1 mb-2 mt-2.5 rounded-[28px] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
+                              <div className="mx-1 mb-2 mt-3 rounded-[28px] bg-white p-5 border border-[#E5EAF1] shadow-[0_12px_30px_rgba(15,23,42,0.03)] text-left">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div>
                                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">Nutrition</p>
-                                    <h3 className="mt-1 text-[22px] font-black leading-none tracking-[-0.03em] text-[#020617]">Nutrition profile</h3>
-                                    <p className="mt-1 text-[12px] font-bold text-[#64748B]">Calories, macros and fiber</p>
+                                    <h3 className="mt-1 text-[20px] font-black leading-tight tracking-tight text-slate-900">Nutrition profile</h3>
+                                    <p className="mt-0.5 text-[12px] font-semibold text-[#64748B]">Calories, macros and fiber</p>
                                   </div>
-                                  <span className="rounded-full bg-[#F1F5F9] px-3 py-2 text-[11px] font-black text-[#64748B]">per meal</span>
+                                  <span className="rounded-full bg-[#F1F5F9] border border-slate-200/50 px-3 py-1.5 text-[10px] font-black text-[#64748B] uppercase tracking-wide">per meal</span>
                                 </div>
 
-                                <div className="mt-4 flex items-center gap-4">
-                                  <div className="relative flex h-[118px] w-[118px] shrink-0 items-center justify-center rounded-full"
+                                <div className="mt-5 flex items-center gap-5">
+                                  <div className="relative flex h-[124px] w-[124px] shrink-0 items-center justify-center rounded-full shadow-[inset_0_1px_3px_rgba(0,0,0,0.06)] border border-slate-100"
                                     style={{
                                       background: `conic-gradient(#7C83F6 0 ${proteinPct}%, #38BDF8 ${proteinPct}% ${proteinPct + carbsPct}%, #FB6B7A ${proteinPct + carbsPct}% 100%)`,
                                     }}
                                   >
-                                    <div className="absolute inset-[10px] rounded-full bg-[#E2E8F0]" />
-                                    <div className="absolute inset-[20px] rounded-full bg-white" />
+                                    <div className="absolute inset-[8px] rounded-full bg-[#E2E8F0]" />
+                                    <div className="absolute inset-[16px] rounded-full bg-white shadow-inner" />
                                     <div className="relative text-center">
-                                      <Flame className="mx-auto h-4 w-4 text-[#FB6B7A]" strokeWidth={2} />
-                                      <p className="mt-1 text-[25px] font-black leading-none tracking-[-0.04em] text-[#020617]">{calories}</p>
-                                      <p className="mt-1 text-[9px] font-black uppercase tracking-[0.13em] text-[#94A3B8]">{t("cal_short")}</p>
+                                      <Flame className="mx-auto h-4 w-4 text-[#FB6B7A] fill-current" strokeWidth={2} />
+                                      <p className="mt-1.5 text-[24px] font-black leading-none tracking-tight text-[#020617]">{calories}</p>
+                                      <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{t("cal_short")}</p>
                                     </div>
                                   </div>
 
-                                  <div className="min-w-0 flex-1 space-y-3">
-                                    <div className="flex items-center gap-2.5">
-                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#7C83F6]/15">
-                                        <Drumstick className="h-4 w-4" strokeWidth={1.8} />
+                                  <div className="min-w-0 flex-1 space-y-3.5">
+                                    <div className="flex items-center gap-3">
+                                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F3F4FF] text-[#7C83F6] border border-[#7C83F6]/15 shadow-sm">
+                                        <Drumstick className="h-4.5 w-4.5" strokeWidth={1.8} />
                                       </span>
                                       <div className="min-w-0 flex-1">
                                         <div className="flex items-center justify-between gap-2">
-                                          <p className="text-[13px] font-black text-[#020617]">{t("dashboard_protein")}</p>
-                                          <p className="text-[12px] font-black text-[#64748B]">{proteinPct}%</p>
+                                          <p className="text-[13px] font-black text-slate-800">{t("dashboard_protein")}</p>
+                                          <p className="text-[11px] font-black text-[#7C83F6]">{proteinPct}%</p>
                                         </div>
-                                        <p className="text-[12px] font-black text-[#94A3B8]">{protein}g of {macroTotal}g</p>
+                                        <p className="text-[11px] font-bold text-[#94A3B8] mt-0.5">{protein}g of {macroTotal}g</p>
                                       </div>
                                     </div>
-                                    <div className="flex items-center gap-2.5">
-                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-50 text-[#38BDF8] ring-1 ring-[#38BDF8]/15">
-                                        <Wheat className="h-4 w-4" strokeWidth={1.8} />
+                                    <div className="flex items-center gap-3">
+                                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#38BDF8] border border-[#38BDF8]/15 shadow-sm">
+                                        <Wheat className="h-4.5 w-4.5" strokeWidth={1.8} />
                                       </span>
                                       <div className="min-w-0 flex-1">
                                         <div className="flex items-center justify-between gap-2">
-                                          <p className="text-[13px] font-black text-[#020617]">{t("dashboard_carbs")}</p>
-                                          <p className="text-[12px] font-black text-[#64748B]">{carbsPct}%</p>
+                                          <p className="text-[13px] font-black text-slate-800">{t("dashboard_carbs")}</p>
+                                          <p className="text-[11px] font-black text-[#38BDF8]">{carbsPct}%</p>
                                         </div>
-                                        <p className="text-[12px] font-black text-[#94A3B8]">{carbs}g of {macroTotal}g</p>
+                                        <p className="text-[11px] font-bold text-[#94A3B8] mt-0.5">{carbs}g of {macroTotal}g</p>
                                       </div>
                                     </div>
-                                    <div className="flex items-center gap-2.5">
-                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FFF0F2] text-[#FB6B7A] ring-1 ring-[#FB6B7A]/15">
-                                        <FatIcon className="h-4 w-4" strokeWidth={1.8} />
+                                    <div className="flex items-center gap-3">
+                                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FFF0F2] text-[#FB6B7A] border border-[#FB6B7A]/15 shadow-sm">
+                                        <FatIcon className="h-4.5 w-4.5" strokeWidth={1.8} />
                                       </span>
                                       <div className="min-w-0 flex-1">
                                         <div className="flex items-center justify-between gap-2">
-                                          <p className="text-[13px] font-black text-[#020617]">{t("fat_short")}</p>
-                                          <p className="text-[12px] font-black text-[#64748B]">{fatPct}%</p>
+                                          <p className="text-[13px] font-black text-slate-800">{t("fat_short")}</p>
+                                          <p className="text-[11px] font-black text-[#FB6B7A]">{fatPct}%</p>
                                         </div>
-                                        <p className="text-[12px] font-black text-[#94A3B8]">{fat}g of {macroTotal}g</p>
+                                        <p className="text-[11px] font-bold text-[#94A3B8] mt-0.5">{fat}g of {macroTotal}g</p>
                                       </div>
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-[#E2E8F0]">
+                                <div className="mt-5 flex h-2.5 overflow-hidden rounded-full bg-slate-100 border border-slate-200/40">
                                   <div className="h-full bg-[#7C83F6]" style={{ width: `${proteinPct}%` }} />
                                   <div className="h-full bg-[#38BDF8]" style={{ width: `${carbsPct}%` }} />
                                   <div className="h-full bg-[#FB6B7A]" style={{ width: `${fatPct}%` }} />
                                 </div>
 
-                                <div className="mt-3 grid grid-cols-2 gap-2">
-                                  <div className="flex items-center gap-2 rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
-                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#7C83F6] ring-1 ring-[#E5EAF1]">
+                                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                                  <div className="flex items-center gap-2 rounded-[18px] bg-[#F8FAFC] p-3 border border-[#E2E8F0] shadow-sm">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#7C83F6] border border-[#E2E8F0]">
                                       <Drumstick className="h-4 w-4" strokeWidth={1.8} />
                                     </span>
                                     <div className="min-w-0">
                                       <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">Macros</p>
-                                      <p className="truncate text-[15px] font-black text-[#020617]">{macroTotal}g total</p>
+                                      <p className="truncate text-[15px] font-black text-slate-900">{macroTotal}g total</p>
                                     </div>
                                   </div>
-                                  <Link to={`/meals/${meal.meal?.id}`} className="flex items-center gap-2 rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1] transition active:scale-[0.98]">
-                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#22C7A1] ring-1 ring-[#E5EAF1]">
-                                      <Leaf className="h-4 w-4" strokeWidth={1.8} />
+                                  <Link to={`/meals/${meal.meal?.id}`} className="flex items-center gap-3 rounded-[18px] bg-[#F8FAFC] p-3 border border-[#E2E8F0] shadow-sm transition-all duration-300 active:scale-[0.98] hover:border-[#22C7A1]/20">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#22C7A1] border border-[#E2E8F0]">
+                                      <Leaf className="h-4.5 w-4.5" strokeWidth={1.8} />
                                     </span>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">Details</p>
-                                      <p className="truncate text-[15px] font-black text-[#020617]">View meal</p>
+                                    <div className="min-w-0 flex-1 text-left">
+                                      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Details</p>
+                                      <p className="truncate text-[14px] font-black text-[#22C7A1]">View meal</p>
                                     </div>
                                   </Link>
                                 </div>
@@ -1964,22 +2028,21 @@ const Dashboard = () => {
             {/* ── Subscription Nudge ────────────────────────────────── */}
             <SubscriptionNudge />
 
-            {/* ── Active Orders ─────────────────────────────────────── */}
             {activeOrders.length > 0 && (
-              <div className="rounded-[24px] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
+              <div className="rounded-[32px] bg-white p-5 border border-[#E5EAF1] shadow-[0_16px_38px_rgba(15,23,42,0.05)]">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[#020617] text-white shadow-[0_4px_12px_rgba(2,6,23,0.18)]">
-                      <ShoppingBag className="h-4.5 w-4.5" strokeWidth={2} />
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
+                      <ShoppingBag className="h-5 w-5" strokeWidth={2} />
                     </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#22C7A1]">{t("orders")}</p>
-                      <h2 className="mt-0.5 text-[16px] font-black tracking-[-0.03em] text-slate-950">{t("active_orders")}</h2>
-                      <p className="text-[11px] font-semibold text-slate-400">{t("orders_in_progress_full", { count: String(totalActiveOrders), plural: totalActiveOrders !== 1 ? "s" : "", show: String(activeOrders.length) })}</p>
+                    <div className="text-left">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">{t("orders")}</p>
+                      <h2 className="mt-1 text-[18px] font-black leading-tight text-slate-900 tracking-tight">{t("active_orders")}</h2>
+                      <p className="text-[11px] font-semibold text-slate-400 mt-0.5">{t("orders_in_progress_full", { count: String(totalActiveOrders), plural: totalActiveOrders !== 1 ? "s" : "", show: String(activeOrders.length) })}</p>
                     </div>
                   </div>
-                  <Link to="/orders?tab=scheduled" className="flex items-center gap-1 rounded-full bg-[#020617] px-3 py-2 text-[11px] font-black text-white shadow-[0_8px_18px_rgba(2,6,23,0.14)] transition active:scale-95">
-                    {t("orders_section_view_all")}<NextIcon className="h-3.5 w-3.5" />
+                  <Link to="/orders?tab=scheduled" className="flex items-center gap-1.5 rounded-full bg-slate-950 hover:bg-slate-800 px-3.5 py-2 text-[11px] font-black text-white shadow-sm transition active:scale-95">
+                    {t("orders_section_view_all")}<NextIcon className="h-4 w-4" />
                   </Link>
                 </div>
                 <div className="mt-3 space-y-0 divide-y divide-slate-100">
@@ -1998,20 +2061,20 @@ const Dashboard = () => {
                     const config = statusConfig[order.order_status] || statusConfig.pending;
                     const IconComponent = config.Icon;
                     return (
-                      <motion.div key={order.id} variants={prefersReducedMotion ? undefined : staggerItem} whileTap={prefersReducedMotion ? undefined : { scale: 0.99 }} className="overflow-hidden bg-white transition">
+                      <motion.div key={order.id} variants={prefersReducedMotion ? undefined : staggerItem} whileTap={prefersReducedMotion ? undefined : { scale: 0.99 }} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-[#F8FAFC]/40 p-1 mb-2.5 transition-all duration-300 hover:border-slate-300">
                         <Link to={`/live/${order.id}`} className="block">
-                          <div className="flex items-center gap-3 py-3">
-                            <div className={`flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-[18px] text-white shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${config.iconBg}`}>
-                              <IconComponent className="h-[20px] w-[20px]" strokeWidth={1.75} />
+                          <div className="flex items-center gap-3.5 p-3">
+                            <div className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl text-white shadow-sm ${config.iconBg}`}>
+                              <IconComponent className="h-[22px] w-[22px]" strokeWidth={1.75} />
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <h3 className="truncate text-[15px] font-black tracking-[-0.03em] text-slate-950">{order.restaurant_name}</h3>
-                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${config.badgeClass}`}>{config.label}</span>
+                            <div className="min-w-0 flex-1 text-left">
+                              <div className="flex items-center gap-2.5">
+                                <h3 className="truncate text-[15px] font-black tracking-tight text-slate-900 leading-tight">{order.restaurant_name}</h3>
+                                <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider", config.badgeClass)}>{config.label}</span>
                               </div>
-                              <p className="mt-0.5 truncate text-[12px] font-semibold text-slate-600">{order.meal_name}</p>
+                              <p className="mt-1 truncate text-[12px] font-semibold text-slate-500 leading-none">{order.meal_name}</p>
                               {order.order_status === "out_for_delivery" && etaMin !== null ? (
-                                <div className="mt-1.5">
+                                <div className="mt-2.5">
                                   <div className="flex items-center gap-2">
                                     <span className="shrink-0 text-[12px] font-extrabold text-sky-600">{etaMin <= 0 ? t("arriving_now") : t("eta_min", { minutes: String(etaMin) })}</span>
                                     <div className="h-[4px] flex-1 overflow-hidden rounded-full bg-sky-100">
@@ -2020,26 +2083,26 @@ const Dashboard = () => {
                                   </div>
                                 </div>
                               ) : (
-                                <div className="mt-1 flex items-center gap-1.5">
-                                  <p className="text-[11px] font-medium text-slate-400">{config.hint}</p>
+                                <div className="mt-1.5 flex items-center gap-1.5">
+                                  <p className="text-[11px] font-semibold text-[#94A3B8]">{config.hint}</p>
                                 </div>
                               )}
                             </div>
-                            <NextIcon className="h-4.5 w-4.5 shrink-0 text-slate-300" strokeWidth={2} />
+                            <NextIcon className="h-4.5 w-4.5 shrink-0 text-slate-300" strokeWidth={2.5} />
                           </div>
                         </Link>
                         {(order.order_status === "pending" || order.order_status === "confirmed") && (
-                          <div className="flex items-center gap-2 bg-slate-50 px-3 pb-3 pt-2">
+                          <div className="flex items-center gap-2 bg-[#F1F5F9]/60 px-3 pb-3 pt-2 rounded-b-2xl border-t border-slate-200/50">
                             <button type="button"
                               onClick={(e) => { e.preventDefault(); setSelectedSchedule(order); setShowModifyModal(true); }}
-                              className="flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-white py-2 text-[11px] font-black text-slate-600 ring-1 ring-slate-200/80">
-                              <Pencil className="h-3 w-3" strokeWidth={2} />{t("reschedule_button")}
+                              className="flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-white py-2 text-[11px] font-black text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-sm active:scale-95 transition-all">
+                              <Pencil className="h-3.5 w-3.5 text-slate-500" strokeWidth={2.2} />{t("reschedule_button")}
                             </button>
                             <button type="button"
                               onClick={(e) => { e.preventDefault(); setCancelTarget(order); }}
                               disabled={cancellingId === order.id}
-                              className="flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#FFF0F2] py-2 text-[11px] font-black text-[#FB6B7A] ring-1 ring-[#FB6B7A]/20 disabled:opacity-50">
-                              {cancellingId === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" strokeWidth={2} />}{t("cancel_button")}
+                              className="flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#FFF0F2] py-2 text-[11px] font-black text-[#FB6B7A] border border-[#FB6B7A]/15 hover:bg-[#FFF0F2]/80 shadow-sm active:scale-95 transition-all disabled:opacity-50">
+                              {cancellingId === order.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" strokeWidth={2.2} />}{t("cancel_button")}
                             </button>
                           </div>
                         )}
@@ -2050,91 +2113,90 @@ const Dashboard = () => {
               </div>
             )}
 
-            {/* ── AI Coach ──────────────────────────────────────────── */}
-            <div className="rounded-[28px] bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
+            <div className="rounded-[32px] bg-white p-5 border border-[#E5EAF1] shadow-[0_16px_38px_rgba(15,23,42,0.05)]">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#22C7A1]">{t("daily_focus")}</p>
-                  <h2 className="mt-0.5 text-[17px] font-black tracking-[-0.03em] text-slate-950">{t("do_this_next")}</h2>
+                <div className="text-left">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">{t("daily_focus")}</p>
+                  <h2 className="mt-1 text-[19px] font-black leading-tight text-slate-900 tracking-tight">{t("do_this_next")}</h2>
                 </div>
-                <div className="rounded-full bg-[#EFFFFA] px-2.5 py-1 text-[10px] font-bold text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
+                <div className="rounded-full bg-[#EFFFFA] px-3 py-1.5 text-[11px] font-black text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
                   {dailyScore}/100
                 </div>
               </div>
-              <div className="mt-3 space-y-2">
+              <div className="mt-4 space-y-2.5">
                 {focusItems.map(({ label, title, detail, Icon, tone, action }, index) => (
                   <button
                     key={label}
                     type="button"
                     onClick={action}
-                    className="flex min-h-[64px] w-full items-center gap-3 rounded-[18px] bg-slate-50 p-3 text-start ring-1 ring-slate-200/80 transition active:scale-[0.99]"
+                    className="flex min-h-[68px] w-full items-center gap-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] p-3 text-start transition-all active:scale-[0.99] hover:border-[#22C7A1]/30"
                   >
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] ring-1 ${tone}`}>
-                      <Icon className="h-4.5 w-4.5" strokeWidth={2.1} />
+                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ${tone}`}>
+                      <Icon className="h-5 w-5" strokeWidth={2.2} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-black text-slate-400 ring-1 ring-slate-200/80">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-white text-[10px] font-black text-slate-400 border border-slate-200/60 shadow-sm">
                           {index + 1}
                         </span>
-                        <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">{label}</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
                       </div>
-                      <p className="mt-0.5 truncate text-[14px] font-black tracking-[-0.02em] text-slate-950">{title}</p>
-                      <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-500">{detail}</p>
+                      <p className="mt-1.5 truncate text-[14px] font-black text-slate-900 leading-none">{title}</p>
+                      <p className="mt-1 truncate text-[11px] font-semibold text-[#64748B]">{detail}</p>
                     </div>
-                    <NextIcon className="h-3.5 w-3.5 shrink-0 text-slate-300" strokeWidth={2.4} />
+                    <NextIcon className="h-4 w-4 shrink-0 text-slate-300" strokeWidth={2.4} />
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-[24px] bg-white p-3 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
+            <div className="rounded-[32px] bg-white p-5 border border-[#E5EAF1] shadow-[0_16px_38px_rgba(15,23,42,0.05)]">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-600">{t("ai_insight")}</p>
-                  <h2 className="mt-0.5 text-[17px] font-black tracking-normal text-slate-950">{t("todays_read")}</h2>
+                <div className="text-left">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-orange-500">{t("ai_insight")}</p>
+                  <h2 className="mt-1 text-[19px] font-black leading-tight text-slate-900 tracking-tight">{t("todays_read")}</h2>
                 </div>
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-orange-50 text-orange-600 ring-1 ring-orange-100">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 border border-orange-100">
                   <Apple className="h-4.5 w-4.5" strokeWidth={2.1} />
                 </div>
               </div>
-              <div className="mt-3 space-y-2">
+              <div className="mt-4 space-y-2.5">
                 {coachInsights.slice(0, 1).map(({ label, title, detail, Icon, tone }) => (
-                  <div key={label} className="rounded-[16px] bg-slate-50 p-2.5 ring-1 ring-slate-200/80">
+                  <div key={label} className="rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] p-3.5 shadow-sm text-left">
                     <div className="flex items-start gap-3">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] ring-1 ${tone}`}>
-                        <Icon className="h-4 w-4" strokeWidth={2.1} />
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ${tone}`}>
+                        <Icon className="h-4.5 w-4.5" strokeWidth={2.1} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">{label}</p>
-                        <p className="mt-0.5 text-[13px] font-black leading-tight tracking-[-0.02em] text-slate-950">{title}</p>
-                        <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-snug text-slate-500">{detail}</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">{label}</p>
+                        <p className="mt-1 text-[13px] font-black leading-tight text-slate-900">{title}</p>
+                        <p className="mt-1.5 line-clamp-2 text-[11px] font-semibold leading-relaxed text-[#64748B]">{detail}</p>
                       </div>
                     </div>
                   </div>
                 ))}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   {coachInsights.slice(1).map(({ label, title, detail, Icon, tone }) => (
-                    <div key={label} className="min-w-0 rounded-[16px] bg-slate-50 p-2.5 ring-1 ring-slate-200/80">
-                      <div className="flex items-center gap-2">
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] ring-1 ${tone}`}>
+                    <div key={label} className="min-w-0 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] p-3 shadow-sm text-left">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ${tone}`}>
                           <Icon className="h-4 w-4" strokeWidth={2.1} />
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate text-[8px] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</p>
-                          <p className="truncate text-[12px] font-black leading-tight text-slate-950">{title}</p>
+                          <p className="truncate text-[8px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+                          <p className="truncate text-[12px] font-black leading-none text-slate-900 mt-1">{title}</p>
                         </div>
                       </div>
-                      <p className="mt-1 line-clamp-1 text-[10px] font-semibold leading-snug text-slate-500">{detail}</p>
+                      <p className="mt-2 line-clamp-1 text-[10px] font-semibold text-[#64748B]">{detail}</p>
                     </div>
                   ))}
                 </div>
               </div>
               {(smartRecommendationsLoading || aiRecommendationItems.length > 0) && (
-                <div className="mt-2 border-t border-slate-100 pt-2">
-                  <div className="mb-1.5 flex items-center justify-between gap-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{t("next_best_actions")}</p>
-                    <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-black text-slate-600 ring-1 ring-slate-200">
+                <div className="mt-4 border-t border-slate-100 pt-3">
+                  <div className="mb-2.5 flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">{t("next_best_actions")}</p>
+                    <span className="rounded-full bg-slate-50 border border-slate-200/50 px-2 py-0.5 text-[10px] font-black text-slate-600">
                       {smartRecommendationsLoading ? "..." : aiRecommendationItems.length}
                     </span>
                   </div>
@@ -2145,7 +2207,7 @@ const Dashboard = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {aiRecommendationItems.map((rec) => {
                         const recIconMap: Record<string, LucideIcon> = {
                           nutrition: Apple,
@@ -2179,33 +2241,33 @@ const Dashboard = () => {
                             onClick={() => {
                               if (rec.action_link) navigate(rec.action_link);
                             }}
-                            className="w-full rounded-[15px] bg-slate-50 p-2 text-start ring-1 ring-slate-200/80 transition active:scale-[0.99]"
+                            className="w-full rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] p-3 text-left transition-all duration-300 active:scale-[0.99] hover:border-slate-300/60 shadow-sm"
                           >
-                            <div className="flex items-start gap-2">
-                              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] ring-1 ${recToneMap[rec.category] || recToneMap.general}`}>
-                                <RecIcon className="h-4 w-4" strokeWidth={2.1} />
+                            <div className="flex items-start gap-3">
+                              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ${recToneMap[rec.category] || recToneMap.general}`}>
+                                <RecIcon className="h-4.5 w-4.5" strokeWidth={2.1} />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
-                                  <p className="min-w-0 flex-1 truncate text-[12px] font-black leading-tight text-slate-950">{rec.title}</p>
+                                  <p className="min-w-0 flex-1 truncate text-[13px] font-black leading-tight text-slate-900">{rec.title}</p>
                                   <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase ring-1 ${priorityTone}`}>
                                     {rec.priority === "high" ? t("priority_high") : rec.priority === "medium" ? t("priority_medium") : t("priority_low")}
                                   </span>
                                 </div>
-                                <p className="mt-0.5 line-clamp-1 text-[10px] font-semibold leading-snug text-slate-500">{rec.description}</p>
+                                <p className="mt-1 line-clamp-1 text-[11px] font-semibold text-[#64748B]">{rec.description}</p>
                                 {rec.progress && progressPct !== null && (
-                                  <div className="mt-1.5">
-                                    <div className="mb-1 flex items-center justify-between text-[9px]">
-                                      <span className="font-black text-slate-500" dir="ltr">{rec.progress.value}/{rec.progress.max} {rec.progress.unit}</span>
-                                      <span className="font-black" style={{ color: accent }}>{progressPct}%</span>
+                                  <div className="mt-2">
+                                    <div className="mb-1 flex items-center justify-between text-[10px]">
+                                      <span className="font-bold text-[#64748B]" dir="ltr">{rec.progress.value}/{rec.progress.max} {rec.progress.unit}</span>
+                                      <span className="font-extrabold" style={{ color: accent }}>{progressPct}%</span>
                                     </div>
-                                    <div className="h-1 overflow-hidden rounded-full bg-slate-100">
+                                    <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
                                       <div className="h-full rounded-full" style={{ width: `${progressPct}%`, backgroundColor: accent }} />
                                     </div>
                                   </div>
                                 )}
                               </div>
-                              <NextIcon className="mt-2 h-3.5 w-3.5 shrink-0 text-slate-300" strokeWidth={2.4} />
+                              <NextIcon className="mt-2 h-4 w-4 shrink-0 text-slate-300" strokeWidth={2.4} />
                             </div>
                           </button>
                         );
@@ -2214,8 +2276,8 @@ const Dashboard = () => {
                   )}
                 </div>
               )}
-              <Link to="/ai-report" className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#020617] px-4 text-[12px] font-black text-white shadow-[0_8px_20px_rgba(2,6,23,0.16)] transition active:scale-[0.98]">
-                {t("open_ai_report")} <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px]" dir="ltr">{aiOverallScore}/100</span> <NextIcon className="h-3.5 w-3.5" strokeWidth={2.4} />
+              <Link to="/ai-report" className="mt-4 flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-slate-900 hover:bg-slate-800 px-4 text-[13px] font-black text-white shadow-sm transition active:scale-[0.98]">
+                {t("open_ai_report")} <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-black" dir="ltr">{aiOverallScore}/100</span> <NextIcon className="h-4 w-4" strokeWidth={2.4} />
               </Link>
             </div>
 
