@@ -36,23 +36,24 @@ export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
     <nav
       dir="ltr"
       data-testid="bottom-tab-bar"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-[1000]"
+      className="pointer-events-none fixed inset-x-0 z-[1000]"
       style={{
+        bottom: "max(18px, env(safe-area-inset-bottom, 0px))",
         opacity: keyboardOpen ? 0 : 1,
         transition: "opacity 0.15s ease",
         pointerEvents: keyboardOpen ? "none" : "auto",
       }}
     >
-      {/* Dock bar — fixed 56px, no extra padding below */}
+      {/* Dock bar: raised above native Android navigation controls. */}
       <div
-        className="pointer-events-auto w-full"
+        className="pointer-events-auto mx-auto w-[calc(100%-24px)] max-w-[430px] rounded-[24px]"
         style={{
-          height: "56px",
+          height: "60px",
           background: "rgba(255,255,255,0.96)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
-          borderTop: "1px solid rgba(0,0,0,0.07)",
-          boxShadow: "0 -4px 20px rgba(0,0,0,0.06)",
+          border: "1px solid rgba(226,232,240,0.9)",
+          boxShadow: "0 10px 30px rgba(2,6,23,0.12)",
         }}
       >
         <div className="mx-auto flex h-full max-w-[430px] items-center justify-around px-2">

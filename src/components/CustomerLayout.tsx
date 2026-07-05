@@ -9,8 +9,10 @@ const HIDDEN_NAV_PATHS = [
   "/subscription",
 ];
 
-// Dock height: exactly 56px — no extra safe-area padding to avoid blank space below dock
-const DOCK_RESERVED_HEIGHT = "56px";
+// Keep content clear of the floating bottom dock and Android system navigation.
+// Some Android WebViews report env(safe-area-inset-bottom) as 0, so keep a
+// minimum physical gap instead of relying only on the safe-area value.
+const DOCK_RESERVED_HEIGHT = "calc(82px + max(18px, env(safe-area-inset-bottom, 0px)))";
 
 export const CustomerLayout = () => {
   const location = useLocation();
