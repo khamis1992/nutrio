@@ -2,7 +2,6 @@ import { useRef, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
 import { useSmartGoalAdjustmentNotifications } from "@/hooks/useSmartGoalAdjustmentNotifications";
-import { isAndroid, isNative } from "@/lib/capacitor";
 
 const HIDDEN_NAV_PATHS = [
   "/checkout",
@@ -10,12 +9,8 @@ const HIDDEN_NAV_PATHS = [
   "/subscription",
 ];
 
-// Keep content clear of the floating bottom dock and Android system navigation.
-// Some Android WebViews report env(safe-area-inset-bottom) as 0, so keep a
-// minimum physical gap instead of relying only on the safe-area value.
-const DOCK_RESERVED_HEIGHT = isNative && isAndroid
-  ? "calc(124px + max(8px, env(safe-area-inset-bottom, 0px)))"
-  : "calc(82px + max(18px, env(safe-area-inset-bottom, 0px)))";
+// Keep content clear of the native-style bottom tab bar.
+const DOCK_RESERVED_HEIGHT = "calc(74px + env(safe-area-inset-bottom, 0px))";
 
 export const CustomerLayout = () => {
   const location = useLocation();
