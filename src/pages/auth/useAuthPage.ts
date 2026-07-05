@@ -6,10 +6,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { biometricAuth, isNative } from "@/lib/capacitor";
 import { z } from "zod";
 import { checkIPLocation } from "@/lib/ipCheck";
+import { recordPartnerEvent, recordPartnerReferralStatus } from "@/lib/partnerTracking";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { SignInFormValues, SignUpFormValues } from "./validation";
 
 export type AuthView = "welcome" | "signin" | "signup" | "forgot" | "otp";
+
+type StoredPartnerReferral = {
+  source?: string;
+  campaign?: string;
+  code?: string;
+  visited_at?: string;
+};
 
 export const useAuthPage = () => {
   const { t } = useLanguage();
@@ -45,6 +53,46 @@ export const useAuthPage = () => {
     setEmail(rememberedEmail || "");
     setView(newView);
   };
+
+  const recordPendingPartnerReferral = useCallback(async (userId: string) => {
+    const rawReferral = localStorage.getItem("nutrio:partner-referral");
+    if (!rawReferral) return;
+
+    try {
+      const referral = JSON.parse(rawReferral) as StoredPartnerReferral;
+      if (referral.source !== "sporthub") return;
+
+      const processedKey = `nutrio:partner-referral-processed:${userId}:${referral.source}`;
+      if (localStorage.getItem(processedKey) === "true") return;
+
+      await recordPartnerReferralStatus({
+        userId,
+        sourceApp: "sporthub",
+        targetApp: "nutrio",
+        campaign: referral.campaign || "sporthub_partner",
+        referralCode: referral.code || "SPORTHUB15",
+        status: "signed_up",
+        metadata: {
+          visited_at: referral.visited_at,
+        },
+      });
+      await recordPartnerEvent({
+        userId,
+        partner: "sporthub",
+        campaign: referral.campaign || "sporthub_partner",
+        eventType: "sporthub_referral_signed_up",
+        referralCode: referral.code || "SPORTHUB15",
+        metadata: {
+          direction: "sporthub_to_nutrio",
+          visited_at: referral.visited_at,
+        },
+      });
+
+      localStorage.setItem(processedKey, "true");
+    } catch (error) {
+      console.error("Failed to process stored partner referral:", error);
+    }
+  }, []);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("remembered_email");
@@ -85,6 +133,8 @@ export const useAuthPage = () => {
         ]);
       };
       try {
+        await recordPendingPartnerReferral(user.id);
+
         if (sessionStorage.getItem(postSignupOnboardingKey) === "true") {
           sessionStorage.removeItem(postSignupOnboardingKey);
           navigate("/onboarding", { replace: true });
@@ -135,7 +185,7 @@ export const useAuthPage = () => {
       }
     };
     checkUserRole();
-  }, [user, navigate, location]);
+  }, [user, navigate, location, recordPendingPartnerReferral]);
 
   const handleBiometricLogin = async () => {
     setBiometricLoading(true);

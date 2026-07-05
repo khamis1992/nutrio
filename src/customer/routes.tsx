@@ -40,6 +40,7 @@ const DeliveryTracking = lazy(() => import("@/pages/DeliveryTracking"));
 const RecoveryPartners = lazy(() => import("@/pages/recovery/RecoveryPartners"));
 const RecoveryDetail = lazy(() => import("@/pages/recovery/RecoveryDetail"));
 const MyBookings = lazy(() => import("@/pages/recovery/MyBookings"));
+const SportHubPartner = lazy(() => import("@/pages/partners/SportHubPartner"));
 const Community = lazy(() => import("@/pages/Community"));
 const LogActivity = lazy(() => import("@/pages/LogActivity"));
 const BodyMetrics = lazy(() => import("@/pages/BodyMetrics"));
@@ -297,6 +298,14 @@ export const customerRoutes = (
       element={
         <ProtectedRoute>
           <MyBookings />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/partners/sporthub"
+      element={
+        <ProtectedRoute>
+          <SportHubPartner />
         </ProtectedRoute>
       }
     />

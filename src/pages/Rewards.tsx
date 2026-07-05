@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft,
   CheckCircle2,
+  ChevronRight,
+  Dumbbell,
   Gift,
   Loader2,
   Sparkles,
@@ -18,6 +20,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
+import { recordSportHubClick } from "@/lib/partnerTracking";
 
 type XpTransaction = {
   id: string;
@@ -246,6 +250,55 @@ const Rewards = () => {
             </div>
           </div>
         </section>
+
+        <button
+          type="button"
+          onClick={() => {
+            trackEvent("sporthub_cta_clicked", {
+              partner: "sporthub",
+              campaign: "rewards_shared_challenge",
+              referral_code: "NUTRIO15",
+            });
+            recordSportHubClick({
+              userId: user?.id,
+              campaign: "rewards_shared_challenge",
+              eventType: "sporthub_cta_clicked",
+            });
+            navigate("/partners/sporthub");
+          }}
+          className="mt-5 w-full overflow-hidden rounded-[28px] border border-[#CDEFE7] bg-[#F7FFFC] text-start shadow-[0_14px_30px_rgba(2,6,23,0.05)] transition active:scale-[0.99]"
+        >
+          <div className="relative p-4">
+            <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[#DDF7F0]" />
+            <div className="relative flex items-center gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-white text-[#22C7A1] shadow-[0_12px_24px_rgba(2,6,23,0.07)] ring-1 ring-[#DCEFEB]">
+                <Dumbbell className="h-8 w-8" strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">Partner Challenge</p>
+                <h2 className="mt-1 text-[20px] font-black leading-tight tracking-[-0.04em] text-[#020617]">
+                  Workout + meal reward
+                </h2>
+                <p className="mt-1.5 text-[12px] font-bold leading-5 text-[#64748B]">
+                  Book through SportHub and complete a Nutrio meal to unlock partner credit.
+                </p>
+              </div>
+              <ChevronRight className="h-6 w-6 shrink-0 text-[#22C7A1]" strokeWidth={2.6} />
+            </div>
+            <div className="relative mt-4 grid grid-cols-3 gap-2">
+              {[
+                ["1", "Book"],
+                ["2", "Eat"],
+                ["3", "Earn"],
+              ].map(([step, label]) => (
+                <div key={step} className="rounded-[18px] bg-white p-3 text-center ring-1 ring-[#DCEFEB]">
+                  <p className="mx-auto flex h-8 w-8 items-center justify-center rounded-full bg-[#E9FBF7] text-[13px] font-black text-[#0FAE87]">{step}</p>
+                  <p className="mt-2 text-[10px] font-black uppercase tracking-[0.12em] text-[#64748B]">{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </button>
 
         <section className="mt-5">
           <div className="mb-2 flex items-center justify-between px-1">

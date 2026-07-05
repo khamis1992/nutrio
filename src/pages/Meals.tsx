@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   AlertCircle,
@@ -32,6 +32,8 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { Haptics } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
+import { recordSportHubClick } from "@/lib/partnerTracking";
 
 type MealCategory = "all" | "breakfast" | "lunch" | "dinner" | "snacks";
 
@@ -318,6 +320,7 @@ const RestaurantCard = ({
 };
 
 const Meals = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get("category");
   const initialQuery = searchParams.get("q") || "";
@@ -615,6 +618,43 @@ const Meals = () => {
             />
           </div>
         </section>
+
+        <button
+          type="button"
+          onClick={() => {
+            trackEvent("sporthub_cta_clicked", {
+              partner: "sporthub",
+              campaign: "meals_post_workout",
+              referral_code: "NUTRIO15",
+            });
+            recordSportHubClick({
+              userId: user?.id,
+              campaign: "meals_post_workout",
+              eventType: "sporthub_cta_clicked",
+            });
+            navigate("/partners/sporthub");
+          }}
+          className="mb-4 w-full overflow-hidden rounded-[24px] border border-[#CDEFE7] bg-[#F7FFFC] text-start shadow-[0_14px_34px_rgba(2,6,23,0.05)] transition active:scale-[0.99]"
+        >
+          <div className="relative flex min-h-[118px] items-center gap-4 p-4">
+            <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[#DDF7F0]" />
+            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-white text-[#22C7A1] shadow-[0_12px_24px_rgba(2,6,23,0.07)] ring-1 ring-[#DCEFEB]">
+              <Bike className="h-8 w-8" strokeWidth={2.2} />
+            </div>
+            <div className="relative min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">
+                SportHub recovery
+              </p>
+              <h2 className="mt-1 text-[20px] font-black leading-tight tracking-[-0.04em] text-[#020617]">
+                Match your meal to your workout
+              </h2>
+              <p className="mt-1.5 text-[12px] font-bold leading-5 text-[#64748B]">
+                Book activity, then choose a Nutrio meal that fits recovery.
+              </p>
+            </div>
+            <ChevronRight className="relative h-6 w-6 shrink-0 text-[#22C7A1]" strokeWidth={2.6} />
+          </div>
+        </button>
 
         <section className="rounded-[24px] bg-white p-3 shadow-[0_14px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
           <div className="grid gap-3">

@@ -89,6 +89,7 @@ const navGroups: Array<{
     accent: "#7C83F6",
     items: [
       { icon: Rocket, label: "Featured", to: "/admin/featured" },
+      { icon: ExternalLink, label: "Partner Integrations", to: "/admin/partner-integrations" },
       { icon: UserCheck, label: "Affiliate Apps", to: "/admin/affiliate-applications" },
       { icon: UserCheck, label: "Affiliate Payouts", to: "/admin/affiliate-payouts" },
       { icon: Trophy, label: "Affiliate Milestones", to: "/admin/affiliate-milestones" },

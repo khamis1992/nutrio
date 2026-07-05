@@ -49,6 +49,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useWeekdayData } from "@/hooks/useWeekdayData";
 import { useHealthDailyMetrics } from "@/hooks/useHealthDailyMetrics";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 
 type RingMetric = {
   label: string;

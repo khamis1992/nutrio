@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuthPage } from "./useAuthPage";
@@ -11,10 +12,31 @@ import { OnboardingCarousel } from "@/components/auth/OnboardingCarousel";
 
 export const Auth = () => {
   const { t } = useLanguage();
+  const [searchParams] = useSearchParams();
   const state = useAuthPage();
+  const { setView } = state;
   const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (new URLSearchParams(window.location.search).get("source") === "sporthub") {
+      return false;
+    }
     return !localStorage.getItem("nutrio_onboarding_seen");
   });
+
+  useEffect(() => {
+    if (searchParams.get("source") !== "sporthub") return;
+
+    const payload = {
+      source: "sporthub",
+      campaign: searchParams.get("campaign") || "sporthub_partner",
+      code: searchParams.get("code") || "SPORTHUB15",
+      visited_at: new Date().toISOString(),
+    };
+
+    localStorage.setItem("nutrio_onboarding_seen", "true");
+    localStorage.setItem("nutrio:partner-referral", JSON.stringify(payload));
+    setShowOnboarding(false);
+    setView("signup");
+  }, [searchParams, setView]);
 
   const handleOnboardingFinish = () => {
     localStorage.setItem("nutrio_onboarding_seen", "true");

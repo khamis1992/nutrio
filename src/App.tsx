@@ -43,6 +43,7 @@ const PartnerOnboarding = lazy(() => import("./pages/partner/PartnerOnboarding")
 const PartnerBoost = lazy(() => import("./pages/partner/PartnerBoost"));
 const PendingApproval = lazy(() => import("./pages/partner/PendingApproval"));
 const PartnerEarningsDashboard = lazy(() => import("./pages/partner/PartnerEarningsDashboard"));
+const SportHubWelcome = lazy(() => import("./pages/partners/SportHubWelcome"));
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminRestaurants = lazy(() => import("./pages/admin/AdminRestaurants"));
@@ -75,6 +76,7 @@ const AdminMealApprovals = lazy(() => import("./pages/admin/AdminMealApprovals")
 const AdminPremiumAnalytics = lazy(() => import("./pages/admin/AdminPremiumAnalytics"));
 const AdminCoachApprovals = lazy(() => import("./pages/admin/AdminCoachApprovals"));
 const AdminCoachCommission = lazy(() => import("./pages/admin/AdminCoachCommission"));
+const AdminPartnerIntegrations = lazy(() => import("./pages/admin/AdminPartnerIntegrations"));
 
 // Driver pages
 const DriverAuth = lazy(() => import("./pages/driver/DriverAuth"));
@@ -157,6 +159,7 @@ const App = () => (
             <Route path="/terms" element={<Terms />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/sporthub" element={<SportHubWelcome />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             
             {/* Onboarding has no dock/nav */}
@@ -419,6 +422,14 @@ const App = () => (
                   <AdminAffiliateApplications />
                 </ProtectedRoute>
               } 
+            />
+            <Route
+              path="/admin/partner-integrations"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminPartnerIntegrations />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/admin/affiliate-milestones"
