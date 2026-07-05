@@ -1599,23 +1599,32 @@ const Dashboard = () => {
                 type="button"
                 data-testid="dashboard-subscription-card"
                 onClick={() => navigate("/subscription")}
-                className="group mt-4 flex min-h-[64px] w-full items-center justify-between gap-3 rounded-[22px] bg-[#FFF1F3] px-4 py-3.5 text-start shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-[#FFD8DE] transition-all duration-300 hover:bg-[#FFE9ED] active:scale-[0.99]"
+                className="group mt-4 w-full rounded-[24px] bg-white p-3.5 text-start shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-[#FEE2E7] transition-all duration-300 hover:bg-[#FFF8FA] active:scale-[0.99]"
                 aria-label={t("open_subscription")}
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#FB6B7A] shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-[#FFD8DE]">
-                    <Crown className="h-4.5 w-4.5" strokeWidth={2.2} />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#FB6B7A]/10 text-[#FB6B7A] ring-1 ring-[#FB6B7A]/20">
+                    <Crown className="h-5 w-5" strokeWidth={2.25} />
                   </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-[14px] font-black leading-tight text-[#020617]">{planName}</p>
-                    <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-[14px] font-black leading-tight text-[#020617]">{planName}</p>
+                      <span className="shrink-0 rounded-full bg-[#F6F8FB] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-[#FB6B7A] ring-1 ring-[#FEE2E7]">
+                        active
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[12px] font-bold text-[#94A3B8]">
                       {isUnlimited ? t("unlimited_meals") : t("meals_left_value", { count: balanceDisplay })}
                     </p>
                   </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-[#FB6B7A] shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-[#FFD8DE] transition-colors group-hover:bg-[#FB6B7A] group-hover:text-white">
-                  {t("manage")}
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform group-hover:translate-x-0.5" strokeWidth={2.6} />
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="hidden text-[10px] font-black uppercase tracking-[0.12em] text-[#FB6B7A] min-[390px]:inline">
+                      {t("manage")}
+                    </span>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F6F8FB] text-[#FB6B7A] ring-1 ring-[#FEE2E7] transition-colors group-hover:bg-[#FB6B7A] group-hover:text-white">
+                      <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" strokeWidth={2.6} />
+                    </span>
+                  </div>
                 </div>
               </button>
             </motion.div>
