@@ -1,6 +1,7 @@
 import { useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { isAndroid, isNative } from "@/lib/capacitor";
 import { Home, UtensilsCrossed, Calendar, User } from "lucide-react";
 
 const navItems = [
@@ -17,6 +18,9 @@ interface BottomTabBarProps {
 export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
   const location = useLocation();
   const { t, isRTL } = useLanguage();
+  const dockBottomOffset = isNative && isAndroid
+    ? "calc(54px + max(8px, env(safe-area-inset-bottom, 0px)))"
+    : "max(18px, env(safe-area-inset-bottom, 0px))";
 
   const visibleNavItems = isRTL ? [...navItems].reverse() : navItems;
 
@@ -38,7 +42,7 @@ export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
       data-testid="bottom-tab-bar"
       className="pointer-events-none fixed inset-x-0 z-[1000]"
       style={{
-        bottom: "max(18px, env(safe-area-inset-bottom, 0px))",
+        bottom: dockBottomOffset,
         opacity: keyboardOpen ? 0 : 1,
         transition: "opacity 0.15s ease",
         pointerEvents: keyboardOpen ? "none" : "auto",
