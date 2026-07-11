@@ -1,0 +1,179 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Nutrio AI Insight Mascot</title>
+  <desc id="desc">A polished blue-purple AI wellness assistant holding a nutrition tablet and laboratory flask.</desc>
+
+  <defs>
+    <linearGradient id="bodyGrad" x1="38" y1="35" x2="119" y2="129" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C8D7FF"/>
+      <stop offset="0.34" stop-color="#9298FF"/>
+      <stop offset="0.68" stop-color="#6D63EE"/>
+      <stop offset="1" stop-color="#4B43C8"/>
+    </linearGradient>
+
+    <linearGradient id="bodyEdge" x1="48" y1="45" x2="118" y2="118" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".7"/>
+      <stop offset=".45" stop-color="#FFFFFF" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#2A267A" stop-opacity=".28"/>
+    </linearGradient>
+
+    <radialGradient id="faceGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(64 58) rotate(52) scale(58 50)">
+      <stop stop-color="#FFFFFF" stop-opacity=".62"/>
+      <stop offset=".55" stop-color="#FFFFFF" stop-opacity=".10"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="haloGrad" x1="43" y1="19" x2="117" y2="24" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#33C8F6"/>
+      <stop offset=".5" stop-color="#DDE9FF"/>
+      <stop offset="1" stop-color="#7C75F6"/>
+    </linearGradient>
+
+    <linearGradient id="tabletGrad" x1="26" y1="91" x2="64" y2="137" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22345D"/>
+      <stop offset="1" stop-color="#0B1224"/>
+    </linearGradient>
+
+    <linearGradient id="screenGrad" x1="30" y1="96" x2="57" y2="128" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#182845"/>
+      <stop offset="1" stop-color="#10192D"/>
+    </linearGradient>
+
+    <linearGradient id="flaskLiquid" x1="110" y1="105" x2="132" y2="132" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8CF45A"/>
+      <stop offset=".52" stop-color="#41D975"/>
+      <stop offset="1" stop-color="#1DBD7E"/>
+    </linearGradient>
+
+    <linearGradient id="glassGrad" x1="110" y1="95" x2="132" y2="133" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".85"/>
+      <stop offset=".45" stop-color="#C8E9FF" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#79BFEF" stop-opacity=".18"/>
+    </linearGradient>
+
+    <linearGradient id="panelGrad" x1="7" y1="61" x2="42" y2="95" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#27416E" stop-opacity=".88"/>
+      <stop offset="1" stop-color="#131F39" stop-opacity=".88"/>
+    </linearGradient>
+
+    <filter id="bodyShadow" x="18" y="20" width="124" height="133" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#181449" flood-opacity=".32"/>
+    </filter>
+
+    <filter id="softGlow" x="31" y="8" width="98" height="34" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+
+    <filter id="objectShadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="3.5" flood-color="#0A1024" flood-opacity=".34"/>
+    </filter>
+
+    <filter id="tinyGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="1.6"/>
+    </filter>
+  </defs>
+
+  <!-- Ambient brand glow -->
+  <circle cx="80" cy="78" r="68" fill="#6674F4" opacity=".055"/>
+  <circle cx="80" cy="78" r="55" stroke="#2BB9F3" stroke-opacity=".09"/>
+  <circle cx="80" cy="78" r="63" stroke="#6674F4" stroke-opacity=".08"/>
+
+  <!-- Halo -->
+  <g>
+    <ellipse cx="80" cy="22" rx="40" ry="8.5" fill="#86BFFF" opacity=".26" filter="url(#softGlow)"/>
+    <ellipse cx="80" cy="22" rx="36.5" ry="6.5" fill="none" stroke="url(#haloGrad)" stroke-width="3.2"/>
+    <ellipse cx="80" cy="22" rx="30" ry="4" stroke="#FFFFFF" stroke-opacity=".28" stroke-width="1"/>
+  </g>
+
+  <!-- Floating data panels -->
+  <g filter="url(#objectShadow)" opacity=".95">
+    <rect x="7.5" y="60" width="34" height="31" rx="6.5" fill="url(#panelGrad)" stroke="#7C9ED8" stroke-opacity=".42"/>
+    <path d="M14 82.5V76.5M21 82.5V70.5M28 82.5V74M35 82.5V66.5" stroke="#90A7FF" stroke-width="2.1" stroke-linecap="round"/>
+    <path d="M13.5 68.5L20.5 73L27 69L34.5 64.5" stroke="#C2D3FF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="13.5" cy="68.5" r="2.1" fill="#D7E3FF"/>
+    <circle cx="20.5" cy="73" r="2.1" fill="#D7E3FF"/>
+    <circle cx="27" cy="69" r="2.1" fill="#D7E3FF"/>
+    <circle cx="34.5" cy="64.5" r="2.1" fill="#D7E3FF"/>
+
+    <rect x="119" y="61" width="33.5" height="31" rx="6.5" fill="url(#panelGrad)" stroke="#7C9ED8" stroke-opacity=".42"/>
+    <path d="M126 70.2C128.5 65.6 131.7 64.8 135.8 65.5C134.5 69.5 131.7 72.4 127 73.2C126.5 72.3 126.2 71.3 126 70.2Z" fill="#66E1B6"/>
+    <path d="M127.4 72.6L134.2 66.7" stroke="#0B5E54" stroke-width="1.2" stroke-linecap="round"/>
+    <path d="M140.5 67.5H147M140.5 72H147M126 79H147M126 84H143" stroke="#B7C8EE" stroke-width="1.8" stroke-linecap="round"/>
+  </g>
+
+  <!-- Main mascot -->
+  <g filter="url(#bodyShadow)">
+    <!-- body/head -->
+    <path d="M36 68C36 43.7 55.7 29 80 29C104.3 29 124 43.7 124 68V92C124 116.3 104.3 136 80 136C55.7 136 36 116.3 36 92V68Z" fill="url(#bodyGrad)"/>
+    <path d="M37.5 70C37.5 46.4 56.6 31 80 31C103.4 31 122.5 46.4 122.5 70V91C122.5 113.4 104.6 131.5 82.2 133.5C58.5 135.6 37.5 116.9 37.5 93V70Z" stroke="url(#bodyEdge)" stroke-width="1.7"/>
+    <ellipse cx="68" cy="57" rx="31" ry="28" fill="url(#faceGlow)"/>
+
+    <!-- lower coat/body taper -->
+    <path d="M48 111C56 120 67 124 80 124C93 124 104 120 112 111L118 139C107.8 145 95.1 148 80 148C64.9 148 52.2 145 42 139L48 111Z" fill="#5F59D7"/>
+    <path d="M45 138C55 143.4 66.7 146 80 146C93.3 146 105 143.4 115 138" stroke="#9FA7FF" stroke-opacity=".32" stroke-width="1.4"/>
+
+    <!-- eyes -->
+    <g>
+      <ellipse cx="61.5" cy="74" rx="9.7" ry="14.8" fill="#070B1A"/>
+      <ellipse cx="98.5" cy="74" rx="9.7" ry="14.8" fill="#070B1A"/>
+      <ellipse cx="58.5" cy="69.5" rx="3.2" ry="4.2" fill="white"/>
+      <ellipse cx="95.5" cy="69.5" rx="3.2" ry="4.2" fill="white"/>
+      <ellipse cx="63" cy="79" rx="4.8" ry="6.6" fill="#6674F4" opacity=".45"/>
+      <ellipse cx="100" cy="79" rx="4.8" ry="6.6" fill="#6674F4" opacity=".45"/>
+    </g>
+
+    <!-- subtle cheeks -->
+    <ellipse cx="48.5" cy="91.5" rx="7" ry="3.7" fill="#FF8FA3" opacity=".22"/>
+    <ellipse cx="111.5" cy="91.5" rx="7" ry="3.7" fill="#FF8FA3" opacity=".22"/>
+
+    <!-- smile -->
+    <path d="M70 88.5C72.7 92.4 76.3 94.3 80 94.3C83.7 94.3 87.3 92.4 90 88.5" stroke="#111A38" stroke-width="3.4" stroke-linecap="round"/>
+
+    <!-- arms -->
+    <path d="M46 104C38.5 104.5 33 111 33 119.5C33 128.5 39.3 134 48 134" fill="#756FE8"/>
+    <path d="M114 104C121.5 104.5 127 111 127 119.5C127 128.5 120.7 134 112 134" fill="#756FE8"/>
+
+    <!-- tablet -->
+    <g transform="rotate(-10 46 120)" filter="url(#objectShadow)">
+      <rect x="22" y="95" width="46" height="40" rx="7" fill="url(#tabletGrad)" stroke="#A8B8FF" stroke-width="1.5"/>
+      <rect x="26.5" y="99.5" width="37" height="31" rx="4.5" fill="url(#screenGrad)" stroke="#7188C3" stroke-opacity=".5"/>
+      <rect x="31" y="105" width="8" height="8" rx="2.2" fill="#23CAA6"/>
+      <path d="M33.4 108.7L35.5 110.8L39.1 106.7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M43 107H57M43 111H54" stroke="#B7C8EE" stroke-width="1.8" stroke-linecap="round"/>
+      <rect x="31" y="118" width="8" height="8" rx="2.2" fill="#23CAA6"/>
+      <path d="M33.4 121.7L35.5 123.8L39.1 119.7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M43 120H58M43 124H53" stroke="#B7C8EE" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+
+    <!-- flask -->
+    <g filter="url(#objectShadow)">
+      <path d="M119 96H128V106L137 128C138.7 132 135.8 136.5 131.4 136.5H115.6C111.2 136.5 108.3 132 110 128L119 106V96Z" fill="url(#glassGrad)" stroke="#D8EEFF" stroke-width="1.7"/>
+      <path d="M114 124C119 121.6 127.4 121.5 133 124L136.2 131C137.2 133.2 135.6 135.5 133.1 135.5H113.8C111.4 135.5 109.7 133.2 110.7 131L114 124Z" fill="url(#flaskLiquid)"/>
+      <ellipse cx="123.5" cy="96" rx="7" ry="2.7" fill="#DBF2FF" stroke="#7CB7E4" stroke-width="1.2"/>
+      <ellipse cx="123.5" cy="96" rx="4.3" ry="1.4" fill="#9CC8E7"/>
+      <circle cx="119" cy="129" r="2.2" fill="#C5FF87"/>
+      <circle cx="128.5" cy="126.5" r="1.7" fill="#E3FFB8"/>
+      <circle cx="124.3" cy="118.5" r="1.4" fill="#76ED82"/>
+      <circle cx="132" cy="114" r="2.3" fill="#8AF95C"/>
+      <circle cx="134.7" cy="107.5" r="1.4" fill="#A1FF7C"/>
+    </g>
+  </g>
+
+  <!-- Nutritional data particles -->
+  <g opacity=".95">
+    <circle cx="23" cy="49" r="2.2" fill="#6674F4"/>
+    <circle cx="30" cy="43" r="1.2" fill="#2BB9F3"/>
+    <circle cx="137" cy="48" r="2" fill="#20C7A5"/>
+    <circle cx="143" cy="54" r="1.2" fill="#FF7900"/>
+    <rect x="17" y="42" width="5" height="5" rx="1.2" transform="rotate(24 17 42)" fill="#2BB9F3" opacity=".75"/>
+    <path d="M139 37C143.5 35.4 146.9 36.6 149 40.2C145.3 42.4 141.8 42.3 138.7 39.5C138.7 38.7 138.8 37.9 139 37Z" fill="#20C7A5"/>
+  </g>
+
+  <!-- tiny energy glints -->
+  <g fill="#FFFFFF">
+    <circle cx="52" cy="47" r="1.2" opacity=".65"/>
+    <circle cx="108" cy="49" r=".9" opacity=".55"/>
+    <circle cx="55" cy="111" r=".9" opacity=".35"/>
+    <circle cx="103" cy="116" r="1.1" opacity=".3"/>
+  </g>
+</svg>

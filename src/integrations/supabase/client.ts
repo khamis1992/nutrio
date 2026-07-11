@@ -9,6 +9,50 @@ import { isNative } from '@/lib/capacitor';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const PLACEHOLDER_SUPABASE_URL = 'https://placeholder.supabase.co';
+
+const getSupabaseConfigError = () => {
+  const url = typeof SUPABASE_URL === 'string' ? SUPABASE_URL.trim() : '';
+  const key = typeof SUPABASE_PUBLISHABLE_KEY === 'string' ? SUPABASE_PUBLISHABLE_KEY.trim() : '';
+
+  if (!url || !key) {
+    return 'Supabase is not configured. Create .env.local with VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY, then restart the dev server.';
+  }
+
+  if (url.includes('placeholder') || url.includes('your-supabase-project')) {
+    return 'Supabase URL is still using a placeholder. Set VITE_SUPABASE_URL to your real Supabase project URL, then restart the dev server.';
+  }
+
+  try {
+    const parsed = new URL(url);
+    const isHttp = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    const isSupabase = parsed.hostname.endsWith('.supabase.co');
+
+    if (!isHttp || (!isLocal && !isSupabase)) {
+      return 'Supabase URL is invalid. Use a Supabase project URL like https://project-ref.supabase.co or a local Supabase URL.';
+    }
+  } catch {
+    return 'Supabase URL is invalid. Check VITE_SUPABASE_URL in your environment and restart the dev server.';
+  }
+
+  if (key.includes('placeholder') || key.includes('your-supabase-publishable-key')) {
+    return 'Supabase publishable key is still using a placeholder. Set VITE_SUPABASE_PUBLISHABLE_KEY, then restart the dev server.';
+  }
+
+  return null;
+};
+
+export const supabaseConfigError = getSupabaseConfigError();
+export const isSupabaseConfigured = supabaseConfigError === null;
+
+const guardedFetch: typeof fetch = (input, init) => {
+  if (supabaseConfigError) {
+    return Promise.reject(new Error(supabaseConfigError));
+  }
+
+  return fetch(input, init);
+};
 
 // Log a warning if Supabase config is missing, but DO NOT throw.
 // Throwing at module level causes a white screen on Capacitor APK builds
@@ -16,10 +60,9 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 // can't catch module-evaluation errors. Instead we fall back to placeholder
 // values so the app renders and the user sees a meaningful error state.
 // Common scenario: .env is gitignored and GitHub Secrets are not configured.
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+if (supabaseConfigError) {
   console.warn(
-    '[Nutrio] Missing Supabase configuration — app will start with placeholder values. ' +
-    'Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in your build environment. ' +
+    `[Nutrio] ${supabaseConfigError} ` +
     'Add them as GitHub Secrets for APK builds (Settings → Secrets and variables → Actions).'
   );
 }
@@ -99,9 +142,12 @@ const webSmartStorage = {
 const storage = isNative ? capacitorStorage : webSmartStorage;
 
 export const supabase = createClient<Database>(
-  SUPABASE_URL ?? 'https://placeholder.supabase.co',
+  isSupabaseConfigured ? SUPABASE_URL : PLACEHOLDER_SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY ?? 'placeholder-key',
   {
+    global: {
+      fetch: guardedFetch,
+    },
     auth: {
       storage,
       persistSession: true,

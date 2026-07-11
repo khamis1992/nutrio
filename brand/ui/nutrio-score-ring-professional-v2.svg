@@ -1,0 +1,85 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none"
+  xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Nutrio Professional Segmented Score Ring</title>
+  <desc id="desc">A premium segmented circular ring with six Nutrio brand-color arcs and a transparent center for programmatic score content.</desc>
+
+  <defs>
+    <!-- Segment gradients -->
+    <linearGradient id="gMint" x1="98" y1="24" x2="126" y2="46" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#73F0D1"/>
+      <stop offset="1" stop-color="#35CBD8"/>
+    </linearGradient>
+    <linearGradient id="gBlue" x1="128" y1="58" x2="131" y2="101" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6ED7FF"/>
+      <stop offset="1" stop-color="#4C9FF5"/>
+    </linearGradient>
+    <linearGradient id="gViolet" x1="118" y1="112" x2="91" y2="132" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9D87FF"/>
+      <stop offset="1" stop-color="#715EF2"/>
+    </linearGradient>
+    <linearGradient id="gCoral" x1="68" y1="133" x2="40" y2="113" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF789E"/>
+      <stop offset="1" stop-color="#FF5478"/>
+    </linearGradient>
+    <linearGradient id="gOrange" x1="29" y1="98" x2="30" y2="61" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB11A"/>
+      <stop offset="1" stop-color="#FF7A00"/>
+    </linearGradient>
+    <linearGradient id="gPink" x1="39" y1="46" x2="62" y2="25" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFC3DA"/>
+      <stop offset="1" stop-color="#F59AC2"/>
+    </linearGradient>
+
+    <!-- Soft halo -->
+    <filter id="segmentGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 .42 0" result="softBlur"/>
+      <feMerge>
+        <feMergeNode in="softBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Inner ambient ring -->
+    <radialGradient id="ambient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(80 80) rotate(90) scale(70)">
+      <stop offset="0.58" stop-color="#2BB9F3" stop-opacity="0"/>
+      <stop offset="0.82" stop-color="#2BB9F3" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#6674F4" stop-opacity=".08"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Transparent canvas -->
+  <circle cx="80" cy="80" r="75" fill="url(#ambient)"/>
+
+  <!-- Outer precision guides -->
+  <circle cx="80" cy="80" r="73" stroke="#56C9EE" stroke-opacity=".13" stroke-width="1"/>
+  <circle cx="80" cy="80" r="66.5" stroke="#6F80F5" stroke-opacity=".10" stroke-width="1"/>
+  <circle cx="80" cy="80" r="58.5" stroke="#FFFFFF" stroke-opacity=".055" stroke-width="1"/>
+
+  <!-- Segmented ring -->
+  <g filter="url(#segmentGlow)" stroke-width="12" stroke-linecap="round">
+    <path d="M100.70 31.58 A52.5 52.5 0 0 1 123.63 50.75" stroke="url(#gMint)"/>
+    <path d="M130.83 66.99 A52.5 52.5 0 0 1 129.33 97.95" stroke="url(#gBlue)"/>
+    <path d="M118.08 116.15 A52.5 52.5 0 0 1 92.66 130.95" stroke="url(#gViolet)"/>
+    <path d="M67.34 130.95 A52.5 52.5 0 0 1 41.92 116.15" stroke="url(#gCoral)"/>
+    <path d="M30.67 97.95 A52.5 52.5 0 0 1 29.17 66.99" stroke="url(#gOrange)"/>
+    <path d="M36.37 50.75 A52.5 52.5 0 0 1 59.30 31.58" stroke="url(#gPink)"/>
+  </g>
+
+  <!-- Controlled inner guide: leaves generous content area -->
+  <circle cx="80" cy="80" r="42.5" stroke="#CFE7FF" stroke-opacity=".10" stroke-width="1"/>
+  <circle cx="80" cy="80" r="37.5" stroke="#6674F4" stroke-opacity=".06" stroke-width="1"/>
+
+  <!-- Small alignment ticks for refined technical feel -->
+  <g stroke="#8EB8E8" stroke-opacity=".11" stroke-width="1">
+    <path d="M80 8V12"/>
+    <path d="M80 148V152"/>
+    <path d="M8 80H12"/>
+    <path d="M148 80H152"/>
+  </g>
+</svg>

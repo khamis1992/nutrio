@@ -276,6 +276,92 @@ interface RecentNotification {
   created_at: string;
 }
 
+interface DashboardAiInsightSlide {
+  id: string;
+  title: string;
+  detail: string;
+}
+
+interface DashboardAiInsightCardProps {
+  slides: DashboardAiInsightSlide[];
+  fallback: DashboardAiInsightSlide;
+  prefersReducedMotion: boolean;
+  ArrowIcon: LucideIcon;
+  openLabel: string;
+  onOpen: () => void;
+}
+
+const DashboardAiInsightCard = ({
+  slides,
+  fallback,
+  prefersReducedMotion,
+  ArrowIcon,
+  openLabel,
+  onOpen,
+}: DashboardAiInsightCardProps) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const slideCount = slides.length;
+  const activeInsight = slideCount ? slides[activeIndex % slideCount] : fallback;
+
+  useEffect(() => {
+    if (slideCount <= 1) return;
+    const interval = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % slideCount);
+    }, 4200);
+    return () => window.clearInterval(interval);
+  }, [slideCount]);
+
+  useEffect(() => {
+    if (activeIndex >= Math.max(slideCount, 1)) {
+      setActiveIndex(0);
+    }
+  }, [activeIndex, slideCount]);
+
+  return (
+    <article className="relative overflow-hidden rounded-[28px] bg-[#171B52] p-4 text-white shadow-[0_18px_42px_rgba(23,27,82,0.24)] ring-1 ring-white/10">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_20%,rgba(138,143,255,0.55),transparent_30%),radial-gradient(circle_at_88%_50%,rgba(124,83,246,0.30),transparent_26%),linear-gradient(135deg,#101A34,#211E66)]" />
+      <div className="relative flex min-h-[92px] items-center gap-3">
+        <img
+          src="/ai-insight-mascot-professional.svg"
+          alt=""
+          aria-hidden="true"
+          className="h-[82px] w-[82px] shrink-0 object-contain drop-shadow-[0_14px_22px_rgba(86,84,214,0.28)]"
+          draggable={false}
+        />
+
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-black text-[#20C7A5]">Today's Insight</p>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeInsight.id}
+              initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }}
+              animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+              exit={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.22 }}
+            >
+              <h2 className="mt-0.5 truncate text-[19px] font-black leading-tight tracking-[-0.03em] text-white">
+                {activeInsight.title}
+              </h2>
+              <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-5 text-white/78">
+                {activeInsight.detail}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#6D5CF6] text-white shadow-[0_12px_24px_rgba(109,92,246,0.34)] ring-1 ring-white/20 transition active:scale-95"
+          aria-label={openLabel}
+        >
+          <ArrowIcon className="h-5 w-5" strokeWidth={2.8} />
+        </button>
+      </div>
+    </article>
+  );
+};
+
 interface MealSchedule {
   id: string;
   scheduled_date: string;
@@ -1308,6 +1394,23 @@ const Dashboard = () => {
       tone: primarySmartRecommendation?.priority === "high" ? "bg-orange-50 text-orange-700 ring-orange-100" : "bg-slate-50 text-slate-700 ring-slate-200" },
   ];
   const aiRecommendationItems = smartRecommendations.slice(0, 3);
+  const aiInsightSlides = [
+    ...coachInsights.map((insight) => ({
+      id: `coach-${insight.label}`,
+      title: insight.title,
+      detail: insight.detail,
+    })),
+    ...aiRecommendationItems.map((rec) => ({
+      id: `rec-${rec.id}`,
+      title: rec.title,
+      detail: rec.description,
+    })),
+  ].filter((item) => item.title || item.detail);
+  const fallbackAiInsight = {
+    id: "ai-loading",
+    title: t("generating_insight"),
+    detail: confidenceExplanation,
+  };
 
   const showLegacyNutritionTab = false;
   const showLegacyProgressTab = false;
@@ -1481,7 +1584,7 @@ const Dashboard = () => {
           </div>
 
           {/* â”€â”€ Tab Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-          <div className="bg-slate-100 rounded-full p-1 flex gap-1 shadow-sm mb-3">
+          <div className="mb-3 flex gap-1 rounded-full bg-[#F7F9FC] p-1 shadow-[0_10px_24px_rgba(15,23,42,0.06)] ring-1 ring-[#EEF2F7]">
             {tabs.map(({ key, label, icon: Icon, path }) => (
               <button
                 key={key}
@@ -1491,11 +1594,11 @@ const Dashboard = () => {
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 rounded-full py-2.5 text-[13px] font-extrabold transition-all duration-300 active:scale-95 shrink-0",
                   activeTab === key
-                    ? "bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-[#101A34] text-white shadow-[0_10px_22px_rgba(16,26,52,0.22)]"
+                    : "text-[#4F5870] hover:text-[#101A34]"
                 )}
               >
-                <Icon className="h-4 w-4" strokeWidth={2.2} />
+                <Icon className={cn("h-4 w-4", activeTab === key ? "text-white" : "text-[#5E667A]")} strokeWidth={2.2} />
                 <span className="capitalize">{label}</span>
               </button>
             ))}
@@ -1518,134 +1621,148 @@ const Dashboard = () => {
           >
             {/* â”€â”€ Bento Row 1: Premium Daily Score Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <motion.div
-              className="rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 p-6 text-left relative overflow-hidden"
+              className="relative overflow-hidden rounded-[28px] bg-[#09142D] p-5 text-left text-white ring-1 ring-white/10"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-500">{dateLabel}</p>
-                  <h2 className="mt-1 text-[22px] font-black leading-tight text-slate-900 tracking-tight">
-                    {t("progress_daily_score")}
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_38%,rgba(67,209,217,0.14),transparent_34%),linear-gradient(145deg,#0B1733,#071126)]" />
+              <div className="relative grid grid-cols-[minmax(0,1fr)_154px] items-start gap-3 min-[390px]:grid-cols-[minmax(0,1fr)_176px]">
+                <div className="min-w-0 pt-1">
+                  <p className="text-[13px] font-black uppercase tracking-[0.16em] text-[#20C7A5]">{dateLabel.toUpperCase()}</p>
+                  <h2 className="mt-5 whitespace-nowrap text-[29px] font-black leading-none tracking-tight text-white min-[390px]:text-[32px]">
+                    Daily score
                   </h2>
-                  <p className="mt-1 text-[12px] font-semibold text-slate-500">
-                    {calRemaining} {t("cal_short")} {t("dashboard_remaining")}
+                  <p className="mt-3 text-[18px] font-bold leading-tight text-white/85 min-[390px]:text-[20px]">
+                    {calRemaining} {t("cal_short")} remaining
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/subscription")}
+                    className="group mt-6 inline-flex max-w-full flex-col items-start rounded-[22px] text-left transition active:scale-[0.98]"
+                    aria-label="Open meal plan details"
+                  >
+                    <span className="inline-flex max-w-full items-center gap-2 whitespace-nowrap rounded-full bg-[#20C7A5]/20 px-3.5 py-2 text-[#20C7A5] shadow-[inset_0_0_0_1px_rgba(32,199,165,0.08)] transition group-hover:bg-[#20C7A5]/25">
+                      <Crown className="h-4 w-4" strokeWidth={2.45} />
+                      <span className="text-[15px] font-black min-[390px]:text-[17px]">Healthy {"\u2022"} Active</span>
+                      <ArrowUpRight className="h-3 w-3 opacity-55 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-90" strokeWidth={2.7} />
+                    </span>
+                    <span className="mt-4 pl-9 text-[16px] font-bold text-white/74 min-[390px]:text-[18px]">
+                      {balanceDisplay} meals left
+                    </span>
+                  </button>
                 </div>
-                
-                <div className="relative flex h-[88px] w-[88px] items-center justify-center">
-                  <svg className="absolute h-full w-full -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="#F1F5F9" strokeWidth="6" />
-                    <motion.circle
-                      cx="50"
-                      cy="50"
-                      r="42"
-                      fill="none"
-                      stroke={ringColor}
-                      strokeWidth="6"
-                      strokeLinecap="round"
-                      strokeDasharray={2 * Math.PI * 42}
-                      initial={prefersReducedMotion ? undefined : { strokeDashoffset: 2 * Math.PI * 42 }}
-                      animate={{ strokeDashoffset: (2 * Math.PI * 42) - (Math.min(dailyScore, 100) / 100) * (2 * Math.PI * 42) }}
-                      transition={{ duration: 0.8, ease: "easeOut" }}
-                    />
+
+                <div className="relative flex h-[154px] w-[154px] items-center justify-center justify-self-end overflow-visible min-[390px]:h-[176px] min-[390px]:w-[176px]">
+                  <div className="absolute inset-[-8px] rounded-full border border-[#20C7A1]/10" />
+                  <div className="absolute inset-[4px] rounded-full border border-[#55C3F7]/10" />
+                  <svg className="absolute inset-0 h-full w-full overflow-visible -rotate-90" viewBox="0 0 160 160" aria-hidden="true">
+                    <defs>
+                      <filter id="dashboardScoreGlow" x="-30%" y="-30%" width="160%" height="160%">
+                        <feGaussianBlur stdDeviation="2.4" result="blur" />
+                        <feMerge>
+                          <feMergeNode in="blur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+                      <radialGradient id="dashboardScoreCore" cx="50%" cy="40%" r="64%">
+                        <stop offset="0%" stopColor="#263F6D" />
+                        <stop offset="58%" stopColor="#142542" />
+                        <stop offset="100%" stopColor="#071126" />
+                      </radialGradient>
+                    </defs>
+                    <circle cx="80" cy="80" r="69" fill="none" stroke="#20C7A1" strokeDasharray="1 8" strokeOpacity="0.1" strokeWidth="1" />
+                    <circle cx="80" cy="80" r="58" fill="none" stroke="#55C3F7" strokeDasharray="1 10" strokeOpacity="0.08" strokeWidth="1" />
+                    <circle cx="80" cy="80" r="42" fill="url(#dashboardScoreCore)" />
+                    {[
+                      { color: "#43D1D9", offset: -16 },
+                      { color: "#58B9FF", offset: -70 },
+                      { color: "#8275FF", offset: -124 },
+                      { color: "#FF6475", offset: -178 },
+                      { color: "#FF8518", offset: -232 },
+                      { color: "#FFB4C7", offset: -296, dash: "40 322" },
+                    ].map((segment) => (
+                      <circle
+                        key={segment.color}
+                        cx="80"
+                        cy="80"
+                        r="56"
+                        fill="none"
+                        stroke={segment.color}
+                        strokeDasharray={segment.dash ?? "34 328"}
+                        strokeDashoffset={segment.offset}
+                        strokeLinecap="round"
+                        strokeWidth="12.5"
+                        filter="url(#dashboardScoreGlow)"
+                      />
+                    ))}
                   </svg>
-                  <div className="flex flex-col items-center justify-center">
-                    <span className="text-[24px] font-black leading-none text-slate-900">{dailyScore}</span>
-                    <span className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-slate-400">score</span>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                    <p className="flex items-baseline justify-center leading-none">
+                      <span className="text-[56px] font-black leading-none text-white drop-shadow-[0_6px_14px_rgba(0,0,0,0.34)] min-[390px]:text-[62px]">
+                        {Math.max(0, Math.min(10, Math.round(dailyScore / 10)))}
+                      </span>
+                      <span className="ml-1 text-[14px] font-bold leading-none text-white/50 min-[390px]:text-[15px]">/10</span>
+                    </p>
+                    <p className="mt-2 text-[15px] font-extrabold leading-none text-white min-[390px]:text-[17px]">Score</p>
                   </div>
                 </div>
               </div>
 
-              {/* 4 Stats Grid */}
-              <div className="mt-5 grid grid-cols-4 gap-2">
+              <div className="relative mt-6 overflow-hidden rounded-t-[24px] border-t border-white/10 pt-5">
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                <div className="grid grid-cols-4 divide-x divide-white/10">
                 {[
-                  { label: t("cal_label_short"), value: `${animatedCalories}`, Icon: Flame, color: "#10B981", bg: "#F0FDF6", border: "#D1FAE5" },
-                  { label: t("meals_label_short"), value: `${animatedBalance}`, Icon: Crown, color: "#F59E0B", bg: "#FEF3C7", border: "#FDE68A" },
-                  { label: t("water"), value: `${Math.round(waterPct)}%`, Icon: Droplets, color: "#0EA5E9", bg: "#F0F9FF", border: "#BAE6FD", path: "/water-tracker" },
-                  { label: t("steps_label_short"), value: `${stepsToday}`, Icon: Footprints, color: "#6366F1", bg: "#EEF2FF", border: "#C7D2FE" },
+                  { label: "Cal", value: `${animatedCalories}`, Icon: Flame, color: "#20C7A5", bg: "rgba(32,199,165,0.14)", border: "rgba(32,199,165,0.42)", path: "/dashboard/nutrition" },
+                  { label: "Meals", value: `${animatedBalance}`, Icon: Crown, color: "#F59E0B", bg: "rgba(245,158,11,0.13)", border: "rgba(245,158,11,0.38)", path: "/schedule" },
+                  { label: "Water", value: `${Math.round(waterPct)}%`, Icon: Droplets, color: "#55C3F7", bg: "rgba(85,195,247,0.14)", border: "rgba(85,195,247,0.38)", path: "/water-tracker" },
+                  { label: "Steps", value: `${stepsToday}`, Icon: Footprints, color: "#8B7CF6", bg: "rgba(139,124,246,0.16)", border: "rgba(139,124,246,0.38)", path: "/dashboard/activity" },
                 ].map(({ label, value, Icon, color, bg, border, path }) => {
                   const content = (
                     <>
-                      {path ? (
-                        <ArrowUpRight className="absolute end-2 top-2 h-3 w-3 text-slate-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200" strokeWidth={2.8} />
-                      ) : null}
-                      <span className="flex h-10 w-10 items-center justify-center rounded-2xl mx-auto shadow-sm ring-1 ring-slate-100" style={{ color, backgroundColor: bg }}>
-                        <Icon className="h-5 w-5" strokeWidth={2.1} />
+                      <ArrowUpRight className="absolute end-2 top-0.5 h-2.5 w-2.5 text-white/35 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-white/65" strokeWidth={2.8} />
+                      <span
+                        className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"
+                        style={{ color, backgroundColor: bg, borderColor: border }}
+                      >
+                        <Icon className="h-5 w-5" strokeWidth={2.2} />
                       </span>
-                      <p className="mt-2.5 text-[15px] font-black leading-none text-slate-900">{value}</p>
-                      <p className="mt-1 truncate text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+                      <p className="mt-2 max-w-full truncate text-[24px] font-black leading-none text-white min-[390px]:text-[26px]">{value}</p>
+                      <p className="mt-1 truncate text-[12px] font-bold text-white/74 min-[390px]:text-[13px]">{label}</p>
                     </>
                   );
 
-                  return path ? (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => navigate(path)}
-                      className="group relative rounded-2xl bg-white p-2.5 text-center ring-1 ring-slate-200/60 shadow-sm transition-all duration-300 hover:scale-[1.02] active:scale-95"
-                      aria-label={label}
-                    >
-                      {content}
-                    </button>
-                  ) : (
-                    <div key={label} className="relative rounded-2xl bg-slate-50/50 p-2.5 text-center ring-1 ring-slate-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.005)]">
-                      {content}
-                    </div>
+                  return (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => navigate(path)}
+                    className="group relative flex min-h-[88px] min-w-0 flex-col items-center justify-center px-1 text-center transition-all duration-300 hover:scale-[1.02] hover:bg-white/[0.03] active:scale-95"
+                    aria-label={label}
+                  >
+                    {content}
+                  </button>
                   );
                 })}
-              </div>
-
-              {/* Premium Plan Button */}
-              <button
-                type="button"
-                data-testid="dashboard-subscription-card"
-                onClick={() => navigate("/subscription")}
-                className="group mt-4 w-full rounded-[24px] bg-white p-3.5 text-start shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-[#FEE2E7] transition-all duration-300 hover:bg-[#FFF8FA] active:scale-[0.99]"
-                aria-label={t("open_subscription")}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#FB6B7A]/10 text-[#FB6B7A] ring-1 ring-[#FB6B7A]/20">
-                    <Crown className="h-5 w-5" strokeWidth={2.25} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-[14px] font-black leading-tight text-[#020617]">{planName}</p>
-                      <span className="shrink-0 rounded-full bg-[#F6F8FB] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-[#FB6B7A] ring-1 ring-[#FEE2E7]">
-                        active
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[12px] font-bold text-[#94A3B8]">
-                      {isUnlimited ? t("unlimited_meals") : t("meals_left_value", { count: balanceDisplay })}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="hidden text-[10px] font-black uppercase tracking-[0.12em] text-[#FB6B7A] min-[390px]:inline">
-                      {t("manage")}
-                    </span>
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F6F8FB] text-[#FB6B7A] ring-1 ring-[#FEE2E7] transition-colors group-hover:bg-[#FB6B7A] group-hover:text-white">
-                      <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" strokeWidth={2.6} />
-                    </span>
-                  </div>
                 </div>
-              </button>
+              </div>
             </motion.div>
 
+            <div className={cn("grid gap-3", activeGoal ? "grid-cols-2" : "grid-cols-1")}>
             {activeGoal && (
               <button
                 type="button"
                 data-testid="dashboard-goal-card"
                 onClick={() => navigate("/progress?tab=goals")}
-                className="w-full rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 p-6 text-start transition-all duration-300 hover:shadow-md hover:ring-indigo-100/40 active:scale-[0.99]"
+                className="min-h-full w-full rounded-2xl bg-white p-4 text-start shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition-all duration-300 hover:shadow-md hover:ring-indigo-100/40 active:scale-[0.99]"
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col items-start gap-3">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C83F6]">{t("goal_alignment")}</p>
-                    <h2 className="mt-1.5 text-[18px] font-black leading-tight text-slate-900 tracking-tight">
+                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">{t("goal_alignment")}</p>
+                    <h2 className="mt-1 text-[16px] font-black leading-tight tracking-tight text-slate-900">
                       {t(activeGoal.goal_type === "muscle_gain" ? "goal_muscle_gain" : activeGoal.goal_type === "maintenance" ? "goal_maintenance" : activeGoal.goal_type === "general_health" ? "goal_general_health" : "goal_weight_loss")}
                     </h2>
-                    <p className="mt-1 text-[12px] font-semibold leading-relaxed text-slate-500">{goalAlignmentDescription}</p>
+                    <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-5 text-slate-500">{goalAlignmentDescription}</p>
                   </div>
                   <div className={cn(
-                    "shrink-0 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] ring-1",
+                    "shrink-0 rounded-full px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] ring-1",
                     hasGoalAlignmentData
                       ? "bg-[#EEF2FF] text-[#7C83F6] ring-[#7C83F6]/20 shadow-sm"
                       : "bg-slate-50 text-slate-500 ring-slate-100"
@@ -1654,18 +1771,18 @@ const Dashboard = () => {
                   </div>
                 </div>
                 
-                <div className="mt-4 grid grid-cols-3 gap-2.5">
-                  <div className="flex min-h-[58px] flex-col items-center justify-center rounded-xl bg-slate-50/50 p-2.5 text-center ring-1 ring-slate-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.005)]">
+                <div className="mt-3 grid grid-cols-3 gap-1.5">
+                  <div className="flex min-h-[52px] flex-col items-center justify-center rounded-xl bg-slate-50/50 p-1.5 text-center shadow-[inset_0_1px_2px_rgba(0,0,0,0.005)] ring-1 ring-slate-100">
                     <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">{t("cal_label_short")}</p>
-                    <p className="text-[15px] font-black text-emerald-500 mt-1">{activeGoal.daily_calorie_target}</p>
+                    <p className="mt-1 text-[13px] font-black text-emerald-500">{activeGoal.daily_calorie_target}</p>
                   </div>
-                  <div className="flex min-h-[58px] flex-col items-center justify-center rounded-xl bg-slate-50/50 p-2.5 text-center ring-1 ring-slate-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.005)]">
+                  <div className="flex min-h-[52px] flex-col items-center justify-center rounded-xl bg-slate-50/50 p-1.5 text-center shadow-[inset_0_1px_2px_rgba(0,0,0,0.005)] ring-1 ring-slate-100">
                     <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">{t("protein_label")}</p>
-                    <p className="text-[15px] font-black text-[#7C83F6] mt-1">{activeGoal.protein_target_g}g</p>
+                    <p className="mt-1 text-[13px] font-black text-[#7C83F6]">{activeGoal.protein_target_g}g</p>
                   </div>
-                  <div className="flex min-h-[58px] flex-col items-center justify-center rounded-xl bg-slate-50/50 p-2.5 text-center ring-1 ring-slate-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.005)]">
+                  <div className="flex min-h-[52px] flex-col items-center justify-center rounded-xl bg-slate-50/50 p-1.5 text-center shadow-[inset_0_1px_2px_rgba(0,0,0,0.005)] ring-1 ring-slate-100">
                     <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">{t("tracked")}</p>
-                    <p className="truncate text-[15px] font-black text-slate-900 mt-1">{weeklyLoggedDays}/7</p>
+                    <p className="mt-1 truncate text-[13px] font-black text-slate-900">{weeklyLoggedDays}/7</p>
                   </div>
                 </div>
               </button>
@@ -1675,34 +1792,34 @@ const Dashboard = () => {
               type="button"
               data-testid="dashboard-nutrition-card"
               onClick={() => navigate(nutritionMatchedMeal ? `/meals/${nutritionMatchedMeal.id}` : nutritionPerformance.actionPath)}
-              className="w-full overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 p-6 text-start transition-all duration-300 hover:shadow-md hover:ring-emerald-100/40 active:scale-[0.99]"
+              className="min-h-full w-full overflow-hidden rounded-2xl bg-white p-4 text-start shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition-all duration-300 hover:shadow-md hover:ring-emerald-100/40 active:scale-[0.99]"
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-500">Fuel readiness</p>
-                  <h2 className="mt-1.5 text-[19px] font-black leading-tight text-slate-900 tracking-tight">{nutritionPerformance.label}</h2>
-                  <p className="mt-1 text-[12px] font-semibold leading-relaxed text-slate-500">{nutritionPerformance.summary}</p>
+                  <h2 className="mt-1 text-[16px] font-black leading-tight tracking-tight text-slate-900">{nutritionPerformance.label}</h2>
+                  <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-5 text-slate-500">{nutritionPerformance.summary}</p>
                 </div>
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm ring-1 ${nutritionFocusVisual.iconClass}`}>
-                  <NutritionFocusIcon className="h-5 w-5" strokeWidth={2.3} />
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-sm ring-1 ${nutritionFocusVisual.iconClass}`}>
+                  <NutritionFocusIcon className="h-4 w-4" strokeWidth={2.3} />
                 </div>
               </div>
               
-              <div className="mt-4 rounded-xl bg-[#F0FDF6] px-4 py-3 ring-1 ring-emerald-100/50">
-                <p className="text-[12px] font-semibold leading-relaxed text-slate-700">{nutritionPerformance.primaryReason}</p>
+              <div className="mt-3 rounded-xl bg-[#F0FDF6] px-3 py-2.5 ring-1 ring-emerald-100/50">
+                <p className="line-clamp-3 text-[11px] font-semibold leading-5 text-slate-700">{nutritionPerformance.primaryReason}</p>
               </div>
               
-              <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
                   {nutritionMatchedMeal?.image_url ? (
                     <img
                       src={nutritionMatchedMeal.image_url}
                       alt={nutritionMatchedMeal.name}
-                      className="h-12 w-12 shrink-0 rounded-xl object-cover ring-2 ring-slate-100 shadow-sm"
+                      className="h-10 w-10 shrink-0 rounded-xl object-cover shadow-sm ring-2 ring-slate-100"
                     />
                   ) : (
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ${nutritionFocusVisual.fallbackClass}`}>
-                      <NutritionFocusIcon className="h-5 w-5" strokeWidth={2.2} />
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ${nutritionFocusVisual.fallbackClass}`}>
+                      <NutritionFocusIcon className="h-4 w-4" strokeWidth={2.2} />
                     </div>
                   )}
                   <div className="min-w-0">
@@ -1715,11 +1832,12 @@ const Dashboard = () => {
                     </p>
                   </div>
                 </div>
-                <span className="shrink-0 rounded-full bg-slate-900 hover:bg-slate-800 px-3.5 py-2 text-[11px] font-black text-white shadow-sm transition active:scale-95">
+                <span className="w-full shrink-0 rounded-full bg-slate-900 px-3.5 py-2 text-center text-[11px] font-black text-white shadow-sm transition hover:bg-slate-800 active:scale-95">
                   {nutritionMatchedMeal ? "View meal" : nutritionPerformance.actionLabel}
                 </span>
               </div>
             </button>
+            </div>
 
             {/* â”€â”€ Quick Action Grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <div className="rounded-[30px] border border-[#E5EAF1] bg-white p-2 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
@@ -2147,136 +2265,14 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="text-left">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-500">{t("ai_insight")}</p>
-                  <h2 className="mt-1 text-[19px] font-black leading-tight text-slate-900 tracking-tight">{t("todays_read")}</h2>
-                </div>
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-500 ring-1 ring-emerald-100/50">
-                  <Apple className="h-4.5 w-4.5" strokeWidth={2.1} />
-                </div>
-              </div>
-              <div className="mt-4 space-y-2.5">
-                {coachInsights.slice(0, 1).map(({ label, title, detail, Icon, tone }) => (
-                  <div key={label} className="rounded-xl bg-slate-50/50 p-4 ring-1 ring-slate-100/80 text-left">
-                    <div className="flex items-start gap-3">
-                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ${tone}`}>
-                        <Icon className="h-4.5 w-4.5" strokeWidth={2.1} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">{label}</p>
-                        <p className="mt-1 text-[13px] font-black leading-tight text-slate-900">{title}</p>
-                        <p className="mt-1.5 line-clamp-2 text-[11px] font-semibold leading-relaxed text-slate-500">{detail}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div className="grid grid-cols-2 gap-2.5">
-                  {coachInsights.slice(1).map(({ label, title, detail, Icon, tone }) => (
-                    <div key={label} className="min-w-0 rounded-xl bg-slate-50/50 p-3 ring-1 ring-slate-100/80 text-left">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ${tone}`}>
-                          <Icon className="h-4 w-4" strokeWidth={2.1} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">{label}</p>
-                          <p className="truncate text-[12px] font-black leading-none text-slate-900 mt-1">{title}</p>
-                        </div>
-                      </div>
-                      <p className="mt-2 line-clamp-1 text-[10px] font-semibold text-slate-500">{detail}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {(smartRecommendationsLoading || aiRecommendationItems.length > 0) && (
-                <div className="mt-4 border-t border-slate-100 pt-3">
-                  <div className="mb-2.5 flex items-center justify-between gap-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">{t("next_best_actions")}</p>
-                    <span className="rounded-full bg-slate-50 border border-slate-200/50 px-2 py-0.5 text-[10px] font-black text-slate-600">
-                      {smartRecommendationsLoading ? "..." : aiRecommendationItems.length}
-                    </span>
-                  </div>
-                  {smartRecommendationsLoading ? (
-                    <div className="space-y-2">
-                      {[1, 2].map((item) => (
-                        <div key={item} className="h-[44px] animate-pulse rounded-[14px] bg-slate-50 ring-1 ring-slate-100" />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {aiRecommendationItems.map((rec) => {
-                        const recIconMap: Record<string, LucideIcon> = {
-                          nutrition: Apple,
-                          hydration: Droplets,
-                          activity: Activity,
-                          sleep: Moon,
-                          general: Star,
-                          blood: AlertCircle,
-                        };
-                        const recToneMap: Record<string, string> = {
-                          nutrition: "bg-[#EFFFFA] text-[#22C7A1] ring-[#22C7A1]/20",
-                          hydration: "bg-sky-50 text-[#38BDF8] ring-[#38BDF8]/20",
-                          activity: "bg-orange-50 text-[#F97316] ring-orange-100",
-                          sleep: "bg-[#F3F4FF] text-[#7C83F6] ring-[#7C83F6]/20",
-                          general: "bg-slate-50 text-slate-600 ring-slate-200",
-                          blood: "bg-[#FFF0F2] text-[#FB6B7A] ring-[#FB6B7A]/20",
-                        };
-                        const priorityTone = rec.priority === "high"
-                          ? "bg-[#FFF0F2] text-[#FB6B7A] ring-[#FB6B7A]/20"
-                          : rec.priority === "medium"
-                            ? "bg-[#FFF7ED] text-[#F97316] ring-[#F97316]/20"
-                            : "bg-slate-50 text-slate-500 ring-slate-200";
-                        const RecIcon = recIconMap[rec.category] || Star;
-                        const progressPct = rec.progress ? Math.min(100, Math.round((rec.progress.value / rec.progress.max) * 100)) : null;
-                        const accent = rec.priority === "high" ? "#FB6B7A" : rec.priority === "medium" ? "#F97316" : "#94A3B8";
-
-                        return (
-                          <button
-                            key={rec.id}
-                            type="button"
-                            onClick={() => {
-                              if (rec.action_link) navigate(rec.action_link);
-                            }}
-                            className="w-full rounded-xl bg-slate-50/50 p-3.5 text-left ring-1 ring-slate-100 transition-all duration-300 active:scale-[0.99] hover:ring-emerald-100/50 hover:bg-slate-50 shadow-sm"
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ${recToneMap[rec.category] || recToneMap.general}`}>
-                                <RecIcon className="h-4.5 w-4.5" strokeWidth={2.1} />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="min-w-0 flex-1 truncate text-[13px] font-black leading-tight text-slate-900">{rec.title}</p>
-                                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase ring-1 ${priorityTone}`}>
-                                    {rec.priority === "high" ? t("priority_high") : rec.priority === "medium" ? t("priority_medium") : t("priority_low")}
-                                  </span>
-                                </div>
-                                <p className="mt-1 line-clamp-1 text-[11px] font-semibold text-slate-500">{rec.description}</p>
-                                {rec.progress && progressPct !== null && (
-                                  <div className="mt-2">
-                                    <div className="mb-1 flex items-center justify-between text-[10px]">
-                                      <span className="font-bold text-slate-500" dir="ltr">{rec.progress.value}/{rec.progress.max} {rec.progress.unit}</span>
-                                      <span className="font-extrabold" style={{ color: accent }}>{progressPct}%</span>
-                                    </div>
-                                    <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                      <div className="h-full rounded-full" style={{ width: `${progressPct}%`, backgroundColor: accent }} />
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                              <NextIcon className="mt-2 h-4 w-4 shrink-0 text-slate-300" strokeWidth={2.4} />
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-              <Link to="/ai-report" className="mt-4 flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.25)] px-4 text-[13px] font-black transition active:scale-[0.98]">
-                {t("open_ai_report")} <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-black" dir="ltr">{aiOverallScore}/100</span> <NextIcon className="h-4 w-4" strokeWidth={2.4} />
-              </Link>
-            </div>
+            <DashboardAiInsightCard
+              slides={aiInsightSlides}
+              fallback={fallbackAiInsight}
+              prefersReducedMotion={prefersReducedMotion}
+              ArrowIcon={NextIcon}
+              openLabel={t("open_ai_report")}
+              onOpen={() => navigate("/ai-report")}
+            />
 
             {user && <BodyCorrelationWidget />}
           </motion.div>
