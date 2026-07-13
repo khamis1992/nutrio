@@ -11,7 +11,6 @@ import {
   updateTranslation,
   triggerMealTranslation,
   type LanguageCode,
-  type TranslatedMeal,
 } from "@/services/translationService";
 import { useToast } from "@/hooks/use-toast";
 

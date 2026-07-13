@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "framer-motion";
-import { TrendingUp, TrendingDown, Dumbbell, Activity, ChevronRight } from "lucide-react";
+import { TrendingUp, Dumbbell, Activity, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useBodyMetricsCorrelation } from "@/hooks/useBodyMetricsCorrelation";

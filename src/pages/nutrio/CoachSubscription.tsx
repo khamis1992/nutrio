@@ -1,15 +1,14 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { ArrowLeft, Loader2, Star, Users, Clock, CheckCircle2, CreditCard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoachSubscription } from "@/hooks/useCoachSubscription";
 import { useCoachAvailability } from "@/hooks/useCoachAvailability";
 import { useCoachReviews } from "@/hooks/useCoachReviews";
-import { sadadService } from "@/lib/sadad";
 import { useToast } from "@/hooks/use-toast";
 
-const fadeInUp = {
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 24 } },
 };
@@ -21,11 +20,13 @@ export default function CoachSubscription() {
   const { toast } = useToast();
   const coachId = searchParams.get("coachId") || "";
   const clientId = user?.id;
-  const { pricing, existingSub, loading, subscribing, subscribe, cancelSubscription } = useCoachSubscription(clientId, coachId);
+  const { pricing, existingSub, loading, cancelSubscription } = useCoachSubscription(clientId, coachId);
   const { availability } = useCoachAvailability(coachId);
   const { summary: ratingSummary } = useCoachReviews(coachId);
-  const [selectedPlan, setSelectedPlan] = useState<"weekly" | "monthly">("monthly");
-  const [processingPayment, setProcessingPayment] = useState(false);
+  const requestedPlan = searchParams.get("plan");
+  const [selectedPlan, setSelectedPlan] = useState<"weekly" | "monthly">(
+    requestedPlan === "weekly" ? "weekly" : "monthly",
+  );
 
   if (loading) {
     return (
@@ -37,32 +38,11 @@ export default function CoachSubscription() {
 
   const formatCurrency = (val: number) => `QAR ${val.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = () => {
     if (!pricing || !clientId) return;
-    setProcessingPayment(true);
-    try {
-      const price = selectedPlan === "weekly" ? pricing.pricePerWeek : pricing.pricePerMonth;
-      const result = await subscribe(selectedPlan, "sadad");
-      if (result.success && result.data) {
-        const orderId = `COACH-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const payment = await sadadService.createPayment({
-          amount: price,
-          orderId,
-          customerId: clientId,
-          customerEmail: user?.email,
-          description: `Coach Subscription - ${selectedPlan} (${price} QAR)`,
-          successUrl: `${window.location.origin}/coach-onboarding?coachId=${coachId}&payment=success`,
-          failureUrl: `${window.location.origin}/coach-subscription?coachId=${coachId}&payment=failed`,
-        });
-        window.location.href = payment.payment_url;
-      } else {
-        toast({ title: "Failed", description: result.error?.message || "Please try again.", variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Failed", description: "Payment could not be initiated. Please try again.", variant: "destructive" });
-    } finally {
-      setProcessingPayment(false);
-    }
+    navigate(
+      `/checkout?type=coach_subscription&coachId=${encodeURIComponent(coachId)}&plan=${selectedPlan}`,
+    );
   };
 
   const handleCancel = async () => {
@@ -179,11 +159,11 @@ export default function CoachSubscription() {
                 </div>
                 <button
                   onClick={handleSubscribe}
-                  disabled={processingPayment || subscribing}
+                  disabled={!pricing.isActive}
                   className="w-full h-[44px] rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[13px] font-bold shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:shadow-emerald-600/30 disabled:opacity-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
-                  {processingPayment || subscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                  {processingPayment ? "Redirecting..." : subscribing ? "Subscribing..." : `Subscribe - ${formatCurrency(selectedPlan === "weekly" ? pricing.pricePerWeek : pricing.pricePerMonth)}`}
+                  <CreditCard className="w-4 h-4" />
+                  {`Continue - ${formatCurrency(selectedPlan === "weekly" ? pricing.pricePerWeek : pricing.pricePerMonth)}`}
                 </button>
                 <p className="text-[10px] text-slate-400 text-center mt-3">Secure payment via Sadad</p>
               </motion.div>

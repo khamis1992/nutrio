@@ -10,7 +10,6 @@ import {
   Search,
   Snowflake,
   User,
-  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,7 +33,7 @@ interface FreezeRequest {
   subscription_id: string;
   freeze_start_date: string;
   freeze_end_date: string;
-  days_count: number;
+  freeze_days: number;
   status: string;
   requested_at: string;
   user_email?: string;
@@ -51,7 +50,7 @@ const C = {
 };
 
 const tabs = [
-  { value: "pending", label: "Pending" },
+  { value: "scheduled", label: "Scheduled" },
   { value: "active", label: "Active" },
   { value: "completed", label: "Completed" },
 ];
@@ -60,11 +59,11 @@ function statusBadge(status: string) {
   if (status === "active") {
     return <Badge className="border border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#0369A1]">Active</Badge>;
   }
-  if (status === "pending") {
-    return <Badge className="border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#F97316]">Pending</Badge>;
+  if (status === "scheduled") {
+    return <Badge className="border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#F97316]">Scheduled</Badge>;
   }
-  if (status === "rejected") {
-    return <Badge className="border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#BE123C]">Rejected</Badge>;
+  if (status === "cancelled") {
+    return <Badge className="border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#BE123C]">Cancelled</Badge>;
   }
   return <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">{status}</Badge>;
 }
@@ -74,26 +73,29 @@ export default function AdminFreezeManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState("scheduled");
 
   const fetchFreezes = async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from("subscription_freezes")
-        .select(`
-          *,
-          subscriptions:user_id (
-            user:profiles (email)
-          )
-        `)
+        .select("*")
         .order("requested_at", { ascending: false });
 
       if (error) throw error;
 
+      const userIds = [...new Set((data || []).map((freeze) => freeze.user_id))];
+      const { data: profiles, error: profilesError } = userIds.length > 0
+        ? await supabase.from("profiles").select("user_id, email").in("user_id", userIds)
+        : { data: [], error: null };
+
+      if (profilesError) throw profilesError;
+      const emailsByUserId = new Map((profiles || []).map((profile) => [profile.user_id, profile.email]));
+
       const transformedData = data?.map((freeze) => ({
         ...freeze,
-        user_email: freeze.subscriptions?.user?.email,
+        user_email: emailsByUserId.get(freeze.user_id) || undefined,
       })) || [];
 
       setFreezes(transformedData);
@@ -109,40 +111,6 @@ export default function AdminFreezeManagement() {
     fetchFreezes();
   }, []);
 
-  const handleApprove = async (freezeId: string) => {
-    try {
-      const { error } = await supabase
-        .from("subscription_freezes")
-        .update({ status: "approved" })
-        .eq("id", freezeId);
-
-      if (error) throw error;
-
-      toast.success("Freeze request approved");
-      fetchFreezes();
-    } catch (error) {
-      console.error("Error approving freeze:", error);
-      toast.error("Failed to approve freeze");
-    }
-  };
-
-  const handleReject = async (freezeId: string) => {
-    try {
-      const { error } = await supabase
-        .from("subscription_freezes")
-        .update({ status: "rejected" })
-        .eq("id", freezeId);
-
-      if (error) throw error;
-
-      toast.success("Freeze request rejected");
-      fetchFreezes();
-    } catch (error) {
-      console.error("Error rejecting freeze:", error);
-      toast.error("Failed to reject freeze");
-    }
-  };
-
   const filteredFreezes = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
@@ -157,20 +125,20 @@ export default function AdminFreezeManagement() {
     });
   }, [freezes, searchQuery, statusFilter]);
 
-  const pendingFreezes = filteredFreezes.filter((freeze) => freeze.status === "pending");
+  const scheduledFreezes = filteredFreezes.filter((freeze) => freeze.status === "scheduled");
   const activeFreezes = filteredFreezes.filter((freeze) => freeze.status === "active");
-  const completedFreezes = filteredFreezes.filter((freeze) => ["completed", "approved"].includes(freeze.status));
+  const completedFreezes = filteredFreezes.filter((freeze) => ["completed", "cancelled"].includes(freeze.status));
 
   const stats = useMemo(() => ({
-    pending: freezes.filter((freeze) => freeze.status === "pending").length,
+    scheduled: freezes.filter((freeze) => freeze.status === "scheduled").length,
     active: freezes.filter((freeze) => freeze.status === "active").length,
-    completed: freezes.filter((freeze) => ["completed", "approved"].includes(freeze.status)).length,
+    completed: freezes.filter((freeze) => ["completed", "cancelled"].includes(freeze.status)).length,
     total: freezes.length,
   }), [freezes]);
 
-  const currentList = activeTab === "pending" ? pendingFreezes : activeTab === "active" ? activeFreezes : completedFreezes;
+  const currentList = activeTab === "scheduled" ? scheduledFreezes : activeTab === "active" ? activeFreezes : completedFreezes;
 
-  const renderFreezeCard = (freeze: FreezeRequest, showActions = false) => (
+  const renderFreezeCard = (freeze: FreezeRequest) => (
     <Card key={freeze.id} className="rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
       <CardContent className="p-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -199,7 +167,7 @@ export default function AdminFreezeManagement() {
               </div>
               <div className="rounded-2xl bg-[#F6F8FB] p-3">
                 <Snowflake className="mb-2 h-4 w-4 text-[#7C83F6]" />
-                <p className="text-sm font-black text-[#020617]">{freeze.days_count} days</p>
+                <p className="text-sm font-black text-[#020617]">{freeze.freeze_days} days</p>
                 <p className="text-[10px] font-black uppercase text-[#94A3B8]">Duration</p>
               </div>
               <div className="rounded-2xl bg-[#F6F8FB] p-3">
@@ -214,34 +182,13 @@ export default function AdminFreezeManagement() {
 
           <div className="flex flex-col gap-3 lg:items-end">
             {statusBadge(freeze.status)}
-            {showActions && freeze.status === "pending" && (
-              <div className="grid grid-cols-2 gap-2 lg:flex">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="min-h-10 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#BE123C] shadow-none hover:bg-[#FB6B7A]/15"
-                  onClick={() => handleReject(freeze.id)}
-                >
-                  <XCircle className="mr-1 h-4 w-4" />
-                  Reject
-                </Button>
-                <Button
-                  size="sm"
-                  className="min-h-10 rounded-full bg-[#020617] font-black text-white shadow-none hover:bg-[#020617]/90"
-                  onClick={() => handleApprove(freeze.id)}
-                >
-                  <CheckCircle2 className="mr-1 h-4 w-4" />
-                  Approve
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </CardContent>
     </Card>
   );
 
-  const emptyIcon = activeTab === "pending" ? Clock : activeTab === "active" ? Snowflake : CheckCircle2;
+  const emptyIcon = activeTab === "scheduled" ? Clock : activeTab === "active" ? Snowflake : CheckCircle2;
   const EmptyIcon = emptyIcon;
 
   return (
@@ -273,7 +220,7 @@ export default function AdminFreezeManagement() {
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
-            { label: "Pending", value: stats.pending, icon: Clock, color: C.fat },
+            { label: "Scheduled", value: stats.scheduled, icon: Clock, color: C.fat },
             { label: "Active", value: stats.active, icon: Snowflake, color: C.water },
             { label: "Completed", value: stats.completed, icon: CheckCircle2, color: C.progress },
             { label: "Total", value: stats.total, icon: AlertCircle, color: C.protein },
@@ -312,10 +259,10 @@ export default function AdminFreezeManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -325,7 +272,7 @@ export default function AdminFreezeManagement() {
 
         <div className="flex gap-2 overflow-x-auto rounded-[26px] bg-white p-2 ring-1 ring-[#E5EAF1]">
           {tabs.map((tab) => {
-            const count = tab.value === "pending" ? pendingFreezes.length : tab.value === "active" ? activeFreezes.length : completedFreezes.length;
+            const count = tab.value === "scheduled" ? scheduledFreezes.length : tab.value === "active" ? activeFreezes.length : completedFreezes.length;
             const active = activeTab === tab.value;
             return (
               <button
@@ -350,7 +297,7 @@ export default function AdminFreezeManagement() {
               </CardContent>
             </Card>
           ) : currentList.length > 0 ? (
-            currentList.map((freeze) => renderFreezeCard(freeze, activeTab === "pending"))
+            currentList.map((freeze) => renderFreezeCard(freeze))
           ) : (
             <Card className="rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
               <CardContent className="px-6 py-12 text-center">

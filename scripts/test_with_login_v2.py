@@ -1,3 +1,4 @@
+import os
 import time
 from playwright.sync_api import sync_playwright
 
@@ -13,8 +14,8 @@ def run_tests():
         
         # Login using correct selectors
         print("Creating account...")
-        page.fill('#su-email', 'eng.aljabor@gmail.com')
-        page.fill('#su-password', '123456789')
+        page.fill('#su-email', os.environ["E2E_CUSTOMER_EMAIL"])
+        page.fill('#su-password', os.environ["E2E_CUSTOMER_PASSWORD"])
         
         # Try to sign up first (in case user doesn't exist)
         sign_up_btn = page.locator('button:has-text("Sign Up")').first
@@ -28,8 +29,8 @@ def run_tests():
         
         # Sign In
         print("Signing in...")
-        page.fill('#si-email', 'eng.aljabor@gmail.com')
-        page.fill('#si-password', '123456789')
+        page.fill('#si-email', os.environ["E2E_CUSTOMER_EMAIL"])
+        page.fill('#si-password', os.environ["E2E_CUSTOMER_PASSWORD"])
         
         sign_in_btn = page.locator('button[type="submit"]').first
         if sign_in_btn.count() > 0:

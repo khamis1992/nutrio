@@ -9,7 +9,6 @@
 import React, { ReactNode } from "react";
 import { render, renderHook, RenderOptions, RenderHookOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { vi } from "vitest";
 
 /** Creates a fresh QueryClient for each test to avoid cache leaks. */
 export function createTestQueryClient() {

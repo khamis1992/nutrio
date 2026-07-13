@@ -76,7 +76,6 @@ export function CreditDashboard() {
   const {
     remainingMeals,
     totalMeals,
-    mealsUsed,
     rolloverCredits,
     totalAvailable,
     percentage,

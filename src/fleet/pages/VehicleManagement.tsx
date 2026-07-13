@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddVehicleModal } from "@/fleet/components/vehicles/AddVehicleModal";
 import { EditVehicleModal } from "@/fleet/components/vehicles/EditVehicleModal";
-import type { Driver, Vehicle, VehicleStatus } from "@/fleet/types";
+import type { Driver, Vehicle, VehicleStatus } from "@/fleet/types/fleet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -68,24 +68,25 @@ export default function VehicleManagement() {
 
       if (error) throw error;
 
-      const transformedVehicles: Vehicle[] = (data || []).map((v: { id: string; city_id?: string; type: Vehicle["type"]; make?: string; model?: string; year?: number; color?: string; plate_number: string; registration_number?: string; insurance_provider?: string; insurance_expiry?: string; insurance_document_url?: string; status: string; assigned_driver_id?: string; assigned_driver_name?: string; vehicle_photo_url?: string; registration_document_url?: string; created_at: string; updated_at?: string }) => ({
+      const transformedVehicles: Vehicle[] = (data || []).map((v) => ({
         id: v.id,
         cityId: v.city_id || "",
-        type: v.type,
-        make: v.make,
-        model: v.model,
-        year: v.year,
-        color: v.color,
+        type: v.type as Vehicle["type"],
+        make: v.make ?? undefined,
+        model: v.model ?? undefined,
+        year: v.year ?? undefined,
+        color: v.color ?? undefined,
         plateNumber: v.plate_number,
-        registrationNumber: v.registration_number,
-        insuranceProvider: v.insurance_provider,
-        insuranceExpiry: v.insurance_expiry,
-        insuranceDocumentUrl: v.insurance_document_url,
-        status: v.status as VehicleStatus,
-        assignedDriverId: v.assigned_driver_id,
-        assignedDriverName: v.assigned_driver_name,
-        vehiclePhotoUrl: v.vehicle_photo_url,
-        registrationDocumentUrl: v.registration_document_url,
+        registrationNumber: v.registration_number ?? undefined,
+        insuranceProvider: v.insurance_provider ?? undefined,
+        insuranceExpiry: v.insurance_expiry ?? undefined,
+        insuranceDocumentUrl: v.insurance_document_url ?? undefined,
+        status: (v.status || "available") as VehicleStatus,
+        assignedDriverId: v.assigned_driver_id ?? undefined,
+        vehiclePhotoUrl: v.vehicle_photo_url ?? undefined,
+        registrationDocumentUrl: v.registration_document_url ?? undefined,
+        createdAt: v.created_at || new Date(0).toISOString(),
+        updatedAt: v.updated_at || v.created_at || new Date(0).toISOString(),
       }));
 
       setVehicles(transformedVehicles);
@@ -114,17 +115,30 @@ export default function VehicleManagement() {
 
   const fetchDrivers = async () => {
     try {
-      const { data, error } = await supabase
-        .from("drivers")
-        .select("*")
-        .eq("approval_status", "approved")
-        .eq("is_active", true);
+      const [{ data, error }, { data: assignments, error: assignmentsError }] = await Promise.all([
+        supabase
+          .from("drivers")
+          .select("*")
+          .eq("approval_status", "approved")
+          .eq("is_active", true),
+        supabase
+          .from("vehicles")
+          .select("id, assigned_driver_id")
+          .not("assigned_driver_id", "is", null),
+      ]);
 
       if (error) throw error;
+      if (assignmentsError) throw assignmentsError;
 
-      const transformedDrivers: Driver[] = (data || []).map((d: { id: string; user_id?: string; email?: string; phone_number?: string; full_name?: string; city_id?: string; assigned_zone_ids?: string[]; approval_status?: string; is_active?: boolean; is_online?: boolean; total_deliveries?: number; rating?: number; cancellation_rate?: number; wallet_balance?: number; total_earnings?: number; assigned_vehicle_id?: string; created_at: string; updated_at?: string }) => ({
+      const assignedVehicleByDriver = new Map(
+        (assignments || []).flatMap((vehicle) =>
+          vehicle.assigned_driver_id ? [[vehicle.assigned_driver_id, vehicle.id] as const] : [],
+        ),
+      );
+
+      const transformedDrivers: Driver[] = (data || []).map((d) => ({
         id: d.id,
-        authUserId: d.user_id,
+        authUserId: d.user_id ?? undefined,
         email: d.email || "",
         phone: d.phone_number || "",
         fullName: d.full_name || `Driver ${d.phone_number?.slice(-4) || d.id.slice(0, 8)}`,
@@ -137,9 +151,9 @@ export default function VehicleManagement() {
         cancellationRate: d.cancellation_rate || 0,
         currentBalance: d.wallet_balance || 0,
         totalEarnings: d.total_earnings || 0,
-        assignedVehicleId: d.assigned_vehicle_id,
-        createdAt: d.created_at,
-        updatedAt: d.updated_at,
+        assignedVehicleId: assignedVehicleByDriver.get(d.id),
+        createdAt: d.created_at || new Date(0).toISOString(),
+        updatedAt: d.updated_at || d.created_at || new Date(0).toISOString(),
       }));
 
       setDrivers(transformedDrivers);
@@ -276,22 +290,22 @@ export default function VehicleManagement() {
     if (!driverId) return;
     setAssigningVehicleId(vehicle.id);
     try {
-      if (vehicle.assignedDriverId) {
-        await supabase
-          .from("drivers")
-          .update({ assigned_vehicle_id: null })
-          .eq("id", vehicle.assignedDriverId);
+      const previousVehicle = vehicles.find(
+        (candidate) => candidate.id !== vehicle.id && candidate.assignedDriverId === driverId,
+      );
+      if (previousVehicle) {
+        const { error: previousVehicleError } = await supabase
+          .from("vehicles")
+          .update({ assigned_driver_id: null, status: "available" })
+          .eq("id", previousVehicle.id);
+        if (previousVehicleError) throw previousVehicleError;
       }
 
-      await supabase
+      const { error: assignmentError } = await supabase
         .from("vehicles")
         .update({ assigned_driver_id: driverId, status: "assigned" })
         .eq("id", vehicle.id);
-
-      await supabase
-        .from("drivers")
-        .update({ assigned_vehicle_id: vehicle.id })
-        .eq("id", driverId);
+      if (assignmentError) throw assignmentError;
 
       toast({ title: "Driver assigned", description: "Vehicle has been assigned successfully." });
       setQuickAssignMap((prev) => {
@@ -313,15 +327,11 @@ export default function VehicleManagement() {
     if (!vehicle.assignedDriverId) return;
     setAssigningVehicleId(vehicle.id);
     try {
-      await supabase
+      const { error } = await supabase
         .from("vehicles")
         .update({ assigned_driver_id: null, status: "available" })
         .eq("id", vehicle.id);
-
-      await supabase
-        .from("drivers")
-        .update({ assigned_vehicle_id: null })
-        .eq("id", vehicle.assignedDriverId);
+      if (error) throw error;
 
       toast({ title: "Driver unassigned", description: "Vehicle is now available." });
       fetchVehicles();

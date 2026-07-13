@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchActivityLeaderboardRows } from "@/lib/pending-schema-queries";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Flame,
@@ -9,7 +10,6 @@ import {
   Salad,
   Scale,
   Trophy,
-  TrendingDown,
   Users,
   Zap,
 } from "lucide-react";
@@ -35,7 +35,6 @@ function anonymize(fullName: string, index: number): string {
   return parts.length >= 2 ? `${parts[0]} ${parts[1][0]}.` : parts[0];
 }
 
-const MEDAL_COLORS = ["#FBBF24", "#9CA3AF", "#D97706"]; // gold, silver, bronze
 const MEDAL_EMOJIS = ["🥇", "🥈", "🥉"];
 
 export default function Leaderboard() {
@@ -124,15 +123,11 @@ export default function Leaderboard() {
           }))
         );
       } else if (category === "calories_burned") {
-        const { data } = await supabase
-          .from("activity_logs")
-          .select("user_id, calories_burned, user:profiles!inner(full_name)")
-          .gte("performed_at", since)
-          .limit(100);
+        const data = await fetchActivityLeaderboardRows(since);
         const totals = new Map<string, { name: string; total: number }>();
         for (const row of data || []) {
           const uid = row.user_id;
-          const name = (row as any).user?.full_name || `User ${uid.slice(0, 4)}`;
+          const name = row.user?.full_name || `User ${uid.slice(0, 4)}`;
           const entry = totals.get(uid) || { name, total: 0 };
           entry.total += row.calories_burned || 0;
           totals.set(uid, entry);

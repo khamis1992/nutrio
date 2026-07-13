@@ -117,8 +117,8 @@ serve(async (req) => {
       // Fetch user profile for notification
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, email, phone")
-        .eq("id", rec.user_id)
+        .select("full_name, email")
+        .eq("user_id", rec.user_id)
         .single();
 
       const userName = profile?.full_name || "there";
@@ -150,9 +150,10 @@ serve(async (req) => {
       if (profile?.email) {
         await supabase.functions.invoke("send-email", {
           body: {
-            to: rec.user_id,
-            template: payload.type === "subscription_expiry_warning" ? "subscription-expiry-warning" : "subscription-recovery",
-            data: { user_name: userName, days_since_expiry: daysSinceExpiry, recovery_id: rec.id },
+            to: profile.email,
+            subject: payload.title,
+            text: payload.message,
+            html: `<p>${payload.message}</p>`,
           },
         }).catch((e) => console.error(`Email notif failed for ${rec.user_id}:`, e));
       }

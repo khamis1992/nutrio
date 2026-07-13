@@ -1,18 +1,10 @@
-import { ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { CoachBottomTabBar } from "@/components/coach/CoachBottomTabBar";
-import { Menu, X, LogOut, Users, BarChart3, MessageSquare, Settings } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-const NAV_ITEMS = [
-  { path: "/coach", label: "Clients", icon: Users },
-  { path: "/coach/insights", label: "Insights", icon: BarChart3 },
-  { path: "/coach/chat", label: "Chat", icon: MessageSquare },
-  { path: "/coach/settings", label: "Settings", icon: Settings },
-];
+import { LogOut } from "lucide-react";
 
 export function CoachPortalLayout() {
   const navigate = useNavigate();
@@ -20,37 +12,35 @@ export function CoachPortalLayout() {
   const { profile } = useProfile();
   const [loading, setLoading] = useState(true);
   const [isCoach, setIsCoach] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      checkCoachRole();
-    } else {
+    if (!user) {
       setLoading(false);
+      return;
     }
-  }, [user]);
 
-  const checkCoachRole = async () => {
-    if (!user) return;
-    try {
-      const { data } = await supabase
+    let cancelled = false;
+    const checkCoachRole = async () => {
+      const { data, error } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
         .eq("role", "coach")
         .maybeSingle();
 
-      if (!data) {
+      if (cancelled) return;
+      if (error || !data) {
+        if (error) console.error("Failed to verify coach access:", error);
         navigate("/auth", { replace: true });
-        return;
+      } else {
+        setIsCoach(true);
       }
-      setIsCoach(true);
-    } catch {
-      navigate("/auth", { replace: true });
-    } finally {
       setLoading(false);
-    }
-  };
+    };
+
+    checkCoachRole();
+    return () => { cancelled = true; };
+  }, [navigate, user]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -84,7 +74,9 @@ export function CoachPortalLayout() {
           </div>
         </div>
         <button
+          type="button"
           onClick={handleSignOut}
+          aria-label="Sign out"
           className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
         >
           <LogOut className="w-4 h-4" />

@@ -15,7 +15,6 @@ import {
 import {
   DollarSign,
   TrendingUp,
-  Utensils,
   Clock,
   Download,
   Calendar,
@@ -126,7 +125,7 @@ export default function PartnerEarningsDashboard() {
           ?.filter((e) => e.status !== "paid")
           .reduce((sum, e) => sum + e.net_amount, 0) || 0;
       const mealsSold = earningsData?.length || 0;
-      const avgPerMeal = mealsSold > 0 ? totalEarnings / mealsSold : 45;
+      const avgPerMeal = mealsSold > 0 ? totalEarnings / mealsSold : 0;
 
       // Calculate this month vs last month
       const now = new Date();

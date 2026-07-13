@@ -1,354 +1,219 @@
 // Edge Function: process-subscription-renewal
-// Handles subscription renewal with rollover credit calculation
-// Called by: Cron job (daily), Admin trigger, Automatic renewal
+// Synchronizes freezes and expires subscriptions whose paid period ended.
+// A verified SADAD payment is the only path that may extend entitlement.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 interface RenewalInput {
-  subscription_id?: string; // If specific subscription, else process all due
-  user_id?: string; // If specific user
-  dry_run?: boolean; // If true, don't actually renew, just preview
-  idempotency_key?: string; // Optional client-provided key, otherwise generated
+  subscription_id?: string;
+  dry_run?: boolean;
 }
 
-// Generate idempotency key based on subscription and target renewal date
-function generateIdempotencyKey(subscriptionId: string, targetDate: Date): string {
-  const dateStr = targetDate.toISOString().split("T")[0];
-  return `renewal_${subscriptionId}_${dateStr}`;
-}
-
-interface RenewalResult {
+interface RenewalLifecycleResult {
   subscription_id: string;
   user_id: string;
+  action: "would_expire" | "expired" | "unchanged";
   success: boolean;
-  rollover_credits: number;
-  new_cycle_start: string;
-  new_cycle_end: string;
-  total_credits: number;
   error?: string;
 }
 
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function safeEqual(left: string, right: string): boolean {
+  const encoder = new TextEncoder();
+  const leftBytes = encoder.encode(left);
+  const rightBytes = encoder.encode(right);
+  let difference = leftBytes.length ^ rightBytes.length;
+  const length = Math.max(leftBytes.length, rightBytes.length);
+
+  for (let index = 0; index < length; index += 1) {
+    difference |= (leftBytes[index] ?? 0) ^ (rightBytes[index] ?? 0);
+  }
+
+  return difference === 0;
+}
+
+function getQatarDate(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Qatar",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  if (req.method !== "POST") {
+    return json({ error: "METHOD_NOT_ALLOWED" }, 405);
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const cronSecret = Deno.env.get("SUBSCRIPTION_RENEWAL_CRON_SECRET") ?? "";
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error("Subscription renewal server configuration is incomplete");
+    return json({ error: "SERVER_CONFIGURATION_MISSING" }, 500);
+  }
+
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
   try {
-    // Create Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
+    const body = (await req.json().catch(() => ({}))) as RenewalInput;
+    const subscriptionId = body.subscription_id?.trim() || null;
+    const dryRun = body.dry_run === true;
+    const suppliedCronSecret = req.headers.get("x-cron-secret") ?? "";
+    const isCron = Boolean(
+      cronSecret
+        && suppliedCronSecret
+        && safeEqual(suppliedCronSecret, cronSecret),
     );
 
-    // Parse request body
-    const { subscription_id, user_id, dry_run = false }: RenewalInput = await req.json().catch(() => ({}));
-
-    // Validate JWT for non-cron requests
-    const authHeader = req.headers.get("authorization");
+    let actorId: string | null = null;
     let isAdmin = false;
-    let requestingUserId: string | null = null;
 
-    if (authHeader) {
-      const jwt = authHeader.replace("Bearer ", "");
-      const { data: { user }, error: authError } = await supabaseClient.auth.getUser(jwt);
-      
-      if (authError || !user) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+    if (!isCron) {
+      const authorization = req.headers.get("authorization") ?? "";
+      const token = authorization.startsWith("Bearer ")
+        ? authorization.slice("Bearer ".length).trim()
+        : "";
+
+      if (!token) {
+        return json({ error: "UNAUTHORIZED" }, 401);
       }
 
-      requestingUserId = user.id;
+      const { data: authData, error: authError } = await adminClient.auth.getUser(token);
+      if (authError || !authData.user) {
+        return json({ error: "UNAUTHORIZED" }, 401);
+      }
 
-      // Check if admin
-      const { data: profile } = await supabaseClient
-        .from("profiles")
+      actorId = authData.user.id;
+      const { data: roles, error: rolesError } = await adminClient
+        .from("user_roles")
         .select("role")
-        .eq("id", user.id)
-        .single();
+        .eq("user_id", actorId);
 
-      isAdmin = profile?.role === "admin";
-    }
+      if (rolesError) {
+        throw rolesError;
+      }
 
-    // If specific subscription requested, verify permissions
-    if (subscription_id && !isAdmin && requestingUserId) {
-      const { data: sub } = await supabaseClient
-        .from("subscriptions")
-        .select("user_id")
-        .eq("id", subscription_id)
-        .single();
+      isAdmin = (roles ?? []).some((entry) => entry.role === "admin");
 
-      if (sub?.user_id !== requestingUserId) {
-        return new Response(
-          JSON.stringify({ error: "Forbidden: Can only renew own subscriptions" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      if (!isAdmin && (!dryRun || !subscriptionId)) {
+        return json(
+          { error: "FORBIDDEN", message: "Customers may only preview their own renewal status." },
+          403,
         );
       }
     }
 
-    // Build query to find subscriptions due for renewal
-    let query = supabaseClient
-      .from("subscriptions")
-      .select(`
-        id,
-        user_id,
-        plan_id,
-        credits_remaining,
-        credits_used,
-        rollover_credits,
-        billing_cycle_end,
-        freeze_days_used,
-        status
-      `)
-      .eq("status", "active");
+    if (!dryRun && !isCron && !isAdmin) {
+      return json({ error: "FORBIDDEN" }, 403);
+    }
 
-    if (subscription_id) {
-      query = query.eq("id", subscription_id);
-    } else if (user_id) {
-      query = query.eq("user_id", user_id);
-    } else {
-      // Find all subscriptions ending within 24 hours (for cron job)
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      query = query.lte("billing_cycle_end", tomorrow.toISOString().split("T")[0]);
+    const syncTarget = isCron || isAdmin ? null : actorId;
+    const { error: freezeError } = await adminClient.rpc("sync_subscription_freezes", {
+      p_user_id: syncTarget,
+    });
+
+    if (freezeError) {
+      throw freezeError;
+    }
+
+    if (!dryRun) {
+      const { data: expired, error: expireError } = await adminClient.rpc(
+        "expire_due_subscriptions",
+        {
+          p_subscription_id: subscriptionId,
+          p_limit: subscriptionId ? 1 : 500,
+        },
+      );
+
+      if (expireError) {
+        throw expireError;
+      }
+
+      const results: RenewalLifecycleResult[] = (expired ?? []).map((subscription) => ({
+        subscription_id: subscription.subscription_id,
+        user_id: subscription.user_id,
+        action: "expired",
+        success: true,
+      }));
+
+      return json({
+        message: "Renewal lifecycle processed",
+        processed: results.length,
+        successful: results.length,
+        failed: 0,
+        results,
+      });
+    }
+
+    const today = getQatarDate();
+    let query = adminClient
+      .from("subscriptions")
+      .select("id,user_id,end_date,status,active,auto_renew,freeze_active_id")
+      .in("status", ["active", "cancelled"])
+      .is("freeze_active_id", null)
+      .not("end_date", "is", null)
+      .lt("end_date", today)
+      .order("end_date", { ascending: true })
+      .limit(subscriptionId ? 1 : 500);
+
+    if (subscriptionId) {
+      query = query.eq("id", subscriptionId);
+    }
+    if (!isCron && !isAdmin && actorId) {
+      query = query.eq("user_id", actorId);
     }
 
     const { data: subscriptions, error: fetchError } = await query;
-
     if (fetchError) {
       throw fetchError;
     }
 
-    if (!subscriptions || subscriptions.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          message: "No subscriptions due for renewal",
-          processed: 0,
-          results: []
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const results: RenewalLifecycleResult[] = (subscriptions ?? []).map((subscription) => ({
+      subscription_id: subscription.id,
+      user_id: subscription.user_id,
+      action: "would_expire",
+      success: true,
+    }));
 
-    const results: RenewalResult[] = [];
-
-    // Process each subscription
-    for (const subscription of subscriptions || []) {
-      try {
-        // Generate or use provided idempotency key
-        const targetRenewalDate = new Date(subscription.billing_cycle_end);
-        targetRenewalDate.setDate(targetRenewalDate.getDate() + 1); // Next day is the renewal date
-        
-        const idempotencyKey = generateIdempotencyKey(subscription.id, targetRenewalDate);
-
-        // Check if already processed
-        const { data: existingProcessing } = await supabaseClient
-          .from("subscription_renewal_processed")
-          .select("id, processed_at, status, error_message")
-          .eq("idempotency_key", idempotencyKey)
-          .single();
-
-        if (existingProcessing) {
-          if (existingProcessing.status === "success") {
-            console.log(`Skipping already processed renewal: ${idempotencyKey}`);
-            results.push({
-              subscription_id: subscription.id,
-              user_id: subscription.user_id,
-              success: true,
-              rollover_credits: 0,
-              new_cycle_start: "",
-              new_cycle_end: "",
-              total_credits: 0,
-              error: "Already processed",
-            });
-            continue;
-          } else if (existingProcessing.status === "failed" && !dry_run) {
-            // Previous attempt failed - allow retry
-            console.log(`Retrying previously failed renewal: ${idempotencyKey}`);
-          }
-        }
-
-        // Get plan details
-        const { data: plan, error: planError } = await supabaseClient
-          .from("subscription_plans")
-          .select("meal_credits")
-          .eq("id", subscription.plan_id)
-          .single();
-
-        if (planError || !plan) {
-          results.push({
-            subscription_id: subscription.id,
-            user_id: subscription.user_id,
-            success: false,
-            rollover_credits: 0,
-            new_cycle_start: "",
-            new_cycle_end: "",
-            total_credits: 0,
-            error: "Plan not found",
-          });
-          continue;
-        }
-
-        if (dry_run) {
-          // Calculate without executing
-          const monthly_credits = plan.meal_credits;
-          const unused_credits = subscription.credits_remaining;
-          const max_rollover = Math.floor(monthly_credits * 0.20);
-          const rollover_amount = Math.min(unused_credits, max_rollover);
-          
-          const current_cycle_end = new Date(subscription.billing_cycle_end);
-          const new_cycle_start = new Date(current_cycle_end);
-          new_cycle_start.setDate(new_cycle_start.getDate() + 1);
-          
-          const new_cycle_end = new Date(new_cycle_start);
-          new_cycle_end.setDate(new_cycle_end.getDate() + 29); // 30 days from start
-          
-          if (subscription.freeze_days_used > 0) {
-            new_cycle_end.setDate(new_cycle_end.getDate() + subscription.freeze_days_used);
-          }
-
-          results.push({
-            subscription_id: subscription.id,
-            user_id: subscription.user_id,
-            success: true,
-            rollover_credits: rollover_amount,
-            new_cycle_start: new_cycle_start.toISOString().split("T")[0],
-            new_cycle_end: new_cycle_end.toISOString().split("T")[0],
-            total_credits: rollover_amount + monthly_credits,
-          });
-        } else {
-          // Execute the renewal using database function
-          const { data: renewalResult, error: renewalError } = await supabaseClient.rpc(
-            "calculate_rollover_credits",
-            {
-              p_subscription_id: subscription.id,
-              p_user_id: subscription.user_id,
-            }
-          );
-
-          if (renewalError) {
-            throw renewalError;
-          }
-
-          const result = renewalResult as {
-            success: boolean;
-            rollover_credits: number;
-            new_cycle_start: string;
-            new_cycle_end: string;
-            total_credits: number;
-            error?: string;
-          };
-
-          results.push({
-            subscription_id: subscription.id,
-            user_id: subscription.user_id,
-            success: result.success,
-            rollover_credits: result.rollover_credits,
-            new_cycle_start: result.new_cycle_start,
-            new_cycle_end: result.new_cycle_end,
-            total_credits: result.total_credits,
-            error: result.error,
-          });
-
-          // Record processing for idempotency
-          await supabaseClient
-            .from("subscription_renewal_processed")
-            .upsert({
-              subscription_id: subscription.id,
-              idempotency_key: idempotencyKey,
-              processed_at: new Date().toISOString(),
-              renewal_date: targetRenewalDate.toISOString().split("T")[0],
-              credits_added: result.total_credits,
-              rollover_credits: result.rollover_credits,
-              status: result.success ? "success" : "failed",
-              error_message: result.error || null,
-            }, {
-              onConflict: "idempotency_key",
-            });
-
-          // Send notification to user if successful
-          if (result.success) {
-            await supabaseClient.functions.invoke("send-email", {
-              body: {
-                to: subscription.user_id, // Will be resolved by the email function
-                template: "subscription-renewed",
-                data: {
-                  rollover_credits: result.rollover_credits,
-                  total_credits: result.total_credits,
-                  new_cycle_end: result.new_cycle_end,
-                },
-              },
-            });
-          }
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        
-        results.push({
-          subscription_id: subscription.id,
-          user_id: subscription.user_id,
-          success: false,
-          rollover_credits: 0,
-          new_cycle_start: "",
-          new_cycle_end: "",
-          total_credits: 0,
-          error: errorMessage,
-        });
-
-        // Record failure for idempotency (allows retry, but tracks the failure)
-        if (!dry_run) {
-          await supabaseClient
-            .from("subscription_renewal_processed")
-            .upsert({
-              subscription_id: subscription.id,
-              idempotency_key: idempotencyKey,
-              processed_at: new Date().toISOString(),
-              renewal_date: targetRenewalDate.toISOString().split("T")[0],
-              credits_added: 0,
-              rollover_credits: 0,
-              status: "failed",
-              error_message: errorMessage,
-            }, {
-              onConflict: "idempotency_key",
-            })
-            .catch(console.error); // Don't let recording failure break the main flow
-        }
-      }
-    }
-
-    return new Response(
-      JSON.stringify({
-        message: dry_run ? "Dry run completed" : "Renewal processed",
-        processed: results.length,
-        successful: results.filter((r) => r.success).length,
-        failed: results.filter((r) => !r.success).length,
-        results,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json({
+      message: "Renewal lifecycle preview completed",
+      processed: results.length,
+      successful: results.filter((result) => result.success).length,
+      failed: results.filter((result) => !result.success).length,
+      results,
+    });
   } catch (error) {
-    console.error("Error processing subscription renewal:", error);
-    
-    return new Response(
-      JSON.stringify({
-        error: "Internal server error",
+    console.error("Error processing subscription renewal lifecycle", error);
+    return json(
+      {
+        error: "SUBSCRIPTION_RENEWAL_PROCESSING_FAILED",
         details: error instanceof Error ? error.message : "Unknown error",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      },
+      500,
     );
   }
 });

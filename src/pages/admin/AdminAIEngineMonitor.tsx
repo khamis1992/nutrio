@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { 
   LineChart, 
   Line, 
@@ -29,9 +28,8 @@ import {
   Server
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, subHours } from "date-fns";
+import { format } from "date-fns";
 import { AdminLayout } from "@/components/AdminLayout";
 
 interface AIEngineStatus {

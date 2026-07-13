@@ -35,14 +35,14 @@ import { format } from "date-fns";
 
 interface PurchaseRequest {
   id: string;
-  restaurant_id: string;
-  partner_id: string;
-  package_type: string;
-  price_paid: number;
-  ends_at: string;
+  restaurant_id: string | null;
+  partner_id: string | null;
+  package_type: string | null;
+  price_paid: number | null;
+  ends_at: string | null;
   payment_reference: string | null;
   status: string;
-  created_at: string;
+  created_at: string | null;
   restaurant_name: string;
 }
 
@@ -84,6 +84,8 @@ export default function AdminPremiumAnalytics() {
   useEffect(() => {
     fetchRequests();
     fetchRestaurants();
+    // Initial administrative data load; both functions are defined in this component.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchRequests = async () => {
@@ -97,7 +99,7 @@ export default function AdminPremiumAnalytics() {
       if (error) throw error;
 
       setRequests(
-        (data || []).map((row: { id: string; restaurant_id: string; partner_id: string; package_type: string; price_paid: number; ends_at: string; payment_reference: string | null; status: string; created_at: string; restaurants?: { name: string } | null }) => ({
+        (data || []).map((row) => ({
           ...row,
           restaurant_name: row.restaurants?.name || "Unknown",
         }))
@@ -110,7 +112,12 @@ export default function AdminPremiumAnalytics() {
   };
 
   const fetchRestaurants = async () => {
-    const { data } = await supabase.from("restaurants").select("id, name").order("name");
+    const { data, error } = await supabase.from("restaurants").select("id, name").order("name");
+    if (error) {
+      console.error("Error fetching restaurants:", error);
+      toast({ title: "Error", description: "Could not load restaurants.", variant: "destructive" });
+      return;
+    }
     setRestaurants(data || []);
   };
 
@@ -125,6 +132,10 @@ export default function AdminPremiumAnalytics() {
 
     try {
       if (actionType === "approve") {
+        if (!actionTarget.restaurant_id || !actionTarget.ends_at) {
+          throw new Error("This purchase is missing its restaurant or expiry date.");
+        }
+
         const { error: purchaseError } = await supabase
           .from("premium_analytics_purchases")
           .update({ status: "active" })
@@ -134,10 +145,13 @@ export default function AdminPremiumAnalytics() {
           throw new Error(`Failed to activate purchase: ${purchaseError.message}`);
         }
 
-        await supabase
+        const { error: restaurantError } = await supabase
           .from("restaurants")
           .update({ premium_analytics_until: actionTarget.ends_at })
           .eq("id", actionTarget.restaurant_id);
+        if (restaurantError) {
+          throw new Error(`Failed to activate restaurant access: ${restaurantError.message}`);
+        }
 
         toast({ title: "Approved", description: "Premium access has been activated." });
       } else {
@@ -184,10 +198,11 @@ export default function AdminPremiumAnalytics() {
         throw new Error("Could not find restaurant.");
       }
 
-      await supabase
+      const { error: updateError } = await supabase
         .from("restaurants")
         .update({ premium_analytics_until: endsAt.toISOString() })
         .eq("id", grantRestaurantId);
+      if (updateError) throw new Error(`Failed to activate restaurant access: ${updateError.message}`);
 
       const { error: insertError } = await supabase.from("premium_analytics_purchases").insert({
         restaurant_id: grantRestaurantId,
@@ -353,16 +368,16 @@ export default function AdminPremiumAnalytics() {
                     return (
                       <tr key={request.id} className="transition-colors hover:bg-[#F6F8FB]">
                         <td className="px-4 py-3 font-black text-[#020617]">{request.restaurant_name}</td>
-                        <td className="px-4 py-3 font-semibold capitalize text-[#020617]">{request.package_type}</td>
-                        <td className="px-4 py-3 font-black text-[#22C7A1]">{request.price_paid > 0 ? formatCurrency(request.price_paid) : "-"}</td>
+                        <td className="px-4 py-3 font-semibold capitalize text-[#020617]">{request.package_type || "-"}</td>
+                        <td className="px-4 py-3 font-black text-[#22C7A1]">{request.price_paid && request.price_paid > 0 ? formatCurrency(request.price_paid) : "-"}</td>
                         <td className="px-4 py-3 font-mono text-xs font-semibold text-[#94A3B8]">
                           {request.payment_reference || "-"}
                         </td>
                         <td className="px-4 py-3 font-semibold text-[#94A3B8]">
-                          {format(new Date(request.ends_at), "dd MMM yyyy")}
+                          {request.ends_at ? format(new Date(request.ends_at), "dd MMM yyyy") : "-"}
                         </td>
                         <td className="px-4 py-3 font-semibold text-[#94A3B8]">
-                          {format(new Date(request.created_at), "dd MMM yyyy")}
+                          {request.created_at ? format(new Date(request.created_at), "dd MMM yyyy") : "-"}
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant="outline" className={`text-xs font-black ${cfg.className}`}>
@@ -408,7 +423,7 @@ export default function AdminPremiumAnalytics() {
               </DialogTitle>
               <DialogDescription className="font-semibold text-[#94A3B8]">
                 {actionType === "approve"
-                  ? `This will activate Premium Analytics for "${actionTarget?.restaurant_name}" until ${actionTarget ? format(new Date(actionTarget.ends_at), "dd MMM yyyy") : ""}.`
+                  ? `This will activate Premium Analytics for "${actionTarget?.restaurant_name}" until ${actionTarget?.ends_at ? format(new Date(actionTarget.ends_at), "dd MMM yyyy") : "an unspecified date"}.`
                   : `This will reject the request from "${actionTarget?.restaurant_name}". No access will be granted.`}
               </DialogDescription>
             </DialogHeader>

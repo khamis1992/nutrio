@@ -74,7 +74,8 @@ interface OnlineDriver {
 interface DeliveryJob {
   id: string;
   status: string;
-  schedule_id: string;
+  schedule_id: string | null;
+  order_id: string | null;
   driver_id: string | null;
   assigned_at: string | null;
   picked_up_at: string | null;
@@ -97,6 +98,7 @@ interface DeliveryJob {
   } | null;
   schedule: {
     id: string;
+    source_type: "meal_schedule" | "order";
     user_id: string;
     meal_type: string;
     order_status: string;
@@ -145,8 +147,8 @@ export default function AdminDeliveries() {
         getDeliveryStats(),
       ]);
 
-      setPendingJobs((pending as DeliveryJob[]) || []);
-      setActiveJobs((active as DeliveryJob[]) || []);
+      setPendingJobs((pending as unknown as DeliveryJob[]) || []);
+      setActiveJobs((active as unknown as DeliveryJob[]) || []);
       setOnlineDrivers((drivers as unknown as OnlineDriver[]) || []);
       setStats(statsData);
     } catch (err) {
@@ -487,7 +489,12 @@ function DeliveryRow({
   const waitingMinutes = Math.max(0, differenceInMinutes(new Date(), new Date(job.created_at)));
 
   return (
-    <div className="grid gap-4 p-4 lg:grid-cols-[1.3fr_1fr_1fr_auto] lg:items-center">
+    <div
+      data-testid={`admin-delivery-job-${job.id}`}
+      data-order-id={job.schedule_id || job.order_id || undefined}
+      data-order-source={job.schedule.source_type}
+      className="grid gap-4 p-4 lg:grid-cols-[1.3fr_1fr_1fr_auto] lg:items-center"
+    >
       <div className="flex min-w-0 items-center gap-3">
         <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-[#F6F8FB] shadow-sm ring-1 ring-[#E5EAF1]" style={{ color: accent }}>
           <Package className="h-6 w-6" />
@@ -520,11 +527,16 @@ function ActiveDeliveryCard({
   onlineDrivers: OnlineDriver[];
   onReassign: (jobId: string, driverId: string) => void;
 }) {
-  const isPickedUp = job.status === "picked_up";
+  const isPickedUp = ["picked_up", "in_transit", "on_the_way"].includes(job.status);
   const accent = isPickedUp ? C.fat : C.protein;
 
   return (
-    <div className="rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-4">
+    <div
+      data-testid={`admin-delivery-job-${job.id}`}
+      data-order-id={job.schedule_id || job.order_id || undefined}
+      data-order-source={job.schedule.source_type}
+      className="rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-4"
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-center gap-2">

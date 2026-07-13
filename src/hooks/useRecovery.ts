@@ -67,7 +67,7 @@ export function useRecoveryPartners() {
       .eq("is_active", true)
       .order("rating", { ascending: false });
 
-    if (!error && data) setPartners(data as RecoveryPartner[]);
+    if (!error && data) setPartners(data as unknown as RecoveryPartner[]);
     setLoading(false);
   };
 
@@ -98,7 +98,7 @@ export function useRecoveryPartner(id: string) {
           console.error("Failed to load partner:", error);
           setPartner(null);
         } else {
-          setPartner(data as RecoveryPartner | null);
+          setPartner(data as unknown as RecoveryPartner | null);
         }
         setLoading(false);
       });
@@ -118,35 +118,16 @@ export function useRecoveryCredits() {
     if (!user) return;
     setLoading(true);
 
-    const now = new Date();
-    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-    const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+    const { data, error } = await supabase.rpc(
+      "get_or_create_recovery_credits" as never,
+    );
 
-    // Try to get existing record first
-    let { data } = await supabase
-      .from("member_recovery_credits")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("period_start", periodStart)
-      .maybeSingle();
-
-    if (!data) {
-      // Upsert to avoid race condition (409 duplicate)
-      const { data: newData } = await supabase
-        .from("member_recovery_credits")
-        .upsert({
-          user_id: user.id,
-          total_credits: 4,
-          used_credits: 0,
-          period_start: periodStart,
-          period_end: periodEnd,
-        }, { onConflict: "user_id,period_start" })
-        .select()
-        .maybeSingle();
-      data = newData || data;
+    if (error) {
+      console.error("Failed to load recovery credits:", error);
+      setCredits(null);
+    } else if (data) {
+      setCredits(data as MemberCredits);
     }
-
-    if (data) setCredits(data as MemberCredits);
     setLoading(false);
   };
 
@@ -183,105 +164,33 @@ export function useRecoveryBookings() {
 }
 
 export async function createRecoveryBooking(params: {
-  userId: string;
   partnerId: string;
   serviceName: string;
-  creditsUsed: number;
   bookingDate: string;
   bookingTime: string;
+  notes?: string;
 }) {
-  const qrCode = `NR-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-
-  const { data, error } = await supabase
-    .from("recovery_bookings")
-    .insert({
-      user_id: params.userId,
-      partner_id: params.partnerId,
-      service_name: params.serviceName,
-      credits_used: params.creditsUsed,
-      booking_date: params.bookingDate,
-      booking_time: params.bookingTime,
-      qr_code: qrCode,
-      status: "booked",
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc(
+    "create_recovery_booking" as never,
+    {
+      p_partner_id: params.partnerId,
+      p_service_name: params.serviceName,
+      p_booking_date: params.bookingDate,
+      p_booking_time: params.bookingTime,
+      p_notes: params.notes ?? null,
+    } as never,
+  );
 
   if (error) throw error;
-
-  // Increment used credits - try RPC first, fallback to direct update
-  const now = new Date();
-  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-
-  try {
-    const { error: rpcError } = await supabase.rpc("increment_recovery_credits", {
-      p_user_id: params.userId,
-      p_period_start: periodStart,
-      p_credits: params.creditsUsed,
-    });
-    
-    if (rpcError) {
-      // Fallback: direct update if RPC doesn't exist
-      console.warn("increment_recovery_credits RPC failed, using direct update:", rpcError);
-      await supabase
-        .from("member_recovery_credits")
-        .update({ used_credits: (await supabase.from("member_recovery_credits").select("used_credits").eq("user_id", params.userId).eq("period_start", periodStart).single()).data?.used_credits + params.creditsUsed })
-        .eq("user_id", params.userId)
-        .eq("period_start", periodStart);
-    }
-  } catch (err) {
-    console.warn("Failed to increment recovery credits:", err);
-    // Non-fatal - booking was created successfully
-  }
-
-  return data;
+  return data as RecoveryBooking;
 }
 
-export async function cancelRecoveryBooking(bookingId: string, userId: string) {
-  const { data: booking } = await supabase
-    .from("recovery_bookings")
-    .select("credits_used")
-    .eq("id", bookingId)
-    .eq("user_id", userId)
-    .single();
-
-  const { error } = await supabase
-    .from("recovery_bookings")
-    .update({ status: "cancelled" })
-    .eq("id", bookingId)
-    .eq("user_id", userId);
+export async function cancelRecoveryBooking(bookingId: string) {
+  const { data, error } = await supabase.rpc(
+    "cancel_recovery_booking" as never,
+    { p_booking_id: bookingId } as never,
+  );
 
   if (error) throw error;
-
-  if (booking && booking.credits_used > 0) {
-    const now = new Date();
-    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-
-    try {
-      const { error: rpcError } = await supabase.rpc("decrement_recovery_credits", {
-        p_user_id: userId,
-        p_period_start: periodStart,
-        p_credits: booking.credits_used,
-      });
-
-      if (rpcError) {
-        console.warn("decrement_recovery_credits RPC failed, using direct update:", rpcError);
-        const { data: creditRow } = await supabase
-          .from("member_recovery_credits")
-          .select("used_credits")
-          .eq("user_id", userId)
-          .eq("period_start", periodStart)
-          .single();
-        if (creditRow) {
-          await supabase
-            .from("member_recovery_credits")
-            .update({ used_credits: Math.max(0, creditRow.used_credits - booking.credits_used) })
-            .eq("user_id", userId)
-            .eq("period_start", periodStart);
-        }
-      }
-    } catch (err) {
-      console.warn("Failed to decrement recovery credits on cancel:", err);
-    }
-  }
+  return data as { success: boolean; already_cancelled?: boolean };
 }

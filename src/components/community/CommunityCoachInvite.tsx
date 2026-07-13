@@ -38,7 +38,10 @@ export function CommunityCoachInvite() {
       .neq("user_id", user.id)
       .limit(6);
 
-    const coachIds = Array.from(new Set([activeAssignment?.coach_id, ...(coachRoles ?? []).map((role) => role.user_id)].filter(Boolean)));
+    const coachIds = Array.from(new Set(
+      [activeAssignment?.coach_id, ...(coachRoles ?? []).map((role) => role.user_id)]
+        .filter((id): id is string => Boolean(id)),
+    ));
     if (!coachIds.length) {
       setCoaches([]);
       setMyCoach(null);

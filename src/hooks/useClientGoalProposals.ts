@@ -66,8 +66,13 @@ export function useClientGoalProposals(clientId: string | undefined) {
 
       if (error) throw error;
 
+      const proposalRows: ClientGoalProposal[] = (data || []).map((proposal) => ({
+        ...proposal,
+        status: proposal.status as ClientGoalProposal["status"],
+      }));
+
       // Enrich with coach names
-      const coachIds = [...new Set((data || []).map((p: ClientGoalProposal) => p.coach_id))];
+      const coachIds = [...new Set(proposalRows.map((proposal) => proposal.coach_id))];
       const coachNames: Record<string, string> = {};
 
       if (coachIds.length > 0) {
@@ -81,7 +86,7 @@ export function useClientGoalProposals(clientId: string | undefined) {
         });
       }
 
-      const enriched = (data || []).map((p: ClientGoalProposal) => ({
+      const enriched = proposalRows.map((p) => ({
         ...p,
         coach_name: coachNames[p.coach_id] || "Coach",
       }));
@@ -205,8 +210,7 @@ export function useClientGoalProposals(clientId: string | undefined) {
 
           if (mealData && mealData.length > 0) {
             const completed = mealData.filter(
-              (m: { order_status: string }) =>
-                m.order_status === "delivered" || m.order_status === "completed"
+              (meal) => meal.order_status === "delivered" || meal.order_status === "completed"
             ).length;
             current = Math.round((completed / mealData.length) * 100);
           }
@@ -304,6 +308,7 @@ export function useClientGoalProposals(clientId: string | undefined) {
 
   const acceptGoal = useCallback(
     async (proposalId: string) => {
+      if (!clientId) return;
       try {
         const { error } = await supabase
           .from("goal_proposals")
@@ -326,6 +331,7 @@ export function useClientGoalProposals(clientId: string | undefined) {
 
   const rejectGoal = useCallback(
     async (proposalId: string) => {
+      if (!clientId) return;
       try {
         const { error } = await supabase
           .from("goal_proposals")

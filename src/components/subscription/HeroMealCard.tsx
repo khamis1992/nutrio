@@ -1,4 +1,5 @@
 import { Crown, Zap, Utensils, Apple, Clock, Snowflake } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 
 interface HeroMealCardProps {
@@ -40,6 +41,7 @@ export function HeroMealCard({
   remainingMeals,
   endDate,
 }: HeroMealCardProps) {
+  const { t } = useLanguage();
   const statusLine = (() => {
     if (isPaused) return "Paused · Frozen";
     if (status === "cancelled") return `Cancelled·ends ${endDate || ""}`;

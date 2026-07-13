@@ -15,7 +15,7 @@ The screenshots below were captured during the execution of **"Step 9: All porta
 - 📱 **Mobile-first design** - Bottom navigation for easy mobile access
 
 ### Browser State:
-- **User:** khamis--1992@hotmail.com (Customer)
+- **User:** <E2E_ACCOUNT_EMAIL> (Customer)
 - **URL:** /dashboard
 - **Status:** ✅ Authenticated, loading dashboard data
 - **Portal:** Customer Portal
@@ -93,12 +93,12 @@ The screenshots below were captured during the execution of **"Step 9: All porta
 - 📝 **Form with validation errors:**
   - ❌ "Name must be at least 2 characters" (John Doe entered)
   - ❌ "Please enter a valid phone number" (+1234 567 8900 entered)
-- ✅ **Email filled:** driver@nutriofuel.com
+- ✅ **Email filled:** <E2E_DRIVER_EMAIL>
 - ✅ **Password filled:** ••••••••••
 - 🔗 **Sign in link** for existing drivers
 
 ### Browser State:
-- **User:** driver@nutriofuel.com (Driver)
+- **User:** <E2E_DRIVER_EMAIL> (Driver)
 - **URL:** /driver/auth
 - **Status:** ⚠️ Registration page with validation
 - **Portal:** Driver Portal
@@ -125,7 +125,7 @@ The screenshots below were captured during the execution of **"Step 9: All porta
 │                                                           │
 │  Email                                                    │
 │  ┌─────────────────────────────────────┐                 │
-│  │ driver@nutriofuel.com               │                 │
+│  │ <E2E_DRIVER_EMAIL>               │                 │
 │  └─────────────────────────────────────┘                 │
 │                                                           │
 │  Password                                                 │

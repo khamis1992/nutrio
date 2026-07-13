@@ -1,7 +1,8 @@
-import { motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Flame, Utensils } from "lucide-react";
 import { addWeeks, format, isSameDay, isToday, subWeeks } from "date-fns";
+
 import { useLanguage } from "@/contexts/LanguageContext";
+import { cn } from "@/lib/utils";
 
 interface ScheduleHeaderProps {
   currentWeekStart: Date;
@@ -35,123 +36,110 @@ const ScheduleHeader = ({
   dailyNutrition,
 }: ScheduleHeaderProps) => {
   const { isRTL } = useLanguage();
-  const reduceMotion = useReducedMotion();
   const weekRange = `${format(weekDays[0], "MMM d")} - ${format(weekDays[6], "MMM d")}`;
+  const selectedDayLabel = isToday(selectedDate) ? t("today") : format(selectedDate, "EEEE");
   const mealsLeft = isUnlimited ? "∞" : Math.max(remainingMeals, 0).toLocaleString();
 
   return (
     <header
-      className="sticky top-0 z-20 border-b border-[#E5EAF1] bg-[#F6F8FB]/92 backdrop-blur-2xl"
+      className="sticky top-0 z-30 border-b border-[#E5EAF1] bg-white/95 backdrop-blur-xl"
       style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       dir={isRTL ? "rtl" : "ltr"}
     >
-      <div className="mx-auto w-full max-w-[430px] px-4 pb-3 pt-3">
-        <div className="flex items-center justify-between">
+      <div className="mx-auto w-full max-w-[430px] px-4 pb-3 pt-2">
+        <div className="flex h-12 items-center justify-between">
           <button
             onClick={onBack}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-[#E5EAF1] active:scale-95"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1] active:scale-95"
             aria-label="Back"
           >
-            <ArrowLeft className="h-5 w-5" strokeWidth={2.5} />
+            <ArrowLeft className={cn("h-5 w-5", isRTL && "rotate-180")} strokeWidth={2.4} />
           </button>
 
           <div className="text-center">
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7C83F6]">
-              {isRTL ? "الجدولة" : "Schedule"}
-            </p>
-            <p className="text-[15px] font-black text-[#020617]">{weekRange}</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#7C83F6]">Meal schedule</p>
+            <h1 className="mt-0.5 text-[17px] font-black text-[#020617]">{selectedDayLabel}</h1>
           </div>
 
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-[#E5EAF1]">
-            <CalendarDays className="h-5 w-5" strokeWidth={2.4} />
-          </div>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#7C83F6]/15">
+            <CalendarDays className="h-5 w-5" strokeWidth={2.3} />
+          </span>
         </div>
 
-        <motion.div
-          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="mt-4 rounded-[28px] bg-white p-4 shadow-[0_16px_38px_rgba(2,6,23,0.07)] ring-1 ring-[#E5EAF1]"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#22C7A1]">
-                {isToday(selectedDate) ? t("today") : format(selectedDate, "EEEE")}
-              </p>
-              <h1 className="mt-1 text-[28px] font-black leading-none tracking-normal text-[#020617]">
-                {isRTL ? "وجبات اليوم" : "Today's meals"}
-              </h1>
-            </div>
-            {hasActiveSubscription && (
-              <div className="rounded-[18px] bg-[#EFFFFA] px-3 py-2 text-center ring-1 ring-[#22C7A1]/20">
-                <p className="text-[20px] font-black leading-none text-[#020617]">{mealsLeft}</p>
-                <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.08em] text-[#22C7A1]">left</p>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <div className="flex min-h-[94px] flex-col items-center justify-center rounded-[18px] bg-[#F6F8FB] p-3 text-center ring-1 ring-[#E5EAF1]">
-              <Utensils className="mb-2 h-4 w-4 text-[#22C7A1]" />
-              <p className="w-full text-[20px] font-black tabular-nums text-[#020617]">{dailyNutrition.total}</p>
-              <p className="w-full text-[10px] font-bold uppercase tracking-[0.08em] text-[#94A3B8]">meals</p>
-            </div>
-            <div className="flex min-h-[94px] flex-col items-center justify-center rounded-[18px] bg-[#FFF7ED] p-3 text-center ring-1 ring-[#F97316]/20">
-              <Flame className="mb-2 h-4 w-4 text-[#F97316]" />
-              <p className="w-full text-[20px] font-black tabular-nums text-[#020617]">{dailyNutrition.calories.toLocaleString()}</p>
-              <p className="w-full text-[10px] font-bold uppercase tracking-[0.08em] text-[#94A3B8]">kcal</p>
-            </div>
-            <div className="flex min-h-[94px] flex-col items-center justify-center rounded-[18px] bg-[#EFF9FF] p-3 text-center ring-1 ring-[#38BDF8]/20">
-              <CalendarDays className="mb-2 h-4 w-4 text-[#38BDF8]" />
-              <p className="w-full text-[20px] font-black tabular-nums text-[#020617]">{dailyNutrition.completed}/{dailyNutrition.total}</p>
-              <p className="w-full text-[10px] font-bold uppercase tracking-[0.08em] text-[#94A3B8]">done</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-2 flex items-center justify-between px-1">
           <button
             onClick={() => onWeekChange(isRTL ? addWeeks(currentWeekStart, 1) : subWeeks(currentWeekStart, 1))}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-[#E5EAF1] active:scale-95"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[#64748B] active:bg-[#F6F8FB]"
             aria-label="Previous week"
           >
             {isRTL ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
           </button>
-
-          <div className="-mx-1 flex flex-1 gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-hide">
-            {weekDays.map((day) => {
-              const selected = isSameDay(day, selectedDate);
-              const today = isToday(day);
-              const status = getDayStatus(day);
-              const dayName = isRTL ? ["أ", "إ", "ث", "أ", "خ", "ج", "س"][day.getDay()] : DAYS[day.getDay()];
-
-              return (
-                <button
-                  key={day.toISOString()}
-                  onClick={() => onDateSelect(day)}
-                  className={`flex h-[62px] min-w-[46px] flex-col items-center justify-center rounded-[18px] transition active:scale-95 ${
-                    selected
-                      ? "bg-[#020617] text-white shadow-[0_12px_26px_rgba(2,6,23,0.20)]"
-                      : today
-                        ? "bg-[#EFFFFA] text-[#020617] ring-1 ring-[#22C7A1]/20"
-                        : "bg-white text-[#020617] ring-1 ring-[#E5EAF1]"
-                  }`}
-                >
-                  <span className={`text-[10px] font-black uppercase ${selected ? "text-white/65" : "text-[#94A3B8]"}`}>{dayName}</span>
-                  <span className="mt-1 text-[17px] font-black tabular-nums">{format(day, "d")}</span>
-                  <span className={`mt-1 h-1.5 w-5 rounded-full ${selected ? "bg-white/75" : status !== "empty" ? "bg-[#22C7A1]" : "bg-transparent"}`} />
-                </button>
-              );
-            })}
-          </div>
-
+          <p className="text-[12px] font-extrabold text-[#64748B]">{weekRange}</p>
           <button
             onClick={() => onWeekChange(isRTL ? subWeeks(currentWeekStart, 1) : addWeeks(currentWeekStart, 1))}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-[#E5EAF1] active:scale-95"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[#64748B] active:bg-[#F6F8FB]"
             aria-label="Next week"
           >
             {isRTL ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
           </button>
+        </div>
+
+        <div className="mt-1 grid grid-cols-7 gap-1.5">
+          {weekDays.map((day) => {
+            const selected = isSameDay(day, selectedDate);
+            const today = isToday(day);
+            const status = getDayStatus(day);
+            const dayName = DAYS[day.getDay()];
+
+            return (
+              <button
+                key={day.toISOString()}
+                onClick={() => onDateSelect(day)}
+                className={cn(
+                  "relative flex h-[58px] min-w-0 flex-col items-center justify-center rounded-[16px] transition active:scale-95",
+                  selected
+                    ? "bg-[#020617] text-white shadow-[0_9px_20px_rgba(2,6,23,0.18)]"
+                    : today
+                      ? "bg-[#E9FBF6] text-[#020617] ring-1 ring-[#22C7A1]/20"
+                      : "bg-[#F6F8FB] text-[#020617]",
+                )}
+              >
+                <span className={cn("text-[9px] font-black uppercase", selected ? "text-white/60" : "text-[#94A3B8]")}>{dayName}</span>
+                <span className="mt-1 text-[16px] font-black tabular-nums">{format(day, "d")}</span>
+                <span
+                  className={cn(
+                    "absolute bottom-1.5 h-1 w-1 rounded-full",
+                    selected && status !== "empty"
+                      ? "bg-[#22C7A1]"
+                      : status === "completed"
+                        ? "bg-[#22C7A1]"
+                        : status === "partial"
+                          ? "bg-[#FB6B7A]"
+                          : status === "scheduled"
+                            ? "bg-[#7C83F6]"
+                            : "bg-transparent",
+                  )}
+                />
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 flex items-center gap-2 overflow-hidden rounded-[15px] bg-[#F6F8FB] px-3 py-2.5 ring-1 ring-[#E5EAF1]">
+          <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-extrabold text-[#64748B]">
+            <Utensils className="h-3.5 w-3.5 text-[#22C7A1]" />
+            {dailyNutrition.total} planned
+          </span>
+          <span className="h-4 w-px bg-[#DDE5EF]" />
+          <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-extrabold text-[#64748B]">
+            <Flame className="h-3.5 w-3.5 text-[#FB6B7A]" />
+            {dailyNutrition.calories.toLocaleString()} kcal
+          </span>
+          {hasActiveSubscription ? (
+            <span className="ml-auto shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-[#22C7A1] ring-1 ring-[#E5EAF1]">
+              {mealsLeft} left
+            </span>
+          ) : null}
         </div>
       </div>
     </header>

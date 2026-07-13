@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import { Salad, Utensils, Calendar, Users, User } from "lucide-react";
 import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
@@ -63,9 +64,13 @@ export function CustomerNavigation() {
   const visibleNavItems = isRTL ? [...navItems].reverse() : navItems;
 
   return (
-    <nav dir="ltr" aria-label="Bottom navigation" className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-50 safe-bottom-nav">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-around items-center h-16">
+    <nav
+      dir="ltr"
+      aria-label="Bottom navigation"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#E5EAF1]/80 bg-white/92 shadow-[0_-14px_34px_rgba(2,6,23,0.08)] backdrop-blur-xl safe-bottom-nav"
+    >
+      <div className="mx-auto w-full max-w-[480px] px-3">
+        <div className="grid h-[62px] grid-flow-col auto-cols-fr items-center gap-1">
           {visibleNavItems.map((item) => {
             const isScheduleTab = item.to === "/schedule";
             const active = isActive(item.to);
@@ -73,22 +78,32 @@ export function CustomerNavigation() {
               <Link
                 key={item.to}
                 to={item.to}
+                aria-current={active ? "page" : undefined}
                 onClick={handleNavClick}
-                className={`flex flex-col items-center justify-center gap-1 py-2 px-4 min-w-[60px] min-h-[48px] rounded-xl transition-colors ${
+                className={`relative flex min-h-[50px] min-w-0 flex-col items-center justify-center gap-1 rounded-[18px] px-2 py-1.5 text-center transition-colors duration-200 ${
                   active
-                    ? "bg-[#020617] text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "text-[#020617]"
+                    : "text-[#94A3B8] hover:text-[#020617]"
                 }`}
               >
-                <div className="relative">
-                  <item.icon className="w-6 h-6" />
+                {active && (
+                  <motion.span
+                    layoutId="customer-nav-active"
+                    className="absolute inset-x-1 top-1 h-[42px] rounded-[16px] bg-[#020617] shadow-[0_10px_22px_rgba(2,6,23,0.16)]"
+                    transition={{ type: "spring", stiffness: 430, damping: 34 }}
+                  />
+                )}
+                <div className={`relative grid h-7 w-7 place-items-center rounded-[10px] transition-colors ${active ? "text-white" : ""}`}>
+                  <item.icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2.1} />
                   {isScheduleTab && scheduleCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#020617] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
+                    <span className={`absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-black ring-2 ring-white ${active ? "bg-white text-[#020617]" : "bg-[#020617] text-white"}`}>
                       {scheduleCount > 9 ? "9+" : scheduleCount}
                     </span>
                   )}
                 </div>
-                <span className="text-xs font-medium">{item.label}</span>
+                <span className={`relative max-w-full truncate text-[10px] font-black leading-none ${active ? "text-white" : ""}`}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}

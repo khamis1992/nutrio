@@ -3,10 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { jwtVerify } from 'https://esm.sh/jose@5.2.0';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
-
-const JWT_SECRET = new TextEncoder().encode(Deno.env.get('FLEET_JWT_SECRET') || '');
 
 // Rate limiting: 100 requests per minute per manager
 
@@ -17,22 +14,43 @@ const corsHeaders = {
 };
 
 // JWT validation middleware
-async function validateToken(req: Request) {
+async function validateToken(req: Request, supabase: any) {
   const authHeader = req.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return null;
   }
   
   const token = authHeader.substring(7);
-  try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    if (payload.type !== 'fleet_access') {
-      throw new Error('Invalid token type');
-    }
-    return payload;
-  } catch {
+  const { data: authData, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !authData.user) {
     return null;
   }
+
+  const { data: manager } = await supabase
+    .from('fleet_managers')
+    .select('id, role, assigned_city_ids')
+    .eq('auth_user_id', authData.user.id)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (manager && (manager.role === 'super_admin' || manager.role === 'fleet_manager')) {
+    return {
+      managerId: manager.id,
+      role: manager.role,
+      assignedCities: manager.assigned_city_ids || [],
+    };
+  }
+
+  const { data: adminRole } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', authData.user.id)
+    .eq('role', 'admin')
+    .maybeSingle();
+
+  return adminRole
+    ? { managerId: authData.user.id, role: 'super_admin', assignedCities: [] }
+    : null;
 }
 
 // Check if user has access to a specific city
@@ -195,11 +213,8 @@ async function handleCreateDriver(req: Request, supabase: any, user: any) {
     }
     
     // Create auth user first
-    const tempPassword = Math.random().toString(36).slice(-10);
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true,
+    const { data: authData, error: authError } = await supabase.auth.admin.inviteUserByEmail(email, {
+      data: { full_name: fullName, role: 'driver' },
     });
     
     if (authError) {
@@ -214,12 +229,16 @@ async function handleCreateDriver(req: Request, supabase: any, user: any) {
     const { data: driver, error: driverError } = await supabase
       .from('drivers')
       .insert({
-        auth_user_id: authData.user.id,
+        user_id: authData.user.id,
         email,
-        phone,
+        phone_number: phone,
         full_name: fullName,
         city_id: cityId,
-        status: 'pending_verification',
+        assigned_zone_ids: zoneIds,
+        approval_status: 'pending',
+        status: 'inactive',
+        is_active: true,
+        is_online: false,
       })
       .select()
       .single();
@@ -232,18 +251,6 @@ async function handleCreateDriver(req: Request, supabase: any, user: any) {
         JSON.stringify({ error: 'Failed to create driver' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
-    
-    // Assign zones if provided
-    if (zoneIds.length > 0) {
-      const zoneAssignments = zoneIds.map((zoneId: string, index: number) => ({
-        driver_id: driver.id,
-        zone_id: zoneId,
-        priority: index + 1,
-        is_primary: index === 0,
-      }));
-      
-      await supabase.from('driver_zones').insert(zoneAssignments);
     }
     
     // Log activity
@@ -262,7 +269,7 @@ async function handleCreateDriver(req: Request, supabase: any, user: any) {
       JSON.stringify({
         id: driver.id,
         email: driver.email,
-        phone: driver.phone,
+        phone: driver.phone_number,
         fullName: driver.full_name,
         cityId: driver.city_id,
         status: driver.status,
@@ -823,7 +830,7 @@ serve(async (req) => {
   }
   
   // Validate JWT
-  const user = await validateToken(req);
+  const user = await validateToken(req, supabase);
   if (!user) {
     return new Response(
       JSON.stringify({ error: 'Unauthorized' }),

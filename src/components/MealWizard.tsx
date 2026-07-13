@@ -1,8 +1,6 @@
 import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft,
@@ -11,38 +9,25 @@ import { ArrowLeft,
   Moon,
   Apple,
   ChevronLeft,
-  ChevronRight,
   Check,
   X,
   Flame,
   Beef,
   ChefHat,
-  ArrowRight,
   Store,
-  MapPin,
-  Star,
-  Loader2,
-  Sparkles,
   Calendar,
-  RefreshCw,
   Home,
-  ChevronDown,
   Leaf,
   Lock,
   Clock,
-  Minus,
-  Plus,
   Search,
   Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
-import { getMealImage } from "@/lib/meal-images";
 import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useWallet } from "@/hooks/useWallet";
-import { useNavigate } from "react-router-dom";
-import { formatCurrency } from "@/lib/currency";
+import { scheduleMealsAtomic, type ScheduleMealInput } from "@/lib/schedule-meals";
 
 interface Meal {
   id: string;
@@ -151,21 +136,18 @@ const MEAL_TYPE_CONFIG = {
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack", "snack2"] as const;
 
 const MealWizard = ({
-  userId,
   selectedDate,
   onComplete,
   onCancel,
   initialStep = 0,
-  singleMode = false,
   autoFill = false,
   initialPhase = "intro",
   showMealTypeTabs = true,
 }: MealWizardProps) => {
   const { toast } = useToast();
   const { t, isRTL } = useLanguage();
-  const { PrevIcon, NextIcon } = getNavArrows(isRTL);
-  const navigate = useNavigate();
-  const { remainingMeals, isUnlimited, incrementMealUsage, incrementSnackUsage, subscription, refetch: refetchSubscription } = useSubscription();
+  const { NextIcon } = getNavArrows(isRTL);
+  const { subscription, refetch: refetchSubscription } = useSubscription();
 
   const [phase, setPhase] = useState<"intro" | "meal-selection" | "summary" | "success">(initialPhase);
   const [currentMealType, setCurrentMealType] = useState<string>(MEAL_TYPES[initialStep] || "breakfast");
@@ -175,7 +157,7 @@ const MealWizard = ({
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMeals, setSelectedMeals] = useState<Record<string, Meal>>({});
-  const [scheduling, setScheduling] = useState(false);
+  const [, setScheduling] = useState(false);
   const [showDeliveryScheduler, setShowDeliveryScheduler] = useState(false);
   const autoFillTriggered = useRef(false);
 
@@ -266,27 +248,17 @@ const MealWizard = ({
   const handleComplete = async (timeSlot: string, deliveryAddressId: string | null) => {
     setScheduling(true);
     try {
-      for (const [mealType, meal] of Object.entries(selectedMeals)) {
-        const { error } = await supabase.from("meal_schedules").insert({
-          user_id: userId,
-          meal_id: (meal as Meal).id,
-          scheduled_date: format(selectedDate, "yyyy-MM-dd"),
-          meal_type: mealType === "snack2" ? "snack" : mealType,
-          delivery_time_slot: timeSlot,
-          delivery_address_id: deliveryAddressId,
-          order_status: "pending",
-        });
+      if (!subscription?.id) throw new Error("SUBSCRIPTION_NOT_FOUND");
 
-        if (error) throw error;
-      }
+      const items = Object.entries(selectedMeals).map(([mealType, meal]) => ({
+        meal_id: (meal as Meal).id,
+        scheduled_date: format(selectedDate, "yyyy-MM-dd"),
+        meal_type: (mealType === "snack2" ? "snack" : mealType) as ScheduleMealInput["meal_type"],
+        delivery_time_slot: timeSlot,
+        delivery_address_id: deliveryAddressId,
+      }));
 
-      for (const mealType of Object.keys(selectedMeals)) {
-        if (mealType === "snack" || mealType === "snack2") {
-          await incrementSnackUsage();
-        } else {
-          await incrementMealUsage();
-        }
-      }
+      await scheduleMealsAtomic(subscription.id, items);
 
       await refetchSubscription();
 
@@ -298,7 +270,9 @@ const MealWizard = ({
       console.error("Error scheduling meals:", err);
       toast({
         title: "Error",
-        description: "Failed to schedule meals",
+        description: err instanceof Error && err.message.includes("QUOTA_EXHAUSTED")
+          ? "Your plan does not have enough meal credits for this selection."
+          : "Failed to schedule meals",
         variant: "destructive",
       });
     } finally {
@@ -590,7 +564,6 @@ const MealWizard = ({
 
                     <div className="space-y-3">
                       {filteredRestaurants.map((restaurant, index) => {
-                        const isSelected = selectedRestaurant?.id === restaurant.id;
                         const meta = getRestaurantMeta(restaurant, index);
                         const RestaurantIcon = meta.icon;
                         const restaurantImage = restaurant.image_url || restaurant.logo_url;
@@ -602,11 +575,7 @@ const MealWizard = ({
                               fetchMeals(restaurant.id);
                             }}
                             whileTap={{ scale: 0.98 }}
-                            className={`w-full rounded-[24px] border bg-white p-4 text-left shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition-all ${
-                              isSelected
-                                ? "border-emerald-300 ring-2 ring-emerald-100"
-                                : "border-slate-100 active:border-emerald-100"
-                            }`}
+                            className="w-full rounded-[24px] border border-slate-100 bg-white p-4 text-left shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition-all active:border-emerald-100"
                           >
                             <div className="flex min-w-0 items-start gap-3">
                               {restaurantImage ? (

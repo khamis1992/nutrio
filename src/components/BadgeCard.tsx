@@ -1,5 +1,5 @@
-import { Lock, Zap } from "lucide-react";
-import { motion } from "framer-motion";
+import { Check, Lock, Zap } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { UserBadge, BadgeRarity } from "@/lib/badges";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -75,15 +75,22 @@ const RARITY_CONFIG: Record<BadgeRarity, {
 const springIn = {
   initial: { opacity: 0, y: 12, scale: 0.96 },
   animate: { opacity: 1, y: 0, scale: 1 },
-  transition: { type: "spring", stiffness: 300, damping: 24, mass: 0.6 },
+  transition: { type: "spring" as const, stiffness: 300, damping: 24, mass: 0.6 },
 };
 
 export function BadgeCard({ badge, variant = "full", className }: BadgeCardProps) {
   const { t, isRTL } = useLanguage();
+  const prefersReducedMotion = useReducedMotion();
   const cfg = RARITY_CONFIG[badge.rarity];
   const isCompact = variant === "compact";
-  const badgeName = t(`badge_${badge.id}`);
-  const badgeDescription = t(`badge_${badge.id}_desc`);
+  const badgeNameKey = `badge_${badge.id}`;
+  const badgeDescriptionKey = `${badgeNameKey}_desc`;
+  const translatedBadgeName = t(badgeNameKey);
+  const translatedBadgeDescription = t(badgeDescriptionKey);
+  const badgeName = translatedBadgeName === badgeNameKey ? badge.name : translatedBadgeName;
+  const badgeDescription = translatedBadgeDescription === badgeDescriptionKey
+    ? badge.description
+    : translatedBadgeDescription;
   const rarityLabel = t(`rarity_${badge.rarity}`);
   const xpLabel = t("xp_amount_compact", { amount: badge.xpReward });
 
@@ -101,51 +108,79 @@ export function BadgeCard({ badge, variant = "full", className }: BadgeCardProps
   if (isCompact) {
     return (
       <motion.div
-        {...springIn}
+        initial={prefersReducedMotion ? false : { opacity: 0, y: 18, scale: 0.94 }}
+        whileInView={prefersReducedMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
+        viewport={{ once: true, amount: 0.45 }}
+        transition={{ type: "spring", stiffness: 260, damping: 24 }}
         whileTap={{ scale: 0.98 }}
         className={cn(
-          "relative min-h-[132px] overflow-hidden rounded-[18px] border bg-white p-3 shadow-[0_10px_22px_rgba(2,6,23,0.05)]",
+          "relative min-h-[216px] overflow-hidden rounded-[22px] border bg-white p-4 shadow-[0_14px_30px_rgba(2,6,23,0.07)]",
           badge.unlocked ? cfg.border : "border-[#E5EAF1]",
           className,
         )}
       >
-        <div className={cn("absolute inset-x-0 top-0 h-1", badge.unlocked ? cfg.dot : "bg-[#E5EAF1]")} />
-        <div className="flex items-start justify-between gap-2">
-          <div
-            className={cn(
-              "relative flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-2xl",
-              badge.unlocked ? cfg.halo : "bg-[#F6F8FB]",
-            )}
-          >
-            <img
-              src={badge.image}
-              alt={badgeName}
-              className={cn(
-                "max-h-[50px] w-auto max-w-[54px] scale-x-[1.14] object-contain",
-                !badge.unlocked && "grayscale opacity-50",
-              )}
-              loading="lazy"
-            />
-            {!badge.unlocked && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/55 backdrop-blur-[2px]">
-                <Lock className="h-5 w-5 text-[#64748B]" strokeWidth={2.5} />
-              </div>
-            )}
-          </div>
+        <div className={cn("absolute inset-x-0 top-0 h-1.5", badge.unlocked ? cfg.dot : "bg-[#E5EAF1]")} />
+        {badge.unlocked && !prefersReducedMotion && (
+          <motion.div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-12 h-72 w-12 rotate-[24deg] bg-white/70 blur-md"
+            initial={{ left: "-28%", opacity: 0 }}
+            animate={{ left: "120%", opacity: [0, 0.75, 0] }}
+            transition={{ duration: 1.8, delay: 0.5, repeat: Infinity, repeatDelay: 4.5 }}
+          />
+        )}
 
+        <div className="relative flex min-h-[116px] items-center justify-center pt-2">
           <span
             className={cn(
-              "rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em]",
+              "absolute start-0 top-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-black",
+              badge.unlocked ? "bg-[#E9FBF7] text-[#0F9F83]" : "bg-[#F6F8FB] text-[#94A3B8]",
+            )}
+          >
+            {badge.unlocked ? <Check className="h-3 w-3" strokeWidth={3} /> : <Lock className="h-3 w-3" />}
+            {badge.unlocked ? t("achievements_unlocked") : t("badge_locked")}
+          </span>
+          <span
+            className={cn(
+              "absolute end-0 top-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.08em]",
               badge.unlocked ? `${cfg.xpBg} ${cfg.labelColor}` : "bg-[#F6F8FB] text-[#94A3B8]",
             )}
           >
             {rarityLabel}
           </span>
+          <div
+            className={cn(
+              "relative flex h-[104px] w-[104px] shrink-0 items-center justify-center rounded-[26px] ring-1",
+              badge.unlocked ? cfg.halo : "bg-[#F6F8FB]",
+              badge.unlocked ? cfg.ring : "ring-[#E5EAF1]",
+            )}
+          >
+            <motion.img
+              src={badge.image}
+              alt={badgeName}
+              className={cn("max-h-[88px] w-auto max-w-[96px] scale-x-[1.14] object-contain drop-shadow-[0_10px_12px_rgba(2,6,23,0.12)]", !badge.unlocked && "grayscale opacity-45")}
+              animate={badge.unlocked && !prefersReducedMotion ? { y: [0, -5, 0], rotate: [0, 1.5, 0, -1.5, 0] } : undefined}
+              transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
+              loading="lazy"
+            />
+            {!badge.unlocked && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/55 backdrop-blur-[2px]">
+                <motion.div
+                  animate={prefersReducedMotion ? undefined : { scale: [1, 1.08, 1] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-[#E5EAF1]"
+                >
+                  <Lock className="h-5 w-5 text-[#64748B]" strokeWidth={2.5} />
+                </motion.div>
+              </div>
+            )}
+          </div>
+
         </div>
 
         <p
           className={cn(
-            "mt-2 line-clamp-1 text-[12px] font-black leading-tight",
+            "relative mt-3 line-clamp-1 text-center text-[15px] font-black leading-tight",
             badge.unlocked ? "text-[#020617]" : "text-[#94A3B8]",
           )}
         >
@@ -153,7 +188,7 @@ export function BadgeCard({ badge, variant = "full", className }: BadgeCardProps
         </p>
         <p
           className={cn(
-            "mt-1 line-clamp-2 min-h-[28px] text-[10px] font-medium leading-snug",
+            "relative mt-1 line-clamp-2 min-h-[34px] text-center text-[11px] font-semibold leading-[1.5]",
             badge.unlocked ? "text-[#64748B]" : "text-[#94A3B8]",
           )}
         >
@@ -162,7 +197,7 @@ export function BadgeCard({ badge, variant = "full", className }: BadgeCardProps
 
         <div
           className={cn(
-            "mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black",
+            "relative mx-auto mt-3 flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-black",
             badge.unlocked ? cfg.xpBg : "bg-[#F6F8FB]",
             badge.unlocked ? cfg.xpText : "text-[#94A3B8]",
           )}

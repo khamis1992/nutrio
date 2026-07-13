@@ -60,7 +60,7 @@ class PushNotificationService {
       console.error("Push registration error:", err);
     });
 
-    PushNotifications.addListener("pushNotificationReceived", (notification) => {
+    PushNotifications.addListener("pushNotificationReceived", (_notification) => {
 
       // Handle foreground notification display if needed
     });

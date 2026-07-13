@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLatestAbnormalMarkers } from "@/services/blood-work";
-import { getAbnormalMarkerTags, type HealthTag } from "@/lib/meal-health-tagger";
 import { WATER_GLASS_ML } from "@/lib/water-service";
 
 interface SmartRecommendation {
@@ -19,12 +18,16 @@ interface SmartRecommendation {
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 
 export function useSmartRecommendations(userId: string | undefined) {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [recommendations, setRecommendations] = useState<SmartRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
 
   const generateRecommendations = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setRecommendations([]);
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -59,6 +62,11 @@ export function useSmartRecommendations(userId: string | undefined) {
         getLatestAbnormalMarkers(userId),
       ]);
 
+      if (logsRes.error) throw logsRes.error;
+      if (waterRes.error) throw waterRes.error;
+      if (goalRes.error) throw goalRes.error;
+      if (streakRes.error) throw streakRes.error;
+
       const logs = logsRes.data || [];
       const waterLogs = waterRes.data || [];
       const goal = goalRes.data;
@@ -68,9 +76,11 @@ export function useSmartRecommendations(userId: string | undefined) {
       const recs: SmartRecommendation[] = [];
 
       const daysLogged = logs.length;
-      const calorieTarget = goal?.daily_calorie_target || 2000;
-      const proteinTarget = goal?.protein_target_g || 120;
-      const goalType = goal?.goal_type || "general";
+      const calorieTarget = Number(goal?.daily_calorie_target ?? 0);
+      const proteinTarget = Number(goal?.protein_target_g ?? 0);
+      const hasCalorieTarget = Number.isFinite(calorieTarget) && calorieTarget > 0;
+      const hasProteinTarget = Number.isFinite(proteinTarget) && proteinTarget > 0;
+      const goalType = goal?.goal_type ?? null;
 
       // --- Derived stats ---
       const avgCalories = daysLogged > 0
@@ -86,8 +96,8 @@ export function useSmartRecommendations(userId: string | undefined) {
         ? logs.reduce((s: number, l: Record<string, unknown>) => s + ((l.fat_consumed_g as number) || 0), 0) / daysLogged
         : 0;
       const consistencyPct = Math.round((daysLogged / 7) * 100);
-      const calorieDiff = avgCalories - calorieTarget;
-      const proteinRatio = proteinTarget > 0 ? avgProtein / proteinTarget : 0;
+      const calorieDiff = hasCalorieTarget ? avgCalories - calorieTarget : 0;
+      const proteinRatio = hasProteinTarget ? avgProtein / proteinTarget : 0;
 
       const waterByDate = new Map<string, number>();
       for (const entry of waterLogs as Array<{ log_date: string; amount_ml: number | null }>) {
@@ -103,37 +113,16 @@ export function useSmartRecommendations(userId: string | undefined) {
 
       // ─── High Priority ──────────────────────────────────────────────
 
-      const bloodRecMap: Record<string, { title: string; desc: string; link: string }> = {
-        "vitamin d": { title: "Low Vitamin D", desc: "Add fatty fish, eggs, and fortified milk. Get 15 min sunlight daily.", link: "/meals?filter=vitamin-d-rich" },
-        "ldl": { title: "High LDL Cholesterol", desc: "Reduce saturated fats. Add oats, legumes, and apples for soluble fiber.", link: "/meals?filter=heart-healthy" },
-        "total cholesterol": { title: "High Cholesterol", desc: "Reduce saturated fats. Add oats, legumes, and apples for soluble fiber.", link: "/meals?filter=heart-healthy" },
-        "triglycerides": { title: "High Triglycerides", desc: "Reduce refined carbs and sugars. Add omega-3 rich foods.", link: "/meals?filter=heart-healthy" },
-        "glucose": { title: "High Blood Sugar", desc: "Reduce sugars and simple carbs. Pair carbs with protein and fiber at every meal.", link: "/meals?filter=low-glycemic" },
-        "hba1c": { title: "Elevated HbA1c", desc: "Focus on low-glycemic foods. Reduce refined sugars and increase fiber intake.", link: "/meals?filter=low-glycemic" },
-        "fasting glucose": { title: "High Fasting Glucose", desc: "Reduce evening carbs. Add protein and fiber to dinner.", link: "/meals?filter=low-glycemic" },
-        "hemoglobin": { title: "Abnormal Hemoglobin", desc: "Eat red meat, spinach, and lentils with vitamin C to improve absorption.", link: "/meals?filter=iron-rich" },
-        "iron": { title: "Low Iron", desc: "Add liver, lentils, and spinach. Avoid tea/coffee with meals.", link: "/meals?filter=iron-rich" },
-        "ferritin": { title: "Low Ferritin", desc: "Boost iron intake with red meat, lentils, and fortified cereals.", link: "/meals?filter=iron-rich" },
-        "vitamin b12": { title: "Low Vitamin B12", desc: "Add animal protein, eggs, and fortified foods to your meals.", link: "/meals?filter=b12-rich" },
-        "crp": { title: "Elevated Inflammation", desc: "Add anti-inflammatory foods: turmeric, berries, fatty fish, and leafy greens.", link: "/meals?filter=anti-inflammatory" },
-        "esr": { title: "Elevated Inflammation", desc: "Add anti-inflammatory foods: turmeric, berries, fatty fish, and leafy greens.", link: "/meals?filter=anti-inflammatory" },
-        "tsh": { title: "Thyroid Imbalance", desc: "Consult your endocrinologist. Add iodine-rich foods like fish and dairy.", link: "/health/dashboard" },
-      };
-
-      for (const marker of bloodMarkers) {
-        const key = marker.marker_name.toLowerCase();
-        const rec = bloodRecMap[key];
-        if (!rec) continue;
-        const tags = getAbnormalMarkerTags(marker.marker_name);
-        const filterParam = tags.length > 0 ? tags[0] : "";
+      const flaggedMarker = bloodMarkers[0];
+      if (flaggedMarker) {
         recs.push({
-          id: `blood-${key}`,
+          id: `blood-review-${flaggedMarker.id}`,
           category: "blood",
-          priority: marker.status === "critical" ? "high" : "high",
-          title: rec.title,
-          description: `${rec.desc} (${marker.value} ${marker.unit} — ${marker.status})`,
-          action_text: "View matching meals",
-          action_link: filterParam ? `/meals?filter=${filterParam}` : "/health/dashboard",
+          priority: "high",
+          title: t("rec_blood_review_title"),
+          description: t("rec_blood_review_desc", { marker: flaggedMarker.marker_name }),
+          action_text: t("rec_blood_review_action"),
+          action_link: "/health/dashboard",
         });
       }
 
@@ -149,7 +138,7 @@ export function useSmartRecommendations(userId: string | undefined) {
         });
       }
 
-      if (proteinRatio < 0.6 && daysLogged >= 2) {
+      if (hasProteinTarget && proteinRatio < 0.6 && daysLogged >= 2) {
         recs.push({
           id: "protein-low",
           category: "nutrition",
@@ -162,7 +151,7 @@ export function useSmartRecommendations(userId: string | undefined) {
         });
       }
 
-      if (calorieDiff > 300 && daysLogged >= 3 && (goalType === "weight_loss" || goalType === "maintenance")) {
+      if (hasCalorieTarget && calorieDiff > 300 && daysLogged >= 3 && (goalType === "weight_loss" || goalType === "maintenance")) {
         recs.push({
           id: "calories-over",
           category: "nutrition",
@@ -175,7 +164,7 @@ export function useSmartRecommendations(userId: string | undefined) {
         });
       }
 
-      if (calorieDiff < -400 && daysLogged >= 3 && goalType === "muscle_gain") {
+      if (hasCalorieTarget && calorieDiff < -400 && daysLogged >= 3 && goalType === "muscle_gain") {
         recs.push({
           id: "calories-under",
           category: "nutrition",
@@ -190,7 +179,7 @@ export function useSmartRecommendations(userId: string | undefined) {
 
       // ─── Medium Priority ─────────────────────────────────────────────
 
-      if (proteinRatio >= 0.6 && proteinRatio < 0.85 && daysLogged >= 2) {
+      if (hasProteinTarget && proteinRatio >= 0.6 && proteinRatio < 0.85 && daysLogged >= 2) {
         recs.push({
           id: "protein-boost",
           category: "nutrition",
@@ -282,7 +271,7 @@ export function useSmartRecommendations(userId: string | undefined) {
         });
       }
 
-      if (proteinRatio >= 0.9 && daysLogged >= 4) {
+      if (hasProteinTarget && proteinRatio >= 0.9 && daysLogged >= 4) {
         recs.push({
           id: "protein-great",
           category: "nutrition",
@@ -323,6 +312,7 @@ export function useSmartRecommendations(userId: string | undefined) {
       setRecommendations(recs.slice(0, 5));
     } catch (error) {
       console.error("Error generating recommendations:", error);
+      setRecommendations([]);
     } finally {
       setLoading(false);
     }

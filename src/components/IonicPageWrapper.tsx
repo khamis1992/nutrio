@@ -1,31 +1,20 @@
-import React from 'react';
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonButtons,
-  IonBackButton,
-  IonButton,
-  IonIcon,
-} from '@ionic/react';
-import { arrowBack, close } from 'ionicons/icons';
-import { useCapacitor } from '@/hooks/useCapacitor';
+import type { ReactNode } from "react";
+import { ArrowLeft, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface IonicPageWrapperProps {
-  children: React.ReactNode;
+  children: ReactNode;
   title?: string;
   showBackButton?: boolean;
   showCloseButton?: boolean;
   onClose?: () => void;
-  rightButtons?: React.ReactNode;
+  rightButtons?: ReactNode;
   hideHeader?: boolean;
   className?: string;
   fullscreen?: boolean;
 }
 
-export const IonicPageWrapper: React.FC<IonicPageWrapperProps> = ({
+export function IonicPageWrapper({
   children,
   title,
   showBackButton = false,
@@ -33,59 +22,53 @@ export const IonicPageWrapper: React.FC<IonicPageWrapperProps> = ({
   onClose,
   rightButtons,
   hideHeader = false,
-  className = '',
+  className = "",
   fullscreen = false,
-}) => {
-  const { isNative } = useCapacitor();
+}: IonicPageWrapperProps) {
+  const navigate = useNavigate();
 
   return (
-    <IonPage className={className}>
+    <div className={`min-h-screen bg-background ${className}`}>
       {!hideHeader && (
-        <IonHeader className="ion-no-border" mode="ios">
-          <IonToolbar mode="ios">
-            <IonButtons slot="start">
+        <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+          <div className="mx-auto grid min-h-14 max-w-md grid-cols-[1fr_auto_1fr] items-center px-3">
+            <div className="flex items-center">
               {showBackButton && (
-                <IonBackButton
-                  defaultHref="/"
-                  icon={arrowBack}
-                  text=""
-                  mode="ios"
-                />
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="flex h-11 w-11 items-center justify-center rounded-full"
+                  aria-label="Go back"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
               )}
               {showCloseButton && onClose && (
-                <IonButton onClick={onClose} mode="ios">
-                  <IonIcon icon={close} slot="icon-only" />
-                </IonButton>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex h-11 w-11 items-center justify-center rounded-full"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               )}
-            </IonButtons>
-
-            {title && <IonTitle>{title}</IonTitle>}
-
-            {rightButtons && (
-              <IonButtons slot="end">{rightButtons}</IonButtons>
-            )}
-          </IonToolbar>
-        </IonHeader>
+            </div>
+            {title ? <h1 className="text-base font-bold">{title}</h1> : <span />}
+            <div className="flex items-center justify-end">{rightButtons}</div>
+          </div>
+        </header>
       )}
 
-      <IonContent
-        fullscreen={fullscreen}
-        className={fullscreen ? 'ion-padding' : ''}
-        scrollY={true}
-        scrollX={false}
+      <main
+        className={`mx-auto w-full max-w-md pb-[calc(5rem+env(safe-area-inset-bottom))] ${
+          fullscreen ? "" : "px-4 py-4"
+        }`}
       >
-        {/* Safe area padding for notched devices */}
-        <div className="ion-safe-area-top" />
-        
-        <div className={fullscreen ? '' : 'ion-padding'}>
-          {children}
-        </div>
-        
-        {/* Bottom safe area padding */}
-        <div className="ion-safe-area-bottom pb-20" />
-      </IonContent>
-    </IonPage>
+        {children}
+      </main>
+    </div>
   );
-};
+}
 
 export default IonicPageWrapper;

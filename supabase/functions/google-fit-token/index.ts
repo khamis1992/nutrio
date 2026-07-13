@@ -11,24 +11,47 @@ interface TokenRequest {
   code: string;
   codeVerifier: string;
   redirectUri: string;
-  userId: string;
 }
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
-    return Response.json({ error: "Method not allowed" }, { status: 405 });
+    return Response.json({ error: "Method not allowed" }, { status: 405, headers: corsHeaders });
   }
 
   try {
     const body: TokenRequest = await req.json();
-    const { code, codeVerifier, redirectUri, userId } = body;
+    const { code, codeVerifier, redirectUri } = body;
 
-    if (!code || !codeVerifier || !redirectUri || !userId) {
-      return Response.json({ error: "Missing required fields" }, { status: 400 });
+    if (!code || !codeVerifier || !redirectUri) {
+      return Response.json({ error: "Missing required fields" }, { status: 400, headers: corsHeaders });
     }
 
     if (!ALLOWED_REDIRECT_URIS.includes(redirectUri)) {
-      return Response.json({ error: "Invalid redirect URI" }, { status: 400 });
+      return Response.json({ error: "Invalid redirect URI" }, { status: 400, headers: corsHeaders });
+    }
+
+    const authorization = req.headers.get("Authorization");
+    if (!authorization) {
+      return Response.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const authClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authorization } },
+    });
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    if (authError || !user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
 
     const clientId = Deno.env.get("GOOGLE_FIT_CLIENT_ID");
@@ -36,7 +59,7 @@ serve(async (req: Request) => {
 
     if (!clientId || !clientSecret) {
       console.error("Google Fit credentials not configured");
-      return Response.json({ error: "Server configuration error" }, { status: 500 });
+      return Response.json({ error: "Server configuration error" }, { status: 500, headers: corsHeaders });
     }
 
     const response = await fetch(GOOGLE_TOKEN_URL, {
@@ -55,7 +78,7 @@ serve(async (req: Request) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Google token exchange failed:", errorText);
-      return Response.json({ error: "Token exchange failed" }, { status: 401 });
+      return Response.json({ error: "Token exchange failed" }, { status: 401, headers: corsHeaders });
     }
 
     const data = await response.json();
@@ -68,7 +91,7 @@ serve(async (req: Request) => {
     const { error: dbError } = await supabase
       .from("user_integrations")
       .upsert({
-        user_id: userId,
+        user_id: user.id,
         provider: "google_fit",
         access_token: data.access_token,
         refresh_token: data.refresh_token,
@@ -78,15 +101,15 @@ serve(async (req: Request) => {
 
     if (dbError) {
       console.error("Failed to store token:", dbError);
-      return Response.json({ error: "Database error" }, { status: 500 });
+      return Response.json({ error: "Database error" }, { status: 500, headers: corsHeaders });
     }
 
     return Response.json({
       success: true,
       expires_in: data.expires_in,
-    });
+    }, { headers: corsHeaders });
   } catch (err) {
     console.error("Token exchange error:", err);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return Response.json({ error: "Internal server error" }, { status: 500, headers: corsHeaders });
   }
 });

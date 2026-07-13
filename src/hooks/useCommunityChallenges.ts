@@ -52,6 +52,11 @@ type ParticipantRow = {
   completed_at: string | null;
 };
 
+type ChallengeQueryResult = {
+  data: ChallengeRow[] | null;
+  error: { message: string } | null;
+};
+
 const TEST_CHALLENGE_ID = "community-test-one-day";
 
 function getTestJoinKey(userId: string, day: string) {
@@ -156,7 +161,7 @@ export async function fetchActiveChallengesFromTable(userId: string): Promise<Co
       request = request.lte("start_date", today).gte("end_date", today);
     }
 
-    return request.order("start_date", { ascending: false });
+    return request.order("start_date", { ascending: false }) as unknown as Promise<ChallengeQueryResult>;
   };
 
   let { data, error } = await query(challengeSelect, true);
@@ -183,7 +188,7 @@ export async function fetchActiveChallengesFromTable(userId: string): Promise<Co
     if (error) throw error;
   }
 
-  const rows = (data ?? []) as ChallengeRow[];
+  const rows = data ?? [];
   if (rows.length === 0) return [];
 
   const challengeIds = rows.map((challenge) => challenge.id);

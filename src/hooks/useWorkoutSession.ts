@@ -50,6 +50,7 @@ export function useWorkoutSession() {
     if (session?.completed_at && timerRef.current) {
       clearInterval(timerRef.current);
     }
+    return undefined;
   }, [session]);
 
   const startSession = useCallback(

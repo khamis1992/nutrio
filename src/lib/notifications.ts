@@ -1,11 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database, Json } from "@/integrations/supabase/types";
 
-export type NotificationType = 
-  | "order_update"
-  | "driver_assigned" 
-  | "order_picked_up"
-  | "order_delivered"
-  | "delivery_claimed";
+export type NotificationType = Database["public"]["Enums"]["notification_type"];
 
 interface NotificationData {
   user_id: string;
@@ -22,8 +18,8 @@ export const createNotification = async (data: NotificationData) => {
       type: data.type,
       title: data.title,
       message: data.message,
-      is_read: false,
-      metadata: data.metadata || {},
+      status: "unread",
+      data: (data.metadata || {}) as Json,
     });
 
     if (error) {
@@ -87,7 +83,7 @@ export const notifyDriverAssigned = async (
 ) => {
   await createNotification({
     user_id: userId,
-    type: "driver_assigned",
+    type: "delivery_update",
     title: "Driver Assigned 🚗",
     message: driverName 
       ? `${driverName} has been assigned to deliver your order.`
@@ -103,7 +99,7 @@ export const notifyNewDelivery = async (
 ) => {
   await createNotification({
     user_id: driverUserId,
-    type: "delivery_claimed",
+    type: "delivery_update",
     title: "New Delivery Available 📦",
     message: restaurantName 
       ? `New delivery order from ${restaurantName} is available for pickup.`

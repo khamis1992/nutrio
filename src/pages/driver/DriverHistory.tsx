@@ -14,10 +14,12 @@ import {
 import { format } from "date-fns";
 import type { DriverLayoutContext } from "@/components/driver/DriverLayout";
 
+type DriverHistoryJob = Awaited<ReturnType<typeof getDriverJobHistory>>[number];
+
 export default function DriverHistory() {
   const context = useOutletContext<DriverLayoutContext>();
   const driver = context?.driver;
-  const [jobs, setJobs] = useState<Record<string, unknown>[]>([]);
+  const [jobs, setJobs] = useState<DriverHistoryJob[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,8 +53,8 @@ export default function DriverHistory() {
   }
 
   // Group jobs by date
-  const groupedJobs = jobs.reduce((groups: Record<string, unknown[]>, job) => {
-    const date = format(new Date(job.created_at), "yyyy-MM-dd");
+  const groupedJobs = jobs.reduce<Record<string, DriverHistoryJob[]>>((groups, job) => {
+    const date = format(new Date(job.delivered_at ?? job.created_at ?? 0), "yyyy-MM-dd");
     if (!groups[date]) groups[date] = [];
     groups[date].push(job);
     return groups;
@@ -60,7 +62,7 @@ export default function DriverHistory() {
 
   const totalEarnings = jobs
     .filter(j => j.status === "completed" || j.status === "delivered")
-    .reduce((sum, j) => sum + (j.driver_earnings || 0), 0);
+    .reduce((sum, job) => sum + (job.driver_earnings ?? 0), 0);
 
   const totalDeliveries = jobs.filter(j => j.status === "completed" || j.status === "delivered").length;
 
@@ -73,7 +75,7 @@ export default function DriverHistory() {
             <div className="text-center p-3 bg-background rounded-lg">
               <DollarSign className="w-5 h-5 mx-auto mb-1 text-primary" />
               <p className="text-xl font-bold">{totalEarnings.toFixed(2)}</p>
-              <p className="text-xs text-muted-foreground">QAR Total</p>
+              <p className="text-xs text-muted-foreground">QAR in recent history</p>
             </div>
             <div className="text-center p-3 bg-background rounded-lg">
               <CheckCircle2 className="w-5 h-5 mx-auto mb-1 text-primary" />
@@ -93,7 +95,7 @@ export default function DriverHistory() {
               {format(new Date(date), "EEEE, MMMM d")}
             </h3>
             <div className="space-y-2">
-              {(dayJobs as Record<string, unknown>[]).map((job) => (
+              {dayJobs.map((job) => (
                 <HistoryCard key={job.id} job={job} />
               ))}
             </div>
@@ -116,9 +118,9 @@ export default function DriverHistory() {
   );
 }
 
-function HistoryCard({ job }: { job: Record<string, unknown> }) {
+function HistoryCard({ job }: { job: DriverHistoryJob }) {
   const mealName = job.meal_name || "Order";
-  const restaurantName = job.customer_name || "Restaurant";
+  const restaurantName = job.restaurant_name || "Restaurant";
   const isDelivered = job.status === "completed" || job.status === "delivered";
   const isFailed = job.status === "failed" || job.status === "cancelled";
 
@@ -142,19 +144,19 @@ function HistoryCard({ job }: { job: Record<string, unknown> }) {
               <p className="font-medium text-sm">{mealName}</p>
               <p className="text-xs text-muted-foreground">{restaurantName}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {format(new Date(job.created_at), "h:mm a")}
+                {format(new Date(job.delivered_at ?? job.created_at ?? 0), "h:mm a")}
               </p>
             </div>
           </div>
           <div className="text-right">
             <p className={`font-semibold text-sm ${isDelivered ? "text-green-600" : ""}`}>
-              {isDelivered ? `+${job.driver_earnings} QAR` : "—"}
+              {isDelivered ? `+${job.driver_earnings ?? 0} QAR` : "—"}
             </p>
             <Badge 
               variant={isDelivered ? "default" : isFailed ? "destructive" : "secondary"}
               className="text-xs mt-1"
             >
-              {job.status}
+              {job.status ?? "unknown"}
             </Badge>
           </div>
         </div>

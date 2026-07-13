@@ -2,12 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, ArrowLeft, Flame, Clock, Loader2, CheckCircle2,
+  Search, ArrowLeft, Flame, Clock, Loader2,
   Dumbbell, Link, RefreshCw, X, Plus, History, Target,
 } from "lucide-react";
-import { NavChevronRight } from "@/components/ui/nav-chevron";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";

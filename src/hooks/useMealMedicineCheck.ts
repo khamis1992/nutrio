@@ -28,7 +28,13 @@ async function fetchMealInteractions(userId: string, mealId: string): Promise<Me
     p_meal_id: mealId,
   });
   if (error) throw error;
-  return data || [];
+  return (data || []).flatMap((interaction) => {
+    if (!["mild", "moderate", "severe"].includes(interaction.severity)) return [];
+    return [{
+      ...interaction,
+      severity: interaction.severity as MedicineInteraction["severity"],
+    }];
+  });
 }
 
 async function fetchUserMedications(userId: string): Promise<UserMedication[]> {

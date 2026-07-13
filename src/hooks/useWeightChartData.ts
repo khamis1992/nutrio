@@ -40,10 +40,10 @@ export function useWeightChartData(userId: string | undefined) {
 
       const byDate = new Map<string, number>();
       for (const row of (progressLogs || [])) {
-        if (row.weight_kg > 0) byDate.set(row.log_date, Number(row.weight_kg));
+        if (row.weight_kg != null && row.weight_kg > 0) byDate.set(row.log_date, Number(row.weight_kg));
       }
       for (const row of (bodyLogs || [])) {
-        if (row.weight_kg > 0) byDate.set(row.log_date, Number(row.weight_kg));
+        if (row.weight_kg != null && row.weight_kg > 0) byDate.set(row.log_date, Number(row.weight_kg));
       }
 
       const sortedLogs = Array.from(byDate.entries())

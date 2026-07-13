@@ -82,7 +82,7 @@ export function usePagination<T = Record<string, unknown>>(
           throw new Error(queryError.message);
         }
 
-        const newData = result || [];
+        const newData = (result ?? []) as unknown as T[];
         
         setData((prev) => (append ? [...prev, ...newData] : newData));
         setPagination((prev) => ({
@@ -174,7 +174,7 @@ export async function fetchPaginatedData<T = Record<string, unknown>>(
     }
 
     return {
-      data: data || [],
+      data: (data ?? []) as unknown as T[],
       hasMore: (data?.length || 0) === pageSize,
       totalCount: count || undefined,
     };

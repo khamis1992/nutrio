@@ -63,7 +63,7 @@ export function useCoachNotes(coachId: string | undefined, clientId: string | un
   );
 
   const updateNote = useCallback(async (noteId: string, note: string) => {
-    if (!note.trim()) return;
+    if (!coachId || !note.trim()) return;
     try {
       const { error } = await supabase
         .from("coach_notes")
@@ -84,6 +84,7 @@ export function useCoachNotes(coachId: string | undefined, clientId: string | un
   }, [coachId]);
 
   const deleteNote = useCallback(async (noteId: string) => {
+    if (!coachId) return;
     try {
       const { error } = await supabase
         .from("coach_notes")

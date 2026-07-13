@@ -7,22 +7,39 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
-  Download,
   FileText,
   Search,
   ShieldCheck,
   SlidersHorizontal,
   Wallet,
+  CheckCircle,
+  Loader2,
+  Play,
+  XCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePayouts, type Payout } from "@/fleet/hooks/useDrivers";
+import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import {
+  transitionDriverPayout,
+  type DriverPayoutAction,
+} from "@/lib/payouts";
 
 const C = {
   text: "#020617",
@@ -41,8 +58,13 @@ export default function PayoutManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [page, setPage] = useState(1);
+  const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
+  const [payoutAction, setPayoutAction] = useState<DriverPayoutAction | null>(null);
+  const [paymentReference, setPaymentReference] = useState("");
+  const [actionNotes, setActionNotes] = useState("");
+  const [savingAction, setSavingAction] = useState(false);
 
-  const { payouts: rawPayouts, isLoading, total } = usePayouts({
+  const { payouts: rawPayouts, isLoading, total, refetch } = usePayouts({
     status: statusFilter,
     page,
     limit: PAGE_SIZE,
@@ -83,6 +105,57 @@ export default function PayoutManagement() {
   const pageStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(page * PAGE_SIZE, total || payouts.length);
   const canGoNext = page * PAGE_SIZE < total;
+
+  const openPayoutAction = (payout: Payout, action: DriverPayoutAction) => {
+    setSelectedPayout(payout);
+    setPayoutAction(action);
+    setPaymentReference("");
+    setActionNotes("");
+  };
+
+  const closePayoutAction = () => {
+    setSelectedPayout(null);
+    setPayoutAction(null);
+    setPaymentReference("");
+    setActionNotes("");
+  };
+
+  const savePayoutAction = async () => {
+    if (!selectedPayout || !payoutAction) return;
+
+    setSavingAction(true);
+    try {
+      await transitionDriverPayout(
+        selectedPayout.id,
+        payoutAction,
+        payoutAction === "pay" ? paymentReference : undefined,
+        payoutAction === "reject" ? actionNotes : undefined,
+      );
+      toast({
+        title: "Payout updated",
+        description:
+          payoutAction === "pay"
+            ? "The bank transfer is recorded as paid."
+            : payoutAction === "reject"
+              ? "The reserved amount was returned to the driver balance."
+              : "The payout is now processing.",
+      });
+      closePayoutAction();
+      await refetch();
+    } catch (error) {
+      console.error("Failed to update driver payout:", error);
+      toast({
+        title: "Payout update failed",
+        description:
+          error instanceof Error
+            ? error.message.replace(/_/g, " ")
+            : "Could not update the payout",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingAction(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -240,7 +313,7 @@ export default function PayoutManagement() {
               </thead>
               <tbody>
                 {payouts.map((payout) => (
-                  <PayoutRow key={payout.id} payout={payout} />
+                  <PayoutRow key={payout.id} payout={payout} onAction={openPayoutAction} />
                 ))}
               </tbody>
             </table>
@@ -248,7 +321,7 @@ export default function PayoutManagement() {
 
           <div className="grid gap-3 p-4 lg:hidden">
             {payouts.map((payout) => (
-              <PayoutMobileCard key={payout.id} payout={payout} />
+              <PayoutMobileCard key={payout.id} payout={payout} onAction={openPayoutAction} />
             ))}
           </div>
 
@@ -293,6 +366,66 @@ export default function PayoutManagement() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={Boolean(selectedPayout && payoutAction)} onOpenChange={(open) => !open && closePayoutAction()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {payoutAction === "pay"
+                ? "Confirm bank transfer"
+                : payoutAction === "reject"
+                  ? "Reject payout"
+                  : "Start payout processing"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedPayout
+                ? `QAR ${selectedPayout.amount.toLocaleString()} for ${selectedPayout.driverName || "the selected driver"}.`
+                : "Review this payout action."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {payoutAction === "pay" && (
+            <div className="space-y-2">
+              <Label htmlFor="driver-payout-reference">Bank transfer reference</Label>
+              <Input
+                id="driver-payout-reference"
+                value={paymentReference}
+                onChange={(event) => setPaymentReference(event.target.value)}
+                placeholder="Required transfer reference"
+              />
+            </div>
+          )}
+
+          {payoutAction === "reject" && (
+            <div className="space-y-2">
+              <Label htmlFor="driver-payout-notes">Reason</Label>
+              <Input
+                id="driver-payout-notes"
+                value={actionNotes}
+                onChange={(event) => setActionNotes(event.target.value)}
+                placeholder="Reason for returning the reserved amount"
+              />
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closePayoutAction} disabled={savingAction}>
+              Cancel
+            </Button>
+            <Button
+              onClick={savePayoutAction}
+              disabled={
+                savingAction ||
+                (payoutAction === "pay" && paymentReference.trim().length < 3) ||
+                (payoutAction === "reject" && actionNotes.trim().length < 3)
+              }
+            >
+              {savingAction && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -325,7 +458,13 @@ function KpiCard({
   );
 }
 
-function PayoutRow({ payout }: { payout: Payout }) {
+function PayoutRow({
+  payout,
+  onAction,
+}: {
+  payout: Payout;
+  onAction: (payout: Payout, action: DriverPayoutAction) => void;
+}) {
   return (
     <tr className="border-b border-slate-100 transition-colors hover:bg-[#F6F8FB]/70">
       <td className="px-4 py-4">
@@ -343,15 +482,19 @@ function PayoutRow({ payout }: { payout: Payout }) {
         {payout.processedAt ? new Date(payout.processedAt).toLocaleDateString() : "Not processed"}
       </td>
       <td className="px-4 py-4 text-right">
-        <Button variant="ghost" size="sm" className="h-10 w-10 rounded-full text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]">
-          <Download className="h-4 w-4" />
-        </Button>
+        <PayoutActions payout={payout} onAction={onAction} />
       </td>
     </tr>
   );
 }
 
-function PayoutMobileCard({ payout }: { payout: Payout }) {
+function PayoutMobileCard({
+  payout,
+  onAction,
+}: {
+  payout: Payout;
+  onAction: (payout: Payout, action: DriverPayoutAction) => void;
+}) {
   return (
     <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -368,6 +511,53 @@ function PayoutMobileCard({ payout }: { payout: Payout }) {
           Processed: <span className="font-black text-[#020617]">{payout.processedAt ? new Date(payout.processedAt).toLocaleDateString() : "Not processed"}</span>
         </p>
       </div>
+      <div className="mt-3 flex justify-end">
+        <PayoutActions payout={payout} onAction={onAction} />
+      </div>
+    </div>
+  );
+}
+
+function PayoutActions({
+  payout,
+  onAction,
+}: {
+  payout: Payout;
+  onAction: (payout: Payout, action: DriverPayoutAction) => void;
+}) {
+  if (payout.status === "paid" || payout.status === "failed") return null;
+
+  return (
+    <div className="inline-flex items-center justify-end gap-1">
+      {payout.status === "pending" && (
+        <Button
+          variant="ghost"
+          size="sm"
+          title="Start processing"
+          onClick={() => onAction(payout, "start")}
+          className="h-9 w-9 rounded-full text-[#7C83F6]"
+        >
+          <Play className="h-4 w-4" />
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size="sm"
+        title="Mark paid"
+        onClick={() => onAction(payout, "pay")}
+        className="h-9 w-9 rounded-full text-[#22C7A1]"
+      >
+        <CheckCircle className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        title="Reject and refund"
+        onClick={() => onAction(payout, "reject")}
+        className="h-9 w-9 rounded-full text-[#FB6B7A]"
+      >
+        <XCircle className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

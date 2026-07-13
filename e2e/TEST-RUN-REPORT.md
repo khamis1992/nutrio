@@ -97,7 +97,7 @@ Timeout waiting for locator('text=Create Account')
 ## Root Causes
 
 ### 1. **Test Data Missing**
-- Test user `khamis--1992@hotmail.com` not in database
+- Test user `<E2E_ACCOUNT_EMAIL>` not in database
 - No test restaurants, orders, or data
 
 ### 2. **Routes Mismatch**
@@ -121,7 +121,7 @@ Timeout waiting for locator('text=Create Account')
 1. **Create Test User**
    ```sql
    INSERT INTO auth.users (email, encrypted_password, email_confirmed_at)
-   VALUES ('khamis--1992@hotmail.com', crypt('Khamees1992#', gen_salt('bf')), NOW());
+   VALUES ('<E2E_ACCOUNT_EMAIL>', crypt('<E2E_ADMIN_PASSWORD>', gen_salt('bf')), NOW());
    ```
 
 2. **Update Test Routes**

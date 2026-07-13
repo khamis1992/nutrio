@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCoachSessions } from "@/hooks/useCoachSessions";
+import { useCoachSessions, type CoachSessionStatus } from "@/hooks/useCoachSessions";
+import { useCoachClients } from "@/hooks/useCoachClients";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Video, Phone, MapPin, ClipboardCheck, X, ChevronLeft, ChevronRight } from "lucide-react";
 
-const fadeInUp = {
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 24 } },
 };
@@ -29,6 +30,7 @@ export default function CoachSchedule() {
   const { user } = useAuth();
   const { toast } = useToast();
   const coachId = user?.id;
+  const { clients: coachClients, loading: clientsLoading } = useCoachClients(coachId);
   const [selectedClientId, setSelectedClientId] = useState("");
   const { sessions, loading, createSession, updateSession, cancelSession } = useCoachSessions(coachId, selectedClientId || undefined);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -40,7 +42,7 @@ export default function CoachSchedule() {
   const [sessionType, setSessionType] = useState("video_call");
   const [notes, setNotes] = useState("");
   const [clientSearch, setClientSearch] = useState("");
-  const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
+  const clients = coachClients.map((client) => ({ id: client.id, name: client.full_name || "Unnamed client" }));
 
   const today = new Date();
   const weekStart = new Date(today);
@@ -63,11 +65,6 @@ export default function CoachSchedule() {
     const sessionDate = s.scheduled_at.split("T")[0];
     return sessionDate >= weekStart.toISOString().split("T")[0] && sessionDate <= weekEnd.toISOString().split("T")[0];
   });
-
-  const getSessionsForDate = (date: Date) => {
-    const ds = date.toISOString().split("T")[0];
-    return weekSessions.filter((s) => s.scheduled_at.startsWith(ds));
-  };
 
   const handleCreate = async () => {
     if (!title.trim() || !scheduledAt || !selectedClientId) {
@@ -94,7 +91,7 @@ export default function CoachSchedule() {
     }
   };
 
-  const handleStatusChange = async (sessionId: string, status: string) => {
+  const handleStatusChange = async (sessionId: string, status: CoachSessionStatus) => {
     const result = await updateSession(sessionId, { status });
     if (result.success) {
       toast({ title: "Updated", description: `Session marked as ${status}.` });
@@ -106,7 +103,7 @@ export default function CoachSchedule() {
 
   const filteredClients = clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase()));
 
-  if (loading) {
+  if (loading || clientsLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />

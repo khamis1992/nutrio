@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import type { WeeklyReportData } from "./professional-weekly-report-pdf";
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";

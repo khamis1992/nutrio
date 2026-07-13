@@ -7,7 +7,6 @@ import { Logo } from "@/components/Logo";
 import { PromoVideo } from "@/components/PromoVideo";
 import { useLandingStats, formatStat } from "@/hooks/useLandingStats";
 import {
-  ArrowRight,
   Star,
   Menu,
   X,

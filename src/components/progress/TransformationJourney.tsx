@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowDown, ArrowUp, Camera, ChevronRight, Scale, TrendingDown } from "lucide-react";
+import { ArrowDown, ArrowUp, Camera, Scale, TrendingDown } from "lucide-react";
 
 interface WeightLog {
   log_date: string;
@@ -20,7 +19,6 @@ function weightLossMetaphor(kg: number): { animal: string; emoji: string } {
 export function TransformationJourney({ userId }: { userId: string }) {
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -133,7 +131,7 @@ export function TransformationJourney({ userId }: { userId: string }) {
       <div className="mt-4 px-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-slate-400 mb-2">Monthly Progress</p>
         <div className="flex justify-between">
-          {weightLogs.filter((_, i) => i % 30 === 0 || i === 0 || i === weightLogs.length - 1).map((log, i) => {
+          {weightLogs.filter((_, i) => i % 30 === 0 || i === 0 || i === weightLogs.length - 1).map((log) => {
             const month = new Date(log.log_date);
             const monthLabel = month.toLocaleString("default", { month: "short" });
             const height = ((log.weight_kg - minWeight) / range) * 60 + 20;

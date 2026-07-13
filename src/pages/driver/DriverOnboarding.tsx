@@ -1,19 +1,12 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Truck, ArrowLeft, Bike, Car, CheckCircle, AlertCircle } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Loader2, Truck, ArrowLeft, Bike, Car, AlertCircle } from "lucide-react";
 
 type VehicleType = "bike" | "scooter" | "motorcycle" | "car";
 
@@ -62,7 +55,7 @@ export default function DriverOnboarding() {
 
       const { data: driver, error } = await supabase
         .from("drivers")
-        .select("id, vehicle_type, vehicle_make, vehicle_model, vehicle_plate, license_number, approval_status")
+        .select("id, vehicle_type, vehicle_make, vehicle_model, license_plate, license_number, approval_status")
         .eq("user_id", session.user.id)
         .maybeSingle();
 
@@ -81,7 +74,7 @@ export default function DriverOnboarding() {
           vehicle_type: driver.vehicle_type as VehicleType,
           vehicle_make: driver.vehicle_make || "",
           vehicle_model: driver.vehicle_model || "",
-          vehicle_plate: driver.vehicle_plate || "",
+          vehicle_plate: driver.license_plate || "",
           license_number: driver.license_number || "",
         });
       }
@@ -117,7 +110,7 @@ export default function DriverOnboarding() {
       };
 
       if (selectedVehicle?.requiresLicense) {
-        updateData.vehicle_plate = formData.vehicle_plate || null;
+        updateData.license_plate = formData.vehicle_plate || null;
         updateData.license_number = formData.license_number || null;
       }
 

@@ -24,6 +24,19 @@ export interface RestaurantBranch {
   updated_at: string;
 }
 
+type RestaurantBranchRow = Omit<RestaurantBranch, 'is_active' | 'created_at' | 'updated_at'> & {
+  is_active: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+const normalizeBranch = (branch: RestaurantBranchRow): RestaurantBranch => ({
+  ...branch,
+  is_active: branch.is_active ?? false,
+  created_at: branch.created_at ?? '',
+  updated_at: branch.updated_at ?? '',
+});
+
 /**
  * Partner Hook: Get branches for the logged-in partner restaurant
  * Partners only see their own branches and orders
@@ -65,7 +78,7 @@ export const usePartnerBranches = () => {
           .order('name');
 
         if (branchError) throw branchError;
-        setBranches(branchData || []);
+        setBranches((branchData ?? []).map(normalizeBranch));
       } catch (err) {
         console.error('Error fetching partner branches:', err);
         setError(err as Error);
@@ -185,6 +198,7 @@ export const useFleetBranchOrders = () => {
         const ordersByBranch = new Map<string, Record<string, unknown>[]>();
         for (const order of orders || []) {
           const branchId = order.restaurant_branch_id;
+          if (!branchId) continue;
           if (!ordersByBranch.has(branchId)) {
             ordersByBranch.set(branchId, []);
           }
@@ -192,11 +206,11 @@ export const useFleetBranchOrders = () => {
         }
 
         // Combine branch data with orders
-        const combined = (branches || []).map((branch: RestaurantBranch & { restaurant: { name: string } }) => ({
-          branch,
+        const combined = (branches ?? []).map((branch) => ({
+          branch: normalizeBranch(branch),
           restaurant: branch.restaurant,
-          orders: ordersByBranch.get(branch.id) || [],
-          totalDistance: 0, // Will be calculated when driver location is set
+          orders: ordersByBranch.get(branch.id) ?? [],
+          totalDistance: 0,
         })).filter(item => item.orders.length > 0);
 
         setBranchOrders(combined);
@@ -279,7 +293,7 @@ export const useAutoBranchSelect = (
 
         if (error) throw error;
 
-        setBranches(data || []);
+        setBranches((data ?? []).map(normalizeBranch));
 
         // Find nearest branch
         const branchLocations: BranchLocation[] = (data || []).map(b => ({

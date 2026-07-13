@@ -5,7 +5,6 @@ import {
   Pencil, 
   Trash2, 
   Check, 
-  X, 
   Loader2,
   Gift,
   Users,
@@ -59,10 +58,12 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
+type RewardType = 'bonus_credit' | 'free_meal' | 'discount' | 'badge';
+
 interface StreakReward {
   id: string;
   streak_days: number;
-  reward_type: 'bonus_credit' | 'free_meal' | 'discount' | 'badge';
+  reward_type: RewardType;
   reward_value: number;
   reward_description: string;
   is_active: boolean;
@@ -79,9 +80,17 @@ interface StreakStats {
   avgStreakDays: number;
 }
 
-const defaultFormData = {
+interface StreakRewardFormData {
+  streak_days: number;
+  reward_type: RewardType;
+  reward_value: number;
+  reward_description: string;
+  is_active: boolean;
+}
+
+const defaultFormData: StreakRewardFormData = {
   streak_days: 7,
-  reward_type: 'bonus_credit' as const,
+  reward_type: 'bonus_credit',
   reward_value: 10,
   reward_description: '',
   is_active: true,
@@ -94,15 +103,8 @@ const rewardTypeOptions = [
   { value: 'badge', label: 'Badge', icon: Target },
 ];
 
-const C = {
-  text: "#020617",
-  muted: "#94A3B8",
-  panel: "#F6F8FB",
-  water: "#38BDF8",
-  fat: "#FB6B7A",
-  protein: "#7C83F6",
-  progress: "#22C7A1",
-};
+const isRewardType = (value: string): value is RewardType =>
+  rewardTypeOptions.some((option) => option.value === value);
 
 export default function AdminStreakRewards() {
   const { toast } = useToast();
@@ -132,7 +134,10 @@ export default function AdminStreakRewards() {
 
       if (rewardsError) throw rewardsError;
 
-      setRewards(rewardsData || []);
+      const validRewards = (rewardsData || []).flatMap((reward) =>
+        isRewardType(reward.reward_type) ? [{ ...reward, reward_type: reward.reward_type }] : []
+      );
+      setRewards(validRewards);
 
       // Calculate stats
       const active = (rewardsData || []).filter((r) => r.is_active);
@@ -165,7 +170,7 @@ export default function AdminStreakRewards() {
         : 0;
 
       setStats({
-        totalRewards: rewardsData?.length || 0,
+        totalRewards: validRewards.length,
         activeRewards: active.length,
         totalClaims: claimedData?.length || 0,
         totalValueClaimed: totalValue,

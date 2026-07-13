@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Flame, Dumbbell, Wheat, Droplets, DollarSign, CheckCircle2 } from "lucide-react";
+import { X, CheckCircle2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 
@@ -85,6 +85,15 @@ export function MealCompareDrawer({ open, onClose, meals }: MealCompareDrawerPro
   if (!meals) return null;
 
   const [left, right] = meals;
+  const scoreMeal = (meal: CompareMeal) =>
+    (meal.protein || 0) * 1.5 -
+    (meal.calories || 0) * 0.25 -
+    (meal.carbs || 0) * 0.1 -
+    (meal.fat || 0) * 0.1;
+  const leftScore = scoreMeal(left);
+  const rightScore = scoreMeal(right);
+  const preferredMeal = leftScore >= rightScore ? left : right;
+  const otherMeal = preferredMeal.id === left.id ? right : left;
 
   return (
     <AnimatePresence>
@@ -189,7 +198,7 @@ export function MealCompareDrawer({ open, onClose, meals }: MealCompareDrawerPro
                     label={t("compare_price")}
                     leftValue={left.price}
                     rightValue={right.price}
-                    unit="SAR"
+                    unit="QAR"
                     lowerBetter={true}
                     t={t}
                   />
@@ -198,18 +207,7 @@ export function MealCompareDrawer({ open, onClose, meals }: MealCompareDrawerPro
                 {/* Summary verdict */}
                 <div className="mt-4 rounded-2xl bg-slate-50 p-4">
                   <h4 className="text-[13px] font-extrabold text-slate-700 mb-2">
-                    {(() => {
-                      const leftScore =
-                        (left.calories || 0) * 0.25 +
-                        (right.protein || 0) * 1.5 -
-                        (left.protein || 0) * 1.5 +
-                        (left.carbs || 0) * 0.1 -
-                        (right.carbs || 0) * 0.1 +
-                        (left.fat || 0) * 0.1 -
-                        (right.fat || 0) * 0.1;
-                      if (leftScore > 0) return left.name;
-                      return right.name;
-                    })()} {t("compare_vs")} {leftScore > 0 ? right.name : left.name}
+                    {preferredMeal.name} {t("compare_vs")} {otherMeal.name}
                   </h4>
                   <p className="text-[12px] font-medium text-slate-500">Based on lower calories, higher protein, and overall macro balance</p>
                 </div>

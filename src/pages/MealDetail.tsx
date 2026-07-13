@@ -22,12 +22,14 @@ import { InsufficientBalanceDialog } from "@/components/meal/InsufficientBalance
 import { getSmartDefaultMealType } from "@/components/meal/scheduleUtils";
 import { formatCurrency } from "@/lib/currency";
 import { findCoachMealSuggestion, getCoachMealScheduleFields } from "@/lib/coach-meal-schedule";
+import { scheduleMealsAtomic, type ScheduleMealInput } from "@/lib/schedule-meals";
 import { scoreMealForGoal } from "@/lib/goal-engine";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 
-import { Share2, Flame, Clock, Star, MapPin, Beef, Wheat, Droplets, Leaf, CalendarPlus, ArrowUpRight, ShieldCheck, Loader2, MessageSquareText, ChevronRight } from "lucide-react";
+import { Share2, Flame, Clock, Star, MapPin, Beef, Wheat, Droplets, Leaf, CalendarPlus, ArrowUpRight, ShieldCheck, Loader2, MessageSquareText, ChevronRight, ChevronDown } from "lucide-react";
 import { ChevronLeft } from "lucide-react";
 
 import { format } from "date-fns";
@@ -68,6 +70,12 @@ interface MealDetail {
   ingredients?: string[] | string | null;
 }
 
+interface MealDetailNavigationState {
+  scheduledDate?: Date;
+  mealType?: string;
+  openSchedule?: boolean;
+}
+
 const MealDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -80,9 +88,6 @@ const MealDetail = () => {
     hasActiveSubscription,
     remainingMeals,
     isUnlimited,
-    canOrderMeal,
-    incrementMealUsage,
-    incrementSnackUsage,
     subscription,
     refetch: refetchSubscription,
   } = useSubscription();
@@ -96,7 +101,8 @@ const MealDetail = () => {
 
   const [meal, setMeal] = useState<MealDetail | null>(null);
   const [similarMeals, setSimilarMeals] = useState<any[]>([]);
-  const [similarMealsLoading, setSimilarMealsLoading] = useState(false);
+  const [, setSimilarMealsLoading] = useState(false);
+  const [showNutritionDetails, setShowNutritionDetails] = useState(false);
   // Add-ons (resolved once meal id is known)
   const {
     groupedAddons,
@@ -116,7 +122,6 @@ const MealDetail = () => {
     getSummary,
     getCustomizationData,
     hasCustomizations,
-    reset: resetCustomization,
     customization,
   } = useMealCustomization();
 
@@ -129,11 +134,11 @@ const MealDetail = () => {
   const [restaurantNote, setRestaurantNote] = useState("");
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
-    const navigationState = location.state as { scheduledDate?: Date; mealType?: string } | null;
+    const navigationState = location.state as MealDetailNavigationState | null;
     return navigationState?.scheduledDate;
   });
   const [selectedMealType, setSelectedMealType] = useState<string>(() => {
-    const navigationState = location.state as { scheduledDate?: Date; mealType?: string } | null;
+    const navigationState = location.state as MealDetailNavigationState | null;
     return navigationState?.mealType || getSmartDefaultMealType();
   });
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -141,6 +146,7 @@ const MealDetail = () => {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const autoOpenHandledRef = useRef(false);
   const { scrollY } = useScroll({ container: scrollRef });
   
   const headerOpacity = useTransform(scrollY, [0, 200], [0, 1]);
@@ -235,6 +241,18 @@ const MealDetail = () => {
       setHPVariant(false);
     }
   }, [meal, customization.portionSize, customization.hpVariant, setPortionSize, setHPVariant]);
+
+  useEffect(() => {
+    const navigationState = location.state as MealDetailNavigationState | null;
+    if (
+      autoOpenHandledRef.current
+      || !navigationState?.openSchedule
+      || !meal
+    ) return;
+
+    autoOpenHandledRef.current = true;
+    if (hasActiveSubscription) setSheetOpen(true);
+  }, [hasActiveSubscription, location.state, meal]);
 
   const handleAddToSchedule = async () => {
     if (!user) {
@@ -335,22 +353,13 @@ const MealDetail = () => {
     }
     setBuyMealLoading(true);
     try {
-      // Debit wallet
-      const { error: debitErr } = await supabase.rpc("debit_wallet", {
-        p_user_id: user.id,
-        p_amount: pricePerMeal,
-        p_reference_type: "order",
-        p_description: "Extra meal credit purchase",
-        p_metadata: { subscription_id: subscription.id },
-      });
-      if (debitErr) throw debitErr;
-
-      // Add 1 meal to the subscription allowance
-      const { error: subErr } = await supabase
-        .from("subscriptions")
-        .update({ meals_per_month: subscription.meals_per_month + 1 })
-        .eq("id", subscription.id);
-      if (subErr) throw subErr;
+      const { data, error } = await supabase.rpc(
+        "purchase_extra_meal_credit" as never,
+        { p_subscription_id: subscription.id } as never,
+      );
+      if (error) throw error;
+      const result = data as unknown as { success?: boolean; amount?: number } | null;
+      if (!result?.success) throw new Error("Meal credit purchase was not completed");
 
       refetchWallet();
       await refetchSubscription();
@@ -358,7 +367,7 @@ const MealDetail = () => {
       hapticFeedback.success();
       toast({
         title: "Meal credit added! ✅",
-        description: `1 meal added to your plan — ${formatCurrency(pricePerMeal)} deducted.`,
+        description: `1 meal added to your plan — ${formatCurrency(result.amount ?? pricePerMeal)} deducted.`,
       });
       setSheetOpen(true);
     } catch (err) {
@@ -375,19 +384,7 @@ const MealDetail = () => {
     hapticFeedback.buttonPress();
 
     try {
-      const quotaUpdated = await incrementMealUsage();
-      if (!quotaUpdated) {
-        // No quota left — offer wallet purchase instead
-        setScheduling(false);
-        setSheetOpen(false);
-        setBuyMealDialogOpen(true);
-        return;
-      }
-
-      // If this order is a snack, also increment the snack counter
-      if (selectedMealType === "snack") {
-        await incrementSnackUsage();
-      }
+      if (!subscription?.id) throw new Error("SUBSCRIPTION_NOT_FOUND");
 
       // CRITICAL: Check meal availability before scheduling
       // This prevents scheduling unavailable meals which causes cancellations
@@ -433,57 +430,28 @@ const MealDetail = () => {
         selectedMealId: meal.id,
       });
 
-      const schedulePayload = {
-        user_id: user!.id,
+      const schedulePayload: ScheduleMealInput = {
         meal_id: meal.id,
         scheduled_date: scheduledDate,
-        meal_type: selectedMealType,
-        is_completed: false,
-        order_status: "pending",
+        meal_type: selectedMealType as ScheduleMealInput["meal_type"],
         delivery_address_id: selectedAddressId,
         customization_data: getCustomizationData(customizationSummary),
         restaurant_note: restaurantNote.trim() || null,
         ...(selectedTimeSlot ? { delivery_time_slot: selectedTimeSlot } : {}),
         ...getCoachMealScheduleFields(coachSuggestion),
+        addons: getSelectedAddonsList().map(({ addon, quantity }) => ({
+          addon_id: addon.id,
+          quantity,
+        })),
       };
 
-      const { data: scheduleRow, error } = await supabase
-        .from("meal_schedules")
-        .insert(schedulePayload as never)
-        .select("id")
-        .single();
+      await scheduleMealsAtomic(subscription.id, [schedulePayload]);
 
-      if (error) throw error;
-
-      const selectedAddonRows = getSelectedAddonsList();
-
-      // Debit wallet for add-ons if any selected
       if (addonsTotal > 0) {
-        const addonNames = selectedAddonRows.map(({ addon, quantity }) =>
-          quantity > 1 ? `${addon.name} x${quantity}` : addon.name
-        ).join(", ");
-        await supabase.rpc("debit_wallet", {
-          p_user_id: user!.id,
-          p_amount: addonsTotal,
-          p_reference_type: "order",
-          p_description: `Add-ons for ${meal.name}: ${addonNames}`,
-          p_metadata: { meal_id: meal.id, addons: addonNames },
-        });
         refetchWallet();
-        clearSelectedAddons();
       }
-
-      if (scheduleRow?.id && selectedAddonRows.length > 0) {
-        const { error: addonInsertError } = await supabase.from("schedule_addons").insert(
-          selectedAddonRows.map(({ addon, quantity }) => ({
-            schedule_id: scheduleRow.id,
-            addon_id: addon.id,
-            quantity,
-            unit_price: addon.price,
-          }))
-        );
-        if (addonInsertError) throw addonInsertError;
-      }
+      clearSelectedAddons();
+      await refetchSubscription();
 
       setSuccess(true);
       setSheetOpen(false);
@@ -530,9 +498,19 @@ const MealDetail = () => {
       }, 1500);
     } catch (error) {
       console.error("Error scheduling meal:", error);
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("MEAL_QUOTA_EXHAUSTED") || message.includes("SNACK_QUOTA_EXHAUSTED")) {
+        setSheetOpen(false);
+        setBuyMealDialogOpen(true);
+        return;
+      }
       toast({
         title: "Error",
-        description: "Failed to schedule meal. Please try again.",
+        description: message.includes("MEAL_NOT_AVAILABLE")
+          ? "This meal is no longer available. Please choose another meal."
+          : message.includes("INSUFFICIENT_WALLET_BALANCE")
+            ? "Your wallet balance is not enough for the selected add-ons."
+            : "Failed to schedule meal. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -611,7 +589,7 @@ const MealDetail = () => {
   });
 
   return (
-    <div ref={scrollRef} className="min-h-screen overflow-y-auto bg-[#F6F7F5] pb-52">
+    <div ref={scrollRef} className="min-h-screen overflow-y-auto bg-[#F6F8FB] pb-36">
       <motion.header
         style={{ opacity: headerOpacitySpring }}
         className="fixed left-0 right-0 top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl"
@@ -638,7 +616,7 @@ const MealDetail = () => {
       </motion.header>
 
       <div className="mx-auto max-w-lg">
-        <section className="relative h-[360px] overflow-hidden bg-slate-200">
+        <section className="relative h-[300px] overflow-hidden bg-slate-200">
           <motion.img
             style={{ scale: imageScale, opacity: imageOpacity }}
             src={getMealImage(meal.image_url, meal.id)}
@@ -665,7 +643,7 @@ const MealDetail = () => {
               <Share2 className="h-4 w-4" />
             </button>
           </div>
-          <div className="absolute bottom-8 left-4 right-4">
+          <div className="absolute bottom-6 left-4 right-4">
             <div className="flex flex-wrap items-center gap-2">
               {meal.is_vip_exclusive && (
                 <Badge className="rounded-full border-0 bg-amber-400 px-3 py-1 text-[11px] font-black text-slate-950">
@@ -684,14 +662,14 @@ const MealDetail = () => {
           </div>
         </section>
 
-        <main className="relative -mt-8 space-y-4 px-4">
+        <main className="relative -mt-6 space-y-3 px-4 pb-40">
           <motion.section
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-[32px] bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.1)] ring-1 ring-slate-200/80"
+            className="rounded-[24px] bg-white p-4 shadow-[0_14px_36px_rgba(2,6,23,0.08)] ring-1 ring-[#E5EAF1]"
           >
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-slate-100 ring-1 ring-slate-200">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
                 {meal.restaurant.logo_url ? (
                   <img src={meal.restaurant.logo_url} alt="" loading="lazy" className="h-full w-full object-cover" />
                 ) : (
@@ -718,10 +696,48 @@ const MealDetail = () => {
             </div>
 
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-orange-600">Meal details</p>
-            <h1 className="mt-1 text-[28px] font-black leading-[1.05] tracking-[-0.03em] text-slate-950">{meal.name}</h1>
+            <h1 className="mt-1 text-[25px] font-black leading-[1.08] text-[#020617]">{meal.name}</h1>
             {meal.description && (
-              <p className="mt-3 text-[14px] font-semibold leading-6 text-slate-600">{meal.description}</p>
+              <p className="mt-2 text-[13px] font-semibold leading-5 text-[#64748B]">{meal.description}</p>
             )}
+
+            <div className="mt-4 grid grid-cols-3 divide-x divide-[#E5EAF1] rounded-[17px] bg-[#F6F8FB] py-3 ring-1 ring-[#E5EAF1]">
+              <div className="px-2 text-center">
+                <Flame className="mx-auto mb-1.5 h-4 w-4 text-[#FB6B7A]" />
+                <p className="text-[17px] font-black leading-none text-[#020617]">{displayCalories}</p>
+                <p className="mt-1 text-[9px] font-black uppercase text-[#94A3B8]">kcal</p>
+              </div>
+              <div className="px-2 text-center">
+                <Beef className="mx-auto mb-1.5 h-4 w-4 text-[#7C83F6]" />
+                <p className="text-[17px] font-black leading-none text-[#020617]">{displayProtein}g</p>
+                <p className="mt-1 text-[9px] font-black uppercase text-[#94A3B8]">protein</p>
+              </div>
+              <div className="px-2 text-center">
+                <Wheat className="mx-auto mb-1.5 h-4 w-4 text-[#22C7A1]" />
+                <p className="text-[17px] font-black leading-none text-[#020617]">{displayCarbs}g</p>
+                <p className="mt-1 text-[9px] font-black uppercase text-[#94A3B8]">carbs</p>
+              </div>
+            </div>
+
+            {!allergensLoading && mealAllergens.length > 0 ? (
+              <div className="mt-3 flex items-center gap-2.5 rounded-[15px] bg-[#FFF1F3] px-3 py-2.5 text-[#B4233A] ring-1 ring-[#FB6B7A]/20">
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+                <p className="min-w-0 flex-1 text-[11px] font-extrabold">
+                  Contains {mealAllergens.length} listed allergen{mealAllergens.length === 1 ? "" : "s"}
+                </p>
+                <span className="text-[10px] font-black">Review below</span>
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => setShowNutritionDetails((value) => !value)}
+              className="mt-3 flex h-11 w-full items-center justify-between rounded-[15px] px-1 text-[12px] font-extrabold text-[#64748B] active:text-[#020617]"
+              aria-expanded={showNutritionDetails}
+            >
+              <span>{showNutritionDetails ? "Hide nutrition details" : "View full nutrition"}</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showNutritionDetails ? "rotate-180" : ""}`} />
+            </button>
 
           </motion.section>
 
@@ -810,6 +826,7 @@ const MealDetail = () => {
             </motion.section>
           )}
 
+          {showNutritionDetails && (
           <motion.section
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -894,6 +911,7 @@ const MealDetail = () => {
               </div>
             </div>
           </motion.section>
+          )}
 
           {activeGoal && (
             <motion.section
@@ -937,10 +955,10 @@ const MealDetail = () => {
             <motion.section
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-[24px] bg-[#020617] p-4 text-white shadow-[0_14px_36px_rgba(2,6,23,0.18)]"
+              className="rounded-[20px] bg-[#E9FBF6] p-4 text-[#020617] ring-1 ring-[#22C7A1]/20"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/50">Customization summary</p>
-              <div className="mt-3 space-y-2 text-[12px] font-bold text-white/80">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">Customization summary</p>
+              <div className="mt-3 space-y-2 text-[12px] font-bold text-[#64748B]">
                 {customizationSummary.portionSize === "large" && <p>Large portion +{customizationSummary.calorieAdjustment} cal</p>}
                 {customizationSummary.hpVariant && <p>High protein +{customizationSummary.proteinAdjustment}g protein</p>}
                 {customizationSummary.removedIngredientNames.length > 0 && <p>Removed: {customizationSummary.removedIngredientNames.join(", ")}</p>}
@@ -1019,7 +1037,7 @@ const MealDetail = () => {
                     onClick={() => {
                       setMeal(null);
                       setSimilarMeals([]);
-                      navigate(`/meal/${sm.meal_id}`, { replace: true });
+                      navigate(`/meals/${sm.meal_id}`, { replace: true });
                     }}
                     className="w-[160px] snap-start shrink-0 rounded-2xl bg-slate-50 p-3 text-left transition-all hover:bg-slate-100 active:scale-[0.97]"
                   >
@@ -1054,22 +1072,24 @@ const MealDetail = () => {
         </main>
       </div>
 
-      <div className="fixed bottom-14 left-0 right-0 z-40 border-t border-slate-200/80 bg-white/90 px-4 pb-3 pt-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-lg items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-black text-slate-950">{meal.name}</p>
-            <p className="mt-0.5 text-[11px] font-bold text-slate-500">
-              {displayCalories} kcal - {displayProtein}g protein
-            </p>
-          </div>
+      <div
+        className="pointer-events-none fixed inset-x-0 z-40 px-4"
+        style={{ bottom: "calc(82px + env(safe-area-inset-bottom, 0px))" }}
+      >
+        <div className="mx-auto max-w-lg">
           <button
             data-testid="meal-detail-add-schedule"
             onClick={handleAddToSchedule}
             disabled={scheduling || success}
-            className="flex min-h-[52px] shrink-0 items-center justify-center gap-2 rounded-full bg-[#020617] px-5 text-[14px] font-black text-white shadow-[0_12px_28px_rgba(2,6,23,0.22)] disabled:opacity-60"
+            className="pointer-events-auto flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-[#22C7A1] px-5 text-[15px] font-extrabold text-white shadow-[0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/70 transition duration-150 active:scale-[0.98] active:bg-[#1DB591] disabled:opacity-60"
+            aria-label={success ? "Meal scheduled" : actionLabel}
           >
-            {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarPlus className="h-4 w-4" />}
-            {success ? "Scheduled" : actionLabel}
+            {scheduling ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <CalendarPlus className="h-5 w-5" strokeWidth={2.2} />
+            )}
+            <span>{success ? "Added to schedule" : actionLabel}</span>
           </button>
         </div>
       </div>

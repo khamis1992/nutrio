@@ -60,7 +60,7 @@ export const PromoVideo = () => {
               setIsPlaying(true);
               setIsLoading(false);
             })
-            .catch((err) => {
+            .catch(() => {
 
               setNeedsUserInteraction(true);
               setIsLoading(false);

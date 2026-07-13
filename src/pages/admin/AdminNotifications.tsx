@@ -230,13 +230,13 @@ export default function AdminNotifications() {
     setSending(true);
     try {
       // Use the database function to send notifications
-      const { data, error } = await supabase.rpc('send_announcement_notification', {
+      const { data, error } = await supabase.rpc('send_announcement_notification_secure' as never, {
         p_announcement_id: announcement.id
-      });
+      } as never);
 
       if (error) throw error;
 
-      const count = data || 0;
+      const count = Number(data || 0);
       if (count > 0) {
         const audienceLabel = announcement.target_audience === 'all' ? 'users' : announcement.target_audience === 'users' ? 'customers' : announcement.target_audience;
         toast.success(`Notification sent to ${count} ${audienceLabel}`);

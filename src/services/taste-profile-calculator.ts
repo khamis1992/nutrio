@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface TasteProfile {
   favoriteCuisines: string[];
@@ -223,7 +224,7 @@ export async function calculateTasteProfile(userId: string): Promise<TasteProfil
     // Save to profiles table
     await supabase
       .from("profiles")
-      .update({ taste_profile: profile })
+      .update({ taste_profile: profile as unknown as Json })
       .eq("user_id", userId);
 
     return profile;

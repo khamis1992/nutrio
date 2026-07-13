@@ -14,22 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  CreditCard,
-} from "lucide-react";
+import { CreditCard } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 
-interface WalletTopUpFlowProps {
-  hideSimulationAlert?: boolean;
-}
-
-export function WalletTopUpFlow({ hideSimulationAlert = false }: WalletTopUpFlowProps) {
+export function WalletTopUpFlow() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -44,7 +34,6 @@ export function WalletTopUpFlow({ hideSimulationAlert = false }: WalletTopUpFlow
   const [selectedPackage, setSelectedPackage] = useState<TopUpPackage | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<"idle" | "success" | "failed">("idle");
 
   const handleSelectPackage = (pkg: TopUpPackage) => {
     setSelectedPackage(pkg);
@@ -55,7 +44,7 @@ export function WalletTopUpFlow({ hideSimulationAlert = false }: WalletTopUpFlow
     if (!selectedPackage || !user) return;
     setProcessingId(selectedPackage.id);
     setShowConfirmDialog(false);
-    navigate(`/checkout?amount=${selectedPackage.amount}&type=wallet&packageId=${selectedPackage.id}`);
+    navigate(`/checkout?type=wallet&packageId=${selectedPackage.id}`);
   };
 
   const totalAmount = selectedPackage
@@ -64,27 +53,6 @@ export function WalletTopUpFlow({ hideSimulationAlert = false }: WalletTopUpFlow
 
   return (
     <div className="space-y-4">
-      {paymentStatus === "success" && (
-        <Alert className="rounded-2xl border-emerald-200 bg-[#eefaf6]">
-          <CheckCircle className="h-4 w-4 text-[#12785f]" />
-          <AlertDescription className="font-medium text-[#12785f]">{t("payment_successful")}</AlertDescription>
-        </Alert>
-      )}
-
-      {paymentStatus === "failed" && (
-        <Alert variant="destructive" className="rounded-2xl border-rose-200 bg-rose-50">
-          <XCircle className="h-4 w-4" />
-          <AlertDescription>{t("payment_failed")}</AlertDescription>
-        </Alert>
-      )}
-
-      {!hideSimulationAlert && (
-        <Alert className="rounded-2xl border-amber-200 bg-[#fff8ed]">
-          <AlertCircle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="font-medium text-amber-700">{t("simulation_mode")}</AlertDescription>
-        </Alert>
-      )}
-
       <WalletBalance
         balance={wallet?.balance || 0}
         totalCredits={wallet?.total_credits || 0}

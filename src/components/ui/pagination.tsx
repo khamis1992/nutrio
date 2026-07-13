@@ -1,7 +1,7 @@
 import * as React from "react";
 import { getNavArrows } from "@/lib/rtl";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ButtonProps, buttonVariants } from "@/components/ui/button";

@@ -48,7 +48,7 @@ class PaymentSimulationService {
     
     const payment: SimulatedPayment = {
       paymentId,
-      orderId: request.order_id,
+      orderId: request.orderId,
       amount: request.amount,
       status: 'pending',
       method: 'credit_card', // Default, can be overridden

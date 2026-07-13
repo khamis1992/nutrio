@@ -59,13 +59,13 @@ export function useDeliveryNotifications({ userId, enabled = true }: UseDelivery
           // Get schedule info to verify this belongs to the user
           const { data: schedule } = await supabase
             .from("meal_schedules")
-            .select("user_id, meal:meal_id(name)")
+            .select("user_id, meal:meals!meal_schedules_meal_id_fkey(name)")
             .eq("id", job.schedule_id)
             .single();
 
-          if (!schedule || (schedule as { user_id: string }).user_id !== userId) return;
+          if (!schedule || schedule.user_id !== userId) return;
 
-          const mealName = (schedule as { meal: { name: string } }).meal?.name || "Your order";
+          const mealName = schedule.meal?.name || "Your order";
 
           // Send notification based on status
           switch (job.status) {

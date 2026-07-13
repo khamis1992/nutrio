@@ -43,6 +43,18 @@ export default function FleetLogin() {
         
         if (fleetManager?.is_active) {
           navigate("/fleet");
+          return;
+        }
+
+        const { data: adminRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (adminRole) {
+          navigate("/fleet");
         }
       }
     };
@@ -90,22 +102,30 @@ export default function FleetLogin() {
         .eq("auth_user_id", data.user.id)
         .maybeSingle();
 
-      if (fleetError || !fleetManager) {
+      if (fleetError && fleetError.code !== "PGRST116") {
+        throw fleetError;
+      }
+
+      let hasAdminAccess = false;
+      if (!fleetManager || !fleetManager.is_active) {
         // Fall back: admins get full fleet access without a fleet_managers record
-        const { data: adminRole } = await supabase
+        const { data: adminRole, error: adminRoleError } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", data.user.id)
           .eq("role", "admin")
           .maybeSingle();
 
-        if (!adminRole) {
+        if (adminRoleError) throw adminRoleError;
+
+        hasAdminAccess = Boolean(adminRole);
+        if (!adminRole && !fleetManager) {
           await supabase.auth.signOut();
           throw new Error("You don't have fleet manager access. Please contact your administrator.");
         }
       }
 
-      if (!fleetManager.is_active) {
+      if (fleetManager && !fleetManager.is_active && !hasAdminAccess) {
         await supabase.auth.signOut();
         throw new Error("Your fleet manager account has been deactivated.");
       }

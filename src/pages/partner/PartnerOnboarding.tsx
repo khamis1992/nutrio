@@ -26,6 +26,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 // Available cuisine types
 const CUISINE_TYPES = [
@@ -152,7 +153,7 @@ const PartnerOnboarding = () => {
     terms_accepted: false,
   });
 
-  const updateData = (field: keyof RestaurantData, value: string | boolean | string[] | Record<string, unknown>) => {
+  const updateData = <K extends keyof RestaurantData>(field: K, value: RestaurantData[K]) => {
     setData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -320,7 +321,7 @@ const PartnerOnboarding = () => {
           logo_url: logoUrl,
           approval_status: "pending",
           cuisine_types: data.cuisine_types,
-          operating_hours: data.operating_hours,
+          operating_hours: data.operating_hours as unknown as Json,
           avg_prep_time_minutes: data.avg_prep_time_minutes,
           max_meals_per_day: data.max_meals_per_day,
         })
@@ -337,7 +338,7 @@ const PartnerOnboarding = () => {
           cuisine_type: data.cuisine_types,
           dietary_tags: data.dietary_tags,
           website_url: data.website,
-          operating_hours: data.operating_hours,
+          operating_hours: data.operating_hours as unknown as Json,
           avg_prep_time_minutes: data.avg_prep_time_minutes,
           max_meals_per_day: data.max_meals_per_day,
           bank_name: data.bank_name,

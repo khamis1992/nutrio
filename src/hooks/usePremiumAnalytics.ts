@@ -32,6 +32,10 @@ export function usePremiumAnalytics(restaurantId: string | null) {
     if (!restaurantId) return;
 
     try {
+      setHasPremium(false);
+      setPremiumUntil(null);
+      setHasPendingRequest(false);
+
       // Primary check: active purchase row (works even without premium_analytics_until column)
       const purchasesRes = await supabase
         .from("premium_analytics_purchases")
@@ -42,11 +46,11 @@ export function usePremiumAnalytics(restaurantId: string | null) {
 
       if (!purchasesRes.error && purchasesRes.data) {
         const activePurchase = purchasesRes.data.find(
-          (p) => p.status === "active" && new Date(p.ends_at) > new Date()
+          (p) => p.status === "active" && p.ends_at && new Date(p.ends_at) > new Date()
         );
         const pendingPurchase = purchasesRes.data.find((p) => p.status === "pending");
 
-        if (activePurchase) {
+        if (activePurchase?.ends_at) {
           setHasPremium(true);
           setPremiumUntil(new Date(activePurchase.ends_at));
           setHasPendingRequest(false);
@@ -91,11 +95,12 @@ export function usePremiumAnalyticsPrices() {
 
   const fetchPrices = async () => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("platform_settings")
         .select("value")
         .eq("key", "premium_analytics_prices")
         .maybeSingle();
+      if (error) throw error;
 
       if (data?.value && typeof data.value === 'object' && !Array.isArray(data.value)) {
         const value = data.value as Record<string, unknown>;

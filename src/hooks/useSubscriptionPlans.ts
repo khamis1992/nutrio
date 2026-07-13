@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
+
+type SubscriptionPlanRow = Tables<"subscription_plans">;
 
 export interface DbSubscriptionPlan {
   id: string;
@@ -43,7 +46,7 @@ export const useSubscriptionPlans = () => {
         if (error) throw error;
 
         // Normalize data - use type assertion for new fields
-        const normalized: DbSubscriptionPlan[] = (data || []).map((p: { id: string; tier: string; name_ar: string | null; description: string | null; description_en: string | null; short_description: string | null; short_description_ar: string | null; price_qar: number; billing_interval: string; meals_per_month: number; meals_per_week: number | null; features: unknown; is_active: boolean; sort_order: number; meal_types: unknown; created_at: string; updated_at: string }) => ({
+        const normalized: DbSubscriptionPlan[] = (data || []).map((p: SubscriptionPlanRow) => ({
           id: p.id,
           tier: p.tier,
           name_ar: p.name_ar ?? null,

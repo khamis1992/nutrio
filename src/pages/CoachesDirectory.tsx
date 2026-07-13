@@ -7,12 +7,9 @@ import {
   ChevronLeft,
   Clock,
   Loader2,
-  MessageCircle,
   Search,
-  ShieldCheck,
   Sparkles,
   Star,
-  TrendingUp,
   UserPlus,
   Users,
   X,
@@ -89,7 +86,6 @@ export default function CoachesDirectory() {
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState<string | null>(null);
   const [myCoach, setMyCoach] = useState<string | null>(null);
-  const [myCoachProfile, setMyCoachProfile] = useState<CoachProfile | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSpecialty, setActiveSpecialty] = useState("All");
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(() => {
@@ -202,7 +198,6 @@ export default function CoachesDirectory() {
       if (myActiveCoach.size > 0) {
         const activeId = [...myActiveCoach][0];
         setMyCoach(activeId);
-        setMyCoachProfile(sorted.find((coach) => coach.id === activeId) || null);
 
         if (myPending.size > 0) {
           const { error } = await supabase
@@ -219,7 +214,6 @@ export default function CoachesDirectory() {
         setPendingRequests(new Set());
       } else {
         setMyCoach(null);
-        setMyCoachProfile(null);
         setPendingRequests(new Set(myPending));
       }
     } catch (err) {
@@ -308,7 +302,6 @@ export default function CoachesDirectory() {
       if (existing?.status === "active" || existing?.status === "pending") {
         if (existing.status === "active") {
           setMyCoach(coachId);
-          setMyCoachProfile(coach);
           setPendingRequests(new Set());
         } else {
           setPendingRequests(new Set([coachId]));
@@ -366,14 +359,17 @@ export default function CoachesDirectory() {
 
     setRequesting(coach.id);
     try {
-      const { error: replaceError } = await supabase.rpc("replace_client_coach", {
+      const replaceClientCoach = supabase.rpc as unknown as (
+        fn: "replace_client_coach",
+        args: { p_new_coach_id: string },
+      ) => Promise<{ data: string | null; error: { message: string } | null }>;
+      const { error: replaceError } = await replaceClientCoach("replace_client_coach", {
         p_new_coach_id: coach.id,
       });
 
       if (replaceError) throw replaceError;
 
       setMyCoach(coach.id);
-      setMyCoachProfile(coach);
       setPendingRequests(new Set());
       toast({
         title: "Coach replaced",

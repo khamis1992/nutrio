@@ -1,31 +1,24 @@
 import { useState } from "react";
 import {
   Snowflake,
-  AlertCircle,
   X,
   RefreshCcw,
   Loader2,
   BellRing,
   RefreshCw,
-  CheckCircle2,
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { captureError } from "@/lib/sentry";
-import { useAuth } from "@/contexts/AuthContext";
 import { FreezeSubscriptionModal } from "@/components/subscription/FreezeSubscriptionModal";
 import { CancellationFlow } from "@/components/CancellationFlow";
 import { CancellationSalvageSheet } from "@/components/subscription/CancellationSalvageSheet";
-import { format } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { SalvageReason, SalvageOffer } from "@/hooks/useCancellationOffers";
 
 interface SubscriptionManageProps {
-  hasActiveSubscription: boolean;
-  endDate: string | null;
   subscriptionId: string | null;
   subscriptionStatus?: string;
   freezeDays?: {
@@ -36,32 +29,21 @@ interface SubscriptionManageProps {
   isProcessing: boolean;
   onReactivate: () => Promise<void>;
   onRefetch: () => Promise<void>;
-  autoRenew: boolean;
-  autoRenewLoading: boolean;
-  onToggleAutoRenew: (value: boolean) => void;
   rolloverCredits: number;
 }
 
 export function SubscriptionManage({
-  hasActiveSubscription,
-  endDate,
   subscriptionId,
   subscriptionStatus,
   freezeDays,
   isProcessing,
   onReactivate,
   onRefetch,
-  autoRenew,
-  autoRenewLoading,
-  onToggleAutoRenew,
   rolloverCredits,
 }: SubscriptionManageProps) {
   const { t } = useLanguage();
-  const { user } = useAuth();
   const [showSalvageSheet, setShowSalvageSheet] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [salvageReason, setSalvageReason] = useState<SalvageReason | null>(null);
-  const [salvageReasonDetails, setSalvageReasonDetails] = useState("");
 
   const handleCancelClick = () => {
     setShowSalvageSheet(true);
@@ -78,14 +60,14 @@ export function SubscriptionManage({
         free_meal_credit: 4,
       };
 
-      const { data, error } = await supabase.rpc("process_cancellation", {
+      const { data, error } = await supabase.rpc("process_cancellation" as never, {
         p_subscription_id: subscriptionId,
         p_step: stepMap[offer.type],
         p_reason: reason,
         p_reason_details: reasonDetails,
         p_offer_code: offerCode,
         p_accept_offer: true,
-      });
+      } as never);
 
       if (error) throw error;
 
@@ -107,36 +89,41 @@ export function SubscriptionManage({
     }
   };
 
-  const handleSalvageProceedToCancel = (reason: SalvageReason, reasonDetails: string) => {
-    setSalvageReason(reason);
-    setSalvageReasonDetails(reasonDetails);
+  const handleSalvageProceedToCancel = () => {
     setShowSalvageSheet(false);
     setShowCancelDialog(true);
   };
 
   const isCancelled = subscriptionStatus === "cancelled";
+  const renewalAvailable = subscriptionStatus === "expired";
 
   return (
     <div className="space-y-0 overflow-hidden rounded-[22px] border border-[#E5EAF1] bg-white shadow-sm">
-      {/* Auto-Renewal */}
+      {/* Verified manual renewal */}
       <div className="flex items-center justify-between border-b border-[#E5EAF1] px-5 py-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E6FBF5]">
             <BellRing className="h-5 w-5 text-[#22C7A1]" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-[#020617]">{t("auto_renewal_title")}</p>
+            <p className="truncate text-sm font-bold text-[#020617]">{t("plan_management_title")}</p>
             <p className="mt-0.5 text-xs font-medium text-[#94A3B8]">
-              {autoRenew ? t("auto_renewal_on_desc") : t("auto_renewal_off_desc")}
+              {renewalAvailable ? t("manual_renewal_desc") : t("plan_management_desc")}
             </p>
           </div>
         </div>
-        <Switch
-          checked={autoRenew}
-          onCheckedChange={onToggleAutoRenew}
-          disabled={autoRenewLoading || isCancelled}
-          className="shrink-0 data-[state=checked]:bg-[#020617]"
-        />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => void onReactivate()}
+          disabled={isProcessing || !subscriptionId}
+          className="h-9 shrink-0 rounded-full px-4 text-xs font-bold"
+        >
+          {isProcessing
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : renewalAvailable ? t("renew_securely") : t("view_plans")}
+        </Button>
       </div>
 
       {/* Rollover Credits */}

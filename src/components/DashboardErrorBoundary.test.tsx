@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { DashboardErrorBoundary } from "@/components/DashboardErrorBoundary";
 
 vi.mock("@/lib/sentry", () => ({
@@ -6,9 +6,7 @@ vi.mock("@/lib/sentry", () => ({
 }));
 
 import { captureError } from "@/lib/sentry";
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 function ThrowingChild({ shouldThrow }: { shouldThrow: boolean }) {
   if (shouldThrow) throw new Error("Test error from child");

@@ -288,7 +288,6 @@ export function PlanComparisonTable({
               </td>
               {plans.map((plan) => {
                 const isCurrent = currentTier === plan.tier;
-                const display = getDisplay(plan);
                 return (
                   <td key={plan.id} className="text-center py-3 px-3">
                     {isCurrent ? (
@@ -303,7 +302,7 @@ export function PlanComparisonTable({
                           "rounded-xl text-xs font-bold w-full",
                           plan.tier === "elite" && "bg-primary hover:bg-primary/90"
                         )}
-                        onClick={() => navigate(`/subscription/checkout?plan=${plan.tier}`)}
+                        onClick={() => navigate(`/checkout?type=subscription&planId=${plan.id}`)}
                       >
                         {currentTier ? "Upgrade" : "Select"}
                       </Button>

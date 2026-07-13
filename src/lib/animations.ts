@@ -1,4 +1,4 @@
-import { Variants, Transition } from "framer-motion";
+import { Variants } from "framer-motion";
 
 export const spring = { type: "spring" as const, stiffness: 300, damping: 25, mass: 0.8 };
 export const springBouncy = { type: "spring" as const, stiffness: 400, damping: 17, mass: 0.6 };

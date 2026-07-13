@@ -15,6 +15,19 @@ vi.mock("@/hooks/useSubscription", () => ({
   useSubscription: vi.fn(),
 }));
 
+vi.mock("@/contexts/LanguageContext", () => ({
+  useLanguage: () => ({
+    t: (key: string) => ({
+      quota_exhausted_title: "Meal Quota Exhausted",
+      meals_remaining_title: "{count} Meals Remaining",
+      quota_exhausted_desc: "You've used all your meals for this period",
+      meals_used_desc: "{percent}% of your monthly meals used",
+      upgrade_plan: "Upgrade Plan",
+      view_options: "View Options",
+    } as Record<string, string>)[key] ?? key,
+  }),
+}));
+
 const mockNavigate = vi.fn();
 
 vi.mock("react-router-dom", async () => {

@@ -1,3 +1,4 @@
+import os
 """Take screenshot of page2"""
 from playwright.sync_api import sync_playwright
 
@@ -15,8 +16,8 @@ with sync_playwright() as p:
     page.locator('button:has-text("Sign in")').first.click()
     page.wait_for_timeout(3000)
     
-    page.locator('#si-email').fill("khamis-1992@hotmail.com")
-    page.locator('#si-password').fill("Khamees1992#")
+    page.locator('#si-email').fill(os.environ["E2E_ADMIN_EMAIL"])
+    page.locator('#si-password').fill(os.environ["E2E_ADMIN_PASSWORD"])
     page.locator('button:has-text("Sign in"):not(:has-text("up"))').first.click()
     page.wait_for_timeout(8000)
     

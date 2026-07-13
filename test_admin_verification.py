@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import sync_playwright
 import json
 
@@ -37,8 +38,8 @@ def test_admin_with_login():
                 
                 # 2. Fill login form
                 print("\n2. Logging in...")
-                page.fill('input[type="email"], input[name="email"]', 'khamis-1992@hotmail.com')
-                page.fill('input[type="password"], input[name="password"]', 'Khamees1992#')
+                page.fill('input[type="email"], input[name="email"]', os.environ["E2E_ADMIN_EMAIL"])
+                page.fill('input[type="password"], input[name="password"]', os.environ["E2E_ADMIN_PASSWORD"])
                 
                 # Click sign in button
                 sign_in_btn = page.locator('button:has-text("Sign In"), button:has-text("Login"), button[type="submit"]').first

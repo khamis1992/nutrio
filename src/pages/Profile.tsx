@@ -1,18 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import type { KeyboardEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Activity,
-  AlertTriangle,
-  ArrowLeft,
   Bell,
-  Calendar,
   ChevronRight,
   CreditCard,
   Crown,
   Flame,
-  Gift,
   Globe,
   Heart,
   HelpCircle,
@@ -133,23 +128,14 @@ const ActionRow = ({
   danger?: boolean;
   divider?: boolean;
 }) => {
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!onClick) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onClick();
-    }
-  };
-
   return (
     <div>
-      <motion.div
-        role={onClick ? "button" : undefined}
-        tabIndex={onClick ? 0 : undefined}
+      <motion.button
+        type="button"
         whileTap={onClick ? { scale: 0.99 } : undefined}
         onClick={onClick}
-        onKeyDown={handleKeyDown}
-        className="flex min-h-[66px] w-full items-center gap-3 px-4 py-3 text-start transition-colors active:bg-[#F6F8FB]"
+        disabled={!onClick}
+        className="flex min-h-[68px] w-full items-center gap-3 px-4 py-3 text-start transition-colors active:bg-[#F6F8FB] disabled:cursor-default"
       >
         <IconBadge className={iconClassName}>{icon}</IconBadge>
         <div className="min-w-0 flex-1">
@@ -162,7 +148,7 @@ const ActionRow = ({
             {title}
           </p>
           {subtitle && (
-            <p className="mt-1 truncate text-[12px] font-medium leading-tight text-[#94A3B8]">
+            <p className="mt-1 line-clamp-2 text-[12px] font-medium leading-[1.4] text-[#94A3B8]">
               {subtitle}
             </p>
           )}
@@ -173,7 +159,7 @@ const ActionRow = ({
           </span>
         )}
         <ChevronRight className="h-4 w-4 shrink-0 text-[#94A3B8]/60 rtl-flip" />
-      </motion.div>
+      </motion.button>
       {divider && <div className="ms-[68px] h-px bg-[#E5EAF1]" />}
     </div>
   );
@@ -190,7 +176,7 @@ const ActionSection = ({
     <h2 className="mb-2 px-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
       {title}
     </h2>
-    <div className="overflow-hidden rounded-[22px] border border-[#E5EAF1] bg-white shadow-[0_14px_32px_rgba(15,23,42,0.05)]">
+    <div className="overflow-hidden rounded-[18px] border border-[#E5EAF1] bg-white shadow-[0_8px_22px_rgba(15,23,42,0.045)]">
       {children}
     </div>
   </section>
@@ -211,6 +197,7 @@ const Profile = () => {
   const { isApprovedAffiliate } = useAffiliateApplication();
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [activeBadgeIndex, setActiveBadgeIndex] = useState(0);
   const [showAddFamilySheet, setShowAddFamilySheet] = useState(false);
   const [coachDialogOpen, setCoachDialogOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
@@ -234,15 +221,11 @@ const Profile = () => {
   const currentStreak = streaks?.logging?.currentStreak ?? 0;
   const currentXp = Math.max(0, profile?.xp ?? 0);
   const currentLevel = Math.max(1, profile?.level ?? 1);
-  const xpToNextLevel = Math.max(100, currentLevel * 100);
-  const xpProgressPercent = Math.min(100, Math.round((currentXp / xpToNextLevel) * 100));
-  const nextRewardLabel = currentXp < 500
-    ? t("reward_next_qar_5")
-    : currentXp < 1000
-      ? t("reward_next_qar_10")
-      : currentLevel < 5
-        ? t("reward_next_free_snack")
-        : t("more_rewards_coming");
+  const achievementPercent = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+  const visibleBadges = useMemo(
+    () => [...badges].sort((a, b) => Number(b.unlocked) - Number(a.unlocked)).slice(0, 6),
+    [badges]
+  );
   const displayName =
     profile?.full_name?.trim() || user?.email?.split("@")[0] || t("your_name");
   const profileAvatarUrl = avatarUrl || profile?.avatar_url || null;
@@ -257,15 +240,6 @@ const Profile = () => {
 
     return normalized.replace(/\b\w/g, (letter) => letter.toUpperCase());
   }, [subscription?.plan, subscription?.tier, subscriptionLoading]);
-  const achievementPercent = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
-  const visibleBadges = useMemo(
-    () =>
-      [...badges]
-        .sort((a, b) => Number(b.unlocked) - Number(a.unlocked))
-        .slice(0, totalCount),
-    [badges, totalCount]
-  );
-
   useEffect(() => {
     document.title = `${t("profile_tab")} - Nutrio`;
   }, [t]);
@@ -358,7 +332,7 @@ const Profile = () => {
   };
 
   const handleRemoveCoach = async () => {
-    if (!currentCoach) return;
+    if (!currentCoach?.assignmentId) return;
 
     setRemovingCoach(true);
     try {
@@ -421,15 +395,6 @@ const Profile = () => {
         className="sticky top-0 z-50 border-b border-[#E5EAF1] bg-[#F6F8FB]/88 pt-safe backdrop-blur-xl"
       >
         <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-4">
-          <button
-            type="button"
-            data-testid="profile-back-btn"
-            onClick={() => navigate(-1)}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-[#E5EAF1] active:scale-95"
-            aria-label={t("back")}
-          >
-            <ArrowLeft className="h-5 w-5 rtl-flip" />
-          </button>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">
               Nutrio
@@ -536,115 +501,90 @@ const Profile = () => {
         <motion.section
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.06 }}
-          className="mt-4"
-        >
-          <button
-            type="button"
-            data-testid="profile-rewards-btn"
-            onClick={() => navigate("/rewards")}
-            className="flex w-full items-center justify-between gap-3 rounded-[22px] border border-[#E5EAF1] bg-white p-4 text-start text-[#020617] shadow-[0_10px_24px_rgba(2,6,23,0.05)] transition active:scale-[0.99]"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">{t("rewards")}</p>
-              <p className="mt-1 text-[17px] font-black leading-tight">{t("level_format", { level: currentLevel })}</p>
-              <p className="mt-1 truncate text-[11px] font-bold text-[#64748B]">{nextRewardLabel}</p>
-            </div>
-            <div className="w-[118px] shrink-0">
-              <div className="flex items-baseline justify-end gap-1">
-                <span className="text-[18px] font-black">{currentXp}</span>
-                <span className="text-[10px] font-bold text-[#64748B]">/ {xpToNextLevel} XP</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#E5EAF1]">
-                <div
-                  className="h-full rounded-full bg-[#22C7A1]"
-                  style={{ width: `${xpProgressPercent}%` }}
-                />
-              </div>
-            </div>
-          </button>
-        </motion.section>
-
-        <motion.section
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08 }}
-          className="mt-5 overflow-hidden rounded-[22px] border border-[#E5EAF1] bg-white shadow-[0_12px_28px_rgba(2,6,23,0.06)]"
+          className="mt-5 overflow-hidden rounded-[22px] border border-[#E5EAF1] bg-white shadow-[0_8px_22px_rgba(15,23,42,0.045)]"
         >
-          <button
-            type="button"
-            data-testid="profile-security-btn"
-            onClick={() => navigate("/settings")}
-            className="relative flex min-h-[82px] w-full items-center gap-3 px-4 py-3 text-start active:bg-[#F6F8FB]"
-          >
-            <span className="absolute bottom-4 top-4 w-1 rounded-full bg-[#F97316] ltr:left-0 rtl:right-0" />
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#FFF7ED] text-[#F97316] ring-1 ring-[#F97316]/15">
-              <AlertTriangle className="h-5 w-5" strokeWidth={2.4} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-black text-[#020617]">
-                {t("account_security_recommended")}
-              </p>
-              <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-snug text-[#64748B]">
-                {t("weak_password_warning")}
-              </p>
-            </div>
-            <div className="ms-1 flex shrink-0 items-center gap-1 rounded-full bg-[#020617] px-3 py-2 text-[11px] font-black text-white shadow-[0_8px_18px_rgba(2,6,23,0.18)]">
-              <span>{t("update")}</span>
-              <ChevronRight className="h-3.5 w-3.5 rtl-flip" />
-            </div>
-          </button>
-        </motion.section>
-
-        <section className="mt-5 overflow-hidden rounded-[26px] border border-[#E5EAF1] bg-white shadow-[0_18px_38px_rgba(15,23,42,0.06)]">
-          <div className="relative overflow-hidden border-b border-[#E5EAF1] bg-white px-4 pb-5 pt-4 text-[#020617]">
-            <div className="relative flex items-center justify-between gap-4">
+          <div className="border-b border-[#E5EAF1] px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <IconBadge className="bg-[#F3F4FF] text-[#7C83F6]">
+                <Trophy className="h-5 w-5" />
+              </IconBadge>
               <div className="min-w-0">
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-[#F3F4FF] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#7C83F6] ring-1 ring-[#7C83F6]/20">
-                  <Trophy className="h-3 w-3" />
-                  {t("profile_achievements")}
-                </div>
-                <h2 className="text-[20px] font-black leading-tight">
+                <h2 className="text-[15px] font-black text-[#020617]">{t("profile_achievements")}</h2>
+                <p className="mt-0.5 text-[11px] font-semibold text-[#94A3B8]">
                   {t("achievements_unlocked_summary", { unlocked: unlockedCount, total: totalCount })}
-                </h2>
-                <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#94A3B8]">
-                  {t("achievements_celebrate_progress")}
                 </p>
               </div>
-              <div
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white p-1 shadow-[0_10px_22px_rgba(2,6,23,0.08)] ring-1 ring-[#E5EAF1]"
-                style={{
-                  background: `conic-gradient(#7C83F6 ${achievementPercent * 3.6}deg, #E5EAF1 0deg)`,
-                }}
-              >
-                <div className="flex h-full w-full items-center justify-center rounded-full bg-white text-[14px] font-black text-[#020617] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
-                  {achievementPercent}%
-                </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/rewards")}
+              className="flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-[#F3F4FF] px-3 text-[11px] font-black text-[#7C83F6] active:scale-95"
+            >
+              <span>{t("view_all")}</span>
+              <ChevronRight className="h-3.5 w-3.5 rtl-flip" />
+            </button>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#E5EAF1]">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${achievementPercent}%` }}
+                  transition={{ duration: 0.8, delay: 0.25, ease: "easeOut" }}
+                  className="h-full rounded-full bg-[#7C83F6]"
+                />
               </div>
+              <span className="min-w-9 text-end text-[12px] font-black tabular-nums text-[#7C83F6]">{achievementPercent}%</span>
             </div>
           </div>
 
-          <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {visibleBadges.map((badge) => (
-              <BadgeCard
-                key={badge.id}
-                badge={badge}
-                className="w-full shrink-0 snap-center"
-              />
-            ))}
-          </div>
-          <div className="mx-4 mb-4 flex items-center justify-center gap-1.5">
-            {visibleBadges.slice(0, 5).map((badge) => (
-              <span
-                key={badge.id}
-                className={cn(
-                  "h-1.5 rounded-full",
-                  badge.unlocked ? "w-5 bg-[#7C83F6]" : "w-1.5 bg-[#E5EAF1]"
-                )}
-              />
-            ))}
-          </div>
-        </section>
+          {visibleBadges.length > 0 ? (
+            <div
+              onScroll={(event) => {
+                const nextIndex = Math.round(Math.abs(event.currentTarget.scrollLeft) / 254);
+                setActiveBadgeIndex(Math.min(visibleBadges.length - 1, Math.max(0, nextIndex)));
+              }}
+              className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 py-5 pe-12 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {visibleBadges.map((badge) => (
+                <BadgeCard
+                  key={badge.id}
+                  badge={badge}
+                  variant="compact"
+                  className="w-[238px] shrink-0 snap-center"
+                />
+              ))}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate("/rewards")}
+              className="flex min-h-[76px] w-full items-center justify-between gap-3 px-4 text-start active:bg-[#F6F8FB]"
+            >
+              <span className="text-[12px] font-semibold text-[#64748B]">{t("achievements_celebrate_progress")}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-[#94A3B8] rtl-flip" />
+            </button>
+          )}
+          {visibleBadges.length > 1 && (
+            <div
+              className="flex items-center justify-center gap-1.5 border-t border-[#E5EAF1] px-4 py-3"
+              aria-label={`${activeBadgeIndex + 1} / ${visibleBadges.length}`}
+            >
+              {visibleBadges.map((badge, index) => (
+                <motion.span
+                  key={badge.id}
+                  animate={{
+                    width: index === activeBadgeIndex ? 22 : 6,
+                    opacity: index === activeBadgeIndex ? 1 : 0.38,
+                  }}
+                  transition={{ duration: 0.22 }}
+                  className={cn("h-1.5 rounded-full", badge.unlocked ? "bg-[#7C83F6]" : "bg-[#94A3B8]")}
+                />
+              ))}
+            </div>
+          )}
+        </motion.section>
 
         <div className="mt-5">
           <AffiliateApplicationCard />
@@ -709,8 +649,8 @@ const Profile = () => {
           <ActionRow
             icon={<Pill className="h-5 w-5" />}
             iconClassName="bg-[#F0F9FF] text-[#38BDF8]"
-            title="Medications"
-            subtitle="Check food-drug interactions"
+            title={t("profile_medications")}
+            subtitle={t("profile_medications_desc")}
             onClick={() => navigate("/medications")}
           />
           <ActionRow
@@ -719,31 +659,24 @@ const Profile = () => {
             title={t("health_dashboard_menu")}
             subtitle={t("health_dashboard_desc")}
             onClick={() => navigate("/health/dashboard")}
-          />
-          <ActionRow
-            icon={<MapPin className="h-5 w-5" />}
-            iconClassName="bg-[#F6F8FB] text-[#020617]"
-            title={t("addresses")}
-            subtitle={t("addresses_desc")}
-            onClick={() => navigate("/addresses")}
             divider={false}
           />
         </ActionSection>
 
         <ActionSection title={t("finance")}>
           <ActionRow
+            icon={<MapPin className="h-5 w-5" />}
+            iconClassName="bg-[#E9FBF7] text-[#22C7A1]"
+            title={t("addresses")}
+            subtitle={t("addresses_desc")}
+            onClick={() => navigate("/addresses")}
+          />
+          <ActionRow
             icon={<WalletCards className="h-5 w-5" />}
             iconClassName="bg-[#FFF7ED] text-[#F97316]"
             title={t("payments")}
             subtitle={t("payments_subtitle")}
             onClick={() => navigate("/wallet")}
-          />
-          <ActionRow
-            icon={<Gift className="h-5 w-5" />}
-            iconClassName="bg-[#F3F4FF] text-[#7C83F6]"
-            title={t("rewards")}
-            subtitle={t("rewards_profile_subtitle")}
-            onClick={() => navigate("/rewards")}
           />
           <ActionRow
             icon={<ShoppingBag className="h-5 w-5" />}
@@ -816,13 +749,6 @@ const Profile = () => {
             title={t("privacy_security")}
             subtitle={t("privacy_security_subtitle")}
             onClick={() => navigate("/privacy")}
-          />
-          <ActionRow
-            icon={<Bell className="h-5 w-5" />}
-            iconClassName="bg-[#EFF9FF] text-[#38BDF8]"
-            title={t("notification_center")}
-            subtitle={t("notification_center_subtitle")}
-            onClick={() => navigate("/notifications")}
           />
           <ActionRow
             icon={<Settings className="h-5 w-5" />}

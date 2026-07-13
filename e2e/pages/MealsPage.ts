@@ -1,4 +1,5 @@
 import { Page, Locator } from '@playwright/test';
+import { appUrl } from '../config';
 
 export class MealsPage {
   readonly page: Page;
@@ -28,7 +29,7 @@ export class MealsPage {
   }
 
   async goto() {
-    await this.page.goto('/meals');
+    await this.page.goto(appUrl('/meals'));
     await this.page.waitForLoadState('networkidle');
   }
 

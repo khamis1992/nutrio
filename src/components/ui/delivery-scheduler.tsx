@@ -89,7 +89,10 @@ export const DeliveryScheduler = ({
         return;
       }
 
-      const nextAddresses = data || [];
+      const nextAddresses: DeliveryAddress[] = (data || []).map((address) => ({
+        ...address,
+        is_default: address.is_default ?? false,
+      }));
       setAddresses(nextAddresses);
       if (nextAddresses.length > 0) {
         const defaultAddress = nextAddresses.find((address) => address.is_default) || nextAddresses[0];

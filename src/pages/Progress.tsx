@@ -304,7 +304,11 @@ const ProgressNative = () => {
   const fetchWeightEntries = async () => {
     if (!user) return;
     const { data } = await supabase.from("body_measurements").select("*").eq("user_id", user.id).order("log_date", { ascending: false });
-    setWeightEntries(data || []);
+    setWeightEntries(
+      (data ?? [])
+        .filter((entry) => entry.weight_kg != null)
+        .map((entry) => ({ id: entry.id, weight_kg: entry.weight_kg as number, log_date: entry.log_date })),
+    );
   };
 
   const handleAddWeight = async () => {

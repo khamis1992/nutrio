@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Apple,
   ArrowLeft,
-  CalendarDays,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -23,9 +22,9 @@ import {
   getPartnerIntegration,
   recordSportHubClick,
   recordSportHubEvent,
-  upsertPartnerIntegration,
   type PartnerIntegrationRecord,
 } from "@/lib/partnerTracking";
+import { startSportHubLink, unlinkSportHub } from "@/lib/sporthubIntegration";
 
 const SPORTHUB_REFERRAL_CODE = "NUTRIO15";
 const SPORTHUB_BASE_URL = "https://www.sporthubapp.com/";
@@ -75,6 +74,7 @@ const bookingSteps = [
 
 export default function SportHubPartner() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { trackEvent, trackPageView } = useAnalytics();
   const [integrationStatus, setIntegrationStatus] = useState<PartnerIntegrationRecord["consent_status"] | "not_linked">(
@@ -93,6 +93,12 @@ export default function SportHubPartner() {
       eventType: "sporthub_partner_page_opened",
     });
   }, [trackEvent, trackPageView, user?.id]);
+
+  useEffect(() => {
+    const result = searchParams.get("sporthub_link");
+    if (result === "linked") toast.success("SportHub account connected");
+    if (result === "failed") toast.error("SportHub connection was not completed");
+  }, [searchParams]);
 
   useEffect(() => {
     let isMounted = true;
@@ -123,26 +129,29 @@ export default function SportHubPartner() {
     };
   }, [user?.id]);
 
-  const trackOutbound = (campaign: string) => {
+  const trackOutbound = async (campaign: string) => {
     trackEvent("sporthub_cta_clicked", {
       partner: "sporthub",
       campaign,
       referral_code: SPORTHUB_REFERRAL_CODE,
     });
-    recordSportHubClick({
+    await recordSportHubClick({
       userId: user?.id,
       campaign,
       eventType: "sporthub_cta_clicked",
     });
   };
 
-  const openUrl = (url: string, campaign: string) => {
-    trackOutbound(campaign);
+  const openUrl = async (url: string, campaign: string) => {
+    await Promise.race([
+      trackOutbound(campaign),
+      new Promise((resolve) => window.setTimeout(resolve, 700)),
+    ]);
     window.location.href = url;
   };
 
   const openSportHub = (campaign: string) => {
-    openUrl(buildSportHubUrl(campaign), campaign);
+    void openUrl(buildSportHubUrl(campaign), campaign);
   };
 
   const copyCode = async () => {
@@ -166,63 +175,45 @@ export default function SportHubPartner() {
     }
 
     setIntegrationSaving(true);
-    const integration = await upsertPartnerIntegration({
-      userId: user.id,
-      partner: "sporthub",
-      consentStatus: "pending",
-      metadata: {
-        source: "partner_page",
-        consent_version: "2026-07-05",
-        referral_code: SPORTHUB_REFERRAL_CODE,
-        requested_scope: ["booking_status", "activity_type", "session_time"],
-      },
-    });
-    setIntegrationSaving(false);
-
-    if (!integration) {
-      toast.error("SportHub linking is not ready yet");
-      return;
+    try {
+      const authorizationUrl = await startSportHubLink("/partners/sporthub");
+      setIntegrationStatus("pending");
+      trackEvent("sporthub_account_link_requested", { partner: "sporthub" });
+      await recordSportHubEvent({
+        userId: user.id,
+        campaign: "account_linking",
+        eventType: "sporthub_account_link_requested",
+      });
+      window.location.href = authorizationUrl;
+    } catch (error) {
+      console.error("Could not start SportHub linking", error);
+      toast.error("SportHub linking is not available yet");
+      setIntegrationSaving(false);
     }
-
-    setIntegrationStatus(integration.consent_status);
-    trackEvent("sporthub_account_link_requested", { partner: "sporthub" });
-    recordSportHubEvent({
-      userId: user.id,
-      campaign: "account_linking",
-      eventType: "sporthub_account_link_requested",
-    });
-    toast.success("SportHub link request saved");
   };
 
   const revokeSportHubLink = async () => {
     if (!user?.id) return;
 
     setIntegrationSaving(true);
-    const integration = await upsertPartnerIntegration({
-      userId: user.id,
-      partner: "sporthub",
-      consentStatus: "revoked",
-      metadata: {
-        source: "partner_page",
-        consent_version: "2026-07-05",
-        revoked_by: "user",
-      },
-    });
-    setIntegrationSaving(false);
-
-    if (!integration) {
+    try {
+      await unlinkSportHub();
+    } catch (error) {
+      console.error("Could not unlink SportHub", error);
       toast.error("Could not update SportHub link");
+      setIntegrationSaving(false);
       return;
     }
 
     setIntegrationStatus("revoked");
     trackEvent("sporthub_account_unlinked", { partner: "sporthub" });
-    recordSportHubEvent({
+    await recordSportHubEvent({
       userId: user.id,
       campaign: "account_linking",
       eventType: "sporthub_account_unlinked",
     });
     toast.success("SportHub link revoked");
+    setIntegrationSaving(false);
   };
 
   const skipSportHubLink = () => {
@@ -235,7 +226,8 @@ export default function SportHubPartner() {
     toast("No SportHub data will be shared");
   };
 
-  const isLinkRequested = integrationStatus === "pending" || integrationStatus === "linked";
+  const isLinked = integrationStatus === "linked";
+  const isLinkPending = integrationStatus === "pending";
 
   return (
     <main className="h-[100dvh] overflow-y-auto overflow-x-hidden bg-white pb-28 pt-safe text-[#020617] [-webkit-overflow-scrolling:touch]">
@@ -376,10 +368,10 @@ export default function SportHubPartner() {
             <span
               className={cn(
                 "shrink-0 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em]",
-                isLinkRequested ? "bg-[#E9FBF7] text-[#0FAE87]" : "bg-[#F6F8FB] text-[#94A3B8]",
+                isLinked ? "bg-[#E9FBF7] text-[#0FAE87]" : isLinkPending ? "bg-[#EFF9FF] text-[#38BDF8]" : "bg-[#F6F8FB] text-[#94A3B8]",
               )}
             >
-              {integrationLoading ? "Checking" : isLinkRequested ? "Pending" : "Off"}
+              {integrationLoading ? "Checking" : isLinked ? "Connected" : isLinkPending ? "Pending" : "Off"}
             </span>
           </div>
 
@@ -399,19 +391,19 @@ export default function SportHubPartner() {
             <Button
               type="button"
               onClick={requestSportHubLink}
-              disabled={integrationLoading || integrationSaving || isLinkRequested}
+              disabled={integrationLoading || integrationSaving || isLinked}
               className="h-[52px] rounded-[19px] bg-[#22C7A1] text-[13px] font-black text-white hover:bg-[#16B08D] disabled:opacity-70"
             >
-              {isLinkRequested ? "Link requested" : "Link SportHub"}
+              {isLinked ? "SportHub connected" : isLinkPending ? "Continue linking" : "Link SportHub"}
             </Button>
             <Button
               type="button"
               variant="outline"
-              onClick={isLinkRequested ? revokeSportHubLink : skipSportHubLink}
+              onClick={isLinked || isLinkPending ? revokeSportHubLink : skipSportHubLink}
               disabled={integrationLoading || integrationSaving}
               className="h-[52px] rounded-[19px] border-[#E5EAF1] bg-white px-5 text-[13px] font-black text-[#020617] disabled:opacity-50"
             >
-              {isLinkRequested ? "Unlink" : "Not now"}
+              {isLinked || isLinkPending ? "Unlink" : "Not now"}
             </Button>
           </div>
         </section>

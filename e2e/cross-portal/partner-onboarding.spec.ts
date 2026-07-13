@@ -11,19 +11,15 @@
  * 7. Admin can view partner restaurant
  */
 
-import { test, expect, Browser, BrowserContext, Page } from '@playwright/test';
+import { test, Browser, BrowserContext, Page } from '@playwright/test';
 import {
-  PortalPages,
   loginAsAdmin,
+  loginAsPartner,
   waitForNetworkIdle,
   verifyPageLoaded,
-  safeClick,
-  safeFill,
-  getTestTimestamp,
-  elementExists,
 } from './utils';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://127.0.0.1:5173/nutrio';
 
 test.describe('Cross-Portal: Partner Onboarding Workflow', () => {
   let browser: Browser;
@@ -31,8 +27,6 @@ test.describe('Cross-Portal: Partner Onboarding Workflow', () => {
   let partnerContext: BrowserContext;
   let adminPage: Page;
   let partnerPage: Page;
-  const testTimestamp = getTestTimestamp();
-
   test.beforeAll(async ({ browser: b }) => {
     browser = b;
     
@@ -61,14 +55,7 @@ test.describe('Cross-Portal: Partner Onboarding Workflow', () => {
   });
 
   test('Step 2: Partner logs in', async () => {
-    // Partner login
-    await safeFill(partnerPage, 'input[type="email"]', 'partner@nutrio.com');
-    await safeFill(partnerPage, 'input[type="password"]', 'Partner123!');
-    await safeClick(partnerPage, 'button[type="submit"]');
-    
-    // Wait for redirect (may go to onboarding or dashboard)
-    await partnerPage.waitForURL(/.*partner.*/, { timeout: 10000 });
-    await waitForNetworkIdle(partnerPage);
+    await loginAsPartner(partnerPage);
     
     console.log('Partner logged in');
   });
@@ -152,8 +139,6 @@ test.describe('Cross-Portal: Partner Onboarding Workflow', () => {
     await waitForNetworkIdle(adminPage);
     
     // Look for restaurant items
-    const restaurantItems = adminPage.locator('tr, [data-testid="restaurant-item"], .restaurant-card').first();
-    
     console.log('Admin can view restaurants');
     await verifyPageLoaded(adminPage);
   });
@@ -161,7 +146,7 @@ test.describe('Cross-Portal: Partner Onboarding Workflow', () => {
   test('Step 11: Partner and Admin portals both active', async () => {
     // Navigate both at once
     await Promise.all([
-      partnerPage.goto(`${BASE_URL}/partner/dashboard`),
+      partnerPage.goto(`${BASE_URL}/partner`),
       adminPage.goto(`${BASE_URL}/admin/restaurants`),
     ]);
     

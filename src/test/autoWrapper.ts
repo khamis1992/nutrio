@@ -1,8 +1,7 @@
-import path from "path";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render as rtlRender, renderHook as rtlRenderHook } from "@testing-library/react";
-import { vi, beforeEach } from "vitest";
+import { beforeEach } from "vitest";
 
 /**
  * Global test setup — auto-wraps every `render()` with QueryClientProvider.
@@ -36,11 +35,9 @@ const QCWrapper = ({ children }: { children: React.ReactNode }) => (
 const origRender = rtlRender;
 const origRenderHook = rtlRenderHook;
 
-// @ts-expect-error — override the module's render
 (rtlRender as any) = (ui: any, options?: any) =>
   origRender(ui, { ...options, wrapper: QCWrapper });
 
-// @ts-expect-error — override the module's renderHook
 (rtlRenderHook as any) = (hook: any, options?: any) =>
   origRenderHook(hook, { ...options, wrapper: QCWrapper });
 

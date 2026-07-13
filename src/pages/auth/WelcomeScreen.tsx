@@ -45,7 +45,6 @@ const cardItem = {
 const NutritionRingDial = () => {
   const reduceMotion = useReducedMotion();
   const R = 50;
-  const C = 2 * Math.PI * R;
   const macros = [
     { label: "Protein", value: "142g", pct: 0.72, color: "#7C83F6", track: "#F3F4FF", iconBg: "bg-[#F3F4FF] text-[#7C83F6]", delay: 0 },
     { label: "Carbs", value: "181g", pct: 0.58, color: "#F97316", track: "#FFF7ED", iconBg: "bg-orange-100 text-orange-500", delay: 0.15 },

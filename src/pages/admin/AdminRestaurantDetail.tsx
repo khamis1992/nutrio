@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -27,13 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -64,7 +56,6 @@ import {
   Upload,
   Image as ImageIcon,
   Eye,
-  MoreHorizontal,
   Users,
   RotateCcw,
   CreditCard,
@@ -75,7 +66,6 @@ import {
   ChevronRight,
   Search,
   Filter,
-  Plus,
   FileSpreadsheet,
   UserPlus,
   KeyRound,
@@ -84,6 +74,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 import { z } from "zod";
 import {
@@ -141,7 +132,7 @@ interface RestaurantDetails {
   alternate_phone: string | null;
   avg_prep_time_minutes: number | null;
   max_meals_per_day: number | null;
-  operating_hours: Record<string, unknown> | null;
+  operating_hours: Json | null;
   website_url: string | null;
 }
 
@@ -156,10 +147,10 @@ interface RestaurantStats {
 interface Order {
   id: string;
   scheduled_date: string;
-  meal_type: string;
+  meal_type: string | null;
   order_status: OrderStatus;
   is_completed: boolean;
-  created_at: string;
+  created_at: string | null;
   meal: {
     name: string;
     price: number;
@@ -365,13 +356,13 @@ const AdminRestaurantDetail = () => {
   const [restaurantPayouts, setRestaurantPayouts] = useState<Array<{
     id: string;
     amount: number;
-    status: string;
+    status: string | null;
     period_start: string;
     period_end: string;
     processed_at: string | null;
     reference_number: string | null;
     payout_method: string | null;
-    created_at: string;
+    created_at: string | null;
   }>>([]);
   const [payoutsLoading, setPayoutsLoading] = useState(false);
 
@@ -706,7 +697,11 @@ const AdminRestaurantDetail = () => {
       if (schedulesError) throw schedulesError;
 
       // Get meal details
-      const mealIds = [...new Set((schedulesData || []).map((o) => o.meal_id).filter(Boolean))];
+      const mealIds = [...new Set(
+        (schedulesData || [])
+          .map((schedule) => schedule.meal_id)
+          .filter((mealId): mealId is string => Boolean(mealId)),
+      )];
       let mealsMap: Record<string, { name: string; price: number }> = {};
 
       if (mealIds.length > 0) {
@@ -741,21 +736,23 @@ const AdminRestaurantDetail = () => {
         }
       }
 
-      const ordersWithDetails: Order[] = (schedulesData || []).map((o: Record<string, unknown>) => {
-        const meal = mealsMap[o.meal_id] || { name: "Unknown", price: 0 };
+      const ordersWithDetails: Order[] = (schedulesData || []).map((schedule) => {
+        const meal = schedule.meal_id
+          ? mealsMap[schedule.meal_id] || { name: "Unknown", price: 0 }
+          : { name: "Unknown", price: 0 };
         
         return {
-          id: o.id,
-          scheduled_date: o.scheduled_date,
-          meal_type: o.meal_type,
-          order_status: (o.order_status || "pending") as OrderStatus,
-          is_completed: o.is_completed || false,
-          created_at: o.created_at,
+          id: schedule.id,
+          scheduled_date: schedule.scheduled_date,
+          meal_type: schedule.meal_type,
+          order_status: (schedule.order_status || "pending") as OrderStatus,
+          is_completed: schedule.is_completed ?? false,
+          created_at: schedule.created_at,
           meal: {
             name: meal.name,
             price: meal.price,
           },
-          profile: profilesMap[o.user_id] || null,
+          profile: profilesMap[schedule.user_id] || null,
         };
       });
 
@@ -2478,7 +2475,7 @@ const AdminRestaurantDetail = () => {
                               {payout.reference_number || "—"}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {format(new Date(payout.created_at), "MMM d, yyyy")}
+                              {payout.created_at ? format(new Date(payout.created_at), "MMM d, yyyy") : "-"}
                             </TableCell>
                           </TableRow>
                         ))}

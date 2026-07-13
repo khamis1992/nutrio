@@ -8,7 +8,7 @@ The code changes are done. **You must complete the steps below before merging**,
 ## What changed in code
 
 **New edge functions (created — need deploy):**
-- `supabase/functions/sadad-payment/index.ts` — handles `create` / `status` / `refund` ops, JWT-verified
+- `supabase/functions/sadad-payment/index.ts` — handles hosted checkout creation, status, checksum-verified callbacks, and webhooks
 - `supabase/functions/google-fit-token-refresh/index.ts` — refreshes Google Fit access tokens server-side
 
 **Client refactored (no more secrets in bundle):**
@@ -30,9 +30,12 @@ supabase functions deploy google-fit-token-refresh
 In Supabase dashboard → Project Settings → Edge Functions → Secrets (or via CLI):
 
 ```bash
-supabase secrets set SADAD_API_URL=https://api.sadad.qa
 supabase secrets set SADAD_MERCHANT_ID=<your-merchant-id>
 supabase secrets set SADAD_SECRET_KEY=<NEW-rotated-key>
+supabase secrets set SADAD_WEBSITE=<registered-website-identifier>
+supabase secrets set SADAD_CALLBACK_URL=https://<project>.supabase.co/functions/v1/sadad-payment?source=callback
+supabase secrets set APP_URL=https://<app-host>/nutrio
+supabase secrets set ALLOWED_ORIGINS=https://<app-host>
 # GOOGLE_FIT_CLIENT_ID and GOOGLE_FIT_CLIENT_SECRET are likely already set
 # for the existing google-fit-token function. Verify:
 supabase secrets list
@@ -81,10 +84,9 @@ curl -i -X POST https://<project>.supabase.co/functions/v1/sadad-payment \
   -d '{"op":"status","payload":{"paymentId":"test"}}'
 ```
 
-Then in the app: connect Google Fit, wait for token expiry (or force it in DB by setting `expires_at` to a past timestamp), and confirm refresh succeeds. For Sadad, run a small wallet top-up end-to-end.
+Then in the app: connect Google Fit, wait for token expiry (or force it in DB by setting `expires_at` to a past timestamp), and confirm refresh succeeds. For SADAD, follow the sandbox matrix in `docs/integrations/SADAD_WEB_CHECKOUT_2_1.md` and configure the merchant-panel webhook as `https://<project>.supabase.co/functions/v1/sadad-payment?source=webhook`.
 
 ## Known remaining issues (out of scope for this fix)
 
-- **Sadad callback verification** — `sadad.ts` previously had a `verifyCallback` method using Node `crypto` (broken in browser anyway). Real callback verification needs a separate `sadad-callback` edge function that Sadad POSTs to. The current callback URL `${origin}/api/payment/callback` is a SPA path that doesn't exist as a real backend route. This is a pre-existing gap, not something this fix introduced.
 - **OpenRouter API key in client bundle** — the security audit found this in 3 files. Same pattern — needs an edge function proxy. Not addressed in this PR.
 - **Mapbox token without URL allow-list** — restrict in Mapbox dashboard to your domains.

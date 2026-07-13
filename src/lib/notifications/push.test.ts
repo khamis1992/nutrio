@@ -240,11 +240,11 @@ describe("Push Notification Service", () => {
     beforeEach(() => {
       // @ts-expect-error -- testing invalid argument type intentionally
       delete window.location;
-      window.location = { href: "" } as any;
+      (window as any).location = { href: "" };
     });
 
     afterEach(() => {
-      window.location = originalLocation;
+      (window as any).location = originalLocation;
     });
 
     it("navigates to tracking page for order_update", async () => {

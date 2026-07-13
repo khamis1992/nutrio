@@ -15,7 +15,6 @@ import {
   Utensils,
   MessageCircle,
   Send,
-  X,
   User,
   ArrowLeft,
 } from "lucide-react";
@@ -26,6 +25,7 @@ import { useClientCoachMessages } from "@/hooks/useClientCoachMessages";
 import { formatDistanceToNow, isToday, isYesterday, isThisWeek, isThisMonth } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Notification {
   id: string;
@@ -154,14 +154,13 @@ const itemVariants = {
 
 // ─── Inline coach chat component ───
 function CoachReplySheet({
-  notification,
   clientId,
   onClose,
 }: {
-  notification: Notification;
   clientId: string;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   const { messages, coachInfo, loading, sending, sendMessage, markAsRead } = useClientCoachMessages(clientId);
   const [messageInput, setMessageInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -177,7 +176,7 @@ function CoachReplySheet({
     if (coachInfo) {
       markAsRead();
     }
-  }, [coachInfo, messages.length]);
+  }, [coachInfo, messages.length, markAsRead]);
 
   const handleSend = async () => {
     if (!messageInput.trim()) return;
@@ -438,25 +437,31 @@ export default function Notifications() {
   const groupedNotifications = groupNotificationsByTime(filtered);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#F6F8FB] text-[#020617]">
       {replyNotification && clientId && (
         <CoachReplySheet
-          notification={replyNotification}
           clientId={clientId}
           onClose={() => setReplyNotification(null)}
         />
       )}
 
-      {/* Floating Header */}
-      <div className="sticky top-0 z-10 bg-white pt-12 px-5 pb-2">
+      <div className="sticky top-0 z-10 border-b border-[#E5EAF1] bg-white/95 px-4 pb-2 pt-safe backdrop-blur-xl">
         <div className="mx-auto max-w-[430px]">
-          <div className="flex items-center justify-between">
+          <div className="flex min-h-14 items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              aria-label={t("back")}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E5EAF1] bg-white text-[#020617] shadow-sm active:scale-95"
+            >
+              <ArrowLeft className="h-5 w-5 rtl:rotate-180" />
+            </button>
             <motion.div
               initial={prefersReducedMotion ? undefined : { opacity: 0, y: -10 }}
               animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-              className="flex items-center gap-2"
+              className="flex min-w-0 flex-1 items-center gap-2"
             >
-              <h1 className="text-[28px] font-bold tracking-[-0.02em] text-slate-950">
+              <h1 className="truncate text-[20px] font-extrabold text-[#020617]">
                 {t("notifications")}
               </h1>
               {unreadCount > 0 && (
@@ -475,10 +480,11 @@ export default function Notifications() {
               whileTap={prefersReducedMotion ? undefined : { scale: 0.92 }}
               onClick={markAllAsRead}
               disabled={unreadCount === 0}
-              className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition disabled:opacity-50"
+              aria-label="Mark all notifications as read"
+              title="Mark all as read"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E5EAF1] bg-white text-[#22C7A1] shadow-sm transition active:scale-95 disabled:opacity-40"
             >
-              <CheckCheck className="h-3.5 w-3.5" />
-              Mark all read
+              <CheckCheck className="h-5 w-5" />
             </motion.button>
           </div>
 

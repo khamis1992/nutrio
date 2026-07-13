@@ -48,6 +48,11 @@ coverage/
 # Playwright / browser automation artifacts
 .playwright-mcp/
 app-screenshots/
+e2e/.auth/
+playwright-report/
+blob-report/
+test-results/
+.env.e2e
 
 # Design / promo assets (not source code)
 instagram-images/

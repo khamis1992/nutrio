@@ -291,13 +291,18 @@ export default function WaterTracker() {
     await handleDrink(ml);
   };
 
-  const handleSaveGoal = () => {
+  const handleSaveGoal = async () => {
     const ml = parseInt(goalInput, 10);
     if (isNaN(ml) || ml <= 0) return;
-    setGoalMl(ml);
-    setGoalDialogOpen(false);
-    setGoalInput("");
-    toast({ title: t("water_goal_updated"), description: `${t("water_daily_goal")}: ${ml.toLocaleString()} ${t("water_ml")}` });
+    try {
+      await setGoalMl(ml);
+      setGoalDialogOpen(false);
+      setGoalInput("");
+      toast({ title: t("water_goal_updated"), description: `${t("water_daily_goal")}: ${ml.toLocaleString()} ${t("water_ml")}` });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("water_failed_to_add");
+      toast({ title: t("water_failed_to_add"), description: message, variant: "destructive" });
+    }
   };
 
   const handleDeleteEntry = async (id: string) => {
@@ -518,7 +523,7 @@ export default function WaterTracker() {
                     </span>
                     <div>
                       <p className="text-[15px] font-black text-[#020617]">{entry.amount_ml.toLocaleString()} mL</p>
-                      <p className="text-[10px] font-bold text-[#94A3B8]">{format(new Date(entry.created_at), "h:mm a")}</p>
+                      <p className="text-[10px] font-bold text-[#94A3B8]">{entry.created_at ? format(new Date(entry.created_at), "h:mm a") : "--"}</p>
                     </div>
                   </div>
                   <button

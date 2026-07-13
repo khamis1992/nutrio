@@ -162,7 +162,7 @@ export default function AIReportPage() {
       profile: {
         name: profile?.full_name || t("user"),
         goal: activeGoal?.goal_type || "general",
-        weight: profile?.weight_kg ?? 0,
+        weight: profile?.current_weight_kg ?? 0,
         height: profile?.height_cm ?? 0,
       },
       macros: {
@@ -236,7 +236,7 @@ export default function AIReportPage() {
       reportDate: new Date().toISOString(),
       weekStart: weekStart.toISOString(),
       weekEnd: weekEnd.toISOString(),
-      currentWeight: profile?.weight_kg ?? null,
+      currentWeight: profile?.current_weight_kg ?? null,
       weightChange: null,
       weightGoal: activeGoal?.target_weight_kg ?? null,
       weightProgress: 0,

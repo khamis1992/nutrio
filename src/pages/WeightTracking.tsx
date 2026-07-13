@@ -1,4 +1,3 @@
-import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -35,7 +34,7 @@ export default function WeightTracking() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
-  const { t, isRTL } = useLanguage();
+  const { t } = useLanguage();
 
   const [entries, setEntries] = useState<WeightEntry[]>([]);
   const [submitting, setSubmitting] = useState(false);

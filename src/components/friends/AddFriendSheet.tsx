@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Search, UserPlus, Loader2, Check } from "lucide-react";
+import { Search, UserPlus, Loader2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useFriends, FriendSearchResult } from "@/hooks/useFriends";
+import { useFriends } from "@/hooks/useFriends";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AddFriendSheetProps {
   open: boolean;
@@ -13,11 +14,10 @@ interface AddFriendSheetProps {
 
 export function AddFriendSheet({ open, onOpenChange }: AddFriendSheetProps) {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   
-  // Note: userId will come from AuthContext in the parent component
-  // For now, using a placeholder that will be replaced when integrated into Friends page
-  const { searchUsers, searchResults, isSearching, sendFriendRequest } = useFriends(undefined);
+  const { searchUsers, searchResults, isSearching, sendFriendRequest } = useFriends(user?.id);
   
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
 

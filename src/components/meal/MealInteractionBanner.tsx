@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { AlertTriangle, Info, Pill, ShieldAlert, ShieldCheck, ShieldX } from "lucide-react";
+import { AlertTriangle, Info, Pill, ShieldCheck, ShieldX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMealMedicineCheck } from "@/hooks/useMealMedicineCheck";
 import { useUserMedications } from "@/hooks/useMealMedicineCheck";

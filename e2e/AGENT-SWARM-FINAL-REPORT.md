@@ -10,7 +10,7 @@
 
 ### Phase 1: Infrastructure Setup ✓
 - **IP Restriction Disabled** - Edge Function bypass implemented
-- **Test User Created** - `khamis--1992@hotmail.com` in Supabase auth
+- **Test User Created** - `<E2E_ACCOUNT_EMAIL>` in Supabase auth
 - **Routes Fixed** - 7 test files updated with correct URLs
 - **Selectors Fixed** - Auth test selectors updated to match UI
 
@@ -105,8 +105,8 @@
    # Option A: Sign up via UI
    - Open http://localhost:8080/auth
    - Click "Sign up"
-   - Use email: khamis--1992@hotmail.com
-   - Use password: Khamees1992#
+   - Use email: <E2E_ACCOUNT_EMAIL>
+   - Use password: <E2E_ADMIN_PASSWORD>
    - Complete registration
    
    # Option B: Use Supabase Dashboard

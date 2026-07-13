@@ -16,8 +16,8 @@ import { SplashScreen } from '@capacitor/splash-screen';
 import { Keyboard } from '@capacitor/keyboard';
 import { App } from '@capacitor/app';
 import { Device } from '@capacitor/device';
-import { PushNotifications } from '@capacitor/push-notifications';
-import { LocalNotifications } from '@capacitor/local-notifications';
+import { PushNotifications, type PushNotificationSchema } from '@capacitor/push-notifications';
+import { LocalNotifications, type LocalNotificationSchema } from '@capacitor/local-notifications';
 import { NativeBiometric, BiometryType } from '@capgo/capacitor-native-biometric';
 
 // ========================================
@@ -115,8 +115,7 @@ export const haptics = {
    */
   vibrate: async (duration: number = 300) => {
     if (isNative && isAndroid) {
-      // Use notification pattern for vibration
-      await Haptics.notification({ type: NotificationType.Success });
+      await Haptics.vibrate({ duration });
     }
   },
 };
@@ -361,7 +360,7 @@ export const pushNotifications = {
   /**
    * Remove delivered notifications
    */
-  removeDeliveredNotifications: async (notifications: { id: string }[]) => {
+  removeDeliveredNotifications: async (notifications: PushNotificationSchema[]) => {
     if (isNative) {
       await PushNotifications.removeDeliveredNotifications({ notifications });
     }
@@ -412,9 +411,14 @@ export const localNotifications = {
   /**
    * Schedule a local notification
    */
-  schedule: async (notifications: { title?: string; body?: string; id?: number; scheduleAt?: Date }[]) => {
+  schedule: async (notifications: Array<Pick<LocalNotificationSchema, "title" | "body" | "id"> & { scheduleAt?: Date }>) => {
     if (isNative) {
-      return await LocalNotifications.schedule({ notifications });
+      return await LocalNotifications.schedule({
+        notifications: notifications.map(({ scheduleAt, ...notification }) => ({
+          ...notification,
+          schedule: scheduleAt ? { at: scheduleAt } : undefined,
+        })),
+      });
     }
     return null;
   },

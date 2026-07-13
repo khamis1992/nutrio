@@ -17,12 +17,12 @@ import { MapPin, Phone, Store, Package, CheckCircle, Navigation, ArrowLeft, Scan
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { DriverLayout } from "@/components/DriverLayout";
 import { DriverQRScanner } from "@/components/driver/DriverQRScanner";
 
 interface DeliveryDetails {
   id: string;
-  schedule_id: string;
+  schedule_id: string | null;
+  order_id: string | null;
   status: string;
   pickup_address: string;
   delivery_address: string;
@@ -47,6 +47,17 @@ interface DeliveryDetails {
     addons: string[];
   } | null;
 }
+
+const asJsonObject = (value: unknown): Record<string, unknown> | null =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+
+const readString = (value: unknown, fallback = "") =>
+  typeof value === "string" ? value : fallback;
+
+const readNumber = (value: unknown, fallback = 0) =>
+  typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
 // Map frontend display statuses to database statuses
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -140,29 +151,26 @@ export default function DriverOrderDetail() {
         restaurantData = restaurant;
       }
 
-      // Fetch meal schedule and related data via RPC function
-      let mealScheduleData = null;
-      if (deliveryData.schedule_id) {
-        const { data: details } = await supabase.rpc(
-          "get_delivery_details_for_driver",
-          { p_delivery_job_id: deliveryData.id }
-        );
+      const { data: details, error: detailsError } = await supabase.rpc(
+        "get_delivery_details_for_driver",
+        { p_delivery_job_id: deliveryData.id }
+      );
+      if (detailsError) throw detailsError;
 
-        if (details && !details.error) {
-          mealScheduleData = {
-            meal_name: details.meal_name || "Meal",
-            calories: details.meal_calories || 0,
-            customer_name: details.customer_name || "Customer",
-            customer_phone: details.customer_phone || null,
-            special_instructions: details.delivery_instructions || null,
-            addons: [],
-          };
-        }
-      }
+      const detailObject = asJsonObject(details);
+      const mealScheduleData = detailObject ? {
+        meal_name: readString(detailObject.meal_name, "Meal"),
+        calories: readNumber(detailObject.meal_calories),
+        customer_name: readString(detailObject.customer_name, "Customer"),
+        customer_phone: typeof detailObject.customer_phone === "string" ? detailObject.customer_phone : null,
+        special_instructions: typeof detailObject.delivery_instructions === "string" ? detailObject.delivery_instructions : null,
+        addons: [],
+      } : null;
 
       setDelivery({
         id: deliveryData.id,
         schedule_id: deliveryData.schedule_id,
+        order_id: deliveryData.order_id,
         status: deliveryData.status || "pending",
         pickup_address: deliveryData.pickup_address || "",
         delivery_address: deliveryData.delivery_address || "",
@@ -261,13 +269,15 @@ export default function DriverOrderDetail() {
         const { data, error } = await supabase.rpc("verify_pickup_by_qr", {
           p_delivery_id: id,
           p_qr_code: qrData,
+          p_driver_id: driverId,
         });
         result = { data, error };
       }
       
       if (result.error) throw result.error;
       
-      if (result.data?.success) {
+      const resultObject = asJsonObject(result.data);
+      if (resultObject?.success === true) {
         setScanResult({ success: true, message: "Pickup verified successfully!" });
         
         // Status is already updated by the verification function
@@ -278,7 +288,7 @@ export default function DriverOrderDetail() {
       } else {
         setScanResult({ 
           success: false, 
-          message: result.data?.error || "Invalid code. Please try again." 
+          message: readString(resultObject?.error, "Invalid code. Please try again.")
         });
       }
     } catch (error) {
@@ -294,28 +304,24 @@ export default function DriverOrderDetail() {
 
   if (loading) {
     return (
-      <DriverLayout title="Order Details">
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-48 w-full" />
-        </div>
-      </DriverLayout>
+      <div className="space-y-4 p-4">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
     );
   }
 
   if (!delivery) {
     return (
-      <DriverLayout title="Order Not Found">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-            <p className="text-muted-foreground">Delivery not found</p>
-            <Button className="mt-4" onClick={() => navigate("/driver")}>
-              Back to Dashboard
-            </Button>
-          </CardContent>
-        </Card>
-      </DriverLayout>
+      <Card className="m-4">
+        <CardContent className="py-12 text-center">
+          <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+          <p className="text-muted-foreground">Delivery not found</p>
+          <Button className="mt-4" onClick={() => navigate("/driver")}>
+            Back to Dashboard
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -323,8 +329,7 @@ export default function DriverOrderDetail() {
   const statusConfig = STATUS_CONFIG[delivery.status] || { label: delivery.status, color: "bg-gray-500" };
 
   return (
-    <DriverLayout title="Order Details">
-      <div className="space-y-4">
+    <div className="space-y-4 p-4 pb-24">
         <div className="flex justify-start rtl:flex-row-reverse">
           <Button
             variant="ghost"
@@ -346,7 +351,12 @@ export default function DriverOrderDetail() {
 
             <div className="mb-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Order #</p>
-              <p className="font-mono text-sm font-medium">{delivery.schedule_id?.slice(0, 8) || delivery.id?.slice(0, 8)}</p>
+              <p
+                data-testid="driver-order-source-id"
+                className="font-mono text-sm font-medium"
+              >
+                {(delivery.schedule_id || delivery.order_id || delivery.id).slice(0, 8).toUpperCase()}
+              </p>
             </div>
 
             <div className="flex items-center gap-3 mb-4">
@@ -507,42 +517,7 @@ export default function DriverOrderDetail() {
           {delivery.status === "in_transit" && (
             <Button
               className="w-full bg-green-600 hover:bg-green-700"
-              onClick={async () => {
-                if (!delivery) return;
-                setUpdating(true);
-                try {
-                  // Update delivery_jobs to completed directly
-                  const { error: jobError } = await supabase
-                    .from("delivery_jobs")
-                    .update({
-                      status: "completed",
-                      delivered_at: new Date().toISOString(),
-                      delivery_notes: notes,
-                      updated_at: new Date().toISOString()
-                    })
-                    .eq("id", delivery.id);
-                  if (jobError) throw jobError;
-
-                  // Sync trigger will update meal_schedules to completed
-
-                  toast({
-                    title: "Delivery Completed!",
-                    description: "Order marked as completed successfully",
-                  });
-
-                  // Navigate back to driver dashboard
-                  navigate("/driver");
-                } catch (error) {
-                  console.error("Error completing delivery:", error);
-                  toast({
-                    title: "Error",
-                    description: error instanceof Error ? error.message : "Failed to complete delivery",
-                    variant: "destructive",
-                  });
-                } finally {
-                  setUpdating(false);
-                }
-              }}
+              onClick={() => updateStatus("delivered")}
               disabled={updating}
             >
               {updating ? (
@@ -550,25 +525,23 @@ export default function DriverOrderDetail() {
               ) : (
                 <CheckCircle className="h-4 w-4 mr-2" />
               )}
-              Complete Delivery
+              Mark as Delivered
             </Button>
           )}
 
           {(delivery.status === "delivered" || delivery.status === "completed") && (
             <div className="p-4 bg-green-600/10 rounded-xl text-center border-2 border-green-600">
               <CheckCircle className="h-10 w-10 mx-auto mb-2 text-green-600" />
-              <p className="font-bold text-green-600 text-lg">Order Completed!</p>
+              <p className="font-bold text-green-600 text-lg">Delivery Completed!</p>
               <p className="text-sm text-muted-foreground mt-1">
                 You earned QAR {totalEarnings.toFixed(2)}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                This order has been successfully completed
+                The customer can now confirm receipt in the Nutrio app
               </p>
             </div>
           )}
         </div>
-      </div>
-
       {/* Confirmation Dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent>
@@ -616,6 +589,6 @@ export default function DriverOrderDetail() {
           deliveryJobId={delivery?.id}
         />
       )}
-    </DriverLayout>
+    </div>
   );
 }

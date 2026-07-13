@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useGoogleFitWorkouts } from "@/hooks/useGoogleFitWorkouts";
+import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
 export default function GoogleFitCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { checkConnection } = useGoogleFitWorkouts();
   const [status, setStatus] = useState("Processing...");
 
   useEffect(() => {
@@ -52,21 +51,12 @@ export default function GoogleFitCallback() {
       try {
         const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
 
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-fit-token`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              code,
-              codeVerifier,
-              redirectUri,
-              userId: (await import("@/lib/supabaseClient")).supabase.auth.getUser().then(({ data }) => data.user?.id),
-            }),
-          }
-        );
+        const { error: exchangeError } = await supabase.functions.invoke("google-fit-token", {
+          body: { code, codeVerifier, redirectUri },
+        });
 
-        if (!response.ok) {
+        if (exchangeError) {
+          console.error("Google Fit token exchange failed:", exchangeError);
           setStatus("Failed to connect. Please try again.");
           setTimeout(() => navigate("/tracker"), 3000);
           return;

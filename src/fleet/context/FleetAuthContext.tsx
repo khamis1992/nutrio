@@ -2,9 +2,12 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { loginFleetManager, logoutFleetManager, refreshFleetToken } from '@/fleet/services/fleetApi';
+import { loginFleetManager, logoutFleetManager, refreshFleetToken } from '@/fleet/services/fleetAuthApi';
 import type { FleetLoginResponse, FleetManagerRole } from '@/fleet/types/fleet';
 import { toast } from 'sonner';
+
+const isFleetManagerRole = (role: string): role is FleetManagerRole =>
+  role === 'super_admin' || role === 'fleet_manager';
 
 interface FleetAuthContextType {
   user: FleetLoginResponse['user'] | null;
@@ -51,7 +54,11 @@ export function FleetAuthProvider({ children }: { children: ReactNode }) {
             .eq('is_active', true)
             .single();
 
-          if (!managerError && managerData) {
+          if (managerError && managerError.code !== 'PGRST116') {
+            throw managerError;
+          }
+
+          if (managerData && isFleetManagerRole(managerData.role)) {
             setToken(session.access_token);
             setRefreshToken(session.refresh_token);
             setUser({
@@ -61,6 +68,26 @@ export function FleetAuthProvider({ children }: { children: ReactNode }) {
               role: managerData.role,
               assignedCities: managerData.assigned_city_ids || [],
             });
+          } else {
+            const { data: adminRole, error: adminRoleError } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .eq('role', 'admin')
+              .maybeSingle();
+
+            if (adminRoleError) throw adminRoleError;
+            if (adminRole) {
+              setToken(session.access_token);
+              setRefreshToken(session.refresh_token);
+              setUser({
+                id: session.user.id,
+                email: session.user.email || '',
+                fullName: session.user.email || 'Administrator',
+                role: 'super_admin',
+                assignedCities: [],
+              });
+            }
           }
         }
       } catch (err) {

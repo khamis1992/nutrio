@@ -24,7 +24,7 @@ export type PartnerIntegrationRecord = {
   user_id: string;
   partner: string;
   external_user_id: string | null;
-  consent_status: "pending" | "linked" | "revoked" | "failed" | "reauth_required";
+  consent_status: "not_linked" | "pending" | "linked" | "revoked" | "failed" | "reauth_required";
   linked_at: string | null;
   unlinked_at: string | null;
   last_synced_at: string | null;
@@ -38,17 +38,10 @@ type IntegrationQueryBuilder = {
   maybeSingle: () => Promise<{ data: PartnerIntegrationRecord | null; error: Error | null }>;
 };
 
-type IntegrationUpsertBuilder = {
-  select: (columns: string) => {
-    maybeSingle: () => Promise<{ data: PartnerIntegrationRecord | null; error: Error | null }>;
-  };
-};
-
 const partnerDb = supabase as unknown as {
   from: (table: string) => {
     insert: (values: Record<string, unknown>) => Promise<{ error: Error | null }>;
     select: (columns: string) => IntegrationQueryBuilder;
-    upsert: (values: Record<string, unknown>, options?: { onConflict?: string }) => IntegrationUpsertBuilder;
   };
 };
 
@@ -76,45 +69,6 @@ export async function getPartnerIntegration({
   return data;
 }
 
-export async function upsertPartnerIntegration({
-  userId,
-  partner,
-  consentStatus,
-  metadata = {},
-}: {
-  userId?: string | null;
-  partner: string;
-  consentStatus: PartnerIntegrationRecord["consent_status"];
-  metadata?: Record<string, unknown>;
-}) {
-  if (!userId) return null;
-
-  const now = new Date().toISOString();
-  const { data, error } = await partnerDb
-    .from("partner_integrations")
-    .upsert(
-      {
-        user_id: userId,
-        partner,
-        consent_status: consentStatus,
-        linked_at: consentStatus === "linked" ? now : null,
-        unlinked_at: consentStatus === "revoked" ? now : null,
-        metadata,
-        updated_at: now,
-      },
-      { onConflict: "user_id,partner" },
-    )
-    .select("*")
-    .maybeSingle();
-
-  if (error) {
-    console.error("Failed to save partner integration:", error);
-    return null;
-  }
-
-  return data;
-}
-
 export async function recordPartnerReferralClick({
   userId,
   partner,
@@ -122,7 +76,7 @@ export async function recordPartnerReferralClick({
   referralCode,
   metadata = {},
 }: PartnerTrackingInput) {
-  if (!userId) return;
+  if (!userId) return false;
 
   const { error } = await partnerDb.from("partner_referrals").insert({
     source_app: "nutrio",
@@ -136,7 +90,9 @@ export async function recordPartnerReferralClick({
 
   if (error) {
     console.error("Failed to record partner referral click:", error);
+    return false;
   }
+  return true;
 }
 
 export async function recordPartnerReferralStatus({
@@ -148,7 +104,7 @@ export async function recordPartnerReferralStatus({
   status,
   metadata = {},
 }: PartnerReferralStatusInput) {
-  if (!userId) return;
+  if (!userId) return false;
 
   const { error } = await partnerDb.from("partner_referrals").insert({
     source_app: sourceApp,
@@ -162,7 +118,9 @@ export async function recordPartnerReferralStatus({
 
   if (error) {
     console.error("Failed to record partner referral status:", error);
+    return false;
   }
+  return true;
 }
 
 export async function recordPartnerEvent({
@@ -173,7 +131,7 @@ export async function recordPartnerEvent({
   referralCode,
   metadata = {},
 }: PartnerTrackingInput) {
-  if (!userId) return;
+  if (!userId) return false;
 
   const { error } = await partnerDb.from("partner_events").insert({
     user_id: userId,
@@ -188,10 +146,12 @@ export async function recordPartnerEvent({
 
   if (error) {
     console.error("Failed to record partner event:", error);
+    return false;
   }
+  return true;
 }
 
-export function recordSportHubClick(input: {
+export async function recordSportHubClick(input: {
   userId?: string | null;
   campaign: string;
   eventType?: string;
@@ -206,8 +166,11 @@ export function recordSportHubClick(input: {
     metadata: input.metadata,
   };
 
-  void recordPartnerReferralClick(payload);
-  void recordPartnerEvent(payload);
+  const [referralRecorded, eventRecorded] = await Promise.all([
+    recordPartnerReferralClick(payload),
+    recordPartnerEvent(payload),
+  ]);
+  return referralRecorded && eventRecorded;
 }
 
 export function recordSportHubEvent(input: {
@@ -216,7 +179,7 @@ export function recordSportHubEvent(input: {
   eventType: string;
   metadata?: Record<string, unknown>;
 }) {
-  void recordPartnerEvent({
+  return recordPartnerEvent({
     userId: input.userId,
     partner: "sporthub",
     campaign: input.campaign,

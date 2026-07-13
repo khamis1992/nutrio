@@ -113,8 +113,8 @@ const Medications = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F6F7F5] pb-32">
-      <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#F6F8FB] pb-24 text-[#020617]">
+      <header className="sticky top-0 z-40 border-b border-[#E5EAF1] bg-white/95 pt-safe backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-4">
           <button
             onClick={() => navigate(-1)}

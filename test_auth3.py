@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import sync_playwright
 import time
 
@@ -13,8 +14,8 @@ with sync_playwright() as p:
     if page.locator('button:has-text("Sign In")').count() > 0:
         page.locator('button:has-text("Sign In")').first.click()
         time.sleep(2)
-        page.locator('input[placeholder="Email"]').fill("eng.aljabor@gmail.com")
-        page.locator('input[placeholder="Password"]').fill("123456789")
+        page.locator('input[placeholder="Email"]').fill(os.environ["E2E_CUSTOMER_EMAIL"])
+        page.locator('input[placeholder="Password"]').fill(os.environ["E2E_CUSTOMER_PASSWORD"])
         time.sleep(0.5)
         # Click the Sign In button that's inside the form (not the landing page one)
         page.locator('button:has-text("Sign In")').last.click()

@@ -1,5 +1,4 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,14 +22,10 @@ interface AIMealExplanationProps {
 }
 
 export function AIMealExplanation({
-  mealName,
   overallMatch,
   factors,
   explanation,
-  language = "en",
 }: AIMealExplanationProps) {
-  const [showDetails, setShowDetails] = useState(false);
-
   const getMatchLabel = (score: number): string => {
     if (score >= 90) return "Excellent Match";
     if (score >= 75) return "Great Match";

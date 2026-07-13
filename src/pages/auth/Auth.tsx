@@ -5,7 +5,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuthPage } from "./useAuthPage";
 import { WelcomeScreen } from "./WelcomeScreen";
 import { SignUpScreen } from "./SignUpScreen";
-import { OtpScreen } from "./OtpScreen";
 import { ForgotPasswordScreen } from "./ForgotPasswordScreen";
 import { SignInScreen } from "./SignInScreen";
 import { OnboardingCarousel } from "@/components/auth/OnboardingCarousel";
@@ -79,28 +78,12 @@ export const Auth = () => {
     );
   }
 
-  if (state.view === "otp") {
-    return (
-      <OtpScreen
-        otpDigits={state.otpDigits}
-        otpCountdown={state.otpCountdown}
-        otpLoading={state.otpLoading}
-        otpError={state.otpError}
-        onOtpDigitChange={state.setOtpDigits}
-        onOtpErrorClear={() => state.setOtpError("")}
-        onOtpKey={state.handleOtpKey}
-        onVerify={state.handleOtpVerify}
-        onResend={state.handleResendOtp}
-        onBack={() => { state.setView("forgot"); state.setForgotSent(false); if (state.countdownRef.current) clearInterval(state.countdownRef.current); }}
-      />
-    );
-  }
-
   if (state.view === "forgot") {
     return (
       <ForgotPasswordScreen
         forgotEmail={state.forgotEmail}
         forgotLoading={state.forgotLoading}
+        forgotSent={state.forgotSent}
         forgotError={state.forgotError}
         onEmailChange={(val) => { state.setForgotEmail(val); state.setForgotError(""); }}
         onErrorClear={() => state.setForgotError("")}

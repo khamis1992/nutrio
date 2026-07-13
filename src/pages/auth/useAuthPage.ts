@@ -10,13 +10,14 @@ import { recordPartnerEvent, recordPartnerReferralStatus } from "@/lib/partnerTr
 import { useLanguage } from "@/contexts/LanguageContext";
 import { SignInFormValues, SignUpFormValues } from "./validation";
 
-export type AuthView = "welcome" | "signin" | "signup" | "forgot" | "otp";
+export type AuthView = "welcome" | "signin" | "signup" | "forgot";
 
 type StoredPartnerReferral = {
   source?: string;
   campaign?: string;
   code?: string;
   visited_at?: string;
+  sporthub_user?: string | null;
 };
 
 export const useAuthPage = () => {
@@ -40,11 +41,6 @@ export const useAuthPage = () => {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotError, setForgotError] = useState("");
-  const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
-  const [otpCountdown, setOtpCountdown] = useState(60);
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [otpError, setOtpError] = useState("");
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoTriggered = useRef(false);
   const postSignupOnboardingKey = "nutrio_post_signup_onboarding";
 
@@ -65,7 +61,7 @@ export const useAuthPage = () => {
       const processedKey = `nutrio:partner-referral-processed:${userId}:${referral.source}`;
       if (localStorage.getItem(processedKey) === "true") return;
 
-      await recordPartnerReferralStatus({
+      const referralRecorded = await recordPartnerReferralStatus({
         userId,
         sourceApp: "sporthub",
         targetApp: "nutrio",
@@ -74,9 +70,10 @@ export const useAuthPage = () => {
         status: "signed_up",
         metadata: {
           visited_at: referral.visited_at,
+          sporthub_user: referral.sporthub_user,
         },
       });
-      await recordPartnerEvent({
+      const eventRecorded = await recordPartnerEvent({
         userId,
         partner: "sporthub",
         campaign: referral.campaign || "sporthub_partner",
@@ -85,10 +82,14 @@ export const useAuthPage = () => {
         metadata: {
           direction: "sporthub_to_nutrio",
           visited_at: referral.visited_at,
+          sporthub_user: referral.sporthub_user,
         },
       });
 
-      localStorage.setItem(processedKey, "true");
+      if (referralRecorded && eventRecorded) {
+        localStorage.setItem(processedKey, "true");
+        localStorage.removeItem("nutrio:partner-referral");
+      }
     } catch (error) {
       console.error("Failed to process stored partner referral:", error);
     }
@@ -123,9 +124,11 @@ export const useAuthPage = () => {
     const checkUserRole = async () => {
       if (!user) return;
       setCheckingRole(true);
-      const raceWithTimeout = (query: () => Promise<{ data: unknown; error: unknown }>): Promise<{ data: unknown }> => {
+      const raceWithTimeout = <T,>(
+        query: () => PromiseLike<{ data: T | null; error: unknown }>,
+      ): Promise<{ data: T | null }> => {
         return Promise.race([
-          query().then(r => {
+          Promise.resolve(query()).then(r => {
             if (r.error) return { data: null };
             return r;
           }).catch(() => ({ data: null })),
@@ -279,17 +282,6 @@ export const useAuthPage = () => {
     }
   };
 
-  const startOtpCountdown = useCallback(() => {
-    if (countdownRef.current) clearInterval(countdownRef.current);
-    setOtpCountdown(60);
-    countdownRef.current = setInterval(() => {
-      setOtpCountdown((prev) => {
-        if (prev <= 1) { clearInterval(countdownRef.current!); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-  }, []);
-
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotError("");
@@ -306,66 +298,11 @@ export const useAuthPage = () => {
         redirectTo: `${appUrl}/reset-password`,
       });
       if (error) throw error;
-      setOtpDigits(["", "", "", ""]);
-      setOtpError("");
-      startOtpCountdown();
-      setView("otp");
+      setForgotSent(true);
     } catch (err) {
       toast({ title: t("error"), description: err instanceof Error ? err.message : t("failed_send_reset"), variant: "destructive" });
     } finally {
       setForgotLoading(false);
-    }
-  };
-
-  const handleOtpKey = (key: string) => {
-    setOtpError("");
-    setOtpDigits((prev) => {
-      const next = [...prev];
-      if (key === "back") {
-        const idx = next.map((d) => d !== "").lastIndexOf(true);
-        if (idx >= 0) next[idx] = "";
-      } else {
-        const idx = next.indexOf("");
-        if (idx >= 0) next[idx] = key;
-      }
-      return next;
-    });
-  };
-
-  const handleOtpVerify = async () => {
-    const code = otpDigits.join("");
-    if (code.length < 4) { setOtpError(t("enter_4_digits")); return; }
-    setOtpLoading(true);
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: forgotEmail,
-        token: code,
-        type: "recovery",
-      });
-      if (error) throw error;
-      toast({ title: t("verified"), description: t("can_reset_password") });
-      navigate("/reset-password");
-    } catch {
-      setOtpError(t("invalid_code"));
-      setOtpDigits(["", "", "", ""]);
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (otpCountdown > 0) return;
-    try {
-      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${appUrl}/reset-password`,
-      });
-      setOtpDigits(["", "", "", ""]);
-      setOtpError("");
-      startOtpCountdown();
-      toast({ title: t("code_resent"), description: t("check_inbox") });
-    } catch (err) {
-      toast({ title: t("error"), description: err instanceof Error ? err.message : t("failed_resend"), variant: "destructive" });
     }
   };
 
@@ -394,20 +331,10 @@ export const useAuthPage = () => {
     setForgotSent,
     forgotError,
     setForgotError,
-    otpDigits,
-    setOtpDigits,
-    otpCountdown,
-    otpLoading,
-    otpError,
-    countdownRef,
     authLoading,
     handleBiometricLogin,
     handleSignIn,
     handleSignUp,
     handleForgotSubmit,
-    handleOtpKey,
-    handleOtpVerify,
-    handleResendOtp,
-    startOtpCountdown,
   };
 };

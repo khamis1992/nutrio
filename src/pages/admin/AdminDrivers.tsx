@@ -3,7 +3,6 @@ import {
   Bike,
   Car,
   CheckCircle,
-  Clock,
   RefreshCw,
   Search,
   Star,
@@ -128,7 +127,7 @@ export default function AdminDrivers() {
           vehicle_type,
           vehicle_make,
           vehicle_model,
-          vehicle_plate,
+          license_plate,
           is_online,
           total_deliveries,
           rating,
@@ -163,7 +162,18 @@ export default function AdminDrivers() {
       }
 
       const transformed: Driver[] = (data || []).map((driver) => ({
-        ...driver,
+        id: driver.id,
+        user_id: driver.user_id,
+        vehicle_type: driver.vehicle_type || "bike",
+        vehicle_make: driver.vehicle_make,
+        vehicle_model: driver.vehicle_model,
+        vehicle_plate: driver.license_plate,
+        is_online: driver.is_online ?? false,
+        total_deliveries: driver.total_deliveries ?? 0,
+        rating: driver.rating,
+        wallet_balance: driver.wallet_balance ?? 0,
+        approval_status: driver.approval_status || "pending",
+        created_at: driver.created_at || new Date(0).toISOString(),
         profile: profilesMap[driver.user_id] || null,
       }));
 

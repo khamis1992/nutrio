@@ -52,7 +52,11 @@ export function OrderAgainRow() {
           return;
         }
 
-        const restIds = [...new Set(meals.map((m) => m.restaurant_id).filter(Boolean))];
+        const restIds = [...new Set(
+          meals
+            .map((m) => m.restaurant_id)
+            .filter((id): id is string => typeof id === "string" && id.length > 0),
+        )];
         const { data: restaurants } = await supabase
           .from("restaurants")
           .select("id, name")

@@ -137,12 +137,13 @@ export default function GuidedWorkout() {
       weight_kg: parseFloat(weightInput) || undefined,
     });
     if (result.success) {
+      const restSeconds = currentExercise.rest_seconds ?? 0;
       // If more sets remain for this exercise
       if (currentSetNum < totalSets) {
         setCurrentSetNum((prev) => prev + 1);
         // Start rest timer
-        if (currentExercise.rest_seconds > 0) {
-          setRestTimer(currentExercise.rest_seconds);
+        if (restSeconds > 0) {
+          setRestTimer(restSeconds);
           setIsResting(true);
         }
       } else {
@@ -152,8 +153,8 @@ export default function GuidedWorkout() {
           setCurrentSetNum(1);
           setWeightInput("");
           // Rest between exercises
-          if (currentExercise.rest_seconds > 0) {
-            setRestTimer(currentExercise.rest_seconds);
+          if (restSeconds > 0) {
+            setRestTimer(restSeconds);
             setIsResting(true);
           }
         }

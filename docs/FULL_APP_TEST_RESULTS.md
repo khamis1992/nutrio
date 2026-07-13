@@ -11,15 +11,15 @@
 
 | Account | Login | Dashboard | Key Features |
 |---------|-------|-----------|-------------|
-| User (eng.aljabor) | ✅ PASS | ✅ Data exists | Partial — core flows work, many features have missing backend tables |
+| Customer test account | ✅ PASS | ✅ Data exists | Partial — core flows work, many features have missing backend tables |
 | Partner (khamis4everever) | ✅ PASS | ✅ Route exists | Menu mgmt, orders, earnings routes exist |
-| Admin (khamis-1992) | ✅ PASS | ✅ Full admin panel | Extensive admin routes (30+ pages) |
-| Driver (driver@nutriofuel) | ✅ PASS | ✅ Route exists | Basic driver panel |
+| Admin test account | ✅ PASS | ✅ Full admin panel | Extensive admin routes (30+ pages) |
+| Driver test account | ✅ PASS | ✅ Route exists | Basic driver panel |
 | Fleet Manager (admin@nutrio) | ✅ PASS | ✅ Route exists | Fleet management active |
 
 ---
 
-## 1. User Account (eng.aljabor@gmail.com)
+## 1. User Account (<E2E_CUSTOMER_EMAIL>)
 
 ### Authentication
 | Feature | Status | Notes |
@@ -197,7 +197,7 @@
 
 ---
 
-## 2. Partner Account (khamis4everever@gmail.com)
+## 2. Partner Account (<E2E_ACCOUNT_EMAIL>)
 
 ### Authentication
 | Feature | Status | Notes |
@@ -258,7 +258,7 @@
 
 ---
 
-## 3. Admin Account (khamis-1992@hotmail.com)
+## 3. Admin Account (<E2E_ADMIN_EMAIL>)
 
 ### Authentication
 | Feature | Status | Notes |
@@ -307,7 +307,7 @@
 
 ---
 
-## 4. Driver Account (driver@nutriofuel.com)
+## 4. Driver Account (<E2E_DRIVER_EMAIL>)
 
 ### Authentication
 | Feature | Status | Notes |

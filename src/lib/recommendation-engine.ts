@@ -34,7 +34,6 @@ export interface HealthGoals {
   protein_target_g: number;
   carbs_target_g: number;
   fat_target_g: number;
-  goal_type: string | null;
 }
 
 export interface ScoredMeal extends MealCandidate {
@@ -44,14 +43,6 @@ export interface ScoredMeal extends MealCandidate {
 
 function normalizeText(str: string | null): string {
   return (str || "").toLowerCase().trim();
-}
-
-function jaccardSimilarity(a: string[], b: string[]): number {
-  const setA = new Set(a);
-  const setB = new Set(b);
-  const intersection = new Set([...setA].intersection(setB));
-  const union = new Set([...setA, ...setB]);
-  return intersection.size / Math.max(union.size, 1);
 }
 
 function getHour(): number {
@@ -95,7 +86,7 @@ function todayProgressFromLogs(
 export function recommendForYou(
   candidates: MealCandidate[],
   orders: OrderHistoryItem[],
-  healthGoals: HealthGoals | null
+  _healthGoals: HealthGoals | null
 ): ScoredMeal[] {
   if (candidates.length === 0) return [];
 

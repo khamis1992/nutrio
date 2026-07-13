@@ -17,6 +17,30 @@ interface WeeklyReport {
   report_data: Json | null;
 }
 
+type WeeklyReportRow = {
+  id: string;
+  week_start_date: string;
+  week_end_date: string;
+  avg_calories: number | null;
+  avg_protein: number | null;
+  avg_carbs: number | null;
+  avg_fat: number | null;
+  weight_change_kg: number | null;
+  consistency_score: number | null;
+  days_logged: number | null;
+  report_data: Json | null;
+};
+
+const normalizeWeeklyReport = (report: WeeklyReportRow): WeeklyReport => ({
+  ...report,
+  avg_calories: report.avg_calories ?? 0,
+  avg_protein: report.avg_protein ?? 0,
+  avg_carbs: report.avg_carbs ?? 0,
+  avg_fat: report.avg_fat ?? 0,
+  consistency_score: report.consistency_score ?? 0,
+  days_logged: report.days_logged ?? 0,
+});
+
 export function useWeeklyReport(userId: string | undefined) {
   const [currentWeekReport, setCurrentWeekReport] = useState<WeeklyReport | null>(null);
   const [historicalReports, setHistoricalReports] = useState<WeeklyReport[]>([]);
@@ -43,7 +67,7 @@ export function useWeeklyReport(userId: string | undefined) {
       if (reportError) throw reportError;
 
       if (existingReport) {
-        setCurrentWeekReport(existingReport);
+        setCurrentWeekReport(normalizeWeeklyReport(existingReport));
       }
 
       // Fetch historical reports
@@ -56,18 +80,25 @@ export function useWeeklyReport(userId: string | undefined) {
 
       if (historyError) throw historyError;
 
-      setHistoricalReports(reports || []);
+      setHistoricalReports((reports ?? []).map(normalizeWeeklyReport));
 
       // If no current report exists, try to generate one
       if (!existingReport) {
-        const { data: newReport, error: genError } = await supabase
+        const { data: reportId, error: genError } = await supabase
           .rpc("generate_weekly_report", {
             p_user_id: userId,
             p_week_start: format(weekStart, "yyyy-MM-dd"),
           });
 
-        if (!genError && newReport) {
-          setCurrentWeekReport(newReport);
+        if (!genError && reportId) {
+          const { data: generatedReport, error: generatedError } = await supabase
+            .from("weekly_nutrition_reports")
+            .select("*")
+            .eq("id", reportId)
+            .single();
+
+          if (generatedError) throw generatedError;
+          setCurrentWeekReport(normalizeWeeklyReport(generatedReport));
         }
       }
     } catch (error) {

@@ -111,6 +111,13 @@ const AdminDashboard = () => {
       )
       .on(
         "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => {
+          fetchData();
+        },
+      )
+      .on(
+        "postgres_changes",
         { event: "*", schema: "public", table: "restaurants" },
         () => {
           fetchData();
@@ -146,6 +153,8 @@ const AdminDashboard = () => {
       pendingPayoutsRes,
       commissionsRes,
       pendingAffiliatePayoutsRes,
+      ordersRes,
+      todayOrdersRes,
     ] = await Promise.all([
       supabase.from("restaurants").select("*", { count: "exact", head: true }),
       supabase
@@ -176,6 +185,16 @@ const AdminDashboard = () => {
         .from("affiliate_payouts")
         .select("amount")
         .eq("status", "pending"),
+      supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .neq("status", "cancelled"),
+      supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", `${today}T00:00:00+03:00`)
+        .lt("created_at", `${today}T23:59:59.999+03:00`)
+        .neq("status", "cancelled"),
     ]);
 
     // Fleet stats
@@ -187,7 +206,7 @@ const AdminDashboard = () => {
       supabase
         .from("delivery_jobs")
         .select("id", { count: "exact" })
-        .in("status", ["assigned", "accepted", "picked_up", "in_transit"]),
+        .in("status", ["assigned", "accepted", "picked_up", "in_transit", "on_the_way"]),
       supabase
         .from("delivery_jobs")
         .select("id", { count: "exact" })
@@ -254,11 +273,17 @@ const AdminDashboard = () => {
       .gte("scheduled_date", weekAgo.toISOString().split("T")[0])
       .neq("order_status", "cancelled");
 
+    const { data: weeklyOrders } = await supabase
+      .from("orders")
+      .select("created_at, total_amount")
+      .gte("created_at", `${weekAgo.toISOString().split("T")[0]}T00:00:00+03:00`)
+      .neq("status", "cancelled");
+
     const { data: allMeals } = await supabase.from("meals").select("id, price");
 
     const mealPrices = (allMeals || []).reduce(
       (acc, m) => {
-        acc[m.id] = m.price;
+        acc[m.id] = m.price || 0;
         return acc;
       },
       {} as Record<string, number>,
@@ -275,6 +300,22 @@ const AdminDashboard = () => {
       const price = mealPrices[s.meal_id] || 0;
       dailyMap[s.scheduled_date].revenue += price;
       weeklyRevenue += price;
+    });
+
+    (weeklyOrders || []).forEach((order) => {
+      const date = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Qatar",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date(order.created_at));
+      if (!dailyMap[date]) {
+        dailyMap[date] = { orders: 0, revenue: 0 };
+      }
+      const amount = Number(order.total_amount) || 0;
+      dailyMap[date].orders++;
+      dailyMap[date].revenue += amount;
+      weeklyRevenue += amount;
     });
 
     const last7Days: DailyData[] = [];
@@ -298,10 +339,27 @@ const AdminDashboard = () => {
 
     const { data: recentSchedules } = await supabase
       .from("meal_schedules")
-      .select("id, created_at, order_status, meals:meal_id(name)")
+      .select("id, created_at, order_status, meals:meals!meal_schedules_meal_id_fkey(name)")
       .order("created_at", { ascending: false })
       .neq("order_status", "cancelled")
       .limit(3);
+
+    const { data: recentOrders } = await supabase
+      .from("orders")
+      .select("id, created_at, status, meal_id")
+      .neq("status", "cancelled")
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    const recentOrderMealIds = (recentOrders || [])
+      .map((order) => order.meal_id)
+      .filter(Boolean) as string[];
+    const { data: recentOrderMeals } = recentOrderMealIds.length
+      ? await supabase.from("meals").select("id, name").in("id", recentOrderMealIds)
+      : { data: [] as { id: string; name: string }[] };
+    const recentOrderMealMap = new Map(
+      (recentOrderMeals || []).map((meal) => [meal.id, meal.name]),
+    );
 
     const activities: RecentActivity[] = [];
 
@@ -314,17 +372,12 @@ const AdminDashboard = () => {
           r.approval_status === "pending"
             ? "New registration"
             : `Status: ${r.approval_status}`,
-        time: new Date(r.created_at).toLocaleString(),
+        time: new Date(r.created_at || 0).toLocaleString(),
       });
     });
 
     (recentSchedules || []).forEach(
-      (s: {
-        id: string;
-        meals?: { name: string } | null;
-        order_status: string;
-        created_at: string;
-      }) => {
+      (s) => {
         activities.push({
           id: s.id,
           type: "order",
@@ -333,10 +386,23 @@ const AdminDashboard = () => {
             s.order_status === "completed"
               ? "Meal completed"
               : "New meal scheduled",
-          time: new Date(s.created_at).toLocaleString(),
+          time: new Date(s.created_at || 0).toLocaleString(),
         });
       },
     );
+
+    (recentOrders || []).forEach((order) => {
+      activities.push({
+        id: order.id,
+        type: "order",
+        title: (order.meal_id && recentOrderMealMap.get(order.meal_id)) || "Direct order",
+        description:
+          order.status === "completed" || order.status === "delivered"
+            ? "Order completed"
+            : `Order status: ${order.status}`,
+        time: new Date(order.created_at).toLocaleString(),
+      });
+    });
 
     setRecentActivity(
       activities
@@ -349,9 +415,9 @@ const AdminDashboard = () => {
       approvedRestaurants: approvedRes.count || 0,
       pendingApprovals: pendingRes.count || 0,
       totalUsers: profilesRes.count || 0,
-      totalOrders: schedulesRes.count || 0,
+      totalOrders: (schedulesRes.count || 0) + (ordersRes.count || 0),
       totalMeals: mealsRes.count || 0,
-      todayOrders: todaySchedulesRes.count || 0,
+      todayOrders: (todaySchedulesRes.count || 0) + (todayOrdersRes.count || 0),
       weeklyRevenue,
       pendingPayouts:
         (pendingPayoutsRes.data?.length || 0) +

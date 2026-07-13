@@ -64,30 +64,29 @@ const EmptyMealSlot = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       whileTap={{ scale: 0.98 }}
-      className="group mb-2 flex cursor-pointer items-center gap-4 rounded-[24px] bg-white p-4 shadow-[0_12px_32px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(2,6,23,0.09)] active:bg-[#F6F8FB]"
+      className="group mb-2 flex min-h-[76px] cursor-pointer items-center gap-3 rounded-[20px] border border-dashed border-[#CBD5E1] bg-white/70 p-3 transition active:scale-[0.99] active:bg-white"
       dir={isRTL ? "rtl" : "ltr"}
     >
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] ${config.bgGradient} ring-1 ring-[#E5EAF1]`}>
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] ${config.bgGradient}`}>
         <config.icon className={`h-5 w-5 ${config.textColor}`} />
       </div>
 
       <div className={`min-w-0 flex-1 ${isRTL ? "text-right" : "text-left"}`}>
-        <span className="text-[16px] font-black text-[#020617]">
+        <span className="text-[14px] font-black text-[#020617]">
           {noMealsLeft
             ? isRTL
               ? `أضف ${mealTypeName} - لا رصيد`
               : `Add ${mealTypeName} - no credits`
             : `${t("add") || "Add"} ${mealTypeName}`}
         </span>
-        <p className="mt-1 text-[13px] font-semibold leading-tight text-[#64748B]">
+        <p className="mt-0.5 text-[11px] font-semibold leading-tight text-[#94A3B8]">
           {noMealsLeft ? "Buy a meal credit to schedule this slot" : `${timeLabel} delivery window`}
         </p>
       </div>
 
       {!noMealsLeft ? (
-        <span className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#020617] px-4 text-[14px] font-extrabold text-white shadow-[0_12px_24px_rgba(2,6,23,0.18)] transition group-hover:bg-[#020617]/90">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)]">
           <Plus className="h-4 w-4" strokeWidth={2.7} />
-          {t("add")}
         </span>
       ) : (
         <Chevron className="h-5 w-5 shrink-0 text-[#94A3B8]" strokeWidth={2.5} />

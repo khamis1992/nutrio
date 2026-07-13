@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +27,7 @@ interface UpgradeBottomSheetProps {
   open: boolean;
   onClose: () => void;
   selectedPlan: PlanCardData | null;
-  billingInterval: "monthly" | "annual";
+  billingInterval: "weekly" | "monthly" | "annual";
   walletBalance: number;
   promoCode: string;
   promoLoading: boolean;

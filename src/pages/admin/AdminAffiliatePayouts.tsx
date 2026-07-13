@@ -41,12 +41,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
+import { transitionAffiliatePayout } from "@/lib/payouts";
 
 interface AffiliatePayout {
   id: string;
   user_id: string;
   amount: number;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "processing" | "completed" | "rejected";
   payout_method: string;
   payout_details: Record<string, string>;
   requested_at: string;
@@ -55,21 +56,23 @@ interface AffiliatePayout {
   user_profile?: {
     full_name: string | null;
     affiliate_tier: string | null;
-    affiliate_balance: number;
+    affiliate_balance: number | null;
   };
 }
 
 interface PayoutStats {
   totalPending: number;
-  totalApproved: number;
+  totalProcessing: number;
+  totalCompleted: number;
   totalRejected: number;
   pendingCount: number;
-  approvedCount: number;
+  processingCount: number;
+  completedCount: number;
   rejectedCount: number;
   uniqueAffiliates: number;
 }
 
-type TabValue = "all" | "pending" | "approved" | "rejected";
+type TabValue = "all" | "pending" | "processing" | "completed" | "rejected";
 
 const C = {
   ink: "#020617",
@@ -90,11 +93,19 @@ function statusBadge(status: AffiliatePayout["status"]) {
       </Badge>
     );
   }
-  if (status === "approved") {
+  if (status === "processing") {
+    return (
+      <Badge variant="outline" className="border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#0369A1]">
+        <Clock className="mr-1 h-3 w-3" />
+        Processing
+      </Badge>
+    );
+  }
+  if (status === "completed") {
     return (
       <Badge variant="outline" className="border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">
         <CheckCircle className="mr-1 h-3 w-3" />
-        Approved
+        Completed
       </Badge>
     );
   }
@@ -132,19 +143,29 @@ export default function AdminAffiliatePayouts() {
   const [activeTab, setActiveTab] = useState<TabValue>("pending");
   const [stats, setStats] = useState<PayoutStats>({
     totalPending: 0,
-    totalApproved: 0,
+    totalProcessing: 0,
+    totalCompleted: 0,
     totalRejected: 0,
     pendingCount: 0,
-    approvedCount: 0,
+    processingCount: 0,
+    completedCount: 0,
     rejectedCount: 0,
     uniqueAffiliates: 0,
   });
   const [selectedPayout, setSelectedPayout] = useState<AffiliatePayout | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
+  const [actionType, setActionType] = useState<"approve" | "reject" | "complete" | null>(null);
   const [actionNotes, setActionNotes] = useState("");
+  const [transferReference, setTransferReference] = useState("");
   const [processing, setProcessing] = useState(false);
   const [selectedPayouts, setSelectedPayouts] = useState<Set<string>>(new Set());
+
+  const sendPayoutEmailQuietly = async (payoutId: string) => {
+    const { error } = await supabase.functions.invoke("send-payout-notification", {
+      body: { payout_id: payoutId },
+    });
+    if (error) console.warn("Payout status email was not sent:", error);
+  };
 
   const fetchPayouts = async () => {
     setLoading(true);
@@ -164,8 +185,14 @@ export default function AdminAffiliatePayouts() {
             .eq("user_id", payout.user_id)
             .single();
 
+          const status = ["pending", "processing", "completed", "rejected"].includes(payout.status)
+            ? payout.status as AffiliatePayout["status"]
+            : "pending";
+
           return {
             ...payout,
+            status,
+            payout_method: payout.payout_method || "bank_transfer",
             payout_details: (payout.payout_details as Record<string, string>) || {},
             user_profile: profile || undefined,
           };
@@ -175,15 +202,18 @@ export default function AdminAffiliatePayouts() {
       setPayouts(payoutsWithProfiles);
 
       const pending = payoutsWithProfiles.filter((payout) => payout.status === "pending");
-      const approved = payoutsWithProfiles.filter((payout) => payout.status === "approved");
+      const processingRows = payoutsWithProfiles.filter((payout) => payout.status === "processing");
+      const completed = payoutsWithProfiles.filter((payout) => payout.status === "completed");
       const rejected = payoutsWithProfiles.filter((payout) => payout.status === "rejected");
 
       setStats({
         totalPending: pending.reduce((sum, payout) => sum + Number(payout.amount), 0),
-        totalApproved: approved.reduce((sum, payout) => sum + Number(payout.amount), 0),
+        totalProcessing: processingRows.reduce((sum, payout) => sum + Number(payout.amount), 0),
+        totalCompleted: completed.reduce((sum, payout) => sum + Number(payout.amount), 0),
         totalRejected: rejected.reduce((sum, payout) => sum + Number(payout.amount), 0),
         pendingCount: pending.length,
-        approvedCount: approved.length,
+        processingCount: processingRows.length,
+        completedCount: completed.length,
         rejectedCount: rejected.length,
         uniqueAffiliates: new Set(payoutsWithProfiles.map((payout) => payout.user_id)).size,
       });
@@ -216,7 +246,8 @@ export default function AdminAffiliatePayouts() {
 
   const tabs: { value: TabValue; label: string; count: number }[] = [
     { value: "pending", label: "Pending", count: stats.pendingCount },
-    { value: "approved", label: "Approved", count: stats.approvedCount },
+    { value: "processing", label: "Processing", count: stats.processingCount },
+    { value: "completed", label: "Completed", count: stats.completedCount },
     { value: "rejected", label: "Rejected", count: stats.rejectedCount },
     { value: "all", label: "All", count: payouts.length },
   ];
@@ -226,36 +257,21 @@ export default function AdminAffiliatePayouts() {
 
     setProcessing(true);
     try {
-      const newStatus = actionType === "approve" ? "approved" : "rejected";
+      const result = await transitionAffiliatePayout(
+        selectedPayout.id,
+        actionType,
+        actionNotes,
+        transferReference,
+      );
+      await sendPayoutEmailQuietly(selectedPayout.id);
 
-      const { error } = await supabase
-        .from("affiliate_payouts")
-        .update({
-          status: newStatus,
-          processed_at: new Date().toISOString(),
-          notes: actionNotes || null,
-        })
-        .eq("id", selectedPayout.id);
-
-      if (error) throw error;
-
-      if (actionType === "approve") {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({
-            affiliate_balance: (selectedPayout.user_profile?.affiliate_balance || 0) - selectedPayout.amount,
-          })
-          .eq("user_id", selectedPayout.user_id);
-
-        if (profileError) throw profileError;
-      }
-
-      toast.success(`Payout ${newStatus} successfully`);
+      toast.success(`Payout moved to ${result.status}`);
       fetchPayouts();
       setSelectedPayout(null);
       setDetailOpen(false);
       setActionType(null);
       setActionNotes("");
+      setTransferReference("");
     } catch (error) {
       console.error("Error processing payout:", error);
       toast.error("Failed to process payout");
@@ -269,16 +285,12 @@ export default function AdminAffiliatePayouts() {
 
     setProcessing(true);
     try {
-      const newStatus = action === "approve" ? "approved" : "rejected";
-      const { error } = await supabase
-        .from("affiliate_payouts")
-        .update({
-          status: newStatus,
-          processed_at: new Date().toISOString(),
-        })
-        .in("id", Array.from(selectedPayouts));
-
-      if (error) throw error;
+      await Promise.all(
+        Array.from(selectedPayouts).map((payoutId) =>
+          transitionAffiliatePayout(payoutId, action),
+        ),
+      );
+      await Promise.all(Array.from(selectedPayouts).map(sendPayoutEmailQuietly));
 
       toast.success(`${selectedPayouts.size} payout(s) ${action === "approve" ? "approved" : "rejected"}`);
       setSelectedPayouts(new Set());
@@ -385,7 +397,8 @@ export default function AdminAffiliatePayouts() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
           {[
             { label: "Pending", value: formatCurrency(stats.totalPending), note: `${stats.pendingCount} waiting`, icon: Clock, color: C.fat },
-            { label: "Approved", value: formatCurrency(stats.totalApproved), note: `${stats.approvedCount} paid out`, icon: CheckCircle, color: C.progress },
+            { label: "Processing", value: formatCurrency(stats.totalProcessing), note: `${stats.processingCount} awaiting transfer`, icon: Clock, color: C.water },
+            { label: "Completed", value: formatCurrency(stats.totalCompleted), note: `${stats.completedCount} transferred`, icon: CheckCircle, color: C.progress },
             { label: "Rejected", value: formatCurrency(stats.totalRejected), note: `${stats.rejectedCount} declined`, icon: XCircle, color: C.water },
             { label: "Affiliates", value: stats.uniqueAffiliates, note: "Active partners", icon: Users, color: C.protein },
           ].map(({ label, value, note, icon: Icon, color }) => (
@@ -672,6 +685,23 @@ export default function AdminAffiliatePayouts() {
                   </Button>
                 </div>
               )}
+
+              {selectedPayout.status === "processing" && (
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <Button className="min-h-11 rounded-full bg-[#020617] font-black text-white shadow-none" onClick={() => setActionType("complete")}>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Complete Transfer
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="min-h-11 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#BE123C] shadow-none"
+                    onClick={() => setActionType("reject")}
+                  >
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Reject
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </SheetContent>
@@ -684,17 +714,24 @@ export default function AdminAffiliatePayouts() {
           setDetailOpen(false);
           setActionType(null);
           setActionNotes("");
+          setTransferReference("");
         }}
       >
         <DialogContent className="rounded-[28px]">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black text-[#020617]">
-              {actionType === "approve" ? "Approve Payout" : "Reject Payout"}
+              {actionType === "approve"
+                ? "Approve Payout"
+                : actionType === "complete"
+                  ? "Complete Transfer"
+                  : "Reject Payout"}
             </DialogTitle>
             <DialogDescription className="font-semibold text-[#94A3B8]">
               {actionType === "approve"
-                ? "Confirm that you have processed this payout to the affiliate."
-                : "Provide a reason for rejecting this payout request."}
+                ? "Approve this reserved request for manual transfer."
+                : actionType === "complete"
+                  ? "Enter the bank or provider reference after funds have been sent."
+                  : "Provide a reason for rejecting this payout request."}
             </DialogDescription>
           </DialogHeader>
 
@@ -726,6 +763,21 @@ export default function AdminAffiliatePayouts() {
                   className="rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
                 />
               </div>
+
+              {actionType === "complete" && (
+                <div className="space-y-2">
+                  <label htmlFor="transfer-reference" className="text-sm font-black text-[#020617]">
+                    Transfer reference
+                  </label>
+                  <Input
+                    id="transfer-reference"
+                    value={transferReference}
+                    onChange={(event) => setTransferReference(event.target.value)}
+                    placeholder="Bank or provider reference"
+                    className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -736,17 +788,22 @@ export default function AdminAffiliatePayouts() {
               onClick={() => {
                 setActionType(null);
                 setActionNotes("");
+                setTransferReference("");
               }}
             >
               Cancel
             </Button>
             <Button
-              className={actionType === "approve" ? "rounded-full bg-[#020617] font-black text-white shadow-none" : "rounded-full bg-[#FB6B7A] font-black text-white shadow-none"}
+              className={actionType === "reject" ? "rounded-full bg-[#FB6B7A] font-black text-white shadow-none" : "rounded-full bg-[#020617] font-black text-white shadow-none"}
               onClick={handleAction}
-              disabled={processing || (actionType === "reject" && !actionNotes.trim())}
+              disabled={processing || (actionType === "reject" && !actionNotes.trim()) || (actionType === "complete" && !transferReference.trim())}
             >
               {processing && <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />}
-              {actionType === "approve" ? "Confirm Approval" : "Confirm Rejection"}
+              {actionType === "approve"
+                ? "Confirm Approval"
+                : actionType === "complete"
+                  ? "Confirm Transfer"
+                  : "Confirm Rejection"}
             </Button>
           </DialogFooter>
         </DialogContent>

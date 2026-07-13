@@ -7,10 +7,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   Area,
-  AreaChart,
   ComposedChart,
   ReferenceLine,
-  Legend,
 } from "recharts";
 import { TrendingUp, Info } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -42,7 +40,6 @@ export const WeightPredictionChart = ({
   weightChartData,
   currentWeight,
   targetWeight,
-  startWeight
 }: WeightPredictionChartProps) => {
   const { t } = useLanguage();
   // Use rich chart data if provided, otherwise fall back to old predictions-only path
@@ -51,8 +48,6 @@ export const WeightPredictionChart = ({
   // No data or weight not configured
   const hasNoData = !hasRichData && (!predictions || predictions.length === 0);
   const weightNotSet = !hasRichData && (!currentWeight || currentWeight === 0);
-  const targetNotSet = !targetWeight || targetWeight === 0;
-
   if (hasNoData || weightNotSet) {
     return (
       <Card>

@@ -43,7 +43,15 @@ export function IngredientList({ mealId, removedIngredients, onToggle }: Ingredi
           .order("is_default", { ascending: false });
 
         if (error) throw error;
-        setIngredients(data || []);
+        setIngredients((data || []).map((ingredient) => ({
+          id: ingredient.id,
+          meal_id: ingredient.meal_id,
+          name: ingredient.name,
+          is_default: ingredient.is_default ?? false,
+          allergen_tags: ALLERGEN_KEYWORDS.filter((keyword) =>
+            ingredient.name.toLowerCase().includes(keyword),
+          ),
+        })));
       } catch (err) {
         console.error("Error fetching ingredients:", err);
       } finally {
@@ -71,10 +79,6 @@ export function IngredientList({ mealId, removedIngredients, onToggle }: Ingredi
       {ingredients.map((ingredient, idx) => {
         const isRemoved = removedIngredients.has(ingredient.id);
         const allergens = ingredient.allergen_tags || [];
-        const detectedAllergens = ALLERGEN_KEYWORDS.filter(k =>
-          ingredient.name.toLowerCase().includes(k)
-        );
-
         return (
           <motion.div
             key={ingredient.id}

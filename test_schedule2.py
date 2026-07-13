@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import sync_playwright
 import time
 
@@ -16,14 +17,14 @@ with sync_playwright() as p:
             c = page.locator(sel).count()
             if c:
                 print(f"  {sel}: {c}")
-                page.fill(sel, "eng.aljabor@gmail.com")
+                page.fill(sel, os.environ["E2E_CUSTOMER_EMAIL"])
                 print(f"  -> filled {sel}")
                 break
         for sel in ['input[type="password"]', 'input[name="password"]', '#password', 'input[placeholder*="pass"]', 'input[placeholder*="Pass"]']:
             c = page.locator(sel).count()
             if c:
                 print(f"  {sel}: {c}")
-                page.fill(sel, "123456789")
+                page.fill(sel, os.environ["E2E_CUSTOMER_PASSWORD"])
                 print(f"  -> filled {sel}")
                 break
         for sel in ['button:has-text("Sign In")', 'button:has-text("Login")', 'button[type="submit"]', 'button']:

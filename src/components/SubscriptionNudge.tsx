@@ -36,7 +36,6 @@ export function SubscriptionNudge() {
     tier,
   } = useSubscription();
 
-  const [dismissed, setDismissed] = useState(false);
   const [visible, setVisible] = useState(false);
 
   const storageKey = subscription
@@ -49,7 +48,6 @@ export function SubscriptionNudge() {
       return;
     }
     const wasDismissed = localStorage.getItem(storageKey) === "1";
-    setDismissed(wasDismissed);
     const timer = setTimeout(() => !wasDismissed && setVisible(true), 3000);
     return () => clearTimeout(timer);
   }, [subscription, hasActiveSubscription, isUnlimited, storageKey]);
@@ -57,7 +55,6 @@ export function SubscriptionNudge() {
   const handleDismiss = useCallback(() => {
     setVisible(false);
     localStorage.setItem(storageKey, "1");
-    setDismissed(true);
   }, [storageKey]);
 
   if (loading || !subscription || !hasActiveSubscription || isUnlimited || !visible) return null;
@@ -66,8 +63,11 @@ export function SubscriptionNudge() {
   if (!nextTier) return null;
 
   const now = new Date();
+  if (!subscription.month_start_date || !subscription.end_date || totalMeals <= 0) return null;
+
   const cycleStart = new Date(subscription.month_start_date);
   const cycleEnd = new Date(subscription.end_date);
+  if (!Number.isFinite(cycleStart.getTime()) || !Number.isFinite(cycleEnd.getTime())) return null;
   const daysInCycle = Math.max(1, Math.ceil((cycleEnd.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24)));
   const daysElapsed = Math.max(1, Math.ceil((now.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24)));
   const daysRemaining = Math.max(1, daysInCycle - daysElapsed);

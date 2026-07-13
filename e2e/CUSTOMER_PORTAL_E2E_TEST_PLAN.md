@@ -67,7 +67,7 @@ The Nutrio Fuel customer portal ships **47 route-defined pages** backed by **52 
 | B1 | **No `data-testid` on any page** | 🔴 Critical | All customer pages | Tests have no stable selectors; will break on any UI change |
 | B2 | **No test data seeding** | 🔴 Critical | E2E infra | Tests create side effects in production DB; no isolation |
 | B3 | **No auth token reuse** | 🔴 Critical | `e2e/fixtures/test.ts` | Login runs before every test → rate limited; 12s timeout per fixture |
-| B4 | **Failed auth credentials may be stale** | 🔴 Critical | `e2e/utils/helpers.ts:9-13` | `eng.aljabor@gmail.com` / `123456789` — may be blocked by IP geo-filter |
+| B4 | **Failed auth credentials may be stale** | 🔴 Critical | `e2e/utils/helpers.ts:9-13` | `<E2E_CUSTOMER_EMAIL>` / `<E2E_TEST_PASSWORD>` — may be blocked by IP geo-filter |
 | B5 | **Test assertions check for fictional text** | 🔴 Critical | All 82 spec files | `expect(body).toContainText('Meal Completion Atomic')` — these strings don't exist |
 | B6 | **BASE_URL mismatch** | 🔴 High | `e2e/README.md` vs `helpers.ts` | README says `8080`, code uses `5173` |
 

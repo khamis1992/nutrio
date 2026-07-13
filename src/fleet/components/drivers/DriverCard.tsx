@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,6 @@ import { DriverStatusBadge } from './DriverStatusBadge';
 import { 
   Phone, 
   Mail, 
-  MapPin, 
   Navigation,
   MoreVertical,
   Star,
@@ -19,21 +17,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { Driver } from '@/fleet/types/fleet';
+import type { Driver } from '@/fleet/types';
 
 interface DriverCardProps {
   driver: Driver & { isOnline?: boolean };
 }
 
 export function DriverCard({ driver }: DriverCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
-    <Card 
-      className="group hover:shadow-md transition-shadow"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <Card className="group hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">

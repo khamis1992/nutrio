@@ -41,7 +41,11 @@ export const useFamilyMembers = () => {
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      setMembers(data || []);
+      setMembers((data || []).map((member) => ({
+        ...member,
+        created_at: member.created_at ?? "",
+        updated_at: member.updated_at ?? "",
+      })));
     } catch (err) {
       console.error("Error fetching family members:", err);
     } finally {
@@ -77,12 +81,14 @@ export const useFamilyMembers = () => {
   };
 
   const removeMember = async (memberId: string): Promise<boolean> => {
+    if (!user) return false;
+
     try {
       const { error } = await supabase
         .from("family_members")
         .delete()
         .eq("id", memberId)
-        .eq("main_user_id", user?.id);
+        .eq("main_user_id", user.id);
 
       if (error) throw error;
       toast.success("Family member removed");
@@ -99,12 +105,14 @@ export const useFamilyMembers = () => {
     memberId: string,
     updates: Partial<FamilyMemberInput>
   ): Promise<boolean> => {
+    if (!user) return false;
+
     try {
       const { error } = await supabase
         .from("family_members")
         .update(updates)
         .eq("id", memberId)
-        .eq("main_user_id", user?.id);
+        .eq("main_user_id", user.id);
 
       if (error) throw error;
       toast.success("Family member updated");

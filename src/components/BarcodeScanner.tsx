@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Camera, X, Scan, Loader2, AlertCircle, Barcode } from "lucide-react";
+import { Camera, X, Loader2, AlertCircle, Barcode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -42,7 +42,6 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
   const [isScanning, setIsScanning] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [lastScan, setLastScan] = useState<string | null>(null);
   const [loadingProduct, setLoadingProduct] = useState(false);
   const [productData, setProductData] = useState<ScannedProduct | null>(null);
   const [cameraPreview, setCameraPreview] = useState<string | null>(null);
@@ -91,8 +90,8 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
             allowEditing: false,
           });
 
-          if (photo?.path || photo?.webPath) {
-            const imagePath = photo.webPath || photo.path;
+          const imagePath = photo.webPath ?? photo.path;
+          if (imagePath) {
             setCameraPreview(imagePath);
             setHasPermission(true);
             
@@ -133,6 +132,7 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
 
           const decodeLoop = async () => {
             if (!videoRef.current || !isScanningRef.current) return;
+            let shouldContinue = true;
             
             try {
               const canvas = canvasRef.current;
@@ -147,12 +147,11 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
                 }
               }
 
-              const result = await codeReader.decodeOnceFromVideoElement(videoRef.current);
+              const result = await codeReader.decodeFromVideoElement(videoRef.current);
               if (result) {
                 const barcode = result.getText();
                 if (barcode !== lastScanRef.current) {
                   lastScanRef.current = barcode;
-                  setLastScan(barcode);
                   toast.success(`Barcode detected: ${barcode}`);
                   await fetchProductData(barcode);
                 }
@@ -162,10 +161,14 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
                 // Continue scanning
               } else {
                 console.error("Barcode detection error:", err);
+                shouldContinue = false;
+                isScanningRef.current = false;
+                setIsScanning(false);
+                setError("Barcode scanner stopped unexpectedly. Please try again.");
               }
             }
             
-            if (isScanningRef.current && videoRef.current?.srcObject) {
+            if (shouldContinue && isScanningRef.current && videoRef.current?.srcObject) {
               rafRef.current = requestAnimationFrame(decodeLoop);
             }
           };
@@ -199,21 +202,11 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       
       img.onload = async () => {
         try {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0);
-          }
-
-          // Try to decode
-          const result = await codeReader.decodeFromCanvas(canvas);
+          const result = await codeReader.decodeFromImageElement(img);
           if (result) {
             const barcode = result.getText();
             if (barcode !== lastScanRef.current) {
               lastScanRef.current = barcode;
-              setLastScan(barcode);
               toast.success(`Barcode detected: ${barcode}`);
               await fetchProductData(barcode);
             }
@@ -292,7 +285,6 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
 
   // Handle scan another
   const handleScanAnother = () => {
-    setLastScan(null);
     lastScanRef.current = null;
     setProductData(null);
     setCameraPreview(null);
@@ -531,7 +523,6 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
 
 // Hook for barcode scanning with nutrition lookup
 export function useBarcodeScanning() {
-  const [isScanning, setIsScanning] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<ScannedProduct | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -563,7 +554,6 @@ export function useBarcodeScanning() {
   };
 
   return {
-    isScanning,
     scannedProduct,
     loading,
     error,

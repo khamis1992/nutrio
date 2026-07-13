@@ -9,7 +9,6 @@ import {
   AnalyticsEvents,
   trackUserSignedUp,
   trackUserLoggedIn,
-  trackScrollDepthStart,
   installRageClickDetector,
   trackWidgetView,
   trackWidgetInteract,

@@ -23,6 +23,19 @@ export interface RestaurantBranch {
   updated_at: string;
 }
 
+type RestaurantBranchRow = Omit<RestaurantBranch, 'is_active' | 'created_at' | 'updated_at'> & {
+  is_active: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+const normalizeBranch = (branch: RestaurantBranchRow): RestaurantBranch => ({
+  ...branch,
+  is_active: branch.is_active ?? false,
+  created_at: branch.created_at ?? '',
+  updated_at: branch.updated_at ?? '',
+});
+
 interface UseRestaurantBranchesOptions {
   restaurantId?: string;
   userLat?: number;
@@ -54,7 +67,7 @@ export const useRestaurantBranches = (options: UseRestaurantBranchesOptions = {}
         const { data, error: fetchError } = await query;
 
         if (fetchError) throw fetchError;
-        setBranches(data || []);
+        setBranches((data ?? []).map(normalizeBranch));
       } catch (err) {
         console.error('Error fetching restaurant branches:', err);
         setError(err as Error);
@@ -167,7 +180,7 @@ export const useMultiRestaurantRoute = (
           .in('restaurant_id', restaurantIds);
 
         if (error) throw error;
-        setAllBranches(data || []);
+        setAllBranches((data ?? []).map(normalizeBranch));
       } catch (err) {
         console.error('Error fetching branches:', err);
       } finally {

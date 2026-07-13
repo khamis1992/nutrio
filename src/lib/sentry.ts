@@ -8,23 +8,25 @@ function loadSentry() {
 }
 
 export async function initSentry() {
-  if (import.meta.env.DEV) {
+  const dsn = import.meta.env.VITE_SENTRY_DSN?.trim();
+  if (import.meta.env.DEV || !dsn) {
     return;
   }
 
   const Sentry = await loadSentry();
 
   Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN,
+    dsn,
+    sendDefaultPii: false,
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration({
-        maskAllText: false,
-        blockAllMedia: false,
+        maskAllText: true,
+        blockAllMedia: true,
       }),
     ],
     // Performance Monitoring
-    tracesSampleRate: 1.0,
+    tracesSampleRate: 0.1,
     // Session Replay
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
@@ -37,6 +39,16 @@ export async function initSentry() {
       if (event.user) {
         delete event.user.email;
         delete event.user.ip_address;
+      }
+      if (event.request) {
+        delete event.request.cookies;
+        delete event.request.data;
+        if (event.request.headers) {
+          delete event.request.headers.Authorization;
+          delete event.request.headers.authorization;
+          delete event.request.headers.Cookie;
+          delete event.request.headers.cookie;
+        }
       }
       return event;
     },
@@ -69,13 +81,12 @@ export function captureMessage(
   });
 }
 
-export function setUserContext(userId: string, email?: string) {
+export function setUserContext(userId: string, _email?: string) {
   if (import.meta.env.DEV) return;
 
   void loadSentry().then((Sentry) => {
     Sentry.setUser({
       id: userId,
-      email: email ? `${userId}@user.local` : undefined,
     });
   });
 }

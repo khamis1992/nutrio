@@ -111,22 +111,6 @@ export function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle, availabl
 
       if (error) throw error;
 
-      // Update driver's assigned vehicle if changed
-      if (formData.assignedDriverId && formData.assignedDriverId !== vehicle.assignedDriverId) {
-        await supabase
-          .from('drivers')
-          .update({ assigned_vehicle_id: vehicle.id })
-          .eq('id', formData.assignedDriverId);
-      }
-
-      // Remove vehicle from old driver if unassigned
-      if (!formData.assignedDriverId && vehicle.assignedDriverId) {
-        await supabase
-          .from('drivers')
-          .update({ assigned_vehicle_id: null })
-          .eq('id', vehicle.assignedDriverId);
-      }
-
       toast({
         title: "Success",
         description: "Vehicle updated successfully",

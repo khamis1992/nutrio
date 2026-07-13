@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { 
@@ -69,15 +68,15 @@ export default function AddDriver() {
 
       if (error) throw error;
 
-      const transformedCities: City[] = (data || []).map((c: { id: string; name: string; name_ar?: string; country: string; latitude: number; longitude: number; timezone: string; is_active: boolean }) => ({
+      const transformedCities: City[] = (data || []).map((c) => ({
         id: c.id,
         name: c.name,
-        nameAr: c.name_ar,
+        nameAr: c.name_ar || undefined,
         country: c.country,
-        latitude: c.latitude,
-        longitude: c.longitude,
-        timezone: c.timezone,
-        isActive: c.is_active,
+        latitude: c.latitude || 0,
+        longitude: c.longitude || 0,
+        timezone: c.timezone || "Asia/Qatar",
+        isActive: c.is_active ?? true,
       }));
 
       setCities(transformedCities);
@@ -96,7 +95,13 @@ export default function AddDriver() {
         .order('name');
 
       if (error) throw error;
-      setZones(data || []);
+      setZones(
+        (data || []).flatMap((zone) =>
+          zone.city_id
+            ? [{ id: zone.id, name: zone.name, city_id: zone.city_id, is_active: zone.is_active ?? true }]
+            : [],
+        ),
+      );
     } catch (error) {
       console.error("Error fetching zones:", error);
     }
@@ -112,17 +117,16 @@ export default function AddDriver() {
 
       if (error) throw error;
 
-      const transformedVehicles: Vehicle[] = (data || []).map((v: { id: string; city_id?: string; type: Vehicle['type']; make?: string; model?: string; year?: number; color?: string; plate_number: string; status: string; created_at: string }) => ({
+      const transformedVehicles: Vehicle[] = (data || []).map((v) => ({
         id: v.id,
         cityId: v.city_id || '',
-        type: v.type,
-        make: v.make,
-        model: v.model,
-        year: v.year,
-        color: v.color,
+        type: v.type as Vehicle['type'],
+        make: v.make || undefined,
+        model: v.model || undefined,
+        year: v.year || undefined,
+        color: v.color || undefined,
         plateNumber: v.plate_number,
         status: v.status as Vehicle['status'],
-        createdAt: v.created_at,
       }));
 
       setVehicles(transformedVehicles);
@@ -163,10 +167,10 @@ export default function AddDriver() {
 
     try {
       // Validate required fields
-      if (!formData.fullName || !formData.phone) {
+      if (!formData.fullName || !formData.phone || !formData.email || !formData.cityId) {
         toast({
           title: "Error",
-          description: "Full name and phone are required",
+          description: "Full name, phone, email, and city are required",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -188,27 +192,20 @@ export default function AddDriver() {
         vehicleRegUrl = await uploadDocument(documents.vehicleReg, 'reg');
       }
 
-      // Create driver
+      // Create the Auth user and driver atomically through the privileged fleet endpoint.
       const { data: driverData, error: driverError } = await supabase
-        .from('drivers')
-        .insert({
-          full_name: formData.fullName,
-          email: formData.email || null,
-          phone_number: formData.phone,
-          city_id: formData.cityId || null,
-          assigned_zone_ids: formData.zoneIds,
-          approval_status: 'pending',
-          is_active: true,
-          is_online: false,
-          total_deliveries: 0,
-          rating: 5.0,
-          wallet_balance: 0,
-          total_earnings: 0,
-        })
-        .select()
-        .single();
+        .functions.invoke<{ id: string }>('fleet-drivers', {
+          body: {
+            fullName: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            cityId: formData.cityId,
+            zoneIds: formData.zoneIds,
+          },
+        });
 
       if (driverError) throw driverError;
+      if (!driverData?.id) throw new Error("Driver creation returned no driver ID");
 
       // Create document records
       const documentRecords = [];
@@ -332,6 +329,7 @@ export default function AddDriver() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="e.g., driver@example.com"
+                required
               />
             </div>
           </CardContent>
@@ -354,6 +352,7 @@ export default function AddDriver() {
                   setFormData({ ...formData, cityId: value, zoneIds: [] });
                   setSelectedCity(value);
                 }}
+                required
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select city" />

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSubscriptionPlans, type DbSubscriptionPlan } from "@/hooks/useSubscriptionPlans";
+import { useSubscription } from "@/hooks/useSubscription";
 import { PlanComparisonTable } from "@/components/subscription/PlanComparisonTable";
 
 const TIER_DISPLAY: Record<string, { en: string; ar: string; icon: typeof Zap; badge: string; badgeClass: string }> = {
@@ -25,6 +26,7 @@ export default function SubscriptionPlans() {
   const [viewMode, setViewMode] = useState<"cards" | "compare">("cards");
   const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">("monthly");
   const { plans: dbPlans, loading, error } = useSubscriptionPlans();
+  const { subscription } = useSubscription();
 
   const getPlanDisplay = (plan: DbSubscriptionPlan) => {
     return TIER_DISPLAY[plan.tier] || {
@@ -36,8 +38,9 @@ export default function SubscriptionPlans() {
     };
   };
 
-  const handleSubscribe = async (planTier: string) => {
+  const handleSubscribe = async (plan: DbSubscriptionPlan) => {
     setIsLoading(true);
+    setSelectedPlan(plan.tier);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -45,7 +48,14 @@ export default function SubscriptionPlans() {
         navigate("/subscription");
         return;
       }
-      navigate(`/subscription/checkout?plan=${planTier}`);
+      const query = new URLSearchParams({
+        type: "subscription",
+        planId: plan.id,
+      });
+      if (subscription?.id) {
+        query.set("subscriptionId", subscription.id);
+      }
+      navigate(`/checkout?${query.toString()}`);
     } catch {
       toast.error("Failed to process subscription");
     } finally {
@@ -152,6 +162,12 @@ export default function SubscriptionPlans() {
             const Icon = display.icon;
             const isSelected = selectedPlan === plan.tier;
             const isPopular = plan.tier === "elite";
+            const isCurrentPlan = Boolean(
+              subscription
+                && subscription.tier === plan.tier
+                && (subscription.billing_interval ?? "monthly") === plan.billing_interval,
+            );
+            const canRenewCurrentPlan = isCurrentPlan && subscription?.status === "expired";
             const pricePerMeal = plan.meals_per_month > 0
               ? (plan.price_qar / plan.meals_per_month).toFixed(2)
               : "0";
@@ -192,7 +208,9 @@ export default function SubscriptionPlans() {
                     </div>
                     <div className="text-right">
                       <p className="text-3xl font-extrabold text-foreground">{plan.price_qar.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground font-medium">QAR / month</p>
+                      <p className="text-xs text-muted-foreground font-medium">
+                        QAR / {plan.billing_interval === "weekly" ? "week" : "month"}
+                      </p>
                     </div>
                   </div>
 
@@ -205,7 +223,7 @@ export default function SubscriptionPlans() {
                       <div className="flex items-center gap-2">
                         <Utensils className="h-4 w-4 text-primary" />
                         <span className="text-sm text-foreground font-semibold">
-                          {plan.meals_per_month} meals/month
+                          {plan.meals_per_month} meals/{plan.billing_interval === "weekly" ? "week" : "month"}
                         </span>
                       </div>
                       <span className="text-xs text-muted-foreground font-medium">
@@ -216,7 +234,7 @@ export default function SubscriptionPlans() {
                       <div className="flex items-center gap-2 border-t border-border/30 pt-2">
                         <Apple className="h-4 w-4 text-amber-500" />
                         <span className="text-sm text-foreground font-semibold">
-                          +{plan.snacks_per_month} snacks/month
+                          +{plan.snacks_per_month} snacks/{plan.billing_interval === "weekly" ? "week" : "month"}
                         </span>
                       </div>
                     )}
@@ -250,14 +268,20 @@ export default function SubscriptionPlans() {
                     )}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleSubscribe(plan.tier);
+                      handleSubscribe(plan);
                     }}
-                    disabled={isLoading}
+                    disabled={isLoading || (isCurrentPlan && !canRenewCurrentPlan)}
                   >
                     {isLoading && selectedPlan === plan.tier ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      language === "ar" ? `اشترك في ${display.ar}` : `Subscribe to ${display.en}`
+                      subscription
+                        ? isCurrentPlan
+                          ? canRenewCurrentPlan
+                            ? language === "ar" ? `جدد ${display.ar}` : `Renew ${display.en}`
+                            : language === "ar" ? "خطتك الحالية" : "Current plan"
+                          : language === "ar" ? `انتقل إلى ${display.ar}` : `Switch to ${display.en}`
+                        : language === "ar" ? `اشترك في ${display.ar}` : `Subscribe to ${display.en}`
                     )}
                   </Button>
 

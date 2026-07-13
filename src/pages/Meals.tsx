@@ -1,29 +1,26 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   AlertCircle,
   ArrowLeft,
-  Bike,
   ChevronRight,
-  Clock,
-  Coffee,
+  Clock3,
+  Beef,
+  Dumbbell,
   Flame,
   Heart,
-  Leaf,
   RefreshCw,
+  Scale,
   Search,
   ShieldCheck,
-  Soup,
-  Sparkles,
   Star,
-  Store,
   Utensils,
-  UtensilsCrossed,
+  WheatOff,
   type LucideIcon,
 } from "lucide-react";
+
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
-import { SmartMealPicks } from "@/components/SmartRecommendations";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
@@ -32,10 +29,8 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { Haptics } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
-import { trackEvent } from "@/lib/analytics";
-import { recordSportHubClick } from "@/lib/partnerTracking";
 
-type MealCategory = "all" | "breakfast" | "lunch" | "dinner" | "snacks";
+type RestaurantCategory = "all" | "under_500" | "protein" | "low_carb" | "balanced";
 
 interface Restaurant {
   id: string;
@@ -46,180 +41,90 @@ interface Restaurant {
   rating: number;
   total_orders: number;
   meal_count: number;
-  cuisine_types?: string[];
+  cuisine_types: string[];
+  meal_search_text: string;
 }
 
-interface RestaurantTemplate {
+interface MealRecommendation {
+  id: string;
+  restaurant_id: string;
   name: string;
-  description: string;
-  meals: number;
-  image: string;
-  accent: string;
+  image_url: string | null;
+  meal_type: string | null;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  rating: number;
+  order_count: number;
 }
 
-interface ShowcaseRestaurant extends RestaurantTemplate {
-  liveRestaurantId?: string;
-}
-
-const categoryTabs: Array<{ id: MealCategory; label: string; icon: LucideIcon }> = [
+const categoryTabs: Array<{ id: RestaurantCategory; label: string; icon: LucideIcon }> = [
   { id: "all", label: "All", icon: Utensils },
-  { id: "breakfast", label: "Breakfast", icon: Coffee },
-  { id: "lunch", label: "Lunch", icon: Soup },
-  { id: "dinner", label: "Dinner", icon: UtensilsCrossed },
-  { id: "snacks", label: "Snacks", icon: Leaf },
+  { id: "under_500", label: "Under 500 kcal", icon: Flame },
+  { id: "protein", label: "High protein", icon: Dumbbell },
+  { id: "low_carb", label: "Low carb", icon: WheatOff },
+  { id: "balanced", label: "Balanced", icon: Scale },
 ];
 
-const CATEGORY_KEYWORDS: Record<MealCategory, string[]> = {
-  all: [],
-  breakfast: ["breakfast", "morning", "brunch", "cafe"],
-  lunch: ["lunch", "midday", "arabic", "lebanese", "mediterranean", "salad"],
-  dinner: ["dinner", "evening", "grill", "grilled", "bbq", "steak", "seafood"],
-  snacks: ["snack", "snacks", "light", "dessert", "sweet", "vegan", "healthy", "protein", "fitness"],
+const isRestaurantCategory = (value: string | null): value is RestaurantCategory =>
+  value === "all" || value === "under_500" || value === "protein" || value === "low_carb" || value === "balanced";
+
+const mealMatchesCategory = (meal: MealRecommendation, category: RestaurantCategory) => {
+  if (category === "all") return true;
+  if (category === "under_500") return meal.calories > 0 && meal.calories <= 500;
+  if (category === "protein") return meal.protein_g >= 30;
+  if (category === "low_carb") return meal.carbs_g > 0 && meal.carbs_g <= 35;
+  return meal.calories >= 350 && meal.calories <= 650 && meal.protein_g >= 20 && meal.carbs_g >= 25 && meal.carbs_g <= 75;
 };
-
-const isMealCategory = (value: string | null): value is MealCategory =>
-  value === "all" || value === "breakfast" || value === "lunch" || value === "dinner" || value === "snacks";
-
-const restaurantTemplates: RestaurantTemplate[] = [
-  {
-    name: "Lebanese Kitchen",
-    description: "Traditional Lebanese cuisine with fresh herbs and bright mezze plates",
-    meals: 4,
-    image: "/meals/beef-shawarma-bowl.jpg",
-    accent: "from-amber-500 to-rose-500",
-  },
-  {
-    name: "Mediterranean Delights",
-    description: "Authentic Mediterranean bowls, wraps, and clean coastal flavors",
-    meals: 16,
-    image: "/meals/grilled-chicken-salad.jpg",
-    accent: "from-sky-500 to-emerald-500",
-  },
-  {
-    name: "Fitness Fuel Station",
-    description: "High-protein meals designed for active lifestyles and lean goals",
-    meals: 4,
-    image: "/meals/grilled-chicken-salad.jpg",
-    accent: "from-lime-500 to-cyan-500",
-  },
-  {
-    name: "Green Garden Vegan",
-    description: "Plant-based restaurant with seasonal ingredients and bold sauces",
-    meals: 4,
-    image: "/meals/falafel-wrap.jpg",
-    accent: "from-emerald-500 to-teal-500",
-  },
-  {
-    name: "Organic Harvest",
-    description: "Farm-to-table meals sourced from local Qatar produce partners",
-    meals: 4,
-    image: "/meals/grilled-chicken-salad.jpg",
-    accent: "from-orange-500 to-emerald-500",
-  },
-  {
-    name: "Healthy Bites Cafe",
-    description: "Casual dining with balanced nutrition options for busy days",
-    meals: 4,
-    image: "/meals/falafel-wrap.jpg",
-    accent: "from-fuchsia-500 to-orange-500",
-  },
-  {
-    name: "Protein Hub",
-    description: "High protein, great taste, built for recovery and strength",
-    meals: 4,
-    image: "/meals/beef-shawarma-bowl.jpg",
-    accent: "from-indigo-500 to-emerald-500",
-  },
-  {
-    name: "Wellness Kitchen",
-    description: "Balanced meals for everyday wellness, energy, and focus",
-    meals: 4,
-    image: "/meals/grilled-chicken-salad.jpg",
-    accent: "from-rose-500 to-teal-500",
-  },
-];
-
-const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "").trim();
 
 const seedRating = (name: string): string => {
   const seed = name.charCodeAt(0) + name.charCodeAt(name.length - 1);
   return (4.2 + ((seed % 7) / 10)).toFixed(1);
 };
 
-const truncateDescription = (value: string | null | undefined, fallback: string) => {
-  const text = value?.trim() || fallback;
-  return text.length <= 86 ? text : `${text.slice(0, 83).trim()}...`;
+const getRestaurantImage = (restaurant: Restaurant) =>
+  restaurant.image_url || restaurant.logo_url || "/meals/grilled-chicken-salad.jpg";
+
+const getCuisineLabel = (restaurant: Restaurant) => {
+  const firstCuisine = restaurant.cuisine_types.find(Boolean);
+  return firstCuisine || "Healthy dining";
 };
 
-const getRestaurantImage = (restaurant: ShowcaseRestaurant) =>
-  restaurant.image && restaurant.image !== "/meals-header-illustration.png"
-    ? restaurant.image
-    : "/meals/grilled-chicken-salad.jpg";
-
-const getGoalFitLabel = (goalType: string | null | undefined, restaurant: ShowcaseRestaurant) => {
-  const copy = `${restaurant.name} ${restaurant.description}`.toLowerCase();
-  if (goalType === "muscle_gain" && /protein|fitness|fuel|chicken|grill/.test(copy)) return "goal_high_protein_pick";
-  if (goalType === "weight_loss" && /salad|green|vegan|healthy|light|wellness/.test(copy)) return "goal_light_pick";
-  if (goalType === "maintenance" && /balanced|wellness|mediterranean|organic/.test(copy)) return "goal_fits_you";
-  return /healthy|protein|fitness|wellness|organic|green/.test(copy) ? "goal_fits_you" : null;
+const getGoalFitLabel = (goalType: string | null | undefined, restaurant: Restaurant) => {
+  const copy = `${restaurant.name} ${restaurant.description ?? ""} ${restaurant.cuisine_types.join(" ")} ${restaurant.meal_search_text}`.toLowerCase();
+  if (goalType === "muscle_gain" && /protein|fitness|fuel|chicken|grill/.test(copy)) return "High-protein match";
+  if (goalType === "weight_loss" && /salad|green|vegan|healthy|light|wellness/.test(copy)) return "Light meal match";
+  if (goalType === "maintenance" && /balanced|wellness|mediterranean|organic/.test(copy)) return "Fits your goal";
+  return /healthy|protein|fitness|wellness|organic|green/.test(copy) ? "Fits your goal" : null;
 };
 
-const FeatureCard = ({ restaurant, goalType, t }: { restaurant: ShowcaseRestaurant; goalType?: string | null; t: (key: string) => string }) => {
-  const fitLabel = getGoalFitLabel(goalType, restaurant);
-  const card = (
-    <motion.article
-      whileHover={{ y: -4 }}
-      className="group relative h-[240px] min-w-[280px] overflow-hidden rounded-[24px] bg-slate-900 shadow-[0_20px_45px_rgba(15,23,42,0.18)] ring-1 ring-white/70 sm:min-w-[360px]"
-    >
-      <img
-        src={getRestaurantImage(restaurant)}
-        alt={restaurant.name}
-        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-        loading="lazy"
-      />
-      <div className={cn("absolute inset-0 bg-gradient-to-br opacity-35", restaurant.accent)} />
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent" />
-      <div className="absolute left-4 right-4 top-4 flex items-center justify-between">
-        <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white/92 px-3 text-[12px] font-extrabold text-slate-900 shadow-sm backdrop-blur">
-          <Sparkles className="h-3.5 w-3.5 text-amber-500" strokeWidth={2.5} />
-          Featured
-        </span>
-        {fitLabel && (
-          <span className="inline-flex h-8 items-center rounded-full bg-[#020617] px-3 text-[11px] font-black text-white shadow-sm">
-            {t(fitLabel)}
-          </span>
-        )}
-        <span className="inline-flex h-8 items-center gap-1 rounded-full bg-black/35 px-3 text-[12px] font-bold text-white backdrop-blur">
-          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" strokeWidth={0} />
-          {seedRating(restaurant.name)}
-        </span>
-      </div>
-      <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-        <h3 className="text-[22px] font-extrabold leading-tight tracking-normal">{restaurant.name}</h3>
-        <p className="mt-1.5 line-clamp-2 max-w-[280px] text-[13px] font-medium leading-relaxed text-white/82">
-          {restaurant.description}
-        </p>
-        <div className="mt-4 flex items-center gap-2 text-[12px] font-bold text-white/85">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 backdrop-blur">
-            <Clock className="h-3.5 w-3.5" />
-            20-30 min
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 backdrop-blur">
-            <Utensils className="h-3.5 w-3.5" />
-            {restaurant.meals} meals
-          </span>
-        </div>
-      </div>
-    </motion.article>
-  );
+const scoreMealForGoal = (
+  meal: MealRecommendation,
+  goalType: string | null | undefined,
+  dailyCalorieTarget?: number,
+) => {
+  const ratingScore = meal.rating * 12;
+  const popularityScore = Math.min(meal.order_count, 100) * 0.08;
+  const proteinScore = meal.protein_g * (goalType === "muscle_gain" ? 2.4 : 1.25);
+  const targetMealCalories = Math.max(350, Math.min(700, (dailyCalorieTarget || 1800) / 3));
+  const calorieFit = Math.max(0, 35 - Math.abs(meal.calories - targetMealCalories) / 12);
 
-  if (!restaurant.liveRestaurantId) return card;
+  if (goalType === "weight_loss") {
+    const lightMealBonus = meal.calories > 0 && meal.calories <= targetMealCalories ? 22 : 0;
+    return ratingScore + popularityScore + proteinScore + calorieFit + lightMealBonus;
+  }
 
-  return (
-    <Link to={`/restaurant/${restaurant.liveRestaurantId}`} data-testid={`meals-showcase-link-${restaurant.liveRestaurantId}`} className="block">
-      {card}
-    </Link>
-  );
+  if (goalType === "muscle_gain") {
+    return ratingScore + popularityScore + proteinScore + calorieFit;
+  }
+
+  return ratingScore + popularityScore + proteinScore + calorieFit;
+};
+
+const getMealMatchReason = (meal: MealRecommendation, goalType: string | null | undefined) => {
+  if (goalType === "muscle_gain") return `${Math.round(meal.protein_g)}g protein for your goal`;
+  if (goalType === "weight_loss") return `${Math.round(meal.calories)} kcal with ${Math.round(meal.protein_g)}g protein`;
+  return "Strong nutrition and customer rating";
 };
 
 const RestaurantCard = ({
@@ -227,110 +132,100 @@ const RestaurantCard = ({
   isFavorite,
   onToggleFavorite,
   goalType,
-  t,
+  isRTL,
 }: {
-  restaurant: ShowcaseRestaurant;
+  restaurant: Restaurant;
   isFavorite: (restaurantId: string) => boolean;
-  onToggleFavorite: (restaurantId: string | undefined, restaurantName: string) => void;
+  onToggleFavorite: (restaurantId: string, restaurantName: string) => void;
   goalType?: string | null;
-  t: (key: string) => string;
+  isRTL: boolean;
 }) => {
-  const cardTestId = restaurant.liveRestaurantId ? `meals-card-${restaurant.liveRestaurantId}` : undefined;
-  const favorite = restaurant.liveRestaurantId ? isFavorite(restaurant.liveRestaurantId) : false;
-  const reduceMotion = useReducedMotion();
+  const favorite = isFavorite(restaurant.id);
   const fitLabel = getGoalFitLabel(goalType, restaurant);
-
-  const card = (
-    <motion.article
-      whileTap={reduceMotion ? undefined : { scale: 0.985 }}
-      className="group overflow-hidden rounded-[22px] bg-white shadow-[0_12px_35px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/80 transition hover:-translate-y-0.5 hover:shadow-[0_22px_50px_rgba(15,23,42,0.12)]"
-    >
-      <div className="relative h-[154px] overflow-hidden bg-slate-100 sm:h-[172px]">
-        <img
-          src={getRestaurantImage(restaurant)}
-          alt={restaurant.name}
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-          loading="lazy"
-        />
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
-          <span className="inline-flex h-8 items-center gap-1 rounded-full bg-white/92 px-2.5 text-[12px] font-extrabold text-slate-800 shadow-sm backdrop-blur">
-            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" strokeWidth={0} />
-            {seedRating(restaurant.name)}
-          </span>
-          <button
-            data-testid="meals-fav-btn"
-            className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-full bg-white/92 shadow-sm backdrop-blur transition active:scale-95",
-              favorite ? "text-rose-500" : "text-slate-500 hover:text-rose-500",
-            )}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onToggleFavorite(restaurant.liveRestaurantId, restaurant.name);
-            }}
-            aria-label={`Favorite ${restaurant.name}`}
-          >
-            <Heart className={cn("h-[18px] w-[18px]", favorite && "fill-current")} strokeWidth={2.25} />
-          </button>
-        </div>
-      </div>
-
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate text-[17px] font-extrabold tracking-normal text-slate-950">{restaurant.name}</h3>
-            <p className="mt-1 line-clamp-2 min-h-[40px] text-[13px] font-medium leading-relaxed text-slate-500">
-              {restaurant.description}
-            </p>
-            {fitLabel && (
-              <span className="mt-2 inline-flex h-7 items-center rounded-full bg-[#F3F4FF] px-2.5 text-[11px] font-black text-[#7C83F6] ring-1 ring-[#7C83F6]/20">
-                {t(fitLabel)}
-              </span>
-            )}
-          </div>
-          <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-500" />
-        </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {[
-            { Icon: Bike, value: "20-30", label: "min", tone: "text-sky-700" },
-            { Icon: Utensils, value: restaurant.meals, label: "meals", tone: "text-[#020617]" },
-            { Icon: ShieldCheck, value: "Macro", label: "checked", tone: "text-orange-700" },
-          ].map(({ Icon, value, label, tone }) => (
-            <div key={`${value}-${label}`} className="rounded-[16px] bg-white/75 px-2.5 py-2.5 ring-1 ring-slate-200/80 backdrop-blur">
-              <div className={`flex items-center gap-1.5 ${tone}`}>
-                <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} />
-                <span className="truncate text-[13px] font-black leading-none">{value}</span>
-              </div>
-              <p className="mt-1 text-[9px] font-black uppercase tracking-[0.08em] text-slate-400">{label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </motion.article>
-  );
-
-  if (!restaurant.liveRestaurantId) return card;
+  const reduceMotion = useReducedMotion();
+  const rating = restaurant.rating > 0 ? restaurant.rating.toFixed(1) : seedRating(restaurant.name);
 
   return (
-    <Link to={`/restaurant/${restaurant.liveRestaurantId}`} data-testid={cardTestId} className="block">
-      {card}
-    </Link>
+    <motion.article
+      whileTap={reduceMotion ? undefined : { scale: 0.988 }}
+      className="relative overflow-hidden rounded-[20px] bg-white shadow-[0_8px_24px_rgba(2,6,23,0.05)] ring-1 ring-[#E5EAF1]"
+    >
+      <Link
+        to={`/restaurant/${restaurant.id}`}
+        data-testid={`meals-card-${restaurant.id}`}
+        className="flex min-h-[142px] gap-3 p-3"
+      >
+        <div className="relative h-[118px] w-[112px] shrink-0 overflow-hidden rounded-[16px] bg-[#F6F8FB]">
+          <img
+            src={getRestaurantImage(restaurant)}
+            alt={restaurant.name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+          <span className="absolute bottom-2 left-2 inline-flex h-7 items-center gap-1 rounded-full bg-white/95 px-2 text-[11px] font-black text-[#020617] shadow-sm backdrop-blur">
+            <Star className="h-3 w-3 fill-[#F59E0B] text-[#F59E0B]" strokeWidth={0} />
+            {rating}
+          </span>
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col py-1">
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] font-extrabold uppercase text-[#94A3B8]">{getCuisineLabel(restaurant)}</p>
+              <h3 className="mt-0.5 line-clamp-2 text-[16px] font-black leading-tight text-[#020617]">{restaurant.name}</h3>
+            </div>
+            <ChevronRight className={cn("mt-1 h-5 w-5 shrink-0 text-[#94A3B8]", isRTL && "rotate-180")} />
+          </div>
+
+          {fitLabel ? (
+            <span className="mt-2 inline-flex w-fit rounded-full bg-[#F3F4FF] px-2 py-1 text-[10px] font-extrabold text-[#7C83F6]">
+              {fitLabel}
+            </span>
+          ) : null}
+
+          <div className="mt-auto flex items-center gap-3 pt-2 text-[11px] font-bold text-[#64748B]">
+            <span className="inline-flex items-center gap-1">
+              <Clock3 className="h-3.5 w-3.5 text-[#38BDF8]" />
+              20-30 min
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Utensils className="h-3.5 w-3.5 text-[#22C7A1]" />
+              {restaurant.meal_count} meals
+            </span>
+          </div>
+        </div>
+      </Link>
+
+      <button
+        type="button"
+        data-testid="meals-fav-btn"
+        onClick={() => onToggleFavorite(restaurant.id, restaurant.name)}
+        className={cn(
+          "absolute left-[86px] top-5 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 shadow-sm ring-1 ring-black/5 backdrop-blur active:scale-95",
+          favorite ? "text-[#FB6B7A]" : "text-[#64748B]",
+          isRTL && "left-auto right-[86px]",
+        )}
+        aria-label={`Favorite ${restaurant.name}`}
+      >
+        <Heart className={cn("h-[17px] w-[17px]", favorite && "fill-current")} strokeWidth={2.2} />
+      </button>
+    </motion.article>
   );
 };
 
 const Meals = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get("category");
   const initialQuery = searchParams.get("q") || "";
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [availableMeals, setAvailableMeals] = useState<MealRecommendation[]>([]);
   const [featuredRestaurantIds, setFeaturedRestaurantIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<MealCategory>(isMealCategory(initialCategory) ? initialCategory : "all");
+  const [selectedCategory, setSelectedCategory] = useState<RestaurantCategory>(
+    isRestaurantCategory(initialCategory) ? initialCategory : "all",
+  );
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
   const { user } = useAuth();
   const { activeGoal } = useNutritionGoals(user?.id);
@@ -344,18 +239,15 @@ const Meals = () => {
     mealsUsed,
     isUnlimited,
   } = useSubscription();
-  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const category = searchParams.get("category");
-    const query = searchParams.get("q") || "";
-    setSelectedCategory(isMealCategory(category) ? category : "all");
-    setSearchQuery(query);
+    setSelectedCategory(isRestaurantCategory(category) ? category : "all");
+    setSearchQuery(searchParams.get("q") || "");
   }, [searchParams]);
 
   const handleToggleFavorite = useCallback(
-    (restaurantId: string | undefined, restaurantName: string) => {
-      if (!restaurantId) return;
+    (restaurantId: string, restaurantName: string) => {
       Haptics.impact({ style: "medium" });
       if (!user) {
         promptLogin({
@@ -383,63 +275,77 @@ const Meals = () => {
           .not("name", "ilike", "%test%")
           .not("description", "ilike", "%test%");
 
-        if (restaurantsError) {
-          console.error("Error fetching restaurants:", restaurantsError);
-          setFetchError(restaurantsError.message);
-          return;
-        }
+        if (restaurantsError) throw restaurantsError;
 
         const ids = (restaurantsData ?? []).map((restaurant) => restaurant.id);
-        let mealCounts: Record<string, number> = {};
+        const mealCounts: Record<string, number> = {};
+        const mealSearchTerms: Record<string, string[]> = {};
 
         if (ids.length > 0) {
           const { data: mealsData, error: mealsError } = await supabase
             .from("meals")
-            .select("restaurant_id")
+            .select("id, restaurant_id, name, image_url, meal_type, calories, protein_g, protein, carbs_g, carbs, rating, avg_rating, order_count")
             .in("restaurant_id", ids)
             .eq("approval_status", "approved")
             .eq("is_available", true);
 
-          if (mealsError) {
-            console.error("Error fetching meal counts:", mealsError);
-          }
+          if (mealsError) throw mealsError;
 
-          if (mealsData) {
-            mealCounts = mealsData.reduce<Record<string, number>>((acc, meal) => {
-              if (meal.restaurant_id) acc[meal.restaurant_id] = (acc[meal.restaurant_id] || 0) + 1;
-              return acc;
-            }, {});
-          }
+          (mealsData ?? []).forEach((meal) => {
+            if (!meal.restaurant_id) return;
+            mealCounts[meal.restaurant_id] = (mealCounts[meal.restaurant_id] || 0) + 1;
+            mealSearchTerms[meal.restaurant_id] = [
+              ...(mealSearchTerms[meal.restaurant_id] || []),
+              meal.name,
+              meal.meal_type || "",
+            ];
+          });
+
+          setAvailableMeals(
+            (mealsData ?? [])
+              .filter((meal) => Boolean(meal.restaurant_id))
+              .map((meal) => ({
+                id: meal.id,
+                restaurant_id: meal.restaurant_id as string,
+                name: meal.name,
+                image_url: meal.image_url,
+                meal_type: meal.meal_type,
+                calories: Number(meal.calories || 0),
+                protein_g: Number(meal.protein_g || meal.protein || 0),
+                carbs_g: Number(meal.carbs_g || meal.carbs || 0),
+                rating: Number(meal.avg_rating || meal.rating || 0),
+                order_count: Number(meal.order_count || 0),
+              })),
+          );
         }
 
         setRestaurants(
-          (restaurantsData ?? []).map((restaurant) => ({
-            id: restaurant.id,
-            name: restaurant.name,
-            description: restaurant.description,
-            logo_url: restaurant.logo_url,
-            image_url: restaurant.image_url,
-            rating: Number(restaurant.rating || 0),
-            total_orders: restaurant.total_orders || 0,
-            meal_count: mealCounts[restaurant.id] || 0,
-            cuisine_types: restaurant.cuisine_types || [],
-          })),
+          (restaurantsData ?? [])
+            .map((restaurant) => ({
+              id: restaurant.id,
+              name: restaurant.name,
+              description: restaurant.description,
+              logo_url: restaurant.logo_url,
+              image_url: restaurant.image_url,
+              rating: Number(restaurant.rating || 0),
+              total_orders: restaurant.total_orders || 0,
+              meal_count: mealCounts[restaurant.id] || 0,
+              cuisine_types: restaurant.cuisine_types || [],
+              meal_search_text: (mealSearchTerms[restaurant.id] || []).join(" "),
+            }))
+            .filter((restaurant) => restaurant.meal_count > 0),
         );
 
+        const now = new Date().toISOString();
         const { data: featuredData, error: featuredError } = await supabase
           .from("featured_listings")
-          .select("restaurant_id, status, starts_at, ends_at")
+          .select("restaurant_id")
           .eq("status", "active")
-          .lte("starts_at", new Date().toISOString())
-          .gte("ends_at", new Date().toISOString());
+          .lte("starts_at", now)
+          .gte("ends_at", now);
 
-        if (featuredError) {
-          console.error("Error fetching featured listings:", featuredError);
-        }
-
-        if (featuredData) {
-          setFeaturedRestaurantIds(featuredData.map((featured) => featured.restaurant_id));
-        }
+        if (featuredError) console.error("Error fetching featured listings:", featuredError);
+        setFeaturedRestaurantIds((featuredData ?? []).map((featured) => featured.restaurant_id));
       } catch (error) {
         console.error("Error loading restaurants:", error);
         setFetchError(error instanceof Error ? error.message : "Failed to load restaurants");
@@ -448,336 +354,301 @@ const Meals = () => {
   }, []);
 
   useEffect(() => {
-    document.title = "Discover Meals - Nutrio";
+    document.title = "Discover Restaurants - Nutrio";
   }, []);
-
-  const hydratedRestaurants = useMemo(
-    () =>
-      restaurantTemplates.map((template): ShowcaseRestaurant => {
-        const liveRestaurant = restaurants.find((restaurant) => normalize(restaurant.name) === normalize(template.name));
-        return {
-          ...template,
-          description: truncateDescription(liveRestaurant?.description, template.description),
-          meals: liveRestaurant?.meal_count || template.meals,
-          liveRestaurantId: liveRestaurant?.id,
-          image: liveRestaurant?.image_url || liveRestaurant?.logo_url || template.image,
-        };
-      }),
-    [restaurants],
-  );
 
   const visibleRestaurants = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
 
-    return hydratedRestaurants.filter((restaurant) => {
-      const matchesSearch =
-        !search || `${restaurant.name} ${restaurant.description}`.toLowerCase().includes(search);
+    return restaurants
+      .filter((restaurant) => {
+        const searchable = `${restaurant.name} ${restaurant.description ?? ""} ${restaurant.cuisine_types.join(" ")} ${restaurant.meal_search_text}`.toLowerCase();
+        if (search && !searchable.includes(search)) return false;
+        if (showFavoritesOnly && !isFavorite(restaurant.id)) return false;
+        if (selectedCategory !== "all") {
+          const restaurantMeals = availableMeals.filter((meal) => meal.restaurant_id === restaurant.id);
+          const hasMatchingMeal = restaurantMeals.some((meal) => mealMatchesCategory(meal, selectedCategory));
+          if (!hasMatchingMeal) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const featuredDifference = Number(featuredRestaurantIds.includes(b.id)) - Number(featuredRestaurantIds.includes(a.id));
+        if (featuredDifference !== 0) return featuredDifference;
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return b.total_orders - a.total_orders;
+      });
+  }, [availableMeals, featuredRestaurantIds, isFavorite, restaurants, searchQuery, selectedCategory, showFavoritesOnly]);
 
-      if (!matchesSearch) return false;
-      if (showFavoritesOnly && !(restaurant.liveRestaurantId && isFavorite(restaurant.liveRestaurantId))) return false;
+  const bestMeal = useMemo(() => {
+    const visibleRestaurantIds = new Set(visibleRestaurants.map((restaurant) => restaurant.id));
+    return availableMeals
+      .filter(
+        (meal) =>
+          visibleRestaurantIds.has(meal.restaurant_id) &&
+          meal.calories > 0 &&
+          mealMatchesCategory(meal, selectedCategory),
+      )
+      .sort(
+        (a, b) =>
+          scoreMealForGoal(b, activeGoal?.goal_type, activeGoal?.daily_calorie_target) -
+          scoreMealForGoal(a, activeGoal?.goal_type, activeGoal?.daily_calorie_target),
+      )[0];
+  }, [activeGoal?.daily_calorie_target, activeGoal?.goal_type, availableMeals, selectedCategory, visibleRestaurants]);
 
-      if (selectedCategory !== "all") {
-        const keywords = CATEGORY_KEYWORDS[selectedCategory];
-        const liveData = restaurants.find((liveRestaurant) => liveRestaurant.id === restaurant.liveRestaurantId);
-        const cuisineTypes = liveData?.cuisine_types ?? [];
-        const matchesCuisine = cuisineTypes.some((cuisine) =>
-          keywords.some((keyword) => cuisine.toLowerCase().includes(keyword)),
-        );
-        const matchesCopy = keywords.some((keyword) =>
-          `${restaurant.name} ${restaurant.description}`.toLowerCase().includes(keyword),
-        );
-
-        if (!matchesCuisine && !matchesCopy) return false;
-      }
-
-      return true;
-    });
-  }, [hydratedRestaurants, isFavorite, restaurants, searchQuery, selectedCategory, showFavoritesOnly]);
-
-  const featuredRestaurants = useMemo(() => {
-    const matchesLiveFeatured = visibleRestaurants.filter(
-      (restaurant) => restaurant.liveRestaurantId && featuredRestaurantIds.includes(restaurant.liveRestaurantId),
-    );
-    return matchesLiveFeatured.length > 0 ? matchesLiveFeatured : visibleRestaurants.slice(0, 4);
-  }, [featuredRestaurantIds, visibleRestaurants]);
-
-  const hasNoResults = visibleRestaurants.length === 0 && !fetchError;
+  const bestMealRestaurant = bestMeal
+    ? restaurants.find((restaurant) => restaurant.id === bestMeal.restaurant_id)
+    : undefined;
   const mealBalancePercent = isUnlimited || totalMeals <= 0
     ? 100
     : Math.min(100, Math.round((remainingMeals / totalMeals) * 100));
-  const remainingMealsLabel = subscriptionLoading
-    ? "--"
-    : isUnlimited
-      ? "∞"
-      : Math.max(0, remainingMeals).toLocaleString();
+  const remainingMealsLabel = subscriptionLoading ? "--" : isUnlimited ? "∞" : Math.max(0, remainingMeals).toLocaleString();
+  const hasNoResults = visibleRestaurants.length === 0 && !fetchError;
 
   return (
-    <div className="min-h-full bg-[#F6F7F4]" dir={isRTL ? "rtl" : "ltr"}>
-      <div className="sticky top-0 z-30 border-b border-white/70 bg-[#F6F7F4]/85 backdrop-blur-xl">
+    <div className="min-h-full bg-[#F6F8FB] text-[#020617]" dir={isRTL ? "rtl" : "ltr"}>
+      <header className="sticky top-0 z-30 border-b border-[#E5EAF1]/80 bg-[#F6F8FB]/92 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[480px] items-center justify-between px-4 py-3">
           <Link
             to="/dashboard"
             data-testid="meals-back-btn"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition active:scale-95"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-[#E5EAF1] active:scale-95"
             aria-label={t("back")}
           >
-            <ArrowLeft className="h-5 w-5" strokeWidth={2.5} />
+            <ArrowLeft className={cn("h-5 w-5", isRTL && "rotate-180")} strokeWidth={2.4} />
           </Link>
           <div className="text-center">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-emerald-700">{t("nutrio_meals")}</p>
-            <p className="text-[14px] font-bold text-slate-900">{t("discover_restaurants")}</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">Nutrio meals</p>
+            <h1 className="mt-0.5 text-[17px] font-black">Restaurants</h1>
           </div>
           <button
+            type="button"
             data-testid="meals-favorites-filter-btn"
             onClick={() => setShowFavoritesOnly((value) => !value)}
             className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-full shadow-sm ring-1 transition active:scale-95",
+              "flex h-11 w-11 items-center justify-center rounded-full shadow-sm ring-1 active:scale-95",
               showFavoritesOnly
-                ? "bg-rose-50 text-rose-500 ring-rose-100"
-                : "bg-white text-slate-600 ring-slate-200",
+                ? "bg-[#FFF1F3] text-[#FB6B7A] ring-[#FB6B7A]/20"
+                : "bg-white text-[#64748B] ring-[#E5EAF1]",
             )}
-            aria-label={t("toggle_favorites_aria")}
+            aria-label="Show saved restaurants"
           >
             <Heart className={cn("h-5 w-5", showFavoritesOnly && "fill-current")} strokeWidth={2.2} />
           </button>
         </div>
-      </div>
+      </header>
 
-      <main className="mx-auto max-w-[480px] px-4 pb-10 pt-5">
-        {fetchError && (
-          <div className="mb-5 flex items-start gap-3 rounded-[18px] bg-red-50 p-4 text-red-700 ring-1 ring-red-100">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" strokeWidth={2} />
-            <div className="flex-1">
-              <p className="font-bold">{t("meals_could_not_load")}</p>
-              <p className="mt-1 text-[13px] text-red-600">{fetchError}</p>
+      <main className="mx-auto max-w-[480px] px-4 pb-12 pt-4">
+        {fetchError ? (
+          <div className="mb-4 flex items-start gap-3 rounded-[18px] bg-[#FFF1F3] p-4 text-[#B4233A] ring-1 ring-[#FB6B7A]/20">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="font-bold">Restaurants could not load</p>
               <button
+                type="button"
                 data-testid="meals-retry-btn"
-                className="mt-3 inline-flex h-9 items-center gap-2 rounded-full bg-white px-3 text-[13px] font-bold text-red-600 ring-1 ring-red-200"
-                onClick={() => {
-                  setFetchError(null);
-                  window.location.reload();
-                }}
+                className="mt-3 inline-flex h-10 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-bold ring-1 ring-[#FB6B7A]/20"
+                onClick={() => window.location.reload()}
               >
                 <RefreshCw className="h-4 w-4" />
                 {t("retry")}
               </button>
             </div>
           </div>
-        )}
+        ) : null}
 
-        <section className="mb-4 overflow-hidden rounded-[24px] bg-[#F6F8FB] p-4 text-[#020617] shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">
-                {t("your_subscription")}
-              </p>
-              <h1 className="mt-1 text-[24px] font-black leading-none tracking-normal">
-                {remainingMealsLabel}
-                <span className="ml-2 text-[13px] font-bold text-[#94A3B8]">
-                  {isUnlimited
-                    ? t("unlimited_meals")
-                    : t("meals_left")}
+        <Link
+          to="/subscription"
+          data-testid="meals-subscription-link"
+          className="group mb-4 block overflow-hidden rounded-[22px] bg-white p-4 shadow-[0_10px_30px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1] transition active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[#E9FBF6] text-[#22C7A1] ring-1 ring-[#22C7A1]/10">
+              <ShieldCheck className="h-6 w-6" strokeWidth={2.2} />
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Meal plan balance</p>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-[24px] font-black leading-none tabular-nums text-[#020617]">{remainingMealsLabel}</span>
+                <span className="truncate text-[13px] font-bold text-[#64748B]">
+                  {isUnlimited ? "unlimited meals" : "meals remaining"}
                 </span>
-              </h1>
-              <p className="mt-2 text-[12px] font-semibold text-[#94A3B8]">
-                {subscriptionLoading
-                  ? t("loading_meal_balance")
-                  : hasActiveSubscription
-                    ? isUnlimited
-                      ? t("order_without_monthly_cap")
-                      : isRTL
-                        ? t("used_meals_this_cycle", { used: mealsUsed, total: totalMeals })
-                        : t("used_meals_this_cycle", { used: mealsUsed, total: totalMeals })
-                    : t("no_active_subscription_yet")}
-              </p>
+              </div>
             </div>
 
-            <Link
-              to="/subscription"
-              data-testid="meals-subscription-link"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#020617] text-white shadow-sm active:scale-95"
-              aria-label={t("manage_subscription")}
-            >
-              <ShieldCheck className="h-5 w-5" strokeWidth={2.3} />
-            </Link>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1] transition group-active:bg-[#E9FBF6] group-active:text-[#22C7A1]">
+              <ChevronRight className={cn("h-5 w-5", isRTL && "rotate-180")} strokeWidth={2.3} />
+            </span>
           </div>
 
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#E5EAF1]">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${mealBalancePercent}%` }}
-              transition={reduceMotion ? { duration: 0 } : { duration: 0.45, ease: "easeOut" }}
+          <div className="mt-4">
+            <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-extrabold">
+              <span className="text-[#64748B]">
+                {subscriptionLoading
+                  ? "Checking your plan"
+                  : hasActiveSubscription
+                    ? isUnlimited
+                      ? "Unlimited plan active"
+                      : `${mealsUsed} of ${totalMeals} meals used`
+                    : "No active meal plan"}
+              </span>
+              <span className={cn("tabular-nums", mealBalancePercent <= 20 && !isUnlimited ? "text-[#FB6B7A]" : "text-[#22C7A1]") }>
+                {isUnlimited ? "Active" : `${mealBalancePercent}% left`}
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-[#EDF1F5]">
+              <motion.span
+                initial={{ width: 0 }}
+                animate={{ width: `${mealBalancePercent}%` }}
+                transition={{ duration: 0.45, ease: "easeOut" }}
+                className={cn("block h-full rounded-full", mealBalancePercent <= 20 && !isUnlimited ? "bg-[#FB6B7A]" : "bg-[#22C7A1]")}
+              />
+            </div>
+          </div>
+        </Link>
+
+        <section className="sticky top-[69px] z-20 -mx-4 bg-[#F6F8FB]/95 px-4 pb-3 pt-1 backdrop-blur-xl">
+          <div className="relative">
+            <Search className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-[#94A3B8]", isRTL ? "right-4" : "left-4")} />
+            <input
+              data-testid="meals-search-input"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search restaurants, cuisines or meals"
               className={cn(
-                "h-full rounded-full",
-                !hasActiveSubscription && !subscriptionLoading
-                  ? "bg-[#FB6B7A]"
-                  : mealBalancePercent <= 20 && !isUnlimited
-                    ? "bg-[#F97316]"
-                    : "bg-[#22C7A1]",
+                "h-12 w-full rounded-[16px] bg-white text-[14px] font-bold outline-none ring-1 ring-[#E5EAF1] placeholder:text-[#94A3B8] focus:ring-[#22C7A1]/40",
+                isRTL ? "pr-12 pl-4" : "pl-12 pr-4",
               )}
             />
           </div>
-        </section>
 
-        <button
-          type="button"
-          onClick={() => {
-            trackEvent("sporthub_cta_clicked", {
-              partner: "sporthub",
-              campaign: "meals_post_workout",
-              referral_code: "NUTRIO15",
-            });
-            recordSportHubClick({
-              userId: user?.id,
-              campaign: "meals_post_workout",
-              eventType: "sporthub_cta_clicked",
-            });
-            navigate("/partners/sporthub");
-          }}
-          className="mb-4 w-full overflow-hidden rounded-[24px] border border-[#CDEFE7] bg-[#F7FFFC] text-start shadow-[0_14px_34px_rgba(2,6,23,0.05)] transition active:scale-[0.99]"
-        >
-          <div className="relative flex min-h-[118px] items-center gap-4 p-4">
-            <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[#DDF7F0]" />
-            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-white text-[#22C7A1] shadow-[0_12px_24px_rgba(2,6,23,0.07)] ring-1 ring-[#DCEFEB]">
-              <Bike className="h-8 w-8" strokeWidth={2.2} />
-            </div>
-            <div className="relative min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">
-                SportHub recovery
-              </p>
-              <h2 className="mt-1 text-[20px] font-black leading-tight tracking-[-0.04em] text-[#020617]">
-                Match your meal to your workout
-              </h2>
-              <p className="mt-1.5 text-[12px] font-bold leading-5 text-[#64748B]">
-                Book activity, then choose a Nutrio meal that fits recovery.
-              </p>
-            </div>
-            <ChevronRight className="relative h-6 w-6 shrink-0 text-[#22C7A1]" strokeWidth={2.6} />
-          </div>
-        </button>
-
-        <section className="rounded-[24px] bg-white p-3 shadow-[0_14px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
-          <div className="grid gap-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" strokeWidth={2.25} />
-              <input
-                data-testid="meals-search-input"
-                ref={searchInputRef}
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={t("search_meals_placeholder") || "Search restaurants, cuisines, meals"}
-                className="h-12 w-full rounded-[18px] bg-slate-50 pl-12 pr-4 text-[15px] font-bold text-slate-950 outline-none ring-1 ring-transparent transition placeholder:text-slate-400 focus:bg-white focus:ring-emerald-200"
-              />
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {categoryTabs.map((category) => {
-                const Icon = category.icon;
-                const active = selectedCategory === category.id;
-
-                return (
-                  <button
-                    key={category.id}
-                    data-testid={`meals-category-${category.id}`}
-                    onClick={() => {
-                      Haptics.impact({ style: "light" });
-                      setSelectedCategory(category.id);
-                    }}
-                    className={cn(
-                      "relative flex h-12 shrink-0 items-center gap-2 rounded-[16px] px-4 text-[13px] font-extrabold transition",
-                      active ? "text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100",
-                    )}
-                  >
-                    {active && (
-                      <motion.span
-                        layoutId="active-meal-category"
-                        className="absolute inset-0 rounded-[16px] bg-slate-950"
-                        transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 32 }}
-                      />
-                    )}
-                    <Icon className="relative z-10 h-4 w-4" strokeWidth={2.4} />
-                    <span className="relative z-10">{t(`meal_category_${category.id}`)}</span>
-                  </button>
-                );
-              })}
-            </div>
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {categoryTabs.map((category) => {
+              const Icon = category.icon;
+              const active = selectedCategory === category.id;
+              return (
+                <button
+                  type="button"
+                  key={category.id}
+                  data-testid={`meals-category-${category.id}`}
+                  onClick={() => {
+                    Haptics.impact({ style: "light" });
+                    setSelectedCategory(category.id);
+                  }}
+                  className={cn(
+                    "flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-[12px] font-extrabold ring-1 transition active:scale-95",
+                    active
+                      ? "bg-[#020617] text-white ring-[#020617]"
+                      : "bg-white text-[#64748B] ring-[#E5EAF1]",
+                  )}
+                >
+                  <Icon className="h-4 w-4" strokeWidth={2.2} />
+                  {category.label}
+                </button>
+              );
+            })}
           </div>
         </section>
 
         {hasNoResults ? (
-          <section className="mt-8 flex min-h-[360px] flex-col items-center justify-center rounded-[28px] bg-white p-8 text-center ring-1 ring-slate-200">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <Search className="h-8 w-8" strokeWidth={1.8} />
+          <section className="flex min-h-[360px] flex-col items-center justify-center text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#38BDF8] ring-1 ring-[#E5EAF1]">
+              <Search className="h-7 w-7" />
             </div>
-            <h2 className="mt-5 text-[24px] font-black tracking-normal text-slate-950">{t("no_matches_found")}</h2>
-            <p className="mt-2 max-w-[320px] text-[14px] font-medium leading-relaxed text-slate-500">{t("no_matches_hint")}</p>
+            <h2 className="mt-5 text-[21px] font-black">No restaurants found</h2>
+            <p className="mt-2 max-w-[280px] text-[13px] font-medium leading-relaxed text-[#64748B]">Try another cuisine or clear your search.</p>
             <button
+              type="button"
               data-testid="meals-clear-filters-btn"
-              className="mt-5 h-11 rounded-full bg-slate-950 px-5 text-[14px] font-extrabold text-white transition active:scale-95"
+              className="mt-5 h-11 rounded-full bg-[#020617] px-5 text-[13px] font-extrabold text-white active:scale-95"
               onClick={() => {
                 setSearchQuery("");
                 setSelectedCategory("all");
                 setShowFavoritesOnly(false);
               }}
             >
-              {t("clear_filters")}
+              Clear filters
             </button>
           </section>
-        ) : (
+        ) : visibleRestaurants.length > 0 ? (
           <>
-            <section className="mt-5">
-              <SmartMealPicks />
-            </section>
-
-            <section className="mt-8">
-              <div className="mb-4 flex items-end justify-between gap-4">
+            {bestMeal && bestMealRestaurant ? (
+            <section className="mt-3">
+              <div className="mb-3 flex items-end justify-between gap-3">
                 <div>
-                  <p className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-emerald-700">{t("curated_lineup")}</p>
-                  <h2 className="mt-1 text-[24px] font-black tracking-normal text-slate-950">{t("featured_this_week")}</h2>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">Recommended for you</p>
+                  <h2 className="mt-0.5 text-[21px] font-black">Best meal</h2>
                 </div>
-                <span className="hidden rounded-full bg-white px-3 py-2 text-[12px] font-extrabold text-slate-500 ring-1 ring-slate-200 sm:inline-flex">
-                  {t("picks_count", { count: featuredRestaurants.length })}
-                </span>
+                <span className="rounded-full bg-[#E9FBF6] px-3 py-1.5 text-[10px] font-extrabold text-[#12866F]">For your goal</span>
               </div>
-              <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-4 scrollbar-hide">
-                {featuredRestaurants.map((restaurant) => (
-                  <div key={`featured-${restaurant.name}`} className="snap-start">
-                    <FeatureCard restaurant={restaurant} goalType={activeGoal?.goal_type} t={t} />
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="mt-5">
-              <div className="mb-4 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
-                    {showFavoritesOnly ? "Saved places" : "All restaurants"}
-                  </p>
-                  <h2 className="mt-1 text-[24px] font-black tracking-normal text-slate-950">
-                    {showFavoritesOnly ? "Your favorites" : "Explore restaurants"}
-                  </h2>
-                </div>
-                <span className="rounded-full bg-white px-3 py-2 text-[12px] font-extrabold tabular-nums text-slate-500 ring-1 ring-slate-200">
-                  {visibleRestaurants.length} {visibleRestaurants.length === 1 ? "place" : "places"}
-                </span>
-              </div>
-
-              <div className="grid gap-4">
-                {visibleRestaurants.map((restaurant) => (
-                  <RestaurantCard
-                    key={restaurant.name}
-                    restaurant={restaurant}
-                    isFavorite={isFavorite}
-                    onToggleFavorite={handleToggleFavorite}
-                    goalType={activeGoal?.goal_type}
-                    t={t}
+              <Link
+                to={`/meals/${bestMeal.id}`}
+                data-testid={`best-meal-${bestMeal.id}`}
+                className="group block overflow-hidden rounded-[22px] bg-white shadow-[0_10px_28px_rgba(2,6,23,0.07)] ring-1 ring-[#E5EAF1] active:scale-[0.99]"
+              >
+                <div className="relative h-[164px] overflow-hidden bg-[#F6F8FB]">
+                  <img
+                    src={bestMeal.image_url || "/meals/grilled-chicken-salad.jpg"}
+                    alt={bestMeal.name}
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                   />
-                ))}
-              </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#020617]/55 via-transparent to-transparent" />
+                  <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-black uppercase text-[#020617] shadow-sm backdrop-blur">
+                    {bestMeal.meal_type || "Meal"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 p-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[11px] font-extrabold uppercase text-[#94A3B8]">{bestMealRestaurant.name}</p>
+                    <h3 className="mt-1 truncate text-[18px] font-black text-[#020617]">{bestMeal.name}</h3>
+                    <p className="mt-1 text-[11px] font-bold text-[#7C83F6]">
+                      {getMealMatchReason(bestMeal, activeGoal?.goal_type)}
+                    </p>
+                    <div className="mt-3 flex items-center gap-4 text-[12px] font-extrabold text-[#64748B]">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Flame className="h-4 w-4 text-[#FB6B7A]" />
+                        {Math.round(bestMeal.calories)} kcal
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Beef className="h-4 w-4 text-[#7C83F6]" />
+                        {Math.round(bestMeal.protein_g)}g protein
+                      </span>
+                    </div>
+                  </div>
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white">
+                    <ChevronRight className={cn("h-5 w-5", isRTL && "rotate-180")} />
+                  </span>
+                </div>
+              </Link>
             </section>
+            ) : null}
+
+            <section className={cn("mt-7", !bestMeal && "mt-3")}>
+                <div className="mb-3 flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Browse restaurants</p>
+                    <h2 className="mt-0.5 text-[21px] font-black">All restaurants</h2>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-extrabold text-[#64748B] ring-1 ring-[#E5EAF1]">
+                    {visibleRestaurants.length} places
+                  </span>
+                </div>
+                <div className="grid gap-3">
+                  {visibleRestaurants.map((restaurant) => (
+                    <RestaurantCard
+                      key={restaurant.id}
+                      restaurant={restaurant}
+                      isFavorite={isFavorite}
+                      onToggleFavorite={handleToggleFavorite}
+                      goalType={activeGoal?.goal_type}
+                      isRTL={isRTL}
+                    />
+                  ))}
+                </div>
+              </section>
           </>
-        )}
+        ) : null}
       </main>
 
       <GuestLoginPrompt

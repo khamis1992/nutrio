@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -206,6 +205,7 @@ export default function PartnerMenu() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [commissionRate, setCommissionRate] = useState(18);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [mealAddons, setMealAddons] = useState<Record<string, MealAddon[]>>({});
   const [dietTags, setDietTags] = useState<DietTag[]>([]);
@@ -300,7 +300,7 @@ export default function PartnerMenu() {
 
       const { data: restaurant, error: restaurantError } = await supabase
         .from("restaurants")
-        .select("id")
+        .select("id, commission_rate")
         .eq("owner_id", user.id)
         .maybeSingle();
 
@@ -311,6 +311,7 @@ export default function PartnerMenu() {
       }
 
       setRestaurantId(restaurant.id);
+      setCommissionRate(restaurant.commission_rate ?? 18);
 
       const { data: mealsData, error: mealsError } = await supabase
         .from("meals")
@@ -319,7 +320,25 @@ export default function PartnerMenu() {
         .order("name");
 
       if (mealsError) throw mealsError;
-      const fetchedMeals = mealsData || [];
+      const fetchedMeals: Meal[] = (mealsData || []).map((meal) => ({
+        id: meal.id,
+        name: meal.name,
+        description: meal.description,
+        price: meal.price,
+        approval_status: meal.approval_status as Meal["approval_status"],
+        calories: meal.calories || 0,
+        protein_g: meal.protein_g || meal.protein || 0,
+        carbs_g: meal.carbs_g || meal.carbs || 0,
+        fat_g: meal.fat_g || meal.fats || 0,
+        fiber_g: meal.fiber_g,
+        image_url: meal.image_url,
+        prep_time_minutes: meal.prep_time_minutes,
+        is_available: meal.is_available ?? false,
+        is_vip_exclusive: meal.is_vip_exclusive ?? false,
+        rating: meal.rating || meal.avg_rating || 0,
+        order_count: meal.order_count || 0,
+        category: meal.category,
+      }));
       setMeals(fetchedMeals);
 
       // Batch fetch add-ons for all meals in one query
@@ -668,10 +687,16 @@ export default function PartnerMenu() {
           );
         }
         if (selectedAddons.length > 0 && data) {
+          const selectedLibraryAddons = libraryAddons.filter((addon) =>
+            selectedAddons.includes(addon.id),
+          );
           await supabase.from("meal_addons").insert(
-            selectedAddons.map((addonId) => ({
+            selectedLibraryAddons.map((addon) => ({
               meal_id: data.id,
-              restaurant_addon_id: addonId,
+              restaurant_addon_id: addon.id,
+              name: addon.name,
+              price: addon.price,
+              category: addon.category,
             })),
           );
           for (const addonId of selectedAddons) {
@@ -1337,9 +1362,9 @@ export default function PartnerMenu() {
                 <p className="text-sm text-destructive">{formErrors.price}</p>
               )}
               <p className="text-xs text-muted-foreground">
-                Platform fee (18%) will be deducted. Your payout per meal:{" "}
+                Platform fee ({commissionRate}%) will be deducted. Your payout per meal:{" "}
                 <span className="font-medium">
-                  {formatCurrency((formData.price || 0) * 0.82)}
+                  {formatCurrency((formData.price || 0) * (1 - commissionRate / 100))}
                 </span>
               </p>
             </div>

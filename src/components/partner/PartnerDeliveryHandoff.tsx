@@ -27,10 +27,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+
+const asRpcResult = (value: unknown): Record<string, unknown> | null =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 
 interface PartnerDeliveryHandoffProps {
   scheduleId: string;
+  source?: "order" | "meal_schedule";
   restaurantName: string;
   onHandoverConfirmed?: () => void;
 }
@@ -38,7 +43,8 @@ interface PartnerDeliveryHandoffProps {
 interface DeliveryJob {
   id: string;
   status: string;
-  schedule_id: string;
+  schedule_id: string | null;
+  order_id: string | null;
   driver_id: string | null;
   assigned_at: string | null;
   picked_up_at: string | null;
@@ -63,6 +69,7 @@ interface DeliveryDriver {
 
 export function PartnerDeliveryHandoff({
   scheduleId,
+  source = "meal_schedule",
   restaurantName,
   onHandoverConfirmed
 }: PartnerDeliveryHandoffProps) {
@@ -83,7 +90,7 @@ export function PartnerDeliveryHandoff({
         const { data: jobData, error: jobError } = await supabase
           .from("delivery_jobs")
           .select("*")
-          .eq("schedule_id", scheduleId)
+          .eq(source === "order" ? "order_id" : "schedule_id", scheduleId)
           .single();
 
         // PGRST116 = no rows found (no delivery job yet)
@@ -136,7 +143,7 @@ export function PartnerDeliveryHandoff({
           event: "*",
           schema: "public",
           table: "delivery_jobs",
-          filter: `schedule_id=eq.${scheduleId}`
+          filter: `${source === "order" ? "order_id" : "schedule_id"}=eq.${scheduleId}`
         },
         (payload) => {
           setDeliveryJob(payload.new as unknown as DeliveryJob);
@@ -147,7 +154,7 @@ export function PartnerDeliveryHandoff({
   return () => {
       subscription.unsubscribe();
     };
-  }, [scheduleId]);
+  }, [scheduleId, source]);
 
   const handleRefreshCode = async () => {
     if (!deliveryJob || !user) return;
@@ -164,10 +171,15 @@ export function PartnerDeliveryHandoff({
 
       if (error) throw error;
 
-      if (data?.success) {
+      const result = asRpcResult(data);
+
+      if (result?.success === true) {
+        const verificationCode = typeof result.verification_code === "string"
+          ? result.verification_code
+          : "updated";
         toast({
           title: "Code Refreshed",
-          description: `New code: ${data.verification_code}. Driver has been notified.`,
+          description: `New code: ${verificationCode}. Driver has been notified.`,
         });
         
         // Refresh the delivery job data
@@ -183,7 +195,7 @@ export function PartnerDeliveryHandoff({
       } else {
         toast({
           title: "Error",
-          description: data?.error || "Failed to refresh code",
+          description: typeof result?.error === "string" ? result.error : "Failed to refresh code",
           variant: "destructive",
         });
       }
@@ -225,7 +237,9 @@ export function PartnerDeliveryHandoff({
 
       if (error) throw error;
 
-      if (data?.success) {
+      const result = asRpcResult(data);
+
+      if (result?.success === true) {
         toast({
           title: "Handover Confirmed",
           description: "The order has been marked as picked up",
@@ -248,7 +262,7 @@ export function PartnerDeliveryHandoff({
       } else {
         toast({
           title: "Error",
-          description: data?.error || "Failed to confirm handover",
+          description: typeof result?.error === "string" ? result.error : "Failed to confirm handover",
           variant: "destructive",
         });
       }
@@ -280,7 +294,7 @@ export function PartnerDeliveryHandoff({
           title: "Verification Code Changed",
           message: "The restaurant has refreshed the pickup verification code. Please get the new code.",
           type: "delivery_update",
-          metadata: { delivery_job_id: deliveryJob.id }
+          data: { delivery_job_id: deliveryJob.id }
         });
       }
     } catch (err) {

@@ -106,7 +106,19 @@ const PartnerSettings = () => {
         return;
       }
 
-      setRestaurant(data);
+      setRestaurant({
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        logo_url: data.logo_url,
+        address: data.address,
+        phone: data.phone,
+        email: data.email,
+        is_active: data.is_active ?? false,
+        payout_rate: data.payout_rate || 0,
+        commission_rate: data.commission_rate || 0,
+        operating_hours: data.operating_hours as Restaurant["operating_hours"],
+      });
       setFormData({
         name: data.name || "",
         description: data.description || "",
@@ -114,7 +126,7 @@ const PartnerSettings = () => {
         address: data.address || "",
         phone: data.phone || "",
         email: data.email || "",
-        is_active: data.is_active,
+        is_active: data.is_active ?? false,
       });
 
       if (data.operating_hours) {

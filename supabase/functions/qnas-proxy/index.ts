@@ -1,71 +1,100 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const QNAS_BASE = "https://qnas.qa";
-
-// Credentials per environment
-const CREDENTIALS: Record<string, { token: string; domain: string }> = {
-  production: { token: "80f4c006d03d4caa8663cb0ff9e9ef1d", domain: "nutrio.me" },
-  development: { token: "d54c9de96ca44f9f86c4803603836b66", domain: "localhost" },
-};
-
-function getCredentials(req: Request) {
-  const origin = req.headers.get("origin") ?? "";
-  if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
-    return CREDENTIALS.development;
-  }
-  return CREDENTIALS.production;
-}
+const allowedPaths = [
+  /^\/get_zones$/,
+  /^\/get_streets\/\d+$/,
+  /^\/get_buildings\/\d+\/\d+$/,
+];
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
+
+function jsonResponse(body: Record<string, unknown>, status: number) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+  if (req.method !== "GET" && req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const qnasToken = Deno.env.get("QNAS_TOKEN");
+  const qnasDomain = Deno.env.get("QNAS_DOMAIN");
+  if (!supabaseUrl || !serviceRoleKey || !qnasToken || !qnasDomain) {
+    console.error("qnas-proxy: missing service configuration");
+    return jsonResponse({ error: "Service is not configured" }, 503);
   }
 
   try {
-    const url = new URL(req.url);
-    const { token, domain } = getCredentials(req);
+    const token = req.headers
+      .get("Authorization")
+      ?.replace(/^Bearer\s+/i, "")
+      .trim();
+    if (!token) return jsonResponse({ error: "Unauthorized" }, 401);
 
-    // Support both query param (GET) and body (POST via functions.invoke)
-    let qnasPath = url.searchParams.get("path");
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !user) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
 
+    const { data: adminRole, error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (roleError) throw roleError;
+    if (!adminRole) return jsonResponse({ error: "Forbidden" }, 403);
+
+    const requestUrl = new URL(req.url);
+    let qnasPath = requestUrl.searchParams.get("path");
     if (!qnasPath && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
-      qnasPath = body.path ?? null;
+      qnasPath = typeof body.path === "string" ? body.path : null;
     }
 
-    if (!qnasPath) {
-      return new Response(
-        JSON.stringify({ error: "Missing 'path' query parameter" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!qnasPath || !allowedPaths.some((pattern) => pattern.test(qnasPath))) {
+      return jsonResponse({ error: "Unsupported QNAS path" }, 400);
     }
 
-    const qnasUrl = `${QNAS_BASE}${qnasPath}`;
+    const qnasUrl = new URL(qnasPath, QNAS_BASE);
+    if (qnasUrl.origin !== QNAS_BASE) {
+      return jsonResponse({ error: "Unsupported QNAS host" }, 400);
+    }
 
-    const qnasRes = await fetch(qnasUrl, {
+    const qnasResponse = await fetch(qnasUrl, {
       headers: {
-        "X-Token": token,
-        "X-Domain": domain,
-        "Accept": "application/json",
+        Accept: "application/json",
+        "X-Token": qnasToken,
+        "X-Domain": qnasDomain,
       },
     });
+    const responseBody = await qnasResponse.text();
 
-    const data = await qnasRes.json();
-
-    return new Response(JSON.stringify(data), {
-      status: qnasRes.status,
+    return new Response(responseBody, {
+      status: qnasResponse.status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ error: "Proxy error", details: String(err) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  } catch (error) {
+    console.error("qnas-proxy failed", error);
+    return jsonResponse({ error: "QNAS proxy request failed" }, 500);
   }
 });

@@ -6,7 +6,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import type { WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
 import { professionalWeeklyReportPDF } from "@/lib/professional-weekly-report-pdf";
 import { generateWeeklyMealPlan, loadMealPlanImages } from "@/lib/meal-plan-generator";
-import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from "@/lib/nutrition-calculator";
 import { WATER_GLASS_ML } from "@/lib/water-service";
 
 export function useDownloadReport(

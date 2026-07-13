@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor, act } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
 import { useNotifications } from "@/hooks/useNotifications";
+import { renderHookWithProviders } from "@/test/testUtils";
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -29,7 +30,7 @@ describe("useNotifications", () => {
   });
 
   it("returns 0 unreadCount when userId is undefined", () => {
-    const { result } = renderHook(() => useNotifications(undefined));
+    const { result } = renderHookWithProviders(() => useNotifications(undefined));
     expect(result.current.unreadCount).toBe(0);
   });
 
@@ -42,7 +43,7 @@ describe("useNotifications", () => {
       }),
     });
 
-    const { result } = renderHook(() => useNotifications("user-1"));
+    const { result } = renderHookWithProviders(() => useNotifications("user-1"));
 
     await waitFor(() => {
       expect(result.current.unreadCount).toBe(5);
@@ -58,7 +59,7 @@ describe("useNotifications", () => {
       }),
     });
 
-    const { result } = renderHook(() => useNotifications("user-1"));
+    const { result } = renderHookWithProviders(() => useNotifications("user-1"));
 
     await waitFor(() => {
       expect(result.current.unreadCount).toBe(0);
@@ -74,21 +75,11 @@ describe("useNotifications", () => {
       }),
     });
 
-    const { result } = renderHook(() => useNotifications("user-1"));
+    const { result } = renderHookWithProviders(() => useNotifications("user-1"));
 
     await waitFor(() => {
       expect(result.current.unreadCount).toBe(0);
     });
-  });
-
-  it("allows setting unreadCount directly via setUnreadCount", () => {
-    const { result } = renderHook(() => useNotifications("user-1"));
-
-    act(() => {
-      result.current.setUnreadCount(10);
-    });
-
-    expect(result.current.unreadCount).toBe(10);
   });
 
   it("subscribes to realtime channel for user notifications", () => {
@@ -106,7 +97,7 @@ describe("useNotifications", () => {
       }),
     });
 
-    renderHook(() => useNotifications("user-1"));
+    renderHookWithProviders(() => useNotifications("user-1"));
 
     expect(supabase.channel).toHaveBeenCalledWith(expect.stringContaining("user-1"));
     expect(mockOn).toHaveBeenCalledWith(
@@ -123,8 +114,9 @@ describe("useNotifications", () => {
   it("removes realtime channel on unmount", () => {
     const mockChannel = {
       on: vi.fn().mockReturnThis(),
-      subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }),
+      subscribe: vi.fn(),
     };
+    mockChannel.subscribe.mockReturnValue(mockChannel);
     (supabase as any).channel = vi.fn().mockReturnValue(mockChannel);
     (supabase as any).from = vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
@@ -134,7 +126,7 @@ describe("useNotifications", () => {
       }),
     });
 
-    const { unmount } = renderHook(() => useNotifications("user-1"));
+    const { unmount } = renderHookWithProviders(() => useNotifications("user-1"));
     unmount();
 
     expect(supabase.removeChannel).toHaveBeenCalledWith(mockChannel);

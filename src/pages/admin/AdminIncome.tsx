@@ -30,7 +30,6 @@ interface IncomeStats {
   totalOrders: number;
   activeSubscribers: number;
   avgOrderValue: number;
-  unusedMealsProfit: number;
 }
 
 interface DailyIncome {
@@ -51,19 +50,25 @@ const AdminIncome = () => {
     totalOrders: 0,
     activeSubscribers: 0,
     avgOrderValue: 0,
-    unusedMealsProfit: 0,
   });
   const [dailyData, setDailyData] = useState<DailyIncome[]>([]);
 
   const fetchGlobalCommissionRate = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("platform_settings")
       .select("value")
       .eq("key", "commission_rates")
       .single();
+    if (error) {
+      console.error("Error fetching commission rate:", error);
+      return;
+    }
     if (data?.value) {
       const rates = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
-      setGlobalCommissionRate(rates?.restaurant ?? 18);
+      if (rates && typeof rates === "object" && !Array.isArray(rates)) {
+        const restaurantRate = (rates as Record<string, unknown>).restaurant;
+        if (typeof restaurantRate === "number") setGlobalCommissionRate(restaurantRate);
+      }
     }
   }, []);
 
@@ -79,64 +84,99 @@ const AdminIncome = () => {
       startDate.setDate(startDate.getDate() - daysAgo);
       const startDateStr = startDate.toISOString().split("T")[0];
 
-      // Fetch subscription revenue
-      const { data: subscriptions } = await supabase
+      const { count: activeSubscribers, error: subscribersError } = await supabase
         .from("subscriptions")
-        .select("plan_type, price, created_at")
-        .gte("created_at", startDate.toISOString())
+        .select("id", { count: "exact", head: true })
         .eq("status", "active");
+      if (subscribersError) throw subscribersError;
 
-      const subscriptionRevenue = (subscriptions || []).reduce(
-        (sum: number, s: { price?: number }) => sum + (s.price || 0),
+      const { data: subscriptionPayments, error: paymentsError } = await supabase
+        .from("payments")
+        .select("amount, completed_at")
+        .eq("payment_type", "subscription")
+        .eq("status", "completed")
+        .eq("fulfillment_status", "completed")
+        .gte("completed_at", startDate.toISOString());
+      if (paymentsError) throw paymentsError;
+
+      const subscriptionRevenue = (subscriptionPayments || []).reduce(
+        (sum, payment) => sum + (payment.amount || 0),
         0
       );
-      const activeSubscribers = (subscriptions || []).length;
 
-      // Fetch orders with commission data
-      const { data: orders } = await supabase
-        .from("meal_schedules")
-        .select(`
-          id,
-          scheduled_date,
-          order_status,
-          restaurant_branch_id,
-          meal_id,
-          meals:meals(restaurant_id)
-        `)
-        .gte("scheduled_date", startDateStr)
-        .eq("order_status", "delivered");
+      const [schedulesResult, directOrdersResult] = await Promise.all([
+        supabase
+          .from("meal_schedules")
+          .select("id, scheduled_date, meal_id, meals:meals!meal_schedules_meal_id_fkey(price, restaurant_id)")
+          .gte("scheduled_date", startDateStr)
+          .in("order_status", ["delivered", "completed"]),
+        supabase
+          .from("orders")
+          .select("id, created_at, total_amount, restaurant_id")
+          .gte("created_at", startDate.toISOString())
+          .in("status", ["delivered", "completed"]),
+      ]);
+      if (schedulesResult.error) throw schedulesResult.error;
+      if (directOrdersResult.error) throw directOrdersResult.error;
 
-      const totalOrders = (orders || []).length;
+      const schedules = schedulesResult.data || [];
+      const directOrders = directOrdersResult.data || [];
+      const restaurantIds = [
+        ...new Set([
+          ...schedules.map((order) => order.meals?.restaurant_id).filter(Boolean),
+          ...directOrders.map((order) => order.restaurant_id).filter(Boolean),
+        ] as string[]),
+      ];
+      const { data: restaurants, error: restaurantsError } = restaurantIds.length
+        ? await supabase
+            .from("restaurants")
+            .select("id, commission_rate")
+            .in("id", restaurantIds)
+        : { data: [], error: null };
+      if (restaurantsError) throw restaurantsError;
+      const commissionRates = new Map(
+        (restaurants || []).map((restaurant) => [
+          restaurant.id,
+          restaurant.commission_rate ?? globalCommissionRate,
+        ]),
+      );
 
-      // Calculate commission using the configured platform commission rate
-      const avgMealValue = 50; // Average meal value for commission estimation
-      const commissionRevenue = totalOrders * avgMealValue * (globalCommissionRate / 100);
+      const incomeOrders = [
+        ...schedules.map((order) => ({
+          date: order.scheduled_date,
+          amount: order.meals?.price || 0,
+          commissionRate: order.meals?.restaurant_id
+            ? commissionRates.get(order.meals.restaurant_id) ?? globalCommissionRate
+            : globalCommissionRate,
+        })),
+        ...directOrders.map((order) => ({
+          date: order.created_at.split("T")[0],
+          amount: order.total_amount || 0,
+          commissionRate: order.restaurant_id
+            ? commissionRates.get(order.restaurant_id) ?? globalCommissionRate
+            : globalCommissionRate,
+        })),
+      ];
 
-      // Calculate unused meals profit
-      // Get subscription plans to calculate expected meals
-      const { data: plans } = await supabase
-        .from("subscription_plans")
-        .select("tier, meals_per_month")
-        .eq("is_active", true);
+      const totalOrders = incomeOrders.length;
 
-      const expectedMeals = (subscriptions || []).reduce((sum: number, sub: { plan_type?: string; price?: number; created_at?: string }) => {
-        const plan = plans?.find((p: { tier: string; meals_per_month?: number }) => p.tier === sub.plan_type);
-        return sum + (plan?.meals_per_month || 0);
-      }, 0);
-
-      const unusedMeals = Math.max(0, expectedMeals - totalOrders);
-      const unusedMealsProfit = unusedMeals * avgMealValue;
-
-      const totalRevenue = subscriptionRevenue + commissionRevenue + unusedMealsProfit;
+      const deliveredMealValue = incomeOrders.reduce(
+        (sum, order) => sum + order.amount,
+        0,
+      );
+      const commissionRevenue = incomeOrders.reduce(
+        (sum, order) => sum + order.amount * (order.commissionRate / 100),
+        0,
+      );
+      const totalRevenue = subscriptionRevenue + commissionRevenue;
 
       setStats({
         totalRevenue,
         subscriptionRevenue,
         commissionRevenue,
         totalOrders,
-        activeSubscribers,
-        avgOrderValue: totalOrders ? avgMealValue : 0,
-        unusedMealsProfit,
+        activeSubscribers: activeSubscribers || 0,
+        avgOrderValue: totalOrders ? deliveredMealValue / totalOrders : 0,
       });
 
       // Build daily data
@@ -149,19 +189,19 @@ const AdminIncome = () => {
       }
 
       // Add subscription revenue by day
-      (subscriptions || []).forEach((s: { created_at?: string; price?: number }) => {
-        const dateStr = s.created_at?.split("T")[0];
+      (subscriptionPayments || []).forEach((payment) => {
+        const dateStr = payment.completed_at?.split("T")[0];
         if (dateStr && dailyMap[dateStr]) {
-          dailyMap[dateStr].subscription += s.price || 0;
+          dailyMap[dateStr].subscription += payment.amount || 0;
         }
       });
 
       // Add orders by day
-      (orders || []).forEach((o: { scheduled_date?: string; id: string; order_status?: string; meal_id?: string; meals?: unknown; restaurant_branch_id?: string }) => {
-        const dateStr = o.scheduled_date;
+      incomeOrders.forEach((order) => {
+        const dateStr = order.date;
         if (dateStr && dailyMap[dateStr]) {
           dailyMap[dateStr].orders += 1;
-          dailyMap[dateStr].commission += avgMealValue * (globalCommissionRate / 100);
+          dailyMap[dateStr].commission += order.amount * (order.commissionRate / 100);
         }
       });
 
@@ -198,7 +238,7 @@ const AdminIncome = () => {
       bg: "bg-blue-50",
     },
     {
-      title: `Commission (${globalCommissionRate}%)`,
+      title: "Order Commissions",
       value: formatCurrency(stats.commissionRevenue),
       icon: ShoppingBag,
       color: "text-purple-500",

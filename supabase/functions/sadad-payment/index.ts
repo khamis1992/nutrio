@@ -1,151 +1,594 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type User } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const SADAD_CHECKOUT_URL = "https://sadadqa.com/webpurchase";
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type Op =
-  | { op: "create"; payload: CreatePaymentInput }
-  | { op: "status"; payload: { paymentId: string } }
-  | { op: "refund"; payload: { paymentId: string; amount?: number } };
+type Scalar = string | number | boolean;
+type ScalarRecord = Record<string, Scalar>;
 
-interface CreatePaymentInput {
-  amount: number;
-  orderId: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  description?: string;
-  successUrl: string;
-  failureUrl: string;
-  callbackUrl: string;
+interface CreatePaymentPayload {
+  paymentType: "wallet_topup" | "subscription" | "coach_subscription";
+  referenceId: string;
+  subscriptionId?: string;
+  coachPlan?: "weekly" | "monthly";
+  mobileNumber: string;
+  language?: "ar" | "en";
 }
 
-function badRequest(msg: string) {
-  return Response.json({ error: msg }, { status: 400, headers: corsHeaders });
+interface AuthenticatedOperation {
+  op: "create" | "status" | "refund";
+  payload: Record<string, unknown>;
+}
+
+interface PreparedPayment {
+  payment_id: string;
+  amount: number;
+  currency: string;
+  payment_type: string;
+  description: string;
+  metadata: Record<string, unknown>;
+}
+
+interface PaymentRecord {
+  id: string;
+  user_id: string;
+  amount: number;
+  currency: string;
+  payment_type: string;
+  status: string;
+  fulfillment_status: string;
+  fulfillment_error: string | null;
+  provider_transaction_id: string | null;
+  description: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+function corsHeaders(req: Request): Record<string, string> {
+  const requestOrigin = req.headers.get("Origin");
+  const configuredOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const appUrl = Deno.env.get("APP_URL");
+
+  if (appUrl) {
+    try {
+      configuredOrigins.push(new URL(appUrl).origin);
+    } catch {
+      // A malformed APP_URL is handled when a callback redirect is needed.
+    }
+  }
+
+  const allowOrigin = requestOrigin && configuredOrigins.includes(requestOrigin)
+    ? requestOrigin
+    : configuredOrigins[0] ?? "*";
+
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Vary": "Origin",
+  };
+}
+
+function jsonResponse(
+  req: Request,
+  body: Record<string, unknown>,
+  status = 200,
+): Response {
+  return Response.json(body, {
+    status,
+    headers: corsHeaders(req),
+  });
+}
+
+function serverConfig() {
+  const merchantId = Deno.env.get("SADAD_MERCHANT_ID")?.trim();
+  const secretKey = Deno.env.get("SADAD_SECRET_KEY")?.trim();
+  const website = Deno.env.get("SADAD_WEBSITE")?.trim();
+
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+    throw new Error("SUPABASE_SERVER_CONFIGURATION_MISSING");
+  }
+  if (!merchantId || !secretKey || !website) {
+    throw new Error("SADAD_SERVER_CONFIGURATION_MISSING");
+  }
+
+  return { merchantId, secretKey, website };
+}
+
+function adminClient() {
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("SUPABASE_SERVER_CONFIGURATION_MISSING");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
+async function authenticate(req: Request): Promise<User | null> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || !supabaseUrl || !anonKey) return null;
+
+  const client = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data, error } = await client.auth.getUser();
+
+  return error ? null : data.user;
+}
+
+async function sha256(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
+}
+
+async function generateChecksum(
+  secretKey: string,
+  params: ScalarRecord,
+): Promise<string> {
+  const values = Object.keys(params)
+    .filter((key) => key !== "signature" && key !== "checksumhash")
+    .sort()
+    .map((key) => String(params[key]));
+
+  return sha256(secretKey + values.join(""));
+}
+
+function constantTimeEqual(left: string, right: string): boolean {
+  const a = left.toLowerCase();
+  const b = right.toLowerCase();
+  if (a.length !== b.length) return false;
+
+  let difference = 0;
+  for (let index = 0; index < a.length; index += 1) {
+    difference |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
+async function verifyChecksum(
+  secretKey: string,
+  payload: ScalarRecord,
+): Promise<boolean> {
+  const received = String(payload.checksumhash ?? "");
+  if (!received) return false;
+
+  const calculated = await generateChecksum(secretKey, payload);
+  return constantTimeEqual(calculated, received);
+}
+
+function normalizeMobileNumber(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+
+  let digits = value.replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.length === 8) digits = `974${digits}`;
+
+  return /^974\d{8}$/.test(digits) ? digits : null;
+}
+
+function formatTransactionDate(date = new Date()): string {
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+function scalarRecord(value: Record<string, unknown>): ScalarRecord {
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, entry]) => ["string", "number", "boolean"].includes(typeof entry))
+      .map(([key, entry]) => [key, entry as Scalar]),
+  );
+}
+
+function parseFormPayload(form: FormData): ScalarRecord {
+  const result: ScalarRecord = {};
+  for (const [key, value] of form.entries()) {
+    if (typeof value === "string") result[key] = value;
+  }
+  return result;
+}
+
+function callbackUrl(): string {
+  const configured = Deno.env.get("SADAD_CALLBACK_URL")?.trim();
+  if (configured) return configured;
+  if (!supabaseUrl) throw new Error("SUPABASE_SERVER_CONFIGURATION_MISSING");
+  return `${supabaseUrl}/functions/v1/sadad-payment?source=callback`;
+}
+
+function resultRedirect(paymentId: string): string | null {
+  const appUrl = Deno.env.get("APP_URL")?.trim();
+  if (!appUrl) return null;
+
+  try {
+    const url = new URL(appUrl);
+    const basePath = url.pathname.replace(/\/$/, "");
+    url.pathname = `${basePath}/payment/result`;
+    url.searchParams.set("paymentId", paymentId);
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+async function recordProviderEvent(args: {
+  paymentId: string | null;
+  source: "callback" | "webhook";
+  transactionId: string | null;
+  providerStatus: string | null;
+  checksumValid: boolean;
+  payload: ScalarRecord;
+}): Promise<string | null> {
+  const client = adminClient();
+  const { data, error } = await client
+    .from("payment_provider_events")
+    .insert({
+      payment_id: args.paymentId,
+      source: args.source,
+      provider_transaction_id: args.transactionId,
+      provider_status: args.providerStatus,
+      checksum_valid: args.checksumValid,
+      payload: args.payload,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Unable to persist payment provider event", error.message);
+    return null;
+  }
+  return data.id as string;
+}
+
+async function finishProviderEvent(
+  eventId: string | null,
+  processingError?: string,
+): Promise<void> {
+  if (!eventId) return;
+
+  const { error } = await adminClient()
+    .from("payment_provider_events")
+    .update({
+      processed_at: new Date().toISOString(),
+      processing_error: processingError?.slice(0, 1000) ?? null,
+    })
+    .eq("id", eventId);
+
+  if (error) console.error("Unable to update payment provider event", error.message);
+}
+
+async function loadPayment(paymentId: string): Promise<PaymentRecord | null> {
+  const { data, error } = await adminClient()
+    .from("payments")
+    .select(
+      "id,user_id,amount,currency,payment_type,status,fulfillment_status,fulfillment_error,provider_transaction_id,description,metadata,created_at,completed_at",
+    )
+    .eq("id", paymentId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as PaymentRecord | null;
+}
+
+function amountsMatch(received: unknown, expected: number): boolean {
+  const amount = typeof received === "number" ? received : Number(received);
+  return Number.isFinite(amount) && Math.abs(amount - Number(expected)) < 0.005;
+}
+
+async function applyProviderStatus(args: {
+  payment: PaymentRecord;
+  transactionId: string;
+  status: number;
+  payload: ScalarRecord;
+}): Promise<{ success: boolean; error?: string }> {
+  const client = adminClient();
+
+  if (args.status === 3) {
+    const { data, error } = await client.rpc("finalize_verified_sadad_payment", {
+      p_payment_id: args.payment.id,
+      p_provider_transaction_id: args.transactionId,
+      p_gateway_response: args.payload,
+    });
+
+    if (error) return { success: false, error: error.message };
+    const result = data as { success?: boolean; error?: string } | null;
+    return result?.success
+      ? { success: true }
+      : { success: false, error: result?.error ?? "PAYMENT_FULFILLMENT_FAILED" };
+  }
+
+  const status = args.status === 2 ? "failed" : "processing";
+  const { error } = await client.rpc("record_sadad_payment_status", {
+    p_payment_id: args.payment.id,
+    p_status: status,
+    p_gateway_response: args.payload,
+  });
+
+  return error ? { success: false, error: error.message } : { success: true };
+}
+
+async function handleCreate(
+  req: Request,
+  user: User,
+  payload: CreatePaymentPayload,
+): Promise<Response> {
+  const { merchantId, secretKey, website } = serverConfig();
+  const mobileNumber = normalizeMobileNumber(payload.mobileNumber ?? user.phone);
+
+  if (!payload || !["wallet_topup", "subscription", "coach_subscription"].includes(payload.paymentType)) {
+    return jsonResponse(req, { error: "PAYMENT_TYPE_NOT_SUPPORTED" }, 400);
+  }
+  if (!UUID_PATTERN.test(payload.referenceId)) {
+    return jsonResponse(req, { error: "PAYMENT_REFERENCE_INVALID" }, 400);
+  }
+  if (payload.subscriptionId && !UUID_PATTERN.test(payload.subscriptionId)) {
+    return jsonResponse(req, { error: "SUBSCRIPTION_REFERENCE_INVALID" }, 400);
+  }
+  if (payload.paymentType === "coach_subscription" && !["weekly", "monthly"].includes(payload.coachPlan ?? "")) {
+    return jsonResponse(req, { error: "COACH_PLAN_INVALID" }, 400);
+  }
+  if (!mobileNumber) {
+    return jsonResponse(req, { error: "QATAR_MOBILE_NUMBER_REQUIRED" }, 400);
+  }
+  if (!user.email) {
+    return jsonResponse(req, { error: "CUSTOMER_EMAIL_REQUIRED" }, 400);
+  }
+
+  const client = adminClient();
+  const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+  const { count, error: countError } = await client
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .in("status", ["pending", "processing"])
+    .gte("created_at", oneMinuteAgo);
+
+  if (countError) throw countError;
+  if ((count ?? 0) >= 5) {
+    return jsonResponse(req, { error: "PAYMENT_RATE_LIMITED" }, 429);
+  }
+
+  const { data, error } = await client.rpc("prepare_sadad_payment", {
+    p_user_id: user.id,
+    p_payment_type: payload.paymentType,
+    p_reference_id: payload.referenceId,
+    p_subscription_id: payload.subscriptionId ?? null,
+    p_coach_plan: payload.coachPlan ?? null,
+  });
+
+  if (error) {
+    console.error("Unable to prepare payment", error.message);
+    const knownCode = [
+      "PAYMENT_PACKAGE_NOT_FOUND",
+      "PAYMENT_PLAN_NOT_FOUND",
+      "ACTIVE_SUBSCRIPTION_EXISTS",
+      "SUBSCRIPTION_NOT_FOUND",
+      "SUBSCRIPTION_PLAN_UNCHANGED",
+      "SUBSCRIPTION_CYCLE_ALREADY_RENEWED",
+      "SUBSCRIPTION_RENEWAL_TOO_EARLY",
+      "PAYMENT_FULFILLMENT_RETRY_REQUIRED",
+      "PAYMENT_NOT_REQUIRED",
+      "COACH_PRICING_NOT_FOUND",
+      "COACH_PLAN_INVALID",
+      "COACH_SELF_SUBSCRIPTION_NOT_ALLOWED",
+      "ACTIVE_COACH_SUBSCRIPTION_EXISTS",
+    ].find((code) => error.message.includes(code));
+    return jsonResponse(req, { error: knownCode ?? "PAYMENT_PREPARATION_FAILED" }, 400);
+  }
+
+  const payment = data as PreparedPayment;
+  const fields: ScalarRecord = {
+    merchant_id: merchantId,
+    ORDER_ID: payment.payment_id,
+    TXN_AMOUNT: Number(payment.amount).toFixed(2),
+    CALLBACK_URL: callbackUrl(),
+    WEBSITE: website,
+    email: user.email,
+    MOBILE_NO: mobileNumber,
+    txnDate: formatTransactionDate(),
+  };
+  fields.signature = await generateChecksum(secretKey, fields);
+
+  return jsonResponse(req, {
+    payment_id: payment.payment_id,
+    amount: Number(payment.amount),
+    currency: payment.currency,
+    payment_type: payment.payment_type,
+    description: payment.description,
+    metadata: payment.metadata ?? {},
+    form_action: SADAD_CHECKOUT_URL,
+    form_method: "POST",
+    fields,
+  });
+}
+
+async function handleStatus(
+  req: Request,
+  user: User,
+  paymentId: unknown,
+): Promise<Response> {
+  if (typeof paymentId !== "string" || !UUID_PATTERN.test(paymentId)) {
+    return jsonResponse(req, { error: "PAYMENT_REFERENCE_INVALID" }, 400);
+  }
+
+  const payment = await loadPayment(paymentId);
+  if (!payment || payment.user_id !== user.id) {
+    return jsonResponse(req, { error: "PAYMENT_NOT_FOUND" }, 404);
+  }
+
+  return jsonResponse(req, {
+    payment_id: payment.id,
+    amount: Number(payment.amount),
+    currency: payment.currency,
+    payment_type: payment.payment_type,
+    status: payment.status,
+    fulfillment_status: payment.fulfillment_status,
+    description: payment.description,
+    metadata: payment.metadata ?? {},
+    transaction_id: payment.provider_transaction_id,
+    created_at: payment.created_at,
+    completed_at: payment.completed_at,
+    error: payment.fulfillment_status === "failed"
+      ? "PAYMENT_FULFILLMENT_FAILED"
+      : null,
+  });
+}
+
+async function handleCallback(req: Request): Promise<Response> {
+  const { merchantId, secretKey } = serverConfig();
+  const payload = parseFormPayload(await req.formData());
+  const paymentId = String(payload.ORDERID ?? "");
+  const transactionId = String(payload.transaction_number ?? "");
+  const providerStatus = String(payload.transaction_status ?? "");
+  const checksumValid = await verifyChecksum(secretKey, payload);
+  const eventId = await recordProviderEvent({
+    paymentId: UUID_PATTERN.test(paymentId) ? paymentId : null,
+    source: "callback",
+    transactionId: transactionId || null,
+    providerStatus: providerStatus || null,
+    checksumValid,
+    payload,
+  });
+
+  if (!checksumValid) {
+    await finishProviderEvent(eventId, "INVALID_CHECKSUM");
+    return new Response("INVALID CHECKSUM", { status: 400 });
+  }
+  if (!UUID_PATTERN.test(paymentId) || String(payload.MID ?? "") !== merchantId) {
+    await finishProviderEvent(eventId, "PAYMENT_REFERENCE_MISMATCH");
+    return new Response("INVALID PAYMENT REFERENCE", { status: 400 });
+  }
+
+  const payment = await loadPayment(paymentId);
+  if (!payment || !amountsMatch(payload.TXNAMOUNT, payment.amount)) {
+    await finishProviderEvent(eventId, "PAYMENT_AMOUNT_MISMATCH");
+    return new Response("INVALID PAYMENT AMOUNT", { status: 400 });
+  }
+
+  const status = Number(payload.transaction_status);
+  if (![1, 2, 3].includes(status) || !transactionId) {
+    await finishProviderEvent(eventId, "PAYMENT_STATUS_INVALID");
+    return new Response("INVALID PAYMENT STATUS", { status: 400 });
+  }
+
+  const result = await applyProviderStatus({ payment, transactionId, status, payload });
+  await finishProviderEvent(eventId, result.error);
+
+  const redirect = resultRedirect(payment.id);
+  if (redirect) {
+    return new Response(null, {
+      status: 303,
+      headers: { Location: redirect, "Cache-Control": "no-store" },
+    });
+  }
+
+  return Response.json({
+    status: result.success ? "success" : "processing_error",
+    payment_id: payment.id,
+  }, { status: result.success ? 200 : 202 });
+}
+
+async function handleWebhook(req: Request): Promise<Response> {
+  let eventId: string | null = null;
+
+  try {
+    const { merchantId, secretKey } = serverConfig();
+    const raw = await req.json() as Record<string, unknown>;
+    const payload = scalarRecord(raw);
+    const paymentId = String(payload.websiteRefNo ?? "");
+    const transactionId = String(payload.transactionNumber ?? "");
+    const providerStatus = String(payload.transactionStatus ?? "");
+    const checksumValid = await verifyChecksum(secretKey, payload);
+
+    eventId = await recordProviderEvent({
+      paymentId: UUID_PATTERN.test(paymentId) ? paymentId : null,
+      source: "webhook",
+      transactionId: transactionId || null,
+      providerStatus: providerStatus || null,
+      checksumValid,
+      payload,
+    });
+
+    if (!checksumValid) throw new Error("INVALID_CHECKSUM");
+    if (!UUID_PATTERN.test(paymentId) || String(payload.merchantId ?? "") !== merchantId) {
+      throw new Error("PAYMENT_REFERENCE_MISMATCH");
+    }
+
+    const payment = await loadPayment(paymentId);
+    if (!payment || !amountsMatch(payload.txnAmount, payment.amount)) {
+      throw new Error("PAYMENT_AMOUNT_MISMATCH");
+    }
+
+    const status = Number(payload.transactionStatus);
+    if (![1, 2, 3].includes(status) || !transactionId) {
+      throw new Error("PAYMENT_STATUS_INVALID");
+    }
+
+    const result = await applyProviderStatus({ payment, transactionId, status, payload });
+    await finishProviderEvent(eventId, result.error);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "WEBHOOK_PROCESSING_FAILED";
+    console.error("SADAD webhook rejected", message);
+    await finishProviderEvent(eventId, message);
+  }
+
+  // SADAD requires a 200 acknowledgement even for invalid or duplicate events.
+  return Response.json({ status: "success" }, { status: 200 });
 }
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders(req) });
   }
   if (req.method !== "POST") {
-    return Response.json({ error: "Method not allowed" }, { status: 405, headers: corsHeaders });
+    return jsonResponse(req, { error: "METHOD_NOT_ALLOWED" }, 405);
   }
 
+  const source = new URL(req.url).searchParams.get("source");
+
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return Response.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+    if (source === "callback") return await handleCallback(req);
+    if (source === "webhook") return await handleWebhook(req);
+
+    const user = await authenticate(req);
+    if (!user) return jsonResponse(req, { error: "UNAUTHORIZED" }, 401);
+
+    const body = await req.json().catch(() => null) as AuthenticatedOperation | null;
+    if (!body || typeof body.op !== "string" || !body.payload) {
+      return jsonResponse(req, { error: "INVALID_REQUEST" }, 400);
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user }, error: userErr } = await anonClient.auth.getUser();
-    if (userErr || !user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
-    }
-
-    const apiUrl = Deno.env.get("SADAD_API_URL") ?? "https://api.sadad.qa";
-    const merchantId = Deno.env.get("SADAD_MERCHANT_ID");
-    const secretKey = Deno.env.get("SADAD_SECRET_KEY");
-    if (!merchantId || !secretKey) {
-      console.error("Sadad credentials not configured");
-      return Response.json({ error: "Server configuration error" }, { status: 500, headers: corsHeaders });
-    }
-
-    const body = (await req.json().catch(() => null)) as Op | null;
-    if (!body || typeof body.op !== "string") {
-      return badRequest("Missing op");
-    }
-
-    const sadadHeaders = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${secretKey}`,
-    };
 
     if (body.op === "create") {
-      const p = body.payload;
-      if (!p || typeof p.amount !== "number" || p.amount <= 0 || !p.orderId) {
-        return badRequest("Invalid create payload");
-      }
-      const sadadReq = {
-        merchant_id: merchantId,
-        amount: p.amount,
-        currency: "QAR",
-        order_id: p.orderId,
-        customer_id: user.id,
-        customer_email: p.customerEmail,
-        customer_phone: p.customerPhone,
-        callback_url: p.callbackUrl,
-        success_url: p.successUrl,
-        failure_url: p.failureUrl,
-        description: p.description ?? "Wallet Top-up",
-      };
-
-      const r = await fetch(`${apiUrl}/v1/payments`, {
-        method: "POST",
-        headers: sadadHeaders,
-        body: JSON.stringify(sadadReq),
-      });
-
-      if (!r.ok) {
-        const errText = await r.text();
-        console.error("Sadad create failed:", r.status, errText);
-        return Response.json({ error: "Sadad API error" }, { status: 502, headers: corsHeaders });
-      }
-      const data = await r.json();
-      return Response.json(
-        { payment_id: data.payment_id, payment_url: data.payment_url, status: data.status, expiry_time: data.expiry_time },
-        { headers: corsHeaders }
-      );
+      return await handleCreate(req, user, body.payload as unknown as CreatePaymentPayload);
     }
-
     if (body.op === "status") {
-      const id = body.payload?.paymentId;
-      if (!id) return badRequest("Missing paymentId");
-      const r = await fetch(`${apiUrl}/v1/payments/${encodeURIComponent(id)}`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${secretKey}` },
-      });
-      if (!r.ok) return Response.json({ error: "Status lookup failed" }, { status: 502, headers: corsHeaders });
-      const data = await r.json();
-      return Response.json(data, { headers: corsHeaders });
+      return await handleStatus(req, user, body.payload.paymentId);
     }
-
     if (body.op === "refund") {
-      const id = body.payload?.paymentId;
-      if (!id) return badRequest("Missing paymentId");
-
-      const adminClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      const { data: roleData } = await adminClient
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .in("role", ["admin", "staff"])
-        .maybeSingle();
-      if (!roleData) {
-        return Response.json({ error: "Forbidden" }, { status: 403, headers: corsHeaders });
-      }
-
-      const r = await fetch(`${apiUrl}/v1/payments/${encodeURIComponent(id)}/refund`, {
-        method: "POST",
-        headers: sadadHeaders,
-        body: JSON.stringify({ amount: body.payload.amount }),
-      });
-      if (!r.ok) return Response.json({ error: "Refund failed" }, { status: 502, headers: corsHeaders });
-      const data = await r.json();
-      return Response.json(data, { headers: corsHeaders });
+      return jsonResponse(req, { error: "REFUND_NOT_CONFIGURED" }, 501);
     }
 
-    return badRequest("Unknown op");
-  } catch (err) {
-    console.error("sadad-payment error:", err);
-    return Response.json({ error: "Internal server error" }, { status: 500, headers: corsHeaders });
+    return jsonResponse(req, { error: "UNKNOWN_OPERATION" }, 400);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "INTERNAL_SERVER_ERROR";
+    console.error("sadad-payment error", message);
+    const isConfigError = message.endsWith("CONFIGURATION_MISSING");
+    return jsonResponse(
+      req,
+      { error: isConfigError ? message : "INTERNAL_SERVER_ERROR" },
+      isConfigError ? 503 : 500,
+    );
   }
 });

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Share2, Check, MessageCircle, Copy, Loader2, X } from "lucide-react";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { Share2, Check, MessageCircle, Copy, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 
@@ -32,7 +31,6 @@ export function ShareMealCard({
   dailyStreak,
   meals,
 }: ShareMealCardProps) {
-  const { t } = useLanguage();
   const { user } = useAuth();
   const { profile } = useProfile();
   const userName = profile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "Someone";

@@ -1,15 +1,15 @@
-import { motion } from "framer-motion";
-import { TrendingUp, Users, Target, Flame, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2, BarChart3 } from "lucide-react";
+import { motion, type Variants } from "framer-motion";
+import { Users, Target, Flame, TrendingDown, BarChart3 } from "lucide-react";
 import { useCoachClients } from "@/hooks/useCoachClients";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
-const statCard = {
+const statCard: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 24 } },
 };
 
-const stagger = {
+const stagger: Variants = {
   visible: { transition: { staggerChildren: 0.04 } },
 };
 

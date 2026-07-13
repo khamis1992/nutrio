@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import sync_playwright
 import json
 
@@ -45,8 +46,8 @@ def test_admin_restaurants_page():
             page.goto('http://localhost:8080/auth', timeout=30000)
             page.wait_for_load_state('networkidle')
             
-            page.fill('input[type="email"]', 'khamis-1992@hotmail.com')
-            page.fill('input[type="password"]', 'Khamees1992#')
+            page.fill('input[type="email"]', os.environ["E2E_ADMIN_EMAIL"])
+            page.fill('input[type="password"]', os.environ["E2E_ADMIN_PASSWORD"])
             page.click('button[type="submit"]')
             
             page.wait_for_timeout(3000)

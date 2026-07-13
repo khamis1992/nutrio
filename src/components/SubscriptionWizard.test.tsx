@@ -79,7 +79,7 @@ describe("SubscriptionWizard", () => {
       expect(screen.getByLabelText("Just exploring")).toBeInTheDocument();
       expect(screen.getByLabelText("Moderately committed")).toBeInTheDocument();
       expect(screen.getByLabelText("Very committed")).toBeInTheDocument();
-      expect(screen.getByLabelText("All in - I want a coach")).toBeInTheDocument();
+      expect(screen.getByLabelText("All in - I want full support")).toBeInTheDocument();
     });
 
     it("renders radio group for question 3", async () => {
@@ -98,7 +98,7 @@ describe("SubscriptionWizard", () => {
 
       expect(screen.getByLabelText("Best value for money")).toBeInTheDocument();
       expect(screen.getByLabelText("Wide restaurant variety")).toBeInTheDocument();
-      expect(screen.getByLabelText("Personal coaching & support")).toBeInTheDocument();
+      expect(screen.getByLabelText("Nutrition guidance & support")).toBeInTheDocument();
       expect(screen.getByLabelText("Premium experience & priority")).toBeInTheDocument();
     });
   });
@@ -218,7 +218,7 @@ describe("SubscriptionWizard", () => {
       expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining("recommended"));
     });
 
-    it("recommends basic plan for price-conscious users", async () => {
+    it("recommends weekly plan for price-conscious users", async () => {
       renderWithRouter(<SubscriptionWizard />);
 
       // Select basic-oriented answers
@@ -235,18 +235,18 @@ describe("SubscriptionWizard", () => {
       const seePlanButton = screen.getByText(/See My Plan/i);
       await userEvent.click(seePlanButton);
 
-      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining("recommended=basic"));
+      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining("recommended=weekly"));
     });
 
-    it("recommends vip plan for premium-oriented users", async () => {
+    it("recommends elite plan for premium-oriented users", async () => {
       renderWithRouter(<SubscriptionWizard />);
 
       // Select VIP-oriented answers
-      await userEvent.click(screen.getByLabelText("Varies / Flexible"));
+      await userEvent.click(screen.getByLabelText("3 meals"));
       await userEvent.click(screen.getByText(/Next/i));
 
-      await waitFor(() => screen.getByLabelText("All in - I want a coach"));
-      await userEvent.click(screen.getByLabelText("All in - I want a coach"));
+      await waitFor(() => screen.getByLabelText("All in - I want full support"));
+      await userEvent.click(screen.getByLabelText("All in - I want full support"));
       await userEvent.click(screen.getByText(/Next/i));
 
       await waitFor(() => screen.getByLabelText("Premium experience & priority"));
@@ -255,7 +255,7 @@ describe("SubscriptionWizard", () => {
       const seePlanButton = screen.getByText(/See My Plan/i);
       await userEvent.click(seePlanButton);
 
-      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining("recommended=vip"));
+      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining("recommended=elite"));
     });
   });
 
@@ -290,48 +290,48 @@ describe("RecommendedPlanBanner", () => {
     vi.clearAllMocks();
   });
 
-  it("renders basic plan details", () => {
-    renderWithRouter(<RecommendedPlanBanner plan="basic" />);
+  it("renders weekly plan details", () => {
+    renderWithRouter(<RecommendedPlanBanner plan="weekly" />);
 
     expect(screen.getByText("Recommended for You")).toBeInTheDocument();
-    expect(screen.getByText("Basic")).toBeInTheDocument();
-    expect(screen.getByText("Best for trying out")).toBeInTheDocument();
-    expect(screen.getByText(/22 meals\/month/i)).toBeInTheDocument();
-    expect(screen.getByText(/215 QAR/i)).toBeInTheDocument();
+    expect(screen.getByText("Weekly Boost")).toBeInTheDocument();
+    expect(screen.getByText("Flexible start")).toBeInTheDocument();
+    expect(screen.getByText(/5 meals\/week/i)).toBeInTheDocument();
+    expect(screen.getByText(/450 QAR/i)).toBeInTheDocument();
   });
 
-  it("renders standard plan details", () => {
-    renderWithRouter(<RecommendedPlanBanner plan="standard" />);
+  it("renders fresh plan details", () => {
+    renderWithRouter(<RecommendedPlanBanner plan="fresh" />);
 
-    expect(screen.getByText("Standard")).toBeInTheDocument();
-    expect(screen.getByText("Most popular")).toBeInTheDocument();
-    expect(screen.getByText(/43 meals\/month/i)).toBeInTheDocument();
+    expect(screen.getByText("Fresh Start")).toBeInTheDocument();
+    expect(screen.getByText("Build the habit")).toBeInTheDocument();
+    expect(screen.getByText(/20 meals\/month/i)).toBeInTheDocument();
   });
 
-  it("renders premium plan details", () => {
-    renderWithRouter(<RecommendedPlanBanner plan="premium" />);
+  it("renders healthy plan details", () => {
+    renderWithRouter(<RecommendedPlanBanner plan="healthy" />);
 
-    expect(screen.getByText("Premium")).toBeInTheDocument();
+    expect(screen.getByText("Healthy Balance")).toBeInTheDocument();
     expect(screen.getByText("Best value")).toBeInTheDocument();
-    expect(screen.getByText(/65 meals\/month/i)).toBeInTheDocument();
+    expect(screen.getByText(/40 meals\/month/i)).toBeInTheDocument();
   });
 
-  it("renders vip plan details", () => {
-    renderWithRouter(<RecommendedPlanBanner plan="vip" />);
+  it("renders elite plan details", () => {
+    renderWithRouter(<RecommendedPlanBanner plan="elite" />);
 
-    expect(screen.getByText("VIP")).toBeInTheDocument();
-    expect(screen.getByText("Premium experience")).toBeInTheDocument();
-    expect(screen.getByText(/Unlimited meals\/month/i)).toBeInTheDocument();
+    expect(screen.getByText("Nutrio Elite")).toBeInTheDocument();
+    expect(screen.getByText("Most complete")).toBeInTheDocument();
+    expect(screen.getByText(/60 meals\/month/i)).toBeInTheDocument();
   });
 
   it("has Select This Plan button", () => {
-    renderWithRouter(<RecommendedPlanBanner plan="standard" />);
+    renderWithRouter(<RecommendedPlanBanner plan="healthy" />);
 
     expect(screen.getByText("Select This Plan")).toBeInTheDocument();
   });
 
   it("renders with sparkles icon", () => {
-    renderWithRouter(<RecommendedPlanBanner plan="standard" />);
+    renderWithRouter(<RecommendedPlanBanner plan="healthy" />);
 
     const sparkles = document.querySelector("svg");
     expect(sparkles).toBeInTheDocument();

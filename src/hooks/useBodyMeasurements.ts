@@ -61,7 +61,7 @@ export function useBodyMeasurements(clientId: string | undefined) {
 
       if (data?.length) {
         const photoList: ProgressPhoto[] = data.map((file) => ({
-          id: file.id,
+          id: file.id ?? file.name,
           url: supabase.storage.from("coach-photos").getPublicUrl(`${clientId}/${file.name}`).data.publicUrl,
           log_date: file.created_at || new Date().toISOString(),
         }));

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getQatarNow, getQatarDay } from "@/lib/dateUtils";
 import { withRetry } from "@/lib/retry";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { fadeInUp, springBouncy } from "@/lib/animations";
+import { fadeInUp } from "@/lib/animations";
 
 const FREEZE_KEY = "streak_freeze_used_month";
 const STREAK_AT_RISK_HOURS = 23;

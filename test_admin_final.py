@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import sync_playwright
 import json
 
@@ -37,12 +38,12 @@ def test_admin_dashboard():
                 
                 # Clear and fill email
                 email_input = page.locator('input[type="email"]').first
-                email_input.fill('khamis-1992@hotmail.com')
+                email_input.fill(os.environ["E2E_ADMIN_EMAIL"])
                 print("   Email filled")
                 
                 # Fill password
                 password_input = page.locator('input[type="password"]').first
-                password_input.fill('Khamees1992#')
+                password_input.fill(os.environ["E2E_ADMIN_PASSWORD"])
                 print("   Password filled")
                 
                 # Click sign in

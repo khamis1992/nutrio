@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { Users, TrendingUp, BarChart3, Settings, LogOut, Menu, X } from "lucide-react";
+import { Users, TrendingUp, Settings, LogOut, Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";

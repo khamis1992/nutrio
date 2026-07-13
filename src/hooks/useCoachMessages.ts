@@ -43,9 +43,16 @@ export function useCoachMessages(coachId: string | undefined) {
         return;
       }
 
-      const clientIds = activeClients.map((a) => a.client_id);
+      const clientIds = activeClients
+        .map((assignment) => assignment.client_id)
+        .filter((clientId): clientId is string => Boolean(clientId));
 
-      const [{ data: profiles }, { data: lastMessages }, { data: unreadCounts }] = await Promise.all([
+      if (clientIds.length === 0) {
+        setConversations([]);
+        return;
+      }
+
+      const [profilesResult, messagesResult, unreadResult] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name, avatar_url").in("user_id", clientIds),
         supabase.from("coach_messages")
           .select("client_id, message, created_at")
@@ -60,6 +67,14 @@ export function useCoachMessages(coachId: string | undefined) {
           .eq("read", false)
           .eq("sender_role", "client"),
       ]);
+
+      if (profilesResult.error) throw profilesResult.error;
+      if (messagesResult.error) throw messagesResult.error;
+      if (unreadResult.error) throw unreadResult.error;
+
+      const profiles = profilesResult.data;
+      const lastMessages = messagesResult.data;
+      const unreadCounts = unreadResult.data;
 
       const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
       const lastMsgMap = new Map<string, { message: string; created_at: string }>();
@@ -104,14 +119,24 @@ export function useCoachMessages(coachId: string | undefined) {
   const fetchMessages = useCallback(async (clientId: string) => {
     if (!coachId) return;
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("coach_messages")
         .select("*")
         .eq("coach_id", coachId)
         .eq("client_id", clientId)
         .order("created_at", { ascending: true });
 
-      setActiveMessages(data || []);
+      if (error) throw error;
+      const messages: CoachMessage[] = (data || []).map((message) => ({
+        id: message.id,
+        coach_id: message.coach_id,
+        client_id: message.client_id,
+        sender_role: message.sender_role === "client" ? "client" : "coach",
+        message: message.message,
+        read: message.read,
+        created_at: message.created_at,
+      }));
+      setActiveMessages(messages);
       setActiveClientId(clientId);
     } catch (err) {
       console.error("Error fetching messages:", err);
@@ -119,22 +144,33 @@ export function useCoachMessages(coachId: string | undefined) {
   }, [coachId]);
 
   const sendMessage = async (clientId: string, message: string) => {
-    if (!coachId || !message.trim()) return;
+    if (!coachId || !message.trim()) return null;
     setSending(true);
     try {
-      const { error } = await supabase.from("coach_messages").insert({
-        coach_id: coachId,
-        client_id: clientId,
-        sender_role: "coach",
-        message: message.trim(),
-      });
+      const { data, error } = await supabase
+        .from("coach_messages")
+        .insert({
+          coach_id: coachId,
+          client_id: clientId,
+          sender_role: "coach",
+          message: message.trim(),
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+      return data;
     } catch (err) {
       console.error("Error sending message:", err);
+      return null;
     } finally {
       setSending(false);
     }
   };
+
+  const closeConversation = useCallback(() => {
+    setActiveClientId(null);
+    setActiveMessages([]);
+  }, []);
 
   const markAsRead = async (clientId: string) => {
     if (!coachId) return;
@@ -200,6 +236,7 @@ export function useCoachMessages(coachId: string | undefined) {
     fetchMessages,
     sendMessage,
     markAsRead,
+    closeConversation,
     refreshConversations: fetchConversations,
   };
 }

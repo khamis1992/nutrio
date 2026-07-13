@@ -18,8 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useFleetAuth } from "@/fleet/hooks/useFleetAuth";
-import { trackingSocket } from "@/fleet/services/trackingSocket";
+import { useFleetRealtimeDrivers } from "@/fleet/hooks/useFleetRealtimeDrivers";
 import { supabase } from "@/integrations/supabase/client";
 import type { Driver } from "@/fleet/types";
 
@@ -85,9 +84,8 @@ function locationAgeLabel(updatedAt?: string) {
 
 export default function LiveTracking() {
   const { toast } = useToast();
-  const { user, token } = useFleetAuth();
+  const { drivers: liveDrivers, connected: isConnected, refetch: refetchLocations } = useFleetRealtimeDrivers();
   const [search, setSearch] = useState("");
-  const [isConnected, setIsConnected] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -134,33 +132,13 @@ export default function LiveTracking() {
 
       if (error) throw error;
 
-      const transformedDrivers: Driver[] = (data || []).map((driver: {
-        id: string;
-        user_id?: string;
-        email?: string;
-        phone_number?: string;
-        full_name?: string;
-        city_id?: string;
-        assigned_zone_ids?: string[];
-        approval_status?: string;
-        is_active?: boolean;
-        is_online?: boolean;
-        current_lat?: number;
-        current_lng?: number;
-        last_location_update?: string;
-        total_deliveries?: number;
-        rating?: number;
-        cancellation_rate?: number;
-        wallet_balance?: number;
-        total_earnings?: number;
-        created_at?: string;
-      }) => ({
+      const transformedDrivers: Driver[] = (data || []).map((driver) => ({
         id: driver.id,
         authUserId: driver.user_id,
         email: driver.email || "",
         phone: driver.phone_number || "",
         fullName: driver.full_name || `Driver ${driver.phone_number?.slice(-4) || driver.id.slice(0, 8)}`,
-        cityId: driver.city_id || "doha",
+        cityId: driver.city_id || "",
         assignedZoneIds: driver.assigned_zone_ids || [],
         status: driver.approval_status === "approved" && driver.is_active
           ? "active"
@@ -194,6 +172,24 @@ export default function LiveTracking() {
   useEffect(() => {
     fetchDrivers();
   }, [fetchDrivers]);
+
+  useEffect(() => {
+    const liveById = new Map(liveDrivers.map((driver) => [driver.driver_id, driver]));
+    setDrivers((currentDrivers) =>
+      currentDrivers.map((driver) => {
+        const live = liveById.get(driver.id);
+        return live
+          ? {
+              ...driver,
+              currentLatitude: live.lat,
+              currentLongitude: live.lng,
+              locationUpdatedAt: live.last_seen,
+              isOnline: live.status !== "offline",
+            }
+          : driver;
+      }),
+    );
+  }, [liveDrivers]);
 
   const filteredDrivers = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -247,37 +243,9 @@ export default function LiveTracking() {
     }
   }, [driversWithLocation, filteredDrivers]);
 
-  useEffect(() => {
-    if (!user) return;
-
-    trackingSocket.connect({
-      token: token || "",
-      userRole: "fleet_manager",
-      onConnect: () => setIsConnected(true),
-      onDisconnect: () => setIsConnected(false),
-      onDriverLocation: (location) => {
-        setDrivers((prev) =>
-          prev.map((driver) =>
-            driver.id === location.driverId
-              ? {
-                  ...driver,
-                  currentLatitude: location.latitude,
-                  currentLongitude: location.longitude,
-                  locationUpdatedAt: new Date().toISOString(),
-                }
-              : driver
-          )
-        );
-      },
-      onError: (error) => {
-        console.error("[LiveTracking] WebSocket error:", error);
-      },
-    });
-
-    return () => {
-      trackingSocket.disconnect();
-    };
-  }, [user, token]);
+  const refreshDrivers = useCallback(async () => {
+    await Promise.all([fetchDrivers(), refetchLocations()]);
+  }, [fetchDrivers, refetchLocations]);
 
   const centerDriver = (driver: Driver) => {
     setSelectedDriver(driver);
@@ -310,7 +278,7 @@ export default function LiveTracking() {
             </div>
             <h1 className="mt-3 text-[27px] font-black leading-tight text-[#020617]">Driver map</h1>
             <p className="mt-1 max-w-[34rem] text-sm font-semibold leading-6 text-[#64748B]">
-              Monitor driver locations, online status, and recent movement across Doha in real time.
+              Monitor driver locations, online status, and recent movement across active coverage areas in real time.
             </p>
           </div>
 
@@ -319,7 +287,7 @@ export default function LiveTracking() {
               {isConnected ? <Wifi className="mr-1 h-3 w-3" /> : <WifiOff className="mr-1 h-3 w-3" />}
               {isConnected ? "Connected" : "Disconnected"}
             </Badge>
-            <Button variant="outline" size="sm" onClick={fetchDrivers} className="min-h-10 rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none">
+            <Button variant="outline" size="sm" onClick={() => void refreshDrivers()} className="min-h-10 rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none">
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>

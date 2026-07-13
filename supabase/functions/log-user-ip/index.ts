@@ -1,65 +1,90 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function isValidIpAddress(value: string): boolean {
+  const ipv4Parts = value.split(".");
+  if (
+    ipv4Parts.length === 4 &&
+    ipv4Parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)
+  ) {
+    return true;
+  }
+
+  return value.includes(":") && /^[0-9a-f:]+$/i.test(value);
+}
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    })
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) {
+    return jsonResponse({ error: "Service is not configured" }, 503);
   }
 
   try {
-    const { action, userId } = await req.json()
-    
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const token = req.headers
+      .get("Authorization")
+      ?.replace(/^Bearer\s+/i, "")
+      .trim();
+    if (!token) return jsonResponse({ error: "Unauthorized" }, 401);
 
-    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0].trim() 
-                   || req.headers.get('x-real-ip') 
-                   || 'unknown'
-    
-    const userAgent = req.headers.get('user-agent') || 'unknown'
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
 
-    // Get geo info
-    const geoResponse = await fetch(`http://ip-api.com/json/${clientIP}?fields=countryCode,country,city`)
-    const geoData = await geoResponse.json()
+    const body = await req.json().catch(() => ({}));
+    const action = body.action;
+    if (action !== "signup" && action !== "login") {
+      return jsonResponse({ error: "Invalid action" }, 400);
+    }
 
-    // Log the IP
-    const { error } = await supabaseClient
-      .from('user_ip_logs')
-      .insert({
-        user_id: userId,
-        ip_address: clientIP,
-        country_code: geoData.countryCode || null,
-        country_name: geoData.country || null,
-        city: geoData.city || null,
-        action: action,
-        user_agent: userAgent
-      })
+    const clientIp =
+      req.headers.get("cf-connecting-ip")?.trim() ||
+      req.headers.get("x-real-ip")?.trim() ||
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "";
+    if (!isValidIpAddress(clientIp)) {
+      return jsonResponse({ error: "Client IP unavailable" }, 422);
+    }
+    const countryCode = req.headers.get("cf-ipcountry")?.trim() || null;
 
-    if (error) throw error
+    const { error } = await supabaseAdmin.from("user_ip_logs").insert({
+      user_id: user.id,
+      ip_address: clientIp,
+      country_code: countryCode,
+      country_name: null,
+      city: null,
+      action,
+      user_agent: req.headers.get("user-agent") || "unknown",
+    });
+    if (error) throw error;
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    })
-
+    return jsonResponse({ success: true });
   } catch (error) {
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: (error as Error).message 
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    console.error("log-user-ip failed", error);
+    return jsonResponse({ success: false }, 500);
   }
-})
+});

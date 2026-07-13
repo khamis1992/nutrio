@@ -712,7 +712,7 @@ class AIReportPDF {
     this.doc.setTextColor(...C.ink);
     this.doc.text(title, M + 7, y + 12);
     let yy = y + 24;
-    wrappedItems.forEach((wrapped, i) => {
+    wrappedItems.forEach((wrapped) => {
       this.doc.setFillColor(...C.orange);
       this.doc.circle(M + 9, yy - 2, 2.1, "F");
       this.doc.setFont("helvetica", "normal");

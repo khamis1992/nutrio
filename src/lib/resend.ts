@@ -20,7 +20,13 @@ class ResendService {
   async sendEmail(params: EmailParams): Promise<{ id: string }> {
     const to = Array.isArray(params.to) ? params.to.join(",") : params.to;
     const { data, error } = await supabase.functions.invoke("send-email", {
-      body: { to, subject: params.subject, html: params.html },
+      body: {
+        to,
+        subject: params.subject,
+        html: params.html,
+        text: params.text,
+        attachments: params.attachments,
+      },
     });
 
     if (error) throw new Error(error.message || "Failed to send email");

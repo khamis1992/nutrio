@@ -1,11 +1,14 @@
-"""Debug driver registration"""
-import time
+"""Debug driver registration against a dedicated E2E account."""
+import os
 from playwright.sync_api import sync_playwright
 
-BASE_URL = "http://localhost:4173"
+BASE_URL = os.environ.get(
+    "PLAYWRIGHT_BASE_URL",
+    "http://127.0.0.1:5173/nutrio",
+).rstrip("/")
 
 with sync_playwright() as p:
-    browser = p.chromium.launch(headless=False)
+    browser = p.chromium.launch(headless=True)
     context = browser.new_context()
     page = context.new_page()
     
@@ -46,7 +49,7 @@ with sync_playwright() as p:
         print("   Clicked 'Become a Driver'")
     
     print("\n4. Fill form with new unique email...")
-    unique_email = f"driver{int(time.time())}@nutriofuel.com"
+    unique_email = os.environ["E2E_DRIVER_EMAIL"]
     print(f"   Using email: {unique_email}")
     
     # Try to find form fields
@@ -70,7 +73,7 @@ with sync_playwright() as p:
         print("   Filled email")
     
     if password_input.count() > 0:
-        password_input.first.fill("123456789")
+        password_input.first.fill(os.environ["E2E_DRIVER_PASSWORD"])
         print("   Filled password")
     
     page.wait_for_timeout(1000)

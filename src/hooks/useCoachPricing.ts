@@ -31,7 +31,7 @@ export function useCoachPricing(coachId: string | undefined) {
   }, [coachId]);
 
   const savePricing = async (pricePerWeek: number, pricePerMonth: number, active: boolean) => {
-    if (!coachId) return;
+    if (!coachId) return { success: false, error: new Error("Coach profile is unavailable") };
     setSaving(true);
     try {
       const { data, error } = await supabase

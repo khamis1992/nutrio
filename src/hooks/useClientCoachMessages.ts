@@ -48,7 +48,17 @@ export function useClientCoachMessages(clientId: string | undefined) {
         .eq("client_id", clientId)
         .order("created_at", { ascending: true });
 
-      setMessages(data || []);
+      setMessages((data ?? [])
+        .filter((message) => message.sender_role === "coach" || message.sender_role === "client")
+        .map((message) => ({
+          id: message.id,
+          coach_id: message.coach_id,
+          client_id: message.client_id,
+          sender_role: message.sender_role as CoachMessage["sender_role"],
+          message: message.message,
+          read: message.read,
+          created_at: message.created_at,
+        })));
     } catch (err) {
       console.error("Error fetching client messages:", err);
     } finally {
@@ -74,7 +84,7 @@ export function useClientCoachMessages(clientId: string | undefined) {
     }
   };
 
-  const markAsRead = async () => {
+  const markAsRead = useCallback(async () => {
     if (!clientId || !coachInfo) return;
     try {
       await supabase
@@ -87,7 +97,7 @@ export function useClientCoachMessages(clientId: string | undefined) {
     } catch (err) {
       console.error("Error marking messages as read:", err);
     }
-  };
+  }, [clientId, coachInfo]);
 
   // Subscribe to realtime for new messages from coach
   useEffect(() => {

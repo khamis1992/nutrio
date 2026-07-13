@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import sync_playwright
 import time
 
@@ -24,13 +25,13 @@ def test_dashboard():
                 # Find email input
                 email_input = page.locator('input[type="email"]').first
                 if email_input.count() > 0:
-                    email_input.fill('eng.aljabor@gmail.com')
+                    email_input.fill(os.environ["E2E_CUSTOMER_EMAIL"])
                     print("Filled email")
                 
                 # Find password input
                 password_input = page.locator('input[type="password"]').first
                 if password_input.count() > 0:
-                    password_input.fill('123456789')
+                    password_input.fill(os.environ["E2E_CUSTOMER_PASSWORD"])
                     print("Filled password")
                 
                 # Click login button

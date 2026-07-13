@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, ArrowLeft } from "lucide-react";
+import { ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const QUESTIONS = [
@@ -19,39 +19,39 @@ const QUESTIONS = [
     id: "meals_per_day",
     question: "How many meals do you want delivered per day?",
     options: [
-      { value: "1", label: "1 meal", plan: "basic" },
-      { value: "2", label: "2 meals", plan: "standard" },
-      { value: "3", label: "3 meals", plan: "premium" },
-      { value: "unlimited", label: "Varies / Flexible", plan: "vip" },
+      { value: "1", label: "1 meal", plan: "weekly" },
+      { value: "2", label: "2 meals", plan: "healthy" },
+      { value: "3", label: "3 meals", plan: "elite" },
+      { value: "flexible", label: "Varies / Flexible", plan: "fresh" },
     ],
   },
   {
     id: "commitment",
     question: "How committed are you to your health goals?",
     options: [
-      { value: "exploring", label: "Just exploring", plan: "basic" },
-      { value: "moderate", label: "Moderately committed", plan: "standard" },
-      { value: "serious", label: "Very committed", plan: "premium" },
-      { value: "all_in", label: "All in - I want a coach", plan: "vip" },
+      { value: "exploring", label: "Just exploring", plan: "weekly" },
+      { value: "moderate", label: "Moderately committed", plan: "fresh" },
+      { value: "serious", label: "Very committed", plan: "healthy" },
+      { value: "all_in", label: "All in - I want full support", plan: "elite" },
     ],
   },
   {
     id: "features",
     question: "What matters most to you?",
     options: [
-      { value: "price", label: "Best value for money", plan: "basic" },
-      { value: "variety", label: "Wide restaurant variety", plan: "standard" },
-      { value: "coaching", label: "Personal coaching & support", plan: "premium" },
-      { value: "premium", label: "Premium experience & priority", plan: "vip" },
+      { value: "price", label: "Best value for money", plan: "weekly" },
+      { value: "variety", label: "Wide restaurant variety", plan: "fresh" },
+      { value: "guidance", label: "Nutrition guidance & support", plan: "healthy" },
+      { value: "premium", label: "Premium experience & priority", plan: "elite" },
     ],
   },
 ];
 
 const PLAN_DETAILS = {
-  basic: { name: "Basic", price: 215, meals: 22, highlight: "Best for trying out" },
-  standard: { name: "Standard", price: 430, meals: 43, highlight: "Most popular" },
-  premium: { name: "Premium", price: 645, meals: 65, highlight: "Best value" },
-  vip: { name: "VIP", price: 860, meals: "Unlimited", highlight: "Premium experience" },
+  weekly: { name: "Weekly Boost", price: 450, meals: 5, period: "week", highlight: "Flexible start" },
+  fresh: { name: "Fresh Start", price: 1800, meals: 20, period: "month", highlight: "Build the habit" },
+  healthy: { name: "Healthy Balance", price: 2800, meals: 40, period: "month", highlight: "Best value" },
+  elite: { name: "Nutrio Elite", price: 3800, meals: 60, period: "month", highlight: "Most complete" },
 };
 
 type PlanType = keyof typeof PLAN_DETAILS;
@@ -79,7 +79,7 @@ export function SubscriptionWizard({ onCancel }: { onCancel?: () => void }) {
 
   // Calculate recommended plan
   const getRecommendedPlan = (): PlanType => {
-    const planScores: Record<string, number> = { basic: 0, standard: 0, premium: 0, vip: 0 };
+    const planScores: Record<string, number> = { weekly: 0, fresh: 0, healthy: 0, elite: 0 };
 
     Object.entries(answers).forEach(([questionId, answer]) => {
       const question = QUESTIONS.find((q) => q.id === questionId);
@@ -91,7 +91,7 @@ export function SubscriptionWizard({ onCancel }: { onCancel?: () => void }) {
 
     const maxScore = Math.max(...Object.values(planScores));
     const recommendedPlan =
-      Object.entries(planScores).find(([_, score]) => score === maxScore)?.[0] || "standard";
+      Object.entries(planScores).find(([_, score]) => score === maxScore)?.[0] || "healthy";
 
     return recommendedPlan as PlanType;
   };
@@ -173,6 +173,7 @@ export function RecommendedPlanBanner({ plan }: RecommendedPlanBannerProps) {
   return (
     <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-4 mb-6">
       <div className="flex items-center gap-2 mb-2">
+        <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
         <span className="font-medium">Recommended for You</span>
         <Badge variant="secondary">{details.highlight}</Badge>
       </div>
@@ -180,7 +181,7 @@ export function RecommendedPlanBanner({ plan }: RecommendedPlanBannerProps) {
         <div>
           <p className="text-2xl font-bold">{details.name}</p>
           <p className="text-sm text-muted-foreground">
-            {details.meals} meals/month • {details.price} QAR
+            {details.meals} meals/{details.period} • {details.price} QAR
           </p>
         </div>
         <Button>Select This Plan</Button>

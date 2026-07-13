@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Star, MapPin, Clock, Zap, SlidersHorizontal, X } from "lucide-react";
+import { Search, Star, MapPin, Clock, Zap, X } from "lucide-react";
 
 const SERVICE_FILTERS = [
   { key: "all", label: "All", label_ar: "الكل" },

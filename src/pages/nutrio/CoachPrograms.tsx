@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, type SyntheticEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import {
   Loader2,
   UtensilsCrossed,
@@ -18,8 +18,10 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoachPrograms, ProgramMeal } from "@/hooks/useCoachPrograms";
 import { useProgramCompletions } from "@/hooks/useProgramCompletions";
+import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { getMealImage } from "@/lib/meal-images";
+import { scheduleMealsAtomic } from "@/lib/schedule-meals";
 import { toast } from "sonner";
 
 type MealCatalogRow = {
@@ -40,7 +42,7 @@ type ScheduledCoachMealContext = {
   selectedMealId: string;
 };
 
-const fadeInUp = {
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: {
     opacity: 1,
@@ -53,6 +55,7 @@ export default function CoachPrograms() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const clientId = user?.id;
+  const { subscription, refetch: refetchSubscription } = useSubscription();
   const [coachId, setCoachId] = useState<string | undefined>(undefined);
   const [coachLoading, setCoachLoading] = useState(true);
 
@@ -90,7 +93,6 @@ export default function CoachPrograms() {
 
   const [activeTab, setActiveTab] = useState<"meal" | "workout">("meal");
   const [selectedMealDate, setSelectedMealDate] = useState<string | null>(null);
-  const [selectedMealDateByProgram, setSelectedMealDateByProgram] = useState<Record<string, string>>({});
   const [scheduledMeals, setScheduledMeals] = useState<Set<string>>(new Set());
   const [scheduledMealTimes, setScheduledMealTimes] = useState<Record<string, string>>({});
   const [scheduledMealContexts, setScheduledMealContexts] = useState<Record<string, ScheduledCoachMealContext>>({});
@@ -235,13 +237,11 @@ export default function CoachPrograms() {
   const handleScheduleMeal = async (timeSlot: string) => {
     if (!user?.id || !scheduleTarget) return;
     try {
-      const { error } = await supabase.from("meal_schedules").insert({
-        user_id: user.id,
+      if (!subscription?.id) throw new Error("SUBSCRIPTION_NOT_FOUND");
+      await scheduleMealsAtomic(subscription.id, [{
         meal_id: scheduleTarget.mealId,
         scheduled_date: scheduleTarget.date,
-        meal_type: scheduleTarget.type,
-        is_completed: false,
-        order_status: "pending",
+        meal_type: scheduleTarget.type as "breakfast" | "lunch" | "dinner" | "snack",
         delivery_time_slot: timeSlot,
         schedule_source: "coach_program",
         coach_program_id: scheduleTarget.programId,
@@ -254,8 +254,8 @@ export default function CoachPrograms() {
           carbs_g: 0,
           fat_g: 0,
         },
-      });
-      if (error) throw error;
+      }]);
+      await refetchSubscription();
       setScheduledMeals((prev) => new Set(prev).add(scheduleTarget.id));
       setScheduledMealTimes((prev) => ({ ...prev, [scheduleTarget.id]: timeSlot }));
       setScheduledMealContexts((prev) => ({
@@ -302,8 +302,8 @@ export default function CoachPrograms() {
     }
   };
 
-  const replaceCurrentMeal = replaceTarget ? mealsById[replaceTarget.meal_id] : undefined;
-  const replaceSimilar = replaceTarget ? getSimilarMeals(replaceTarget.meal_id) : [];
+  const replaceCurrentMeal = replaceTarget?.meal_id ? mealsById[replaceTarget.meal_id] : undefined;
+  const replaceSimilar = replaceTarget?.meal_id ? getSimilarMeals(replaceTarget.meal_id) : [];
 
   const loading = coachLoading || programsLoading || completionsLoading;
 
@@ -319,7 +319,7 @@ export default function CoachPrograms() {
   const nextMeal = [...programMeals]
     .filter((meal) => !isMealCompleted(meal.id))
     .sort((a, b) => a.assigned_date.localeCompare(b.assigned_date))[0];
-  const nextMealInfo = nextMeal ? mealsById[nextMeal.meal_id] : undefined;
+  const nextMealInfo = nextMeal?.meal_id ? mealsById[nextMeal.meal_id] : undefined;
   const nextWorkoutDay = [...new Set(programExercises.filter((exercise) => !isExerciseCompleted(exercise.id)).map((exercise) => exercise.day_number))]
     .sort((a, b) => a - b)[0];
   const activeTitle = programs[0]?.title || "Coach programs";
@@ -490,10 +490,10 @@ export default function CoachPrograms() {
                   <div className="flex gap-3">
                     <div className="h-[104px] w-[104px] shrink-0 overflow-hidden rounded-[22px] bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
                       <img
-                        src={getMealImage(nextMealInfo?.image_url, nextMealInfo?.id || nextMeal.meal_id, nextMeal.meal_type)}
+                        src={getMealImage(nextMealInfo?.image_url, nextMealInfo?.id || nextMeal.meal_id || nextMeal.id, nextMeal.meal_type)}
                         alt={nextMealInfo?.name || nextMeal.meal_type}
                         className="h-full w-full object-cover"
-                        onError={(event) => handleMealImageError(event, nextMealInfo?.id || nextMeal.meal_id, nextMeal.meal_type)}
+                        onError={(event) => handleMealImageError(event, nextMealInfo?.id || nextMeal.meal_id || nextMeal.id, nextMeal.meal_type)}
                       />
                     </div>
                     <div className="min-w-0 flex-1 py-1">
@@ -657,7 +657,8 @@ export default function CoachPrograms() {
                           const scheduledTime = scheduledMealTimes[meal.id];
                           const scheduledContext = scheduledMealContexts[meal.id];
                           const wasReplaced = scheduledContext?.status === "replaced";
-                          const mealData = mealsById[meal.meal_id];
+                          const mealData = meal.meal_id ? mealsById[meal.meal_id] : undefined;
+                          const imageKey = mealData?.id || meal.meal_id || meal.id;
                           return (
                             <div
                               key={meal.id}
@@ -669,10 +670,10 @@ export default function CoachPrograms() {
                                 aria-label="Toggle meal completion"
                               >
                                 <img
-                                  src={getMealImage(mealData?.image_url, mealData?.id || meal.meal_id, meal.meal_type)}
+                                  src={getMealImage(mealData?.image_url, imageKey, meal.meal_type)}
                                   alt={mealData?.name || meal.meal_type}
                                   className={`h-full w-full object-cover transition ${done ? "opacity-45 grayscale" : ""}`}
-                                  onError={(event) => handleMealImageError(event, mealData?.id || meal.meal_id, meal.meal_type)}
+                                  onError={(event) => handleMealImageError(event, imageKey, meal.meal_type)}
                                 />
                                 {done && (
                                   <span className="absolute inset-0 flex items-center justify-center bg-[#22C7A1]/75 text-white">
@@ -709,10 +710,11 @@ export default function CoachPrograms() {
                                 )}
                               </div>
                               <button
-                                onClick={() =>
-                                  setScheduleTarget({ id: meal.id, programId: meal.program_id, mealId: meal.meal_id, date: meal.assigned_date, type: meal.meal_type })
-                                }
-                                disabled={scheduled}
+                                onClick={() => {
+                                  if (!meal.meal_id) return;
+                                  setScheduleTarget({ id: meal.id, programId: meal.program_id, mealId: meal.meal_id, date: meal.assigned_date, type: meal.meal_type });
+                                }}
+                                disabled={scheduled || !meal.meal_id}
                                 className={`flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-[10px] font-black transition-all ${
                                   wasReplaced
                                     ? "bg-[#FFF7ED] text-[#F97316] ring-1 ring-[#F97316]/20"

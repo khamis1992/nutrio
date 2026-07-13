@@ -1,4 +1,3 @@
-import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,29 +7,21 @@ import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
-import { ArrowLeft,
+import {
   Coffee,
   Sun,
   Moon,
   Apple,
-  ChevronLeft,
   Check,
   X,
-  Flame,
-  Beef,
-  Leaf,
   Clock,
   Sparkles,
   Loader2,
   Shuffle,
-  ArrowRight,
-  Utensils,
   RotateCw,
   CheckCircle2,
   AlertTriangle,
-  ChevronDown,
   Target,
-  Store,
   Search,
 } from "lucide-react";
 import {
@@ -41,6 +32,7 @@ import {
 } from "@/components/ui/sheet";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { scheduleMealsAtomic, type ScheduleMealInput } from "@/lib/schedule-meals";
 
 interface Meal {
   id: string;
@@ -69,6 +61,7 @@ interface NutritionGoal {
 }
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+type SwapFilter = "best" | "protein" | "under_500";
 
 const MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 
@@ -158,12 +151,11 @@ export const MealPlanGenerator = ({
   isOpen,
   onClose,
   onScheduled,
-  isScheduleEmpty,
 }: MealPlanGeneratorProps) => {
   const { user } = useAuth();
-  const { t, isRTL } = useLanguage();
+  const { isRTL } = useLanguage();
   const { toast: uiToast } = useToast();
-  const { remainingMeals, isUnlimited, hasActiveSubscription, incrementMealUsage, incrementSnackUsage, refetch: refetchSubscription } = useSubscription();
+  const { remainingMeals, isUnlimited, hasActiveSubscription, subscription, refetch: refetchSubscription } = useSubscription();
   const { favoriteIds } = useFavoriteRestaurants();
 
   const [phase, setPhase] = useState<"loading" | "preview" | "generating" | "applying" | "success">("loading");
@@ -171,11 +163,12 @@ export const MealPlanGenerator = ({
   const [dietTagIds, setDietTagIds] = useState<string[]>([]);
   const [nutritionGoal, setNutritionGoal] = useState<NutritionGoal | null>(null);
   const [plan, setPlan] = useState<PlanSlot[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [swappingSlot, setSwappingSlot] = useState<string | null>(null);
   const [swapSheetOpen, setSwapSheetOpen] = useState(false);
   const [swapTarget, setSwapTarget] = useState<{ date: Date; mealType: MealType } | null>(null);
   const [swapSearch, setSwapSearch] = useState("");
+  const [swapFilter, setSwapFilter] = useState<SwapFilter>("best");
+  const [selectedPreviewDay, setSelectedPreviewDay] = useState(0);
   const [orderedMealIds, setOrderedMealIds] = useState<Set<string>>(new Set());
   const [orderedRestaurantIds, setOrderedRestaurantIds] = useState<Set<string>>(new Set());
 
@@ -192,7 +185,6 @@ export const MealPlanGenerator = ({
   const fetchData = useCallback(async () => {
     if (!user) return;
     setPhase("loading");
-    setError(null);
 
     try {
       const [mealsResult, prefsResult, goalsResult, ordersResult] = await Promise.all([
@@ -227,7 +219,7 @@ export const MealPlanGenerator = ({
 
       if (mealsResult.error) throw mealsResult.error;
       if (!mealsResult.data || mealsResult.data.length === 0) {
-        setError("No meals available to generate a plan.");
+        sonnerToast.error("No meals available to generate a plan.");
         return;
       }
 
@@ -248,12 +240,13 @@ export const MealPlanGenerator = ({
       setOrderedRestaurantIds(new Set(orders.map(o => o.restaurant_id)));
     } catch (err) {
       console.error("Error fetching data for meal plan:", err);
-      setError("Failed to load data. Please try again.");
+      sonnerToast.error("Failed to load data. Please try again.");
     }
   }, [user]);
 
   useEffect(() => {
     if (!isOpen || !user) return;
+    setSelectedPreviewDay(0);
     fetchData();
   }, [isOpen, user, fetchData]);
 
@@ -411,6 +404,8 @@ export const MealPlanGenerator = ({
   const openSwapSheet = (date: Date, mealType: MealType) => {
     const alternatives = getSwapAlternatives(date, mealType);
     if (alternatives.length === 0) return;
+    setSwapSearch("");
+    setSwapFilter("best");
     setSwapTarget({ date, mealType });
     setSwapSheetOpen(true);
   };
@@ -435,6 +430,23 @@ export const MealPlanGenerator = ({
   };
 
   const swapAlternatives = swapTarget ? getSwapAlternatives(swapTarget.date, swapTarget.mealType) : [];
+  const currentSwapMeal = swapTarget
+    ? plan.find(
+      (slot) =>
+        format(slot.date, "yyyy-MM-dd") === format(swapTarget.date, "yyyy-MM-dd") &&
+        slot.mealType === swapTarget.mealType,
+    )?.meal
+    : null;
+  const swapQuery = swapSearch.trim().toLowerCase();
+  const filteredSwapAlternatives = swapAlternatives
+    .filter(({ meal }) => {
+      const searchable = `${meal.name} ${meal.restaurants?.name || ""}`.toLowerCase();
+      if (swapQuery && !searchable.includes(swapQuery)) return false;
+      if (swapFilter === "protein") return Number(meal.protein_g || 0) >= 30;
+      if (swapFilter === "under_500") return Number(meal.calories || 0) > 0 && Number(meal.calories) <= 500;
+      return true;
+    })
+    .sort((a, b) => b.score - a.score);
 
   const getDailyTotals = (date: Date) => {
     const slots = plan.filter((s) => format(s.date, "yyyy-MM-dd") === format(date, "yyyy-MM-dd"));
@@ -475,30 +487,21 @@ export const MealPlanGenerator = ({
     }
 
     try {
-      const inserts = slotsToApply.map((s) => ({
-        user_id: user.id,
+      if (!subscription?.id) throw new Error("SUBSCRIPTION_NOT_FOUND");
+
+      const items: ScheduleMealInput[] = slotsToApply.map((s) => ({
         meal_id: s.meal!.id,
         scheduled_date: format(s.date, "yyyy-MM-dd"),
-        meal_type: s.mealType,
+        meal_type: s.mealType as ScheduleMealInput["meal_type"],
         delivery_time_slot: MEAL_TYPE_TIMES[s.mealType],
-        order_status: "pending",
       }));
 
-      const { error: insertError } = await supabase.from("meal_schedules").insert(inserts);
-      if (insertError) throw insertError;
-
-      for (const slot of slotsToApply) {
-        if (slot.mealType === "snack" || slot.mealType === "snack2") {
-          await incrementSnackUsage();
-        } else {
-          await incrementMealUsage();
-        }
-      }
+      await scheduleMealsAtomic(subscription.id, items);
 
       await refetchSubscription();
 
       setPhase("success");
-      sonnerToast.success(`${inserts.length} meals scheduled for the week!`, {
+      sonnerToast.success(`${items.length} meals scheduled for the week!`, {
         description: "Your week is now filled with healthy meals.",
         duration: 5000,
       });
@@ -521,6 +524,8 @@ export const MealPlanGenerator = ({
   const totalPlanCalories = plan.reduce((sum, s) => sum + (s.meal?.calories || 0), 0);
   const totalPlanProtein = plan.reduce((sum, s) => sum + (s.meal?.protein_g || 0), 0);
   const filledSlots = plan.filter((s) => s.meal !== null).length;
+  const averageDailyCalories = Math.round(totalPlanCalories / Math.max(weekDays.length, 1));
+  const averageDailyProtein = Math.round(totalPlanProtein / Math.max(weekDays.length, 1));
 
   if (!isOpen) return null;
 
@@ -529,19 +534,21 @@ export const MealPlanGenerator = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-black overflow-y-auto"
+      className="fixed inset-0 z-50 overflow-y-auto bg-[#F6F8FB] text-[#020617]"
+      dir={isRTL ? "rtl" : "ltr"}
     >
-      <div className="sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-2xl border-b border-gray-100 dark:border-gray-800 safe-top">
-        <div className="flex items-center justify-between px-4 h-16">
+      <div className="sticky top-0 z-20 border-b border-[#E5EAF1] bg-white/95 backdrop-blur-xl safe-top">
+        <div className="mx-auto flex h-16 max-w-[430px] items-center justify-between px-4">
           <button
             onClick={onClose}
-            className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1] active:scale-95"
+            aria-label="Close weekly planner"
           >
-            <ArrowLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+            <X className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-amber-500" />
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white">Fill My Week</h1>
+          <div className="text-center">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#7C83F6]">Smart planner</p>
+            <h1 className="mt-0.5 text-[17px] font-black text-[#020617]">Fill my week</h1>
           </div>
           <div className="w-11" />
         </div>
@@ -554,17 +561,17 @@ export const MealPlanGenerator = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center min-h-[70vh] p-6"
+            className="flex min-h-[70vh] flex-col items-center justify-center p-6"
           >
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 flex items-center justify-center mb-6"
+              className="mb-6 flex h-20 w-20 items-center justify-center rounded-[24px] bg-[#E9FBF6] text-[#22C7A1] ring-1 ring-[#22C7A1]/15"
             >
-              <Sparkles className="h-10 w-10 text-amber-500" />
+              <Sparkles className="h-9 w-9" />
             </motion.div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Crafting your week</h2>
-            <p className="text-sm text-gray-400">Finding the best meals for your goals...</p>
+            <h2 className="mb-2 text-[21px] font-black text-[#020617]">Building your meal plan</h2>
+            <p className="text-center text-[13px] font-medium text-[#64748B]">Matching available meals with your nutrition goals.</p>
           </motion.div>
         )}
 
@@ -574,50 +581,70 @@ export const MealPlanGenerator = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="max-w-lg mx-auto px-4 pb-32"
+            className="mx-auto max-w-[430px] px-4 pb-32 pt-4"
           >
             {/* Summary header */}
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 dark:from-gray-800 dark:via-gray-900 dark:to-black rounded-3xl p-5 mb-4 shadow-xl"
+              className="mb-4 rounded-[22px] bg-white p-4 shadow-[0_8px_24px_rgba(2,6,23,0.05)] ring-1 ring-[#E5EAF1]"
             >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-white font-bold text-base">Weekly Plan Summary</h3>
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">Your week is ready</p>
+                  <h3 className="mt-1 text-[20px] font-black text-[#020617]">{filledSlots} meals selected</h3>
+                  <p className="mt-1 text-[11px] font-semibold text-[#64748B]">Review each day and swap anything you want.</p>
+                </div>
                 <button
                   onClick={() => { dietTagIds.forEach(() => {}); generatePlan(); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 rounded-xl text-white text-xs font-semibold active:scale-95 transition-all cursor-pointer"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1] active:scale-95"
+                  aria-label="Regenerate meal plan"
                 >
-                  <RotateCw className="h-3.5 w-3.5" />
-                  Regenerate
+                  <RotateCw className="h-4 w-4" />
                 </button>
               </div>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-3 divide-x divide-[#E5EAF1] rounded-[16px] bg-[#F6F8FB] py-3 ring-1 ring-[#E5EAF1] rtl:divide-x-reverse">
                 <div className="text-center">
-                  <p className="text-2xl font-black text-white">{totalPlanCalories.toLocaleString()}</p>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">Cals/Day</p>
+                  <p className="text-[17px] font-black tabular-nums text-[#020617]">{averageDailyCalories.toLocaleString()}</p>
+                  <p className="mt-0.5 text-[9px] font-black uppercase text-[#94A3B8]">kcal / day</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-black text-white">{Math.round(totalPlanProtein / 7)}g</p>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">Protein</p>
+                  <p className="text-[17px] font-black tabular-nums text-[#7C83F6]">{averageDailyProtein}g</p>
+                  <p className="mt-0.5 text-[9px] font-black uppercase text-[#94A3B8]">protein / day</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-black text-white">
-                    {plan.length}
-                  </p>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">Slots</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-black text-white">
-                    {filledSlots}/{plan.length}
-                  </p>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">Filled</p>
+                  <p className="text-[17px] font-black tabular-nums text-[#22C7A1]">{isUnlimited ? "∞" : remainingMeals}</p>
+                  <p className="mt-0.5 text-[9px] font-black uppercase text-[#94A3B8]">meals left</p>
                 </div>
               </div>
             </motion.div>
 
             {/* Daily plans */}
+            <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide">
+              {weekDays.map((day, index) => {
+                const active = selectedPreviewDay === index;
+                const daily = getDailyTotals(day);
+                return (
+                  <button
+                    key={`picker-${format(day, "yyyy-MM-dd")}`}
+                    onClick={() => setSelectedPreviewDay(index)}
+                    className={cn(
+                      "flex h-[64px] min-w-[58px] shrink-0 flex-col items-center justify-center rounded-[16px] ring-1 transition active:scale-95",
+                      active
+                        ? "bg-[#020617] text-white ring-[#020617] shadow-[0_10px_22px_rgba(2,6,23,0.18)]"
+                        : "bg-white text-[#020617] ring-[#E5EAF1]",
+                    )}
+                  >
+                    <span className={cn("text-[9px] font-black uppercase", active ? "text-white/60" : "text-[#94A3B8]")}>{format(day, "EEE")}</span>
+                    <span className="mt-1 text-[17px] font-black">{format(day, "d")}</span>
+                    <span className={cn("mt-1 h-1 w-4 rounded-full", active ? "bg-[#22C7A1]" : daily.calories > 0 ? "bg-[#7C83F6]" : "bg-transparent")} />
+                  </button>
+                );
+              })}
+            </div>
+
             {weekDays.map((day, dayIndex) => {
+              if (dayIndex !== selectedPreviewDay) return null;
               const daily = getDailyTotals(day);
               const daySlots = plan.filter(
                 (s) => format(s.date, "yyyy-MM-dd") === format(day, "yyyy-MM-dd")
@@ -632,23 +659,23 @@ export const MealPlanGenerator = ({
                   transition={{ delay: dayIndex * 0.05 }}
                   className="mb-3"
                 >
-                  <div className="flex items-center justify-between px-1 mb-2">
+                  <div className="mb-3 flex items-end justify-between gap-3 px-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-gray-900 dark:text-white">
+                      <span className="text-[20px] font-black text-[#020617]">
                         {format(day, "EEEE")}
                       </span>
                       {isToday && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                        <span className="rounded-full bg-[#E9FBF6] px-2 py-0.5 text-[9px] font-black text-[#22C7A1]">
                           Today
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-[11px] font-extrabold text-[#64748B]">
                       {daily.calories.toLocaleString()} kcal · {daily.protein}g protein
                     </span>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-2.5">
                     {MEAL_TYPES.map((mealType) => {
                       const slot = daySlots.find((s) => s.mealType === mealType);
                       const cfg = MEAL_TYPE_CONFIG[mealType];
@@ -660,38 +687,36 @@ export const MealPlanGenerator = ({
                         <div
                           key={mealType}
                           className={cn(
-                            "relative bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 transition-all",
+                            "relative overflow-hidden rounded-[20px] bg-white shadow-[0_7px_20px_rgba(2,6,23,0.045)] ring-1 ring-[#E5EAF1] transition",
                             isSwapping && "opacity-60"
                           )}
                         >
-                          <div className={cn("absolute left-0 top-0 bottom-0 w-1", `bg-gradient-to-b ${cfg.gradient}`)} />
-
                           {slot?.meal ? (
-                            <div className="flex items-center gap-3 p-3 pl-4">
+                            <div className="flex min-h-[82px] items-center gap-3 p-3">
                               {slot.meal.image_url ? (
                                 <img
                                   src={slot.meal.image_url}
                                   alt={slot.meal.name}
-                                  className="w-14 h-14 rounded-xl object-cover shadow-sm"
+                                  className="h-14 w-14 shrink-0 rounded-[15px] object-cover"
                                 />
                               ) : (
-                                <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${cfg.bgGradient}`}>
+                                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[15px] ${cfg.bgGradient}`}>
                                   <Icon className={`h-6 w-6 ${cfg.textColor}`} />
                                 </div>
                               )}
 
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-0.5">
-                                  <span className={`text-[10px] font-bold uppercase tracking-wider ${cfg.textColor}`}>
+                              <div className="min-w-0 flex-1">
+                                <div className="mb-0.5 flex items-center gap-1.5">
+                                  <span className={`text-[9px] font-black uppercase tracking-[0.1em] ${cfg.textColor}`}>
                                     {cfg.label}
                                   </span>
                                   <span className="text-[10px] text-gray-300">·</span>
-                                  <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                                  <span className="flex items-center gap-1 text-[10px] font-bold text-[#94A3B8]">
                                     <Clock className="h-3 w-3" />
-                                    {cfg.time}
+                                    {MEAL_TYPE_TIMES[mealType]}
                                   </span>
                                 </div>
-                                <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                                <h4 className="truncate text-[14px] font-black text-[#020617]">
                                   {slot.meal.name}
                                 </h4>
                                 <div className="flex items-center gap-2 mt-0.5">
@@ -704,21 +729,22 @@ export const MealPlanGenerator = ({
 
                               <button
                                 onClick={() => openSwapSheet(day, mealType)}
-                                className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 cursor-pointer active:scale-95 transition-all"
+                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F6F8FB] text-[#64748B] ring-1 ring-[#E5EAF1] active:scale-95"
+                                aria-label={`Swap ${cfg.label}`}
                               >
-                                <Shuffle className="h-4 w-4 text-gray-400" />
+                                <Shuffle className="h-4 w-4" />
                               </button>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-3 p-3 pl-4">
-                              <div className="w-14 h-14 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
-                                <Icon className="h-6 w-6 text-gray-300" />
+                            <div className="flex min-h-[82px] items-center gap-3 p-3">
+                              <div className="flex h-14 w-14 items-center justify-center rounded-[15px] bg-[#F6F8FB]">
+                                <Icon className="h-5 w-5 text-[#CBD5E1]" />
                               </div>
                               <div className="flex-1">
                                 <span className={`text-[10px] font-bold uppercase tracking-wider ${cfg.textColor}`}>
                                   {cfg.label}
                                 </span>
-                                <p className="text-xs text-gray-400">No suitable meal found</p>
+                                <p className="text-[11px] font-semibold text-[#94A3B8]">No suitable meal found</p>
                               </div>
                             </div>
                           )}
@@ -737,17 +763,17 @@ export const MealPlanGenerator = ({
         {/* ── Apply to Schedule Footer ── */}
         {phase === "preview" && (
           <div
-            className="sticky bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-4 pt-3"
-            style={{ paddingBottom: 'max(5.5rem, calc(env(safe-area-inset-bottom) + 5rem))' }}
+            className="sticky bottom-0 left-0 right-0 z-20 border-t border-[#E5EAF1] bg-white/95 px-4 pt-3 backdrop-blur-xl"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
           >
             <motion.button
               onClick={handleApplyToSchedule}
               whileTap={{ scale: 0.98 }}
               disabled={filledSlots === 0}
-              className="flex h-[58px] w-full items-center justify-center gap-3 rounded-[22px] bg-gradient-to-r from-emerald-400 to-teal-500 text-[17px] font-extrabold tracking-[-0.02em] text-white shadow-[0_10px_24px_rgba(16,185,129,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mx-auto flex h-14 w-full max-w-[398px] items-center justify-center gap-2.5 rounded-[20px] bg-[#22C7A1] text-[15px] font-black text-white shadow-[0_12px_26px_rgba(34,199,161,0.26)] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <CheckCircle2 className="h-6 w-6" strokeWidth={2.25} />
-              Apply {filledSlots} Meals to Schedule
+              <CheckCircle2 className="h-5 w-5" strokeWidth={2.4} />
+              Add {filledSlots} meals to my schedule
             </motion.button>
           </div>
         )}
@@ -758,11 +784,11 @@ export const MealPlanGenerator = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center min-h-[70vh] p-6"
+            className="flex min-h-[70vh] flex-col items-center justify-center p-6"
           >
-            <Loader2 className="h-16 w-16 text-emerald-500 animate-spin mb-6" />
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Scheduling meals...</h2>
-            <p className="text-sm text-gray-400">Adding {filledSlots} meals to your week</p>
+            <Loader2 className="mb-6 h-12 w-12 animate-spin text-[#22C7A1]" />
+            <h2 className="mb-2 text-[21px] font-black text-[#020617]">Adding your meals</h2>
+            <p className="text-[13px] font-medium text-[#64748B]">Scheduling {filledSlots} meals across the week.</p>
           </motion.div>
         )}
 
@@ -771,21 +797,21 @@ export const MealPlanGenerator = ({
             key="success"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center justify-center min-h-[70vh] p-6"
+            className="flex min-h-[70vh] flex-col items-center justify-center p-6"
           >
             <motion.div
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
-              className="w-32 h-32 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mb-6 shadow-2xl shadow-emerald-500/50"
+              className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[#E9FBF6] text-[#22C7A1] ring-1 ring-[#22C7A1]/20"
             >
-              <Check className="h-16 w-16 text-white" strokeWidth={3} />
+              <Check className="h-11 w-11" strokeWidth={3} />
             </motion.div>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-3xl font-black text-gray-900 dark:text-white mb-2"
+              className="mb-2 text-[28px] font-black text-[#020617]"
             >
               Week Filled!
             </motion.h2>
@@ -793,7 +819,7 @@ export const MealPlanGenerator = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="text-gray-500 text-center"
+              className="text-center text-[13px] font-medium text-[#64748B]"
             >
               {filledSlots} meals have been added to your schedule
             </motion.p>
@@ -801,54 +827,77 @@ export const MealPlanGenerator = ({
         )}
       </AnimatePresence>
 
-      <Sheet open={swapSheetOpen} onOpenChange={(open) => { setSwapSheetOpen(open); if (!open) setSwapSearch(""); }}>
+      <Sheet open={swapSheetOpen} onOpenChange={(open) => { setSwapSheetOpen(open); if (!open) { setSwapSearch(""); setSwapFilter("best"); } }}>
         <SheetContent
           side="bottom"
-          className="h-[65vh] rounded-t-[24px] p-0 overflow-hidden"
-          closeButtonClassName="top-3 right-3 h-9 w-9 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+          className="h-[72vh] overflow-hidden rounded-t-[28px] border-[#E5EAF1] bg-white p-0"
+          closeButtonClassName="top-3 right-3 h-10 w-10 rounded-full bg-[#F6F8FB] text-[#020617] hover:bg-[#EDF1F5]"
         >
-          <SheetHeader className="p-4 pb-1 text-left">
-            <SheetTitle className="text-base font-bold flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-amber-500" />
-              {swapTarget ? `Choose ${MEAL_TYPE_CONFIG[swapTarget.mealType].label}` : "Choose a meal"}
+          <SheetHeader className="p-4 pb-2 text-left">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">Replace meal</p>
+            <SheetTitle className="mt-1 text-[20px] font-black text-[#020617]">
+              {swapTarget ? `Choose a new ${MEAL_TYPE_CONFIG[swapTarget.mealType].label}` : "Choose a meal"}
             </SheetTitle>
+            {swapTarget ? (
+              <p className="mt-1 truncate pr-12 text-[11px] font-semibold text-[#64748B]">
+                {format(swapTarget.date, "EEEE, MMM d")} · Replacing {currentSwapMeal?.name || "current meal"}
+              </p>
+            ) : null}
           </SheetHeader>
 
           <div className="px-4 pb-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
               <input
                 type="text"
-                placeholder="Search restaurant..."
+                placeholder="Search meals or restaurants"
                 value={swapSearch}
                 onChange={(e) => setSwapSearch(e.target.value)}
-                className="w-full h-10 pl-9 pr-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 border-0 outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all"
+                className="h-11 w-full rounded-[15px] bg-[#F6F8FB] pl-9 pr-4 text-[13px] font-bold text-[#020617] outline-none ring-1 ring-[#E5EAF1] placeholder:text-[#94A3B8] focus:ring-[#22C7A1]/40"
               />
+            </div>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {([
+                { id: "best", label: "Best match" },
+                { id: "protein", label: "High protein" },
+                { id: "under_500", label: "Under 500 kcal" },
+              ] as Array<{ id: SwapFilter; label: string }>).map((filter) => (
+                <button
+                  key={filter.id}
+                  type="button"
+                  onClick={() => setSwapFilter(filter.id)}
+                  className={cn(
+                    "h-10 shrink-0 rounded-full px-4 text-[11px] font-extrabold ring-1 transition active:scale-95",
+                    swapFilter === filter.id
+                      ? "bg-[#020617] text-white ring-[#020617]"
+                      : "bg-white text-[#64748B] ring-[#E5EAF1]",
+                  )}
+                >
+                  {filter.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="overflow-y-auto px-4 pb-6 max-h-[calc(65vh-145px)]">
-            {swapAlternatives.length === 0 ? (
+          <div className="max-h-[calc(72vh-220px)] overflow-y-auto px-4 pb-6">
+            {filteredSwapAlternatives.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                 <AlertTriangle className="h-10 w-10 mb-3 opacity-40" />
-                <p className="text-sm">No alternative meals available</p>
+                <p className="text-sm">No meals match these filters</p>
+                <button
+                  type="button"
+                  onClick={() => { setSwapSearch(""); setSwapFilter("best"); }}
+                  className="mt-4 h-10 rounded-full bg-[#020617] px-4 text-[12px] font-extrabold text-white"
+                >
+                  Clear filters
+                </button>
               </div>
             ) : (
               <div className="space-y-4">
                 {(() => {
-                  const grouped = swapAlternatives.reduce<Record<string, { meal: Meal; score: number }[]>>((acc, item) => {
-                    const restName = item.meal.restaurants?.name || "Other";
-                    if (!acc[restName]) acc[restName] = [];
-                    acc[restName].push(item);
-                    return acc;
-                  }, {});
-
-                  const query = swapSearch.toLowerCase().trim();
-                  const filtered = query
-                    ? Object.entries(grouped).filter(([restName]) =>
-                        restName.toLowerCase().includes(query)
-                      )
-                    : Object.entries(grouped);
+                  const filtered: Array<[string, { meal: Meal; score: number }[]]> = [
+                    ["Top matches", filteredSwapAlternatives],
+                  ];
 
                   return filtered.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-gray-400">
@@ -863,11 +912,11 @@ export const MealPlanGenerator = ({
                         transition={{ delay: gIdx * 0.08 }}
                         className="flex items-center gap-2 px-1 mb-2"
                       >
-                        <Store className="h-3.5 w-3.5 text-gray-400" />
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                        <Target className="h-3.5 w-3.5 text-[#22C7A1]" />
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[#64748B]">
                           {restaurantName}
                         </span>
-                        <span className="text-[10px] text-gray-300 ml-auto">{items.length} meals</span>
+                        <span className="ml-auto text-[10px] font-bold text-[#94A3B8]">{items.length} options</span>
                       </motion.div>
 
                       <div className="space-y-1.5">
@@ -875,11 +924,11 @@ export const MealPlanGenerator = ({
                           const mealTypeKey = (meal.meal_type?.toLowerCase() || "") as MealType;
                           const cfg = MEAL_TYPE_CONFIG[mealTypeKey] || MEAL_TYPE_CONFIG.snack;
                           const Icon = cfg.icon;
-                          const fitPct = Math.round(score * 100);
+                          const fitPct = Math.min(100, Math.max(0, Math.round(score * 100)));
                           const fitColor =
-                            fitPct >= 90 ? "text-emerald-500" :
-                            fitPct >= 70 ? "text-amber-500" :
-                            "text-gray-400";
+                            fitPct >= 90 ? "text-[#22C7A1]" :
+                            fitPct >= 70 ? "text-[#7C83F6]" :
+                            "text-[#94A3B8]";
 
                           return (
                             <motion.button
@@ -888,13 +937,13 @@ export const MealPlanGenerator = ({
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: (gIdx * 0.08) + (idx * 0.03) }}
                               onClick={() => selectSwapMeal(meal)}
-                              className="w-full flex items-center gap-3 p-3 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 active:scale-[0.98] transition-all text-left cursor-pointer"
+                              className="flex w-full cursor-pointer items-center gap-3 rounded-[18px] bg-white p-3 text-left shadow-[0_6px_18px_rgba(2,6,23,0.04)] ring-1 ring-[#E5EAF1] transition active:scale-[0.98]"
                             >
                               {meal.image_url ? (
                                 <img
                                   src={meal.image_url}
                                   alt={meal.name}
-                                  className="w-14 h-14 rounded-xl object-cover shrink-0 shadow-sm"
+                                  className="h-14 w-14 shrink-0 rounded-[15px] object-cover"
                                 />
                               ) : (
                                 <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${cfg.bgGradient}`}>
@@ -903,21 +952,24 @@ export const MealPlanGenerator = ({
                               )}
 
                               <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                                <h4 className="truncate text-[14px] font-black text-[#020617]">
                                   {meal.name}
                                 </h4>
+                                <p className="mt-0.5 truncate text-[10px] font-bold text-[#94A3B8]">
+                                  {meal.restaurants?.name || "Restaurant"}
+                                </p>
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                  <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300">
+                                  <span className="text-[11px] font-semibold text-[#64748B]">
                                     {meal.calories} kcal
                                   </span>
                                   <span className="text-gray-200">·</span>
-                                  <span className="text-[11px] text-gray-500">
+                                  <span className="text-[11px] text-[#64748B]">
                                     {meal.protein_g}g protein
                                   </span>
                                   {meal.carbs_g != null && (
                                     <>
                                       <span className="text-gray-200">·</span>
-                                      <span className="text-[11px] text-gray-500">
+                                      <span className="text-[11px] text-[#64748B]">
                                         {meal.carbs_g}g carbs
                                       </span>
                                     </>

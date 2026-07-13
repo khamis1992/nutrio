@@ -134,12 +134,12 @@ const AdminAnalytics = () => {
       .select("id, price, restaurant_id");
 
     const mealPrices = (meals || []).reduce((acc, meal) => {
-      acc[meal.id] = meal.price;
+      acc[meal.id] = meal.price ?? 0;
       return acc;
     }, {} as Record<string, number>);
 
     const mealRestaurants = (meals || []).reduce((acc, meal) => {
-      acc[meal.id] = meal.restaurant_id;
+      if (meal.restaurant_id) acc[meal.id] = meal.restaurant_id;
       return acc;
     }, {} as Record<string, string>);
 
@@ -227,10 +227,10 @@ const AdminAnalytics = () => {
     lastWeekStart.setDate(thisWeekStart.getDate() - 7);
 
     const thisWeekOrders = (schedules || []).filter(
-      (schedule) => new Date(schedule.created_at) >= thisWeekStart
+      (schedule) => schedule.created_at !== null && new Date(schedule.created_at) >= thisWeekStart
     ).length;
     const lastWeekOrders = (schedules || []).filter(
-      (schedule) => new Date(schedule.created_at) >= lastWeekStart && new Date(schedule.created_at) < thisWeekStart
+      (schedule) => schedule.created_at !== null && new Date(schedule.created_at) >= lastWeekStart && new Date(schedule.created_at) < thisWeekStart
     ).length;
 
     const growthRate = lastWeekOrders > 0

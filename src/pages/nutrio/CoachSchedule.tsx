@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Loader2, Calendar, Video, Phone, MapPin, ClipboardCheck, Clock, Plus, X, UserPlus } from "lucide-react";
+import { motion, type Variants } from "framer-motion";
+import { Loader2, Calendar, Video, Phone, MapPin, ClipboardCheck, Plus, X, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useCoachSessions } from "@/hooks/useCoachSessions";
 import { useToast } from "@/hooks/use-toast";
 
-const fadeInUp = {
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 24 } },
 };

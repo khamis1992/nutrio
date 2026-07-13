@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Clock, Mail, Moon, Smartphone, Sun, Tag, Utensils } from "lucide-react";
+import { ArrowLeft, Bell, Clock, Mail, Smartphone, Tag, Utensils } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -12,7 +12,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { HealthAppsSettings } from "@/components/settings/HealthAppsSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useTheme } from "@/contexts/ThemeContext";
 
 interface NotificationPreferences {
   id: string;
@@ -36,18 +35,26 @@ interface NotificationPreferences {
   updated_at: string | null;
 }
 
+type NotificationPreferenceKey = Exclude<
+  keyof NotificationPreferences,
+  "id" | "user_id" | "created_at" | "updated_at"
+>;
+
+type NotificationPreferenceChanges = Partial<
+  Pick<NotificationPreferences, NotificationPreferenceKey>
+>;
+
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const { t } = useLanguage();
   useEffect(() => { document.title = `${t("nav_settings")} - Nutrio`; }, [t]);
-  const { toggleTheme, isDark } = useTheme();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences | null>(null);
-  const pendingChangesRef = useRef<Partial<Record<keyof NotificationPreferences, boolean | string>>>({});
+  const pendingChangesRef = useRef<NotificationPreferenceChanges>({});
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSettings = useCallback(async () => {
@@ -146,7 +153,10 @@ const Settings = () => {
     debounceTimerRef.current = setTimeout(flushPendingChanges, 600);
   }, [flushPendingChanges]);
 
-  const updateNotificationPref = useCallback((key: keyof NotificationPreferences, value: boolean | string) => {
+  const updateNotificationPref = useCallback(<K extends NotificationPreferenceKey>(
+    key: K,
+    value: NonNullable<NotificationPreferences[K]>,
+  ) => {
     if (!user || !notificationPrefs) return;
 
     setNotificationPrefs(prev => prev ? { ...prev, [key]: value } : null);
@@ -167,7 +177,7 @@ const Settings = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[#F6F8FB] text-[#020617]">
         <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
           <Skeleton className="h-10 w-32" />
           <Skeleton className="h-64 w-full" />
@@ -178,10 +188,10 @@ const Settings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-[#F6F8FB] pb-20 text-[#020617]">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-        <div className="container max-w-2xl mx-auto px-4 py-4">
+      <header className="sticky top-0 z-10 border-b border-[#E5EAF1] bg-white/95 pt-safe backdrop-blur-xl">
+        <div className="container mx-auto max-w-2xl px-4 py-3">
           <div className="flex items-center gap-4 rtl:flex-row-reverse">
             <Button
               variant="ghost"
@@ -191,35 +201,12 @@ const Settings = () => {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-xl font-semibold">{t('settings_title')}</h1>
+            <h1 className="text-xl font-bold text-[#020617]">{t('settings_title')}</h1>
           </div>
         </div>
       </header>
 
       <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* App Preferences */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {isDark ? <Moon className="h-5 w-5 text-primary" /> : <Sun className="h-5 w-5 text-warning" />}
-              {t("appearance")}
-            </CardTitle>
-            <CardDescription>
-              {isDark ? t("dark_mode_on") : t("light_mode_on")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Sun className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">{isDark ? t("switch_to_light") : t("switch_to_dark")}</span>
-            </div>
-            <Switch
-              checked={isDark}
-              onCheckedChange={toggleTheme}
-            />
-          </CardContent>
-        </Card>
-
         {/* Notification Preferences */}
         <Card>
           <CardHeader>

@@ -22,7 +22,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Crown, CreditCard, Loader2, RefreshCw, Utensils, Calendar, CheckCircle, XCircle } from "lucide-react";
+import { Crown, CreditCard, Loader2, RefreshCw, Utensils, Calendar, XCircle } from "lucide-react";
 
 interface Subscription {
   id: string;

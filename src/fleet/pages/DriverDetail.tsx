@@ -80,7 +80,7 @@ export default function DriverDetail() {
       .eq("status", "available")
       .then(({ data }) => {
         setAvailableVehicles(
-          (data || []).map((v: { id: string; plate_number: string; type: string; make?: string; model?: string }) => ({
+          (data || []).map((v) => ({
             id: v.id,
             plateNumber: v.plate_number,
             type: v.type,
@@ -101,13 +101,6 @@ export default function DriverDetail() {
         .update({ assigned_driver_id: driver.id, status: "assigned" })
         .eq("id", selectedVehicleId);
       if (vErr) throw vErr;
-
-      // Update driver: set assigned_vehicle_id
-      const { error: dErr } = await supabase
-        .from("drivers")
-        .update({ assigned_vehicle_id: selectedVehicleId })
-        .eq("id", driver.id);
-      if (dErr) throw dErr;
 
       toast({ title: "Vehicle assigned", description: "The vehicle has been linked to this driver." });
       setSelectedVehicleId("");
@@ -130,13 +123,6 @@ export default function DriverDetail() {
         .update({ assigned_driver_id: null, status: "available" })
         .eq("id", vehicle.id);
       if (vErr) throw vErr;
-
-      // Clear driver's vehicle
-      const { error: dErr } = await supabase
-        .from("drivers")
-        .update({ assigned_vehicle_id: null })
-        .eq("id", driver.id);
-      if (dErr) throw dErr;
 
       toast({ title: "Vehicle unassigned", description: "The vehicle has been returned to the pool." });
       refetch();

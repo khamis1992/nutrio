@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface Friend {
   friendship_id: string;
@@ -60,7 +61,10 @@ async function searchUsers(
     .limit(10);
 
   if (error) throw error;
-  return data || [];
+  return (data || []).map((profile) => ({
+    ...profile,
+    email: profile.email ?? "",
+  }));
 }
 
 async function sendFriendRequest(
@@ -73,7 +77,7 @@ async function sendFriendRequest(
   });
 
   if (error) throw error;
-  return data;
+  return parseFriendActionResult(data);
 }
 
 async function acceptFriendRequest(
@@ -86,7 +90,7 @@ async function acceptFriendRequest(
   });
 
   if (error) throw error;
-  return data;
+  return parseFriendActionResult(data);
 }
 
 async function rejectFriendRequest(
@@ -99,7 +103,7 @@ async function rejectFriendRequest(
   });
 
   if (error) throw error;
-  return data;
+  return parseFriendActionResult(data);
 }
 
 async function removeFriendFn(
@@ -112,7 +116,7 @@ async function removeFriendFn(
   });
 
   if (error) throw error;
-  return data;
+  return parseFriendActionResult(data);
 }
 
 export function useFriends(userId: string | undefined) {
@@ -217,5 +221,26 @@ export function useFriends(userId: string | undefined) {
     searchUsers: searchMutation.mutate,
     searchResults: searchMutation.data || [],
     isSearching: searchMutation.isPending,
+  };
+}
+
+interface FriendActionResult {
+  success: boolean;
+  id?: string;
+  message?: string;
+  error?: string;
+}
+
+function parseFriendActionResult(data: Json): FriendActionResult {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Invalid friend action response");
+  }
+
+  const result = data as Record<string, Json | undefined>;
+  return {
+    success: result.success === true,
+    id: typeof result.id === "string" ? result.id : undefined,
+    message: typeof result.message === "string" ? result.message : undefined,
+    error: typeof result.error === "string" ? result.error : undefined,
   };
 }

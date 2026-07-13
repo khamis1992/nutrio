@@ -20,10 +20,9 @@ export function DriverQRScanner({
   scanResult,
 }: DriverQRScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
-  const rafRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const scanningActiveRef = useRef(false);
   const lastScanRef = useRef<string | null>(null);
   const cameraTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -38,10 +37,7 @@ export function DriverQRScanner({
       clearTimeout(cameraTimeoutRef.current);
       cameraTimeoutRef.current = null;
     }
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
+    scanningActiveRef.current = false;
     if (codeReaderRef.current) {
       codeReaderRef.current.reset();
       codeReaderRef.current = null;
@@ -63,7 +59,7 @@ export function DriverQRScanner({
 
       // Set camera timeout - if no image within 30 seconds, show error
       cameraTimeoutRef.current = setTimeout(() => {
-        if (scanningActive) {
+        if (scanningActiveRef.current) {
           setCameraError("Camera is taking too long. Please try again or use manual entry.");
           stopCamera();
         }
@@ -83,43 +79,35 @@ export function DriverQRScanner({
       // Initialize ZXing code reader
       const codeReader = new BrowserMultiFormatReader();
       codeReaderRef.current = codeReader;
+      scanningActiveRef.current = true;
       setScanningActive(true);
 
-      // Decode loop
-      const decodeLoop = async () => {
-        if (!videoRef.current || !scanningActive || !codeReaderRef.current) return;
+      const video = videoRef.current;
+      if (!video) throw new Error("Camera preview is not available.");
+      if (cameraTimeoutRef.current) clearTimeout(cameraTimeoutRef.current);
 
-        try {
-          const result = await codeReader.decodeOnceFromVideoElement(videoRef.current);
-          if (result) {
-            const text = result.getText();
-            // Prevent duplicate scans
-            if (text !== lastScanRef.current) {
-              lastScanRef.current = text;
-              toast.success(`QR Code detected!`);
-              onScan(text);
-              stopCamera();
-              return;
-            }
+      void codeReader.decodeFromVideoElementContinuously(video, (result, error) => {
+        if (!scanningActiveRef.current) return;
+        if (result) {
+          const text = result.getText();
+          if (text !== lastScanRef.current) {
+            lastScanRef.current = text;
+            toast.success("QR Code detected!");
+            onScan(text);
+            stopCamera();
           }
-        } catch (err) {
-          if (!(err instanceof NotFoundException)) {
-            console.error("QR detection error:", err);
-          }
+          return;
         }
-
-        if (scanningActive && streamRef.current) {
-          rafRef.current = requestAnimationFrame(decodeLoop);
+        if (error && !(error instanceof NotFoundException)) {
+          console.error("QR detection error:", error);
         }
-      };
-
-      // Start decode loop after video is ready
-      videoRef.current.onloadedmetadata = () => {
-        if (cameraTimeoutRef.current) {
-          clearTimeout(cameraTimeoutRef.current);
+      }).catch((error) => {
+        if (scanningActiveRef.current) {
+          console.error("QR scanner failed:", error);
+          setCameraError("Could not scan with the camera. Use manual code entry below.");
+          stopCamera();
         }
-        decodeLoop();
-      };
+      });
 
     } catch (err: unknown) {
       const error = err as Error;
@@ -133,7 +121,7 @@ export function DriverQRScanner({
         setCameraError("Could not access camera. Use manual code entry below.");
       }
     }
-  }, [onScan, stopCamera, scanningActive]);
+  }, [onScan, stopCamera]);
 
   useEffect(() => {
     startCamera();
@@ -184,7 +172,6 @@ export function DriverQRScanner({
                     muted
                     className="w-full h-full object-cover rounded-lg"
                   />
-                  <canvas ref={canvasRef} className="hidden" />
                   
                   {/* Scan Overlay */}
                   <div className="absolute inset-0 border-2 border-white/30 rounded-lg">

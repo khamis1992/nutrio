@@ -169,26 +169,25 @@ export function useCancelFreeze() {
   return useMutation({
     mutationFn: async ({
       freezeId,
-      subscriptionId,
       reason,
     }: {
       freezeId: string;
       subscriptionId: string;
       reason?: string;
     }) => {
-      const { error } = await supabase
-        .from("subscription_freezes")
-        .update({
-          status: "cancelled",
-          cancelled_at: new Date().toISOString(),
-          cancelled_reason: reason || "User cancelled",
-        })
-        .eq("id", freezeId)
-        .eq("status", "scheduled");
+      const { data, error } = await supabase.rpc("cancel_subscription_freeze", {
+        p_freeze_id: freezeId,
+        p_reason: reason || "User cancelled",
+      });
 
       if (error) {
         console.error("Error cancelling freeze:", error);
         throw error;
+      }
+
+      const result = data as { success?: boolean; error?: string } | null;
+      if (!result?.success) {
+        throw new Error(result?.error || "Freeze cancellation failed");
       }
     },
     onSuccess: (_, variables) => {
@@ -251,7 +250,7 @@ export function useUserFreezes(userId: string | undefined) {
       
       const { data, error } = await supabase
         .from("subscription_freezes")
-        .select("*, subscriptions(plan_id)")
+        .select("*")
         .eq("user_id", userId)
         .order("requested_at", { ascending: false });
 
@@ -260,7 +259,7 @@ export function useUserFreezes(userId: string | undefined) {
         throw error;
       }
 
-      return data as (SubscriptionFreeze & { subscriptions: { plan_id: string } })[];
+      return data as SubscriptionFreeze[];
     },
     enabled: !!userId,
   });

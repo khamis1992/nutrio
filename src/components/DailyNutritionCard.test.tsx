@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DailyNutritionCard } from "@/components/DailyNutritionCard";
 
@@ -46,7 +46,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 vi.mock("@/components/LogActivitySheet", () => ({
-  LogActivitySheet: ({ open, onOpenChange }: any) =>
+  LogActivitySheet: ({ open }: { open: boolean }) =>
     open ? <div data-testid="log-activity-sheet">Log Activity</div> : null,
 }));
 
@@ -61,6 +61,7 @@ vi.mock("framer-motion", () => ({
     span: ({ children, ...rest }: any) => <span {...rest}>{children}</span>,
     circle: ({ children, ...rest }: any) => <circle {...rest}>{children}</circle>,
   },
+  useReducedMotion: () => false,
 }));
 
 vi.mock("@/lib/dateUtils", () => ({
@@ -70,6 +71,7 @@ vi.mock("@/lib/dateUtils", () => ({
     return d;
   },
   getQatarDay: () => "2026-04-15",
+  formatLocaleDate: () => "Wed, Apr 15",
 }));
 
 vi.mock("date-fns", () => ({

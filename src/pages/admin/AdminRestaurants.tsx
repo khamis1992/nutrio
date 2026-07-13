@@ -164,7 +164,7 @@ const AdminRestaurants = () => {
 
       if (error) throw error;
 
-      const ownerIds = [...new Set((data || []).map((r) => r.owner_id).filter(Boolean))];
+      const ownerIds = [...new Set((data || []).map((r) => r.owner_id).filter((id): id is string => Boolean(id)))];
       let ownersMap: Record<string, { full_name: string | null; email: string | null }> = {};
 
       if (ownerIds.length > 0) {
@@ -181,8 +181,21 @@ const AdminRestaurants = () => {
         }
       }
 
-      const restaurantsWithOwners = (data || []).map((r) => ({
-        ...r,
+      const restaurantsWithOwners: Restaurant[] = (data || []).map((r) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        logo_url: r.logo_url,
+        address: r.address,
+        phone: r.phone,
+        email: r.email,
+        cuisine_type: r.cuisine_type,
+        website: r.website,
+        approval_status: r.approval_status || "pending",
+        is_active: r.is_active ?? false,
+        payout_rate: r.payout_rate,
+        commission_rate: r.commission_rate,
+        created_at: r.created_at || new Date(0).toISOString(),
         owner: r.owner_id ? ownersMap[r.owner_id] || null : null,
       }));
 
@@ -482,7 +495,7 @@ const AdminRestaurants = () => {
   };
 
   // Get unique cuisine types
-  const cuisineTypes = [...new Set(restaurants.map((r) => r.cuisine_type).filter(Boolean))];
+  const cuisineTypes = [...new Set(restaurants.map((r) => r.cuisine_type).filter((cuisine): cuisine is string => Boolean(cuisine)))];
 
   const filteredRestaurants = restaurants
     .filter((r) => {

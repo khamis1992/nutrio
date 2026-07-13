@@ -141,15 +141,21 @@ export default function FleetDashboard() {
 
       if (!data) return;
 
-      const driverIds = [...new Set(data.map((row) => row.driver_id).filter(Boolean))];
+      const driverIds = [
+        ...new Set(
+          data
+            .map((row) => row.driver_id)
+            .filter((driverId): driverId is string => Boolean(driverId)),
+        ),
+      ];
       const nameMap: Record<string, string> = {};
       if (driverIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
+        const { data: drivers } = await supabase
+          .from("drivers")
           .select("id, full_name, phone_number")
           .in("id", driverIds);
-        (profiles || []).forEach((profile) => {
-          nameMap[profile.id] = profile.full_name || profile.phone_number || "Driver";
+        (drivers || []).forEach((driver) => {
+          nameMap[driver.id] = driver.full_name || driver.phone_number || "Driver";
         });
       }
 

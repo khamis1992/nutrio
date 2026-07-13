@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { getNavArrows } from "@/lib/rtl";
 import { motion, useReducedMotion } from "framer-motion";
-import { Flame, Plus, Calendar, Utensils, Activity, Wheat, Dumbbell, Apple, ChevronRight } from "lucide-react";
+import { Flame, Plus, Calendar, Utensils, Activity, Wheat, Dumbbell, Apple } from "lucide-react";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -126,13 +125,12 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   onDateChange,
   burnedCalories: burnedCaloriesProp,
   workoutSessionCount: workoutSessionCountProp,
-  streakDays,
   weekTarget,
   completedThisWeek,
   weekDays,
 }) => {
   const { user } = useAuth();
-  const { t, isRTL, language } = useLanguage();
+  const { t, language } = useLanguage();
   const prefersReducedMotion = useReducedMotion();
   const [totalBurned, setTotalBurned] = useState(burnedCaloriesProp ?? 0);
   const [workoutCount, setWorkoutCount] = useState(workoutSessionCountProp ?? 0);

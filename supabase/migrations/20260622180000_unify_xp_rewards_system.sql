@@ -375,14 +375,47 @@ AS $$
 DECLARE
   v_streak_days INTEGER;
   v_meals_logged INTEGER;
+  v_level INTEGER;
+  v_referral_count INTEGER;
+  v_calorie_target NUMERIC;
+  v_protein_target NUMERIC;
+  v_current_weight NUMERIC;
+  v_target_weight NUMERIC;
+  v_requirement_met BOOLEAN;
+  v_metric INTEGER;
+  v_inserted_badge_id TEXT;
   v_badge_record public.badges%ROWTYPE;
   v_awarded_badges TEXT[] := ARRAY[]::TEXT[];
   v_reward_results JSONB := '[]'::jsonb;
 BEGIN
-  SELECT COALESCE(streak_days, 0), COALESCE(total_meals_logged, 0)
-  INTO v_streak_days, v_meals_logged
+  IF auth.uid() IS NULL OR p_user_id <> auth.uid() THEN
+    RAISE EXCEPTION 'FORBIDDEN';
+  END IF;
+
+  SELECT
+    COALESCE(streak_days, 0),
+    COALESCE(total_meals_logged, 0),
+    COALESCE(level, 1),
+    FLOOR(COALESCE(referral_rewards_earned, 0))::INTEGER,
+    COALESCE(daily_calorie_target, 0),
+    COALESCE(protein_target_g, 0),
+    current_weight_kg,
+    target_weight_kg
+  INTO
+    v_streak_days,
+    v_meals_logged,
+    v_level,
+    v_referral_count,
+    v_calorie_target,
+    v_protein_target,
+    v_current_weight,
+    v_target_weight
   FROM public.profiles
   WHERE user_id = p_user_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'PROFILE_NOT_FOUND';
+  END IF;
 
   FOR v_badge_record IN SELECT * FROM public.badges LOOP
     IF EXISTS (
@@ -392,16 +425,143 @@ BEGIN
       CONTINUE;
     END IF;
 
-    IF (
-      v_badge_record.requirement_type = 'streak_days'
-      AND v_streak_days >= v_badge_record.requirement_value
-    ) OR (
-      v_badge_record.requirement_type = 'meals_logged'
-      AND v_meals_logged >= v_badge_record.requirement_value
-    ) THEN
+    v_requirement_met := FALSE;
+    v_metric := 0;
+
+    CASE v_badge_record.requirement_type
+      WHEN 'streak_days' THEN
+        v_requirement_met := v_streak_days >= v_badge_record.requirement_value;
+
+      WHEN 'meals_logged' THEN
+        v_requirement_met := v_meals_logged >= v_badge_record.requirement_value;
+
+      WHEN 'level' THEN
+        v_requirement_met := v_level >= v_badge_record.requirement_value;
+
+      WHEN 'referrals' THEN
+        v_requirement_met := v_referral_count >= v_badge_record.requirement_value;
+
+      WHEN 'weight_goal' THEN
+        v_requirement_met := v_current_weight IS NOT NULL
+          AND v_target_weight IS NOT NULL
+          AND v_current_weight <= v_target_weight;
+
+      WHEN 'unique_restaurants' THEN
+        SELECT COUNT(DISTINCT ms.restaurant_id)::INTEGER
+        INTO v_metric
+        FROM public.meal_schedules ms
+        WHERE ms.user_id = p_user_id
+          AND ms.restaurant_id IS NOT NULL
+          AND ms.order_status IN ('delivered', 'completed');
+        v_requirement_met := v_metric >= v_badge_record.requirement_value;
+
+      WHEN 'unique_salads' THEN
+        SELECT COUNT(DISTINCT ms.meal_id)::INTEGER
+        INTO v_metric
+        FROM public.meal_schedules ms
+        JOIN public.meals m ON m.id = ms.meal_id
+        WHERE ms.user_id = p_user_id
+          AND ms.order_status IN ('delivered', 'completed')
+          AND LOWER(m.name) LIKE '%salad%';
+        v_requirement_met := v_metric >= v_badge_record.requirement_value;
+
+      WHEN 'water_streak' THEN
+        WITH qualifying_days AS (
+          SELECT we.log_date
+          FROM public.water_entries we
+          WHERE we.user_id = p_user_id
+            AND we.log_date <= CURRENT_DATE
+          GROUP BY we.log_date
+          HAVING SUM(GREATEST(COALESCE(we.amount_ml, 0), 0)) >= 2000
+        ), grouped_days AS (
+          SELECT
+            log_date,
+            log_date - (ROW_NUMBER() OVER (ORDER BY log_date))::INTEGER AS streak_group
+          FROM qualifying_days
+        )
+        SELECT COALESCE(MAX(streak_length), 0)::INTEGER
+        INTO v_metric
+        FROM (
+          SELECT COUNT(*) AS streak_length
+          FROM grouped_days
+          GROUP BY streak_group
+        ) streaks;
+        v_requirement_met := v_metric >= v_badge_record.requirement_value;
+
+      WHEN 'protein_target_streak' THEN
+        IF v_protein_target > 0 THEN
+          WITH qualifying_days AS (
+            SELECT pl.log_date
+            FROM public.progress_logs pl
+            WHERE pl.user_id = p_user_id
+              AND pl.log_date <= CURRENT_DATE
+              AND COALESCE(pl.protein_consumed_g, 0) >= v_protein_target
+          ), grouped_days AS (
+            SELECT
+              log_date,
+              log_date - (ROW_NUMBER() OVER (ORDER BY log_date))::INTEGER AS streak_group
+            FROM qualifying_days
+          )
+          SELECT COALESCE(MAX(streak_length), 0)::INTEGER
+          INTO v_metric
+          FROM (
+            SELECT COUNT(*) AS streak_length
+            FROM grouped_days
+            GROUP BY streak_group
+          ) streaks;
+          v_requirement_met := v_metric >= v_badge_record.requirement_value;
+        END IF;
+
+      WHEN 'goal_streak' THEN
+        IF v_calorie_target > 0 THEN
+          WITH qualifying_days AS (
+            SELECT pl.log_date
+            FROM public.progress_logs pl
+            WHERE pl.user_id = p_user_id
+              AND pl.log_date <= CURRENT_DATE
+              AND COALESCE(pl.calories_consumed, 0) >= v_calorie_target
+          ), grouped_days AS (
+            SELECT
+              log_date,
+              log_date - (ROW_NUMBER() OVER (ORDER BY log_date))::INTEGER AS streak_group
+            FROM qualifying_days
+          )
+          SELECT COALESCE(MAX(streak_length), 0)::INTEGER
+          INTO v_metric
+          FROM (
+            SELECT COUNT(*) AS streak_length
+            FROM grouped_days
+            GROUP BY streak_group
+          ) streaks;
+          v_requirement_met := v_metric >= v_badge_record.requirement_value;
+        END IF;
+
+      WHEN 'subscription_months' THEN
+        SELECT COALESCE(MAX(
+          EXTRACT(YEAR FROM AGE(CURRENT_DATE, s.start_date::DATE))::INTEGER * 12
+          + EXTRACT(MONTH FROM AGE(CURRENT_DATE, s.start_date::DATE))::INTEGER
+        ), 0)::INTEGER
+        INTO v_metric
+        FROM public.subscriptions s
+        WHERE s.user_id = p_user_id
+          AND s.status <> 'cancelled'
+          AND s.start_date::DATE <= CURRENT_DATE;
+        v_requirement_met := v_metric >= v_badge_record.requirement_value;
+
+      ELSE
+        v_requirement_met := FALSE;
+    END CASE;
+
+    IF v_requirement_met THEN
+      v_inserted_badge_id := NULL;
       INSERT INTO public.user_badges (user_id, badge_id)
       VALUES (p_user_id, v_badge_record.id)
-      ON CONFLICT DO NOTHING;
+      ON CONFLICT DO NOTHING
+      RETURNING badge_id INTO v_inserted_badge_id;
+
+      IF v_inserted_badge_id IS NULL THEN
+        CONTINUE;
+      END IF;
 
       PERFORM public.award_xp(
         p_user_id,
@@ -426,10 +586,19 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, JSONB) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.check_and_award_badges(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.grant_badge_reward(UUID, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.grant_progress_rewards(UUID) TO authenticated;
+REVOKE ALL ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, JSONB)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.grant_badge_reward(UUID, TEXT)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.grant_progress_rewards(UUID)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, JSONB)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.grant_badge_reward(UUID, TEXT)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.grant_progress_rewards(UUID)
+  TO service_role;
 
 COMMENT ON TABLE public.xp_transactions IS 'Append-only XP ledger. Prevents duplicate XP grants for the same user/action/source.';
 COMMENT ON TABLE public.reward_definitions IS 'Configurable XP, level, and badge rewards.';

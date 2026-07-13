@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
+
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 interface AwardResult {
   xp: number;
@@ -15,101 +15,83 @@ interface XpState {
   xpToNextLevel: number;
 }
 
-const XP_ACTIONS = {
-  log_meal: 10,
-  complete_macros: 50,
-  order_healthy: 25,
-  streak_7: 100,
-  water_goal: 30,
-  workout_complete: 40,
-  rate_meal: 15,
-  refer_friend: 200,
-} as const;
+type XpAction =
+  | "log_meal"
+  | "complete_macros"
+  | "order_healthy"
+  | "streak_7"
+  | "water_goal"
+  | "workout_complete"
+  | "rate_meal"
+  | "refer_friend";
+
+function toXpState(xpValue: number | null, levelValue: number | null): XpState {
+  const xp = Math.max(0, xpValue || 0);
+  const level = Math.max(1, levelValue || 1);
+
+  return {
+    xp,
+    level,
+    xpToNextLevel: Math.max(0, level * 100 - xp),
+  };
+}
 
 export function useXp(userId: string | undefined) {
   const [state, setState] = useState<XpState>({ xp: 0, level: 1, xpToNextLevel: 100 });
-  const awardedRef = useRef(new Map<string, number>());
   const loadingRef = useRef(false);
 
   const loadXp = useCallback(async () => {
     if (!userId || loadingRef.current) return;
     loadingRef.current = true;
+
     try {
-      const { data } = await supabase.from("profiles").select("level").eq("user_id", userId).single();
-      if (data) {
-        const xp = 0; // xp column not yet available
-        const level = data.level || 1;
-        setState({ xp, level, xpToNextLevel: level * 100 });
-      }
-    } catch {
-      // silent
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("xp, level")
+        .eq("user_id", userId)
+        .single();
+      if (error) throw error;
+
+      setState(toXpState(data.xp, data.level));
+    } catch (error) {
+      console.error("Failed to load XP:", error);
     } finally {
       loadingRef.current = false;
     }
   }, [userId]);
 
-  const award = useCallback(async (action: keyof typeof XP_ACTIONS, details?: string): Promise<AwardResult> => {
-    if (!userId) return { xp: getState().xp, level: getState().level, leveledUp: false, newLevel: getState().level };
-
-    const today = new Date().toISOString().split("T")[0];
-    const key = `${action}-${today}`;
-    const todayCount = awardedRef.current.get(key) || 0;
-
-    const dailyCaps: Partial<Record<keyof typeof XP_ACTIONS, number>> = {
-      log_meal: 3,
-      rate_meal: 3,
-      workout_complete: 2,
-    };
-
-    const cap = dailyCaps[action];
-    if (cap !== undefined && todayCount >= cap) {
+  const award = useCallback(async (
+    _action: XpAction,
+    _details?: string,
+  ): Promise<AwardResult> => {
+    if (!userId) {
       return { xp: state.xp, level: state.level, leveledUp: false, newLevel: state.level };
     }
 
-    const earned = XP_ACTIONS[action];
-    const newTodayCount = todayCount + 1;
-    awardedRef.current.set(key, newTodayCount);
+    // XP is granted only by server-owned action RPCs. This compatibility method
+    // refreshes the authoritative balance instead of simulating a client award.
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("xp, level")
+      .eq("user_id", userId)
+      .single();
+    if (error) throw error;
 
-    const currentState = state;
-    const newXp = currentState.xp + earned;
-    const currentLevel = currentState.level;
-    const xpForNext = currentLevel * 100;
-    const leveledUp = newXp >= xpForNext;
-    const newLevel = leveledUp ? currentLevel + 1 : currentLevel;
-    const remaining = leveledUp ? newXp - xpForNext : newXp % xpForNext;
+    const nextState = toXpState(data.xp, data.level);
+    setState(nextState);
 
-    setState({ xp: newXp, level: newLevel, xpToNextLevel: newLevel * 100 });
+    return {
+      xp: nextState.xp,
+      level: nextState.level,
+      leveledUp: false,
+      newLevel: nextState.level,
+    };
+  }, [state.level, state.xp, userId]);
 
-    await supabase.from("profiles").update({ level: newLevel }).eq("user_id", userId);
+  const getState = useCallback(
+    () => ({ xp: state.xp, level: state.level, xpToNextLevel: state.xpToNextLevel }),
+    [state],
+  );
 
-    if (leveledUp) {
-      toast.custom(
-        (t) => (
-           <div className="rounded-2xl border-0 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 p-4 shadow-2xl">
-             <div className="flex items-center gap-3">
-              <span className="text-3xl">🎉</span>
-              <div>
-                <p className="text-sm font-extrabold text-white">Level Up!</p>
-                <p className="text-xs text-white/80">You reached Level {newLevel}!</p>
-              </div>
-            </div>
-          </div>
-        ),
-        { duration: 3000, position: "top-center" }
-      );
-    }
-
-    if (details) {
-      toast.success(details, {
-        description: `+${earned} XP earned`,
-        duration: 2000,
-      });
-    }
-
-    return { xp: newXp, level: newLevel, leveledUp, newLevel };
-  }, [userId, state.xp, state.level]);
-
-  const getState = useCallback(() => ({ xp: state.xp, level: state.level, xpToNextLevel: state.xpToNextLevel }), [state]);
-
-  return { ...state, award, loadXp };
+  return { ...state, award, loadXp, getState };
 }

@@ -514,8 +514,10 @@ export async function getHealthData(dateRange: {
     const sumFloat = (dataset?: Dataset) =>
       dataset?.point?.reduce((sum, point) => sum + (point.value?.[0]?.fpVal ?? 0), 0) ?? 0;
     const avgFloat = (dataset?: Dataset) => {
-      const values = dataset?.point?.flatMap((point) => point.value?.map((value) => value.fpVal).filter(Boolean) ?? []) ?? [];
-      return values.length ? Math.round(values.reduce((sum, value) => sum + (value ?? 0), 0) / values.length) : undefined;
+      const values = dataset?.point?.flatMap((point) =>
+        point.value?.map((value) => value.fpVal).filter((value): value is number => typeof value === "number") ?? []
+      ) ?? [];
+      return values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : undefined;
     };
     const sleepMinutes = (dataset?: Dataset) =>
       dataset?.point?.reduce((sum, point) => {
@@ -537,7 +539,7 @@ export async function getHealthData(dateRange: {
   }
 }
 
-export async function getLegacyHealthData(dateRange: {
+export async function getLegacyHealthData(_dateRange: {
   start: Date;
   end: Date;
 }): Promise<{

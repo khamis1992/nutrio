@@ -52,7 +52,6 @@ export default function PartnerAuth() {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -237,6 +236,11 @@ export default function PartnerAuth() {
               emailRedirectTo: `${window.location.origin}/partner`,
               data: {
                 full_name: formData.fullName,
+                account_type: "partner",
+                restaurant_name: formData.restaurantName,
+                restaurant_description: formData.restaurantDescription || null,
+                restaurant_phone: formData.phone || null,
+                restaurant_address: formData.address || null,
               },
             },
           },
@@ -245,52 +249,28 @@ export default function PartnerAuth() {
         if (authError) throw authError;
         if (!authData.user) throw new Error("Failed to create account");
 
-        // Upload logo if provided
-        const logoUrl = await uploadLogo(authData.user.id);
-
-        // Create restaurant
-        const { error: restaurantError } = await supabase
-          .from("restaurants")
-          .insert({
-            owner_id: authData.user.id,
-            name: formData.restaurantName,
-            description: formData.restaurantDescription || null,
-            phone: formData.phone || null,
-            address: formData.address || null,
-            email: formData.email,
-            logo_url: logoUrl,
-            approval_status: "pending",
-            is_active: true,
-          });
-
-        if (restaurantError) throw restaurantError;
-
-        // Create partner role
-        const { error: roleError } = await supabase.from("user_roles").insert({
-          user_id: authData.user.id,
-          role: "partner",
-        });
-
-        if (roleError) {
-          console.error("Role creation error:", roleError);
-        }
-
-        // Create profile
-        const { error: profileError } = await supabase.from("profiles").insert({
-          user_id: authData.user.id,
-          full_name: formData.fullName,
-        });
-
-        if (profileError) {
-          console.error("Profile creation error:", profileError);
+        if (authData.session && logoFile) {
+          const logoUrl = await uploadLogo(authData.user.id);
+          if (logoUrl) {
+            const { error: logoUpdateError } = await supabase
+              .from("restaurants")
+              .update({ logo_url: logoUrl })
+              .eq("owner_id", authData.user.id);
+            if (logoUpdateError) throw logoUpdateError;
+          }
         }
 
         toast({
           title: "Partner account created!",
-          description:
-            "Your restaurant is pending approval. You can start setting up your menu.",
+          description: authData.session
+            ? "Your restaurant application is pending approval."
+            : "Check your email to verify the account, then sign in to track approval.",
         });
-        navigate("/partner");
+        if (authData.session) {
+          navigate("/partner/pending-approval");
+        } else {
+          setIsLogin(true);
+        }
       }
     } catch (error: unknown) {
       console.error("Auth error:", error);

@@ -64,6 +64,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
+import {
+  transitionLegacyPartnerPayout,
+  transitionPartnerPayout,
+} from "@/lib/payouts";
 
 interface Payout {
   id: string;
@@ -217,9 +221,13 @@ export default function AdminPayouts() {
 
       if (payoutsError) throw payoutsError;
 
+      const validPayouts = (payoutsData || []).filter((payout) =>
+        Boolean(payout.partner_id && payout.restaurant_id && payout.period_start && payout.period_end),
+      );
+
       const partnerIds = [
         ...new Set(
-          (payoutsData || []).map((p: { partner_id: string }) => p.partner_id),
+          validPayouts.map((payout) => payout.partner_id!).filter((id): id is string => Boolean(id)),
         ),
       ];
 
@@ -242,31 +250,15 @@ export default function AdminPayouts() {
         );
       }
 
-      const formattedPayouts: Payout[] = (payoutsData || []).map(
-        (payout: {
-          id: string;
-          partner_id: string;
-          restaurant_id: string;
-          amount: number;
-          status: Payout["status"];
-          period_start: string;
-          period_end: string;
-          order_count: number;
-          commission_rate: number | null;
-          total_order_value: number | null;
-          commission_deducted: number | null;
-          payout_method: string | null;
-          processed_at: string | null;
-          created_at: string;
-          restaurant: { name: string } | null;
-        }) => ({
+      const formattedPayouts: Payout[] = validPayouts.map(
+        (payout) => ({
           id: payout.id,
-          partner_id: payout.partner_id,
-          restaurant_id: payout.restaurant_id,
+          partner_id: payout.partner_id!,
+          restaurant_id: payout.restaurant_id!,
           amount: payout.amount,
-          status: payout.status,
-          period_start: payout.period_start,
-          period_end: payout.period_end,
+          status: payout.status === "processed" || payout.status === "rejected" ? payout.status : "pending",
+          period_start: payout.period_start!,
+          period_end: payout.period_end!,
           order_count: payout.order_count,
           commission_rate: payout.commission_rate,
           total_order_value: payout.total_order_value,
@@ -275,7 +267,7 @@ export default function AdminPayouts() {
           processed_at: payout.processed_at,
           created_at: payout.created_at,
           restaurant: payout.restaurant as { name: string } | undefined,
-          partner: { full_name: profilesMap[payout.partner_id] || null },
+          partner: { full_name: profilesMap[payout.partner_id!] || null },
         }),
       );
 
@@ -341,19 +333,11 @@ export default function AdminPayouts() {
 
     setProcessing(true);
     try {
-      const newStatus = actionType === "approve" ? "processed" : "rejected";
-      const updateData: Record<string, unknown> = { status: newStatus };
-
-      if (actionType === "approve") {
-        updateData.processed_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from("payouts")
-        .update(updateData)
-        .eq("id", selectedPayout.id);
-
-      if (error) throw error;
+      await transitionLegacyPartnerPayout(
+        selectedPayout.id,
+        actionType === "approve" ? "process" : "reject",
+        actionType === "approve" ? referenceNumber : undefined,
+      );
 
       toast.success(
         `Payout ${actionType === "approve" ? "approved and processed" : "rejected"}`,
@@ -362,6 +346,7 @@ export default function AdminPayouts() {
       setDetailOpen(false);
       setSelectedPayout(null);
       setActionType(null);
+      setReferenceNumber("");
       fetchPayouts();
     } catch (error) {
       console.error("Error updating payout:", error);
@@ -374,24 +359,21 @@ export default function AdminPayouts() {
   const handleBulkAction = async (action: "approve" | "reject") => {
     if (selectedPayouts.size === 0) return;
 
+    if (action === "approve") {
+      toast.error("Process payouts individually so every bank transfer has its own reference");
+      return;
+    }
+
     setProcessing(true);
     try {
-      const newStatus = action === "approve" ? "processed" : "rejected";
-      const updateData: Record<string, unknown> = { status: newStatus };
-
-      if (action === "approve") {
-        updateData.processed_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from("payouts")
-        .update(updateData)
-        .in("id", Array.from(selectedPayouts));
-
-      if (error) throw error;
+      await Promise.all(
+        Array.from(selectedPayouts).map((payoutId) =>
+          transitionLegacyPartnerPayout(payoutId, "reject"),
+        ),
+      );
 
       toast.success(
-        `${selectedPayouts.size} payout(s) ${action === "approve" ? "approved" : "rejected"}`,
+        `${selectedPayouts.size} payout(s) rejected`,
       );
       setSelectedPayouts(new Set());
       fetchPayouts();
@@ -424,7 +406,8 @@ export default function AdminPayouts() {
       setSelectedRestaurant("");
       setPeriodStart("");
       setPeriodEnd("");
-      fetchPayouts();
+      setMainView("partner_requests");
+      fetchPartnerRequests();
     } catch (error: unknown) {
       console.error("Error generating payout:", error);
       const message =
@@ -542,20 +525,11 @@ export default function AdminPayouts() {
     if (!selectedPartnerRequest || !partnerActionType) return;
     setProcessing(true);
     try {
-      const newStatus =
-        partnerActionType === "approve" ? "completed" : "failed";
-      const updateData: Record<string, unknown> = { status: newStatus };
-      if (partnerActionType === "approve") {
-        updateData.processed_at = new Date().toISOString();
-        if (referenceNumber.trim()) {
-          updateData.reference_number = referenceNumber.trim();
-        }
-      }
-      const { error } = await supabase
-        .from("partner_payouts")
-        .update(updateData)
-        .eq("id", selectedPartnerRequest.id);
-      if (error) throw error;
+      await transitionPartnerPayout(
+        selectedPartnerRequest.id,
+        partnerActionType === "approve" ? "complete" : "reject",
+        partnerActionType === "approve" ? referenceNumber : undefined,
+      );
       toast.success(
         `Payout request ${partnerActionType === "approve" ? "approved" : "rejected"}`,
       );
@@ -1528,7 +1502,8 @@ export default function AdminPayouts() {
           </DialogHeader>
 
           {selectedPayout && (
-            <div className="space-y-2 rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB] p-4 text-sm">
+            <div className="space-y-4">
+              <div className="space-y-2 rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB] p-4 text-sm">
               <div className="flex justify-between">
                 <span className="font-medium text-[#94A3B8]">Restaurant:</span>
                 <span className="font-bold text-[#020617]">
@@ -1554,13 +1529,30 @@ export default function AdminPayouts() {
                   {format(new Date(selectedPayout.period_end), "MMM d, yyyy")}
                 </span>
               </div>
+              </div>
+              {actionType === "approve" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-[#020617]">
+                    Bank transfer reference
+                  </label>
+                  <Input
+                    value={referenceNumber}
+                    onChange={(event) => setReferenceNumber(event.target.value)}
+                    placeholder="Required transfer reference"
+                    className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-[#F6F8FB]"
+                  />
+                </div>
+              )}
             </div>
           )}
 
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setActionDialogOpen(false)}
+              onClick={() => {
+                setActionDialogOpen(false);
+                setReferenceNumber("");
+              }}
               disabled={processing}
               className="min-h-[44px] rounded-2xl border-[#E5EAF1] text-[#020617] hover:bg-[#F6F8FB]"
             >
@@ -1569,7 +1561,10 @@ export default function AdminPayouts() {
             <Button
               variant={actionType === "approve" ? "default" : "destructive"}
               onClick={handleAction}
-              disabled={processing}
+              disabled={
+                processing ||
+                (actionType === "approve" && referenceNumber.trim().length < 3)
+              }
               className={
                 actionType === "approve"
                   ? "min-h-[44px] rounded-2xl bg-[#22C7A1] text-white hover:bg-[#18B28F]"
@@ -1899,7 +1894,7 @@ export default function AdminPayouts() {
               {partnerActionType === "approve" && (
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-[#020617]">
-                    Reference Number (optional)
+                    Reference Number (required)
                   </label>
                   <Input
                     placeholder="Bank transfer ref, wire ID, etc."
@@ -1932,7 +1927,10 @@ export default function AdminPayouts() {
                 partnerActionType === "approve" ? "default" : "destructive"
               }
               onClick={handlePartnerRequestAction}
-              disabled={processing}
+              disabled={
+                processing ||
+                (partnerActionType === "approve" && referenceNumber.trim().length < 3)
+              }
               className={
                 partnerActionType === "approve"
                   ? "min-h-[44px] rounded-2xl bg-[#22C7A1] text-white hover:bg-[#18B28F]"

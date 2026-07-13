@@ -63,7 +63,7 @@ export const SmartAdjustmentsPanel = ({
   const [applyingAll, setApplyingAll] = useState(false);
   const [expandedImpact, setExpandedImpact] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [feedbackId, setFeedbackId] = useState<string | null>(null);
+  const [, setFeedbackId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;

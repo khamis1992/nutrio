@@ -18,7 +18,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNutritionGoals } from "@/hooks/useNutritionGoals";
 import { useProfile } from "@/hooks/useProfile";
 import { SmartAdjustmentsPanel } from "@/components/progress/SmartAdjustmentsPanel";
-import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { activityLevelLabels, goalLabels } from "@/lib/nutrition-calculator";
@@ -28,11 +27,15 @@ import { useLanguage } from "@/contexts/LanguageContext";
 type Goal = "lose" | "gain" | "maintain";
 type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
 
-interface DietTag {
-  id: string;
-  name: string;
-  description: string | null;
-  category?: string;
+interface GoalFormData {
+  goal_type: NutritionGoalType;
+  target_weight_kg: string;
+  target_date: string;
+  daily_calorie_target: number;
+  protein_target_g: number;
+  carbs_target_g: number;
+  fat_target_g: number;
+  fiber_target_g: number;
 }
 
 const goalTypes = [
@@ -53,72 +56,6 @@ const nutritionGoalToHealthGoal: Partial<Record<NutritionGoalType, Goal>> = {
   maintenance: "maintain",
   muscle_gain: "gain",
   general_health: "maintain",
-};
-
-// Diet tag component
-const DietTagCard = ({
-  tag,
-  selected,
-  onClick,
-  color,
-}: {
-  tag: DietTag;
-  selected: boolean;
-  onClick: () => void;
-  color: string;
-}) => {
-  return (
-    <motion.button
-      type="button"
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className={cn(
-        "relative overflow-hidden rounded-xl p-4 transition-all duration-300 text-left",
-        "border-2",
-        selected
-          ? "border-[#22C7A1] bg-[#EFFFFA] shadow-md"
-          : "border-[#E5EAF1] bg-white hover:border-[#22C7A1]/30 hover:shadow-sm"
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <div
-          className={cn(
-            "w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all duration-200 mt-0.5",
-            selected ? "bg-[#020617]" : "border-2 border-[#94A3B8]/40"
-          )}
-        >
-          <AnimatePresence>
-            {selected && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0 }}
-              >
-                <Check className="w-3 h-3 text-white" />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className={cn("font-medium text-sm text-[#020617]", selected && "text-[#020617]")}>
-            {tag.name}
-          </p>
-          {tag.description && (
-            <p className="text-xs text-[#94A3B8] mt-0.5 line-clamp-2">
-              {tag.description}
-            </p>
-          )}
-        </div>
-      </div>
-      <div
-        className={cn(
-          "absolute left-0 top-0 bottom-0 w-1 transition-all duration-300",
-          selected ? color : "bg-transparent"
-        )}
-      />
-    </motion.button>
-  );
 };
 
 // Activity level card component
@@ -268,14 +205,14 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showGoalAppliedDialog, setShowGoalAppliedDialog] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [reviewMode, setReviewMode] = useState(false);
+  const [editorStep, setEditorStep] = useState<1 | 2 | 3>(1);
   const [currentWeight, setCurrentWeight] = useState("");
   const [targetWeight, setTargetWeight] = useState("");
   const [height, setHeight] = useState("");
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
   const [healthGoal, setHealthGoal] = useState<Goal | null>(null);
-  const [formData, setFormData] = useState({
-    goal_type: "general_health" as const,
+  const [formData, setFormData] = useState<GoalFormData>({
+    goal_type: "general_health",
     target_weight_kg: "",
     target_date: "",
     daily_calorie_target: 2000,
@@ -312,7 +249,7 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
       fat_target_g: goalPlan.fatTargetG,
       fiber_target_g: goalPlan.fiberTargetG,
     }));
-    setReviewMode(true);
+    setEditorStep(3);
   };
 
   const openGoalDialog = () => {
@@ -330,7 +267,7 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
       fat_target_g: activeGoal?.fat_target_g || goalPlan.fatTargetG,
       fiber_target_g: activeGoal?.fiber_target_g || goalPlan.fiberTargetG,
     });
-    setReviewMode(false);
+    setEditorStep(1);
     setShowCreateDialog(true);
   };
 
@@ -351,86 +288,6 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
       setHealthGoal(profile.health_goal);
     }
   }, [profile]);
-
-  // Diet preferences state
-  const [dietTags, setDietTags] = useState<DietTag[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [tagsLoading, setTagsLoading] = useState(true);
-
-  // Fetch diet tags and user preferences
-  useEffect(() => {
-    const fetchDietTagsAndPreferences = async () => {
-      try {
-        const { data: tags, error: tagsError } = await supabase
-          .from("diet_tags")
-          .select("*")
-          .order("name");
-
-        if (tagsError) throw tagsError;
-        setDietTags(tags || []);
-
-        if (user) {
-          const { data: prefs, error: prefsError } = await supabase
-            .from("user_dietary_preferences")
-            .select("diet_tag_id")
-            .eq("user_id", user.id);
-
-          if (prefsError) throw prefsError;
-          setSelectedTags(prefs?.map((p) => p.diet_tag_id) || []);
-        }
-      } catch (err) {
-        console.error("Error fetching diet tags:", err);
-      } finally {
-        setTagsLoading(false);
-      }
-    };
-
-    fetchDietTagsAndPreferences();
-  }, [user]);
-
-  const toggleDietPreference = async (tagId: string) => {
-    if (!user) return;
-
-    const isSelected = selectedTags.includes(tagId);
-
-    try {
-      if (isSelected) {
-        const { error } = await supabase
-          .from("user_dietary_preferences")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("diet_tag_id", tagId);
-
-        if (error) throw error;
-        setSelectedTags((prev) => prev.filter((id) => id !== tagId));
-      } else {
-        const { error } = await supabase
-          .from("user_dietary_preferences")
-          .insert({ user_id: user.id, diet_tag_id: tagId });
-
-        if (error) throw error;
-        setSelectedTags((prev) => [...prev, tagId]);
-      }
-    } catch (err) {
-      toast({
-        title: t("error_updating_preferences"),
-        description: t("please_try_again"),
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Get tag colors based on category
-  const getTagColor = (index: number) => {
-    const colors = [
-      "bg-[#22C7A1]",
-      "bg-[#7C83F6]",
-      "bg-[#F97316]",
-      "bg-[#38BDF8]",
-      "bg-[#FB6B7A]",
-    ];
-    return colors[index % colors.length];
-  };
 
   const handleCreateGoal = async () => {
     if (!user) return;
@@ -817,17 +674,32 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
             fat_target_g: 65,
             fiber_target_g: 30,
           });
-          setReviewMode(false);
+          setEditorStep(1);
         }
       }}>
-        <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-16px)] max-w-md flex-col gap-0 overflow-hidden rounded-[28px] border-[#E5EAF1] bg-[#F6F8FB] p-0 shadow-[0_24px_60px_rgba(15,23,42,0.18)]">
+        <DialogContent className={cn(
+          "flex flex-col gap-0 overflow-hidden border-[#E5EAF1] bg-[#F6F8FB] p-0 shadow-[0_24px_60px_rgba(15,23,42,0.18)]",
+          autoOpenEditor
+            ? "h-dvh max-h-dvh w-screen max-w-none rounded-none border-0"
+            : "max-h-[92dvh] w-[calc(100vw-16px)] max-w-md rounded-[28px]"
+        )}>
           <DialogHeader className="shrink-0 border-b border-[#E5EAF1] bg-white px-4 pb-3 pt-4 text-left">
             <DialogTitle className="text-[18px] font-black leading-tight text-[#020617]">{t("create_new_nutrition_goal")}</DialogTitle>
             <DialogDescription className="mt-1 text-[12px] font-semibold leading-5 text-[#94A3B8]">
               {t("create_goal_description")}
             </DialogDescription>
+            <div className="mt-3 grid grid-cols-3 gap-2" aria-label={t("goal_editor_progress")}>
+              {[1, 2, 3].map((step) => (
+                <div key={step} className="space-y-1.5">
+                  <div className={cn("h-1.5 rounded-full transition-colors", step <= editorStep ? "bg-[#22C7A1]" : "bg-[#E5EAF1]")} />
+                  <p className={cn("text-[9px] font-black uppercase tracking-[0.08em]", step === editorStep ? "text-[#020617]" : "text-[#94A3B8]")}>{t(`goal_editor_step_${step}`)}</p>
+                </div>
+              ))}
+            </div>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-24">
+            {editorStep === 1 && (
+            <>
             {activeGoal && (
               <details className="group rounded-[22px] border border-[#7C83F6]/25 bg-white shadow-sm outline-none">
                 <summary className="flex min-h-[78px] cursor-pointer list-none items-center justify-between gap-3 rounded-[22px] px-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-[#7C83F6]/25 [&::-webkit-details-marker]:hidden">
@@ -931,6 +803,11 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
               </div>
             </div>
 
+            </>
+            )}
+
+            {editorStep === 2 && (
+            <>
             <div className="overflow-hidden rounded-[26px] border border-[#D9F8EF] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
               <div className="bg-gradient-to-br from-[#EFFFFA] via-white to-[#F3F4FF] p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -982,8 +859,10 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
                 </Button>
               </div>
             </div>
+            </>
+            )}
 
-            {reviewMode && (
+            {editorStep === 3 && (
               <div className="rounded-[22px] border border-[#22C7A1]/25 bg-[#EFFFFA] p-4">
                 <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">{t("goal_before_save_review")}</p>
                 <p className="mt-1 text-sm font-bold leading-relaxed text-[#020617]">{t("goal_before_save_desc")}</p>
@@ -995,10 +874,21 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
                     </div>
                   ))}
                 </div>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="rounded-[16px] bg-white p-3 ring-1 ring-[#D9F8EF]">
+                    <p className="text-[9px] font-black uppercase tracking-[0.08em] text-[#94A3B8]">{t("nutrient_calories")}</p>
+                    <p className="mt-1 text-[18px] font-black text-[#020617]">{formData.daily_calorie_target.toLocaleString()} <span className="text-[10px] text-[#64748B]">{t("kcal")}</span></p>
+                  </div>
+                  <div className="rounded-[16px] bg-white p-3 ring-1 ring-[#D9F8EF]">
+                    <p className="text-[9px] font-black uppercase tracking-[0.08em] text-[#94A3B8]">{t("nutrient_protein")}</p>
+                    <p className="mt-1 text-[18px] font-black text-[#7C83F6]">{formData.protein_target_g}g</p>
+                  </div>
+                </div>
               </div>
             )}
 
             {/* Daily Targets */}
+            {editorStep === 2 && (
             <div className="space-y-3 rounded-[22px] border border-[#E5EAF1] bg-white p-3 shadow-sm">
               <Label className="text-base">{t("daily_nutrition_targets")}</Label>
 
@@ -1102,16 +992,36 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
                 />
               </div>
             </div>
+            )}
 
           </div>
           <div className="shrink-0 border-t border-[#E5EAF1] bg-white px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3">
-            <Button
-              className="h-12 w-full rounded-2xl bg-[#020617] font-black text-white hover:bg-[#020617]/90"
-              onClick={handleCreateGoal}
-              disabled={creating}
-            >
-              {creating ? t("saving") : activeGoal && activeGoal.goal_type === formData.goal_type ? t("goal_update_current") : t("create_goal")}
-            </Button>
+            <div className={cn("grid gap-2", editorStep > 1 ? "grid-cols-[0.8fr_1.4fr]" : "grid-cols-1")}>
+              {editorStep > 1 && (
+                <Button type="button" variant="outline" className="h-12 rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617]" onClick={() => setEditorStep((step) => Math.max(1, step - 1) as 1 | 2 | 3)}>
+                  {t("back")}
+                </Button>
+              )}
+              <Button
+                className="h-12 rounded-2xl bg-[#020617] font-black text-white hover:bg-[#020617]/90"
+                onClick={() => {
+                  if (editorStep === 1) setEditorStep(2);
+                  else if (editorStep === 2) setEditorStep(3);
+                  else void handleCreateGoal();
+                }}
+                disabled={creating || (editorStep === 1 && (!healthGoal || !activityLevel))}
+              >
+                {creating
+                  ? t("saving")
+                  : editorStep === 1
+                    ? t("continue")
+                    : editorStep === 2
+                      ? t("goal_review_plan")
+                      : activeGoal && activeGoal.goal_type === formData.goal_type
+                        ? t("goal_update_current")
+                        : t("create_goal")}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

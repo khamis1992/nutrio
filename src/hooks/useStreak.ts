@@ -31,6 +31,7 @@ async function fetchStreaks(userId: string): Promise<StreaksMap> {
   };
 
   (streakData || []).forEach((streak) => {
+    if (!streak.streak_type) return;
     const data: StreakData = {
       currentStreak: streak.current_streak || 0,
       bestStreak: streak.best_streak || 0,
@@ -48,12 +49,12 @@ async function fetchStreaks(userId: string): Promise<StreaksMap> {
 }
 
 export function useStreak(userId: string | undefined) {
-  const { data: streaks = { logging: null, goals: null, weight: null, water: null }, isLoading: loading, refetch } = useQuery({
+  const { data: streaks = { logging: null, goals: null, weight: null, water: null }, isLoading: loading, error, refetch } = useQuery({
     queryKey: ["streaks", userId],
     queryFn: () => fetchStreaks(userId!),
     enabled: !!userId,
     staleTime: 2 * 60 * 1000,
   });
 
-  return { streaks, loading, refresh: refetch };
+  return { streaks, loading, error, refresh: refetch };
 }

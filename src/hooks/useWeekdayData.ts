@@ -21,7 +21,7 @@ async function fetchWeekdayData(userId: string, _calorieTarget: number): Promise
 
   const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  const [{ data: logs }, { data: water }, { data: workouts }] = await Promise.all([
+  const [logsResult, waterResult, workoutsResult] = await Promise.all([
     supabase
       .from("progress_logs")
       .select("log_date, calories_consumed, protein_consumed_g")
@@ -42,6 +42,14 @@ async function fetchWeekdayData(userId: string, _calorieTarget: number): Promise
       .gte("session_date", format(mon, "yyyy-MM-dd"))
       .lte("session_date", format(sun, "yyyy-MM-dd")),
   ]);
+
+  if (logsResult.error) throw logsResult.error;
+  if (waterResult.error) throw waterResult.error;
+  if (workoutsResult.error) throw workoutsResult.error;
+
+  const logs = logsResult.data;
+  const water = waterResult.data;
+  const workouts = workoutsResult.data;
 
   const waterByDate = new Map<string, number>();
   for (const w of water ?? []) {
@@ -87,12 +95,12 @@ async function fetchWeekdayData(userId: string, _calorieTarget: number): Promise
 }
 
 export function useWeekdayData(userId: string | undefined, calorieTarget: number) {
-  const { data: days = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ["weekdayData", userId],
+  const { data: days = [], isLoading: loading, error, refetch } = useQuery({
+    queryKey: ["weekdayData", userId, calorieTarget],
     queryFn: () => fetchWeekdayData(userId!, calorieTarget),
     enabled: !!userId,
     staleTime: 2 * 60 * 1000,
   });
 
-  return { days, loading, refresh: refetch };
+  return { days, loading, error, refresh: refetch };
 }

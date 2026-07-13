@@ -1,3 +1,4 @@
+import os
 """Create driver account via the app's registration flow"""
 from playwright.sync_api import sync_playwright
 
@@ -26,8 +27,8 @@ with sync_playwright() as p:
     # The registration form has: fullName, phone, email, password
     page.locator('#fullName').fill("Test Driver")
     page.locator('input[type="tel"]').fill("+97412345678")
-    page.locator('#email').fill("driver@nutriofuel.com")
-    page.locator('#password').fill("123456789")
+    page.locator('#email').fill(os.environ["E2E_DRIVER_EMAIL"])
+    page.locator('#password').fill(os.environ["E2E_DRIVER_PASSWORD"])
     
     page.wait_for_timeout(1000)
     

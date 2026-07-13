@@ -50,7 +50,7 @@ export const HealthKit = {
     if (!plugin) return false;
     try {
       const result = await plugin.isAvailable();
-      return result.value;
+      return result.available;
     } catch {
       return false;
     }

@@ -57,8 +57,8 @@ interface ProfessionalWeeklyReportProps {
   streaks: { logging?: { currentStreak?: number; bestStreak?: number } | null } | null;
   averageScore: number | null;
   waterSummary: { percentage?: number; total?: number } | null;
-  milestones: { achieved_at?: string }[];
-  recommendations: { title: string; description: string; category?: string; priority?: string; progress?: { value: number; max: number; unit: string }; action_link?: string; action_text?: string }[];
+  milestones: { achieved_at?: string | null }[];
+  recommendations: { title: string; description: string; category?: string; priority?: string; progress?: { value: number; max: number; unit: string } | null; action_link?: string | null; action_text?: string }[];
   dailyData: WeeklyReportData["dailyData"];
   onDownload: () => Promise<void>;
   generatingReport: boolean;
@@ -80,8 +80,6 @@ export function ProfessionalWeeklyReport({
   generatingReport,
   onRefreshRecommendations,
   weeklyBurned = 0,
-  bmi,
-  bmiLabel,
 }: ProfessionalWeeklyReportProps) {
   const { t } = useLanguage();
   const weekStart = subDays(new Date(), 7);
@@ -156,22 +154,6 @@ export function ProfessionalWeeklyReport({
     }));
   }, [dailyData, stats.calorieTarget]);
 
-  const waterChartData = useMemo(() => {
-    return dailyData.map((day) => ({
-      date: format(new Date(day.date), "EEE"),
-      water: day.water,
-    }));
-  }, [dailyData]);
-
-  const macroChartData = useMemo(() => {
-    return dailyData.map((day) => ({
-      date: format(new Date(day.date), "EEE"),
-      protein: Math.round(day.protein),
-      carbs: Math.round(day.carbs),
-      fat: Math.round(day.fat),
-    }));
-  }, [dailyData]);
-
   const getScoreLabel = (score: number): string => {
     if (score >= 80) return t("report_score_excellent");
     if (score >= 60) return t("report_score_good");
@@ -216,7 +198,7 @@ export function ProfessionalWeeklyReport({
     } else if (calorieDiff > 200) {
       items.push({ id: "calories", icon: TrendingUp, text: t("report_insight_calories_over", { diff: calorieDiff, target: stats.calorieTarget }), type: "warning", metric: "calories", current: Math.round(stats.avgCalories), target: stats.calorieTarget, unit: t("report_unit_kcal"), trend: calorieTrend, trendLabel: calorieTrendLabel });
     } else if (calorieDiff < -200) {
-      items.push({ id: "calories", icon: TrendingUp, text: t("report_insight_calories_under", { diff: Math.abs(calorieDiff), target: stats.calorieTarget }), type: "info", metric: "calories", current: Math.round(stats.avgCalories), target: stats.calorieTarget, unit: t("report_unit_kcal"), trend: calorieTrend, trendLabel: calorieTrendLabel });
+      items.push({ id: "calories", icon: TrendingDown, text: t("report_insight_calories_under", { diff: Math.abs(calorieDiff), target: stats.calorieTarget }), type: "info", metric: "calories", current: Math.round(stats.avgCalories), target: stats.calorieTarget, unit: t("report_unit_kcal"), trend: calorieTrend, trendLabel: calorieTrendLabel });
     }
 
     if (stats.proteinProgress >= 90) {

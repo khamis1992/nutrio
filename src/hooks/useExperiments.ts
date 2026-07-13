@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useAnalytics } from "@/contexts/AnalyticsContext";
-import { useSubscription } from "@/hooks/useSubscription";
 
 type ExperimentVariant = "control" | "variant_b" | "variant_c";
 

@@ -6,35 +6,54 @@ import { toast } from "sonner";
 
 export interface RecoveryOffer {
   id: string;
-  offer_code: string;
-  offer_type: "discount" | "bonus_credits" | "free_week" | "downgrade";
+  offer_type: "discount" | "bonus_credits" | "free_week" | "downgrade_retention";
   name: string;
-  description: string;
+  description: string | null;
   discount_percent: number | null;
-  discount_duration_months: number | null;
   bonus_credits: number | null;
   free_days: number | null;
-  target_tier: string | null;
+  downgrade_to_tier: string | null;
 }
 
 export interface RecoveryStatus {
-  has_recovery: boolean;
-  recovery_id?: string;
-  recovery_status?: string;
-  expired_at?: string;
-  days_since_expiry?: number;
-  has_offer?: boolean;
-  offer?: RecoveryOffer | null;
-  reactivated_at?: string;
-  reactivation_tier?: string;
-  next_notif_due_at?: string;
-  notif_t_minus_7_sent?: boolean;
-  notif_t_minus_3_sent?: boolean;
-  notif_t_minus_1_sent?: boolean;
-  notif_t_plus_1_sent?: boolean;
-  notif_t_plus_3_sent?: boolean;
-  notif_t_plus_7_sent?: boolean;
-  last_notif_sent_at?: string;
+  id: string;
+  subscription_id: string;
+  status: string;
+  expired_at: string;
+  recovery_offer_id: string | null;
+  offer_applied_at: string | null;
+  reactivated_at: string | null;
+  notification_stage: number;
+  days_since_expiry: number;
+}
+
+type RecoveryActionResult = {
+  success: boolean;
+  error?: string;
+  message?: string;
+};
+
+function parseRecoveryAction(data: unknown): RecoveryActionResult {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return { success: false, error: "Invalid recovery response" };
+  }
+  const result = data as Record<string, unknown>;
+  return {
+    success: result.success === true,
+    error: typeof result.error === "string" ? result.error : undefined,
+    message: typeof result.message === "string" ? result.message : undefined,
+  };
+}
+
+const RECOVERY_OFFER_TYPES: RecoveryOffer["offer_type"][] = [
+  "discount",
+  "bonus_credits",
+  "free_week",
+  "downgrade_retention",
+];
+
+function isRecoveryOfferType(value: string): value is RecoveryOffer["offer_type"] {
+  return RECOVERY_OFFER_TYPES.includes(value as RecoveryOffer["offer_type"]);
 }
 
 export function useRecoveryStatus() {
@@ -52,6 +71,7 @@ export function useRecoveryStatus() {
         console.error("Failed to fetch recovery status:", error);
         return null;
       }
+      if (!data || typeof data !== "object" || Array.isArray(data)) return null;
       return data as unknown as RecoveryStatus;
     },
     enabled: !!user,
@@ -74,14 +94,16 @@ export function useRecoveryOffers() {
     queryKey: ["recovery_offers", user?.id],
     queryFn: async (): Promise<RecoveryOffer[]> => {
       if (!user) return [];
-      const { data, error } = await supabase.rpc("get_recovery_offers", {
-        p_user_id: user.id,
-      });
+      const { data, error } = await supabase.rpc("get_recovery_offers");
       if (error) {
         console.error("Failed to fetch recovery offers:", error);
         return [];
       }
-      return (data || []) as RecoveryOffer[];
+      return (data || []).flatMap((offer) =>
+        isRecoveryOfferType(offer.offer_type)
+          ? [{ ...offer, offer_type: offer.offer_type }]
+          : [],
+      );
     },
     enabled: !!user,
     staleTime: 60_000,
@@ -105,9 +127,9 @@ export function useReactivateSubscription() {
         p_subscription_id: subscriptionId,
       });
       if (error) return { success: false, error: error.message };
-      const result = data as { success: boolean; error?: string; message?: string };
+      const result = parseRecoveryAction(data);
       if (result.success) {
-        toast.success(result.message || "Subscription reactivated!");
+        toast.success("Subscription reactivated!");
         return { success: true };
       }
       return { success: false, error: result.error || "Reactivation failed" };
@@ -125,20 +147,20 @@ export function useApplyRecoveryOffer() {
   const applyOffer = useCallback(
     async (
       subscriptionId: string,
-      offerCode: string
+      offerId: string
     ): Promise<{ success: boolean; error?: string; message?: string }> => {
       if (!user) return { success: false, error: "Not authenticated" };
       const { data, error } = await supabase.rpc("apply_recovery_offer", {
         p_subscription_id: subscriptionId,
-        p_offer_code: offerCode,
+        p_offer_id: offerId,
       });
       if (error) return { success: false, error: error.message };
-      const result = data as { success: boolean; error?: string; message?: string };
+      const result = parseRecoveryAction(data);
       if (result.success) {
-        toast.success(result.message || "Offer applied! Welcome back!");
+        toast.success("Offer applied! Welcome back!");
         queryClient.invalidateQueries({ queryKey: ["recovery_status", user?.id] });
         queryClient.invalidateQueries({ queryKey: ["subscription", user?.id] });
-        return { success: true };
+        return { success: true, message: result.message };
       }
       return { success: false, error: result.error || "Failed to apply offer" };
     },
@@ -152,21 +174,22 @@ export function useDismissRecovery() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const dismiss = useCallback(async (): Promise<boolean> => {
+  const dismiss = useCallback(async (subscriptionId: string): Promise<boolean> => {
     if (!user) return false;
     const { data, error } = await supabase.rpc("dismiss_recovery", {
-      p_user_id: user.id,
+      p_subscription_id: subscriptionId,
     });
     if (error) {
       console.error("Failed to dismiss recovery:", error);
       return false;
     }
-    const result = data as { success: boolean; message?: string };
+    const result = parseRecoveryAction(data);
     if (result.success) {
       toast.success("Offer dismissed");
       queryClient.invalidateQueries({ queryKey: ["recovery_status", user?.id] });
       return true;
     }
+    if (result.error) console.error("Failed to dismiss recovery:", result.error);
     return false;
   }, [user, queryClient]);
 

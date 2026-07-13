@@ -7,7 +7,6 @@ import {
   ZoomIn, 
   ZoomOut, 
   Navigation, 
-  Layers,
   Wifi,
   WifiOff,
   RefreshCw
@@ -73,10 +72,6 @@ export function LiveMap() {
         map.current = newMap as unknown as MapboxMap;
         setIsMapboxLoaded(true);
 
-        return () => {
-          map.current?.remove();
-          map.current = null;
-        };
       } catch (error) {
         console.error('Failed to initialize map:', error);
         setMapError('Failed to load map. Please check your connection.');

@@ -28,7 +28,6 @@ export default function RecoveryInsights() {
   const planKey = getRecoveryPlanKey(baseline, readiness, load);
   const foodTipKey = buildReadinessFoodTip(readiness, load);
   const readinessTrend = rangeMetrics.map((item) => calculateRecoveryReadiness(item).score ?? 0).slice(-14);
-  const loadTrend = rangeMetrics.map((item) => calculateBodyLoad(item).score).slice(-14);
 
   const statCards = [
     {

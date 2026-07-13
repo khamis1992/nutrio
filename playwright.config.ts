@@ -1,14 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
+import { TEST_BASE_URL } from './e2e/config';
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:5173/nutrio',
+    baseURL: `${TEST_BASE_URL}/`,
     trace: 'on-first-retry',
   },
   projects: [
@@ -17,21 +18,21 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts/,
     },
     {
-      name: 'debug',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
       name: 'chromium',
+      testIgnore: /auth\.setup\.ts/,
+      dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'mobile-chrome',
+      testIgnore: /auth\.setup\.ts/,
+      dependencies: ['setup'],
       use: { ...devices['Pixel 5'] },
     },
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5173/nutrio',
+    url: TEST_BASE_URL,
     reuseExistingServer: !process.env.CI,
   },
 });

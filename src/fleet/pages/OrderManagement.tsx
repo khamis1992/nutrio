@@ -16,7 +16,6 @@ import {
   Sparkles,
   Truck,
   Users,
-  Zap,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,7 +51,7 @@ import { useNow, getUrgencyClass, formatElapsed } from "@/fleet/hooks/useDispatc
 type OrderFilter = "all" | "preparing" | "ready_for_pickup";
 
 function getOrderStatusBadge(status: string) {
-  if (status === "ready_for_pickup") {
+  if (status === "ready_for_pickup" || status === "ready") {
     return (
       <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">
         <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -501,6 +500,8 @@ export default function OrderManagement() {
                   return (
                     <div
                       key={driver.id}
+                      data-testid={`fleet-driver-${driver.id}`}
+                      data-active-delivery-job-ids={driver.activeJobs.map((job) => job.id).join(",")}
                       className={`rounded-2xl border p-3 text-sm flex flex-col gap-1 ${isOverloaded ? "border-[#FB6B7A]/30 bg-[#FB6B7A]/10" : "border-[#E5EAF1] bg-[#F6F8FB]"}`}
                     >
                       <div className="flex items-center gap-2">
@@ -567,6 +568,9 @@ export default function OrderManagement() {
                       return (
                         <button
                           key={order.id}
+                          data-testid={`fleet-order-${order.id}`}
+                          data-delivery-job-id={order.existingJobId || undefined}
+                          data-order-source={order.source}
                           type="button"
                           onClick={() => setSelectedOrderId(order.id)}
                           className={`w-full text-left rounded-2xl border p-3 transition-colors ${
@@ -674,7 +678,11 @@ export default function OrderManagement() {
                 })()}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card className="rounded-[22px] border-0 bg-[#F6F8FB] shadow-none ring-1 ring-[#E5EAF1]">
+                  <Card
+                    data-testid={`fleet-order-detail-${selectedOrder.id}`}
+                    data-delivery-job-id={selectedOrder.existingJobId || undefined}
+                    className="rounded-[22px] border-0 bg-[#F6F8FB] shadow-none ring-1 ring-[#E5EAF1]"
+                  >
                     <CardContent className="pt-4 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         {getOrderStatusBadge(selectedOrder.status)}

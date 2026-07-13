@@ -1,33 +1,11 @@
--- Debug: Check if restaurants exist and admin can see them
--- Run this in Supabase SQL Editor to diagnose the issue
+-- Read-only restaurant diagnostics. Run with an authorized database role.
+SELECT
+  COUNT(*) AS total_restaurants,
+  COUNT(*) FILTER (WHERE approval_status = 'pending') AS pending_restaurants,
+  COUNT(*) FILTER (WHERE is_active IS TRUE) AS active_restaurants
+FROM public.restaurants;
 
--- 1. Check if restaurants table has data
-SELECT 
-  'Total restaurants' as check_type,
-  COUNT(*) as count
-FROM public.restaurants
-
-UNION ALL
-
--- 2. Check pending restaurants
-SELECT 
-  'Pending restaurants' as check_type,
-  COUNT(*) as count
-FROM public.restaurants
-WHERE approval_status = 'pending'
-
-UNION ALL
-
--- 3. Check if user has admin role
-SELECT 
-  'User has admin role' as check_type,
-  COUNT(*) as count
-FROM public.user_roles
-WHERE user_id = 'e6a0b5cc-c93e-46b0-91fc-1c04c06dee13'  -- khamis-1992@hotmail.com
-AND role = 'admin';
-
--- 4. Show sample restaurant data
-SELECT 
+SELECT
   id,
   name,
   owner_id,
@@ -35,15 +13,17 @@ SELECT
   is_active,
   created_at
 FROM public.restaurants
+ORDER BY created_at DESC
 LIMIT 5;
 
--- 5. Check RLS policies
-SELECT 
+SELECT
   policyname,
   permissive,
   roles::text,
   cmd,
-  qual
-FROM pg_policies 
-WHERE tablename = 'restaurants'
+  qual,
+  with_check
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename = 'restaurants'
 ORDER BY policyname;

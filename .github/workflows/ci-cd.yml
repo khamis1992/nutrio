@@ -22,6 +22,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run test:run
+      - run: npm run build
 
   e2e:
     name: E2E Tests
@@ -36,11 +38,32 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Run E2E tests
-        run: npx playwright test --project=chromium
+      - name: Run six-portal authentication gate
+        run: >-
+          npx playwright test
+          e2e/customer/auth.spec.ts
+          e2e/partner/auth.spec.ts
+          e2e/admin/auth.spec.ts
+          e2e/driver/auth.spec.ts
+          e2e/fleet/auth.spec.ts
+          e2e/coach/auth.spec.ts
+          --project=chromium
         env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173/nutrio
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          E2E_CUSTOMER_EMAIL: ${{ secrets.E2E_CUSTOMER_EMAIL }}
+          E2E_CUSTOMER_PASSWORD: ${{ secrets.E2E_CUSTOMER_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_PARTNER_EMAIL: ${{ secrets.E2E_PARTNER_EMAIL }}
+          E2E_PARTNER_PASSWORD: ${{ secrets.E2E_PARTNER_PASSWORD }}
+          E2E_DRIVER_EMAIL: ${{ secrets.E2E_DRIVER_EMAIL }}
+          E2E_DRIVER_PASSWORD: ${{ secrets.E2E_DRIVER_PASSWORD }}
+          E2E_FLEET_EMAIL: ${{ secrets.E2E_FLEET_EMAIL }}
+          E2E_FLEET_PASSWORD: ${{ secrets.E2E_FLEET_PASSWORD }}
+          E2E_COACH_EMAIL: ${{ secrets.E2E_COACH_EMAIL }}
+          E2E_COACH_PASSWORD: ${{ secrets.E2E_COACH_PASSWORD }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

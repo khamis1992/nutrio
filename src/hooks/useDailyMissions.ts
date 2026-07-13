@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
-interface Mission {
+export interface Mission {
   id: string;
   title: string;
   description: string;
@@ -20,6 +21,14 @@ interface DailyMissionsState {
 }
 
 type MissionPool = Array<Omit<Mission, "current" | "completed">>;
+
+function serializeMissions(missions: Mission[]): Json {
+  return missions.map(({ current, completed, ...rest }) => ({
+    ...rest,
+    current,
+    completed,
+  })) as Json;
+}
 
 const MISSION_POOL: MissionPool = [
   { id: "log_meals", title: "Log Your Meals", description: "Log 3 meals today", icon: "📝", difficulty: "easy", target: 3 },
@@ -113,7 +122,7 @@ export function useDailyMissions(
       await supabase.from("user_daily_missions").upsert({
         user_id: userId,
         mission_date: today,
-        missions: missions.map(({ current, completed, ...rest }) => ({ ...rest, current, completed })) as unknown as Record<string, unknown>,
+        missions: serializeMissions(missions),
         claimed_bonus: false,
       }, { onConflict: "user_id,mission_date" });
     }
@@ -183,12 +192,14 @@ export function useDailyMissions(
     if (changed) {
       setState(prev => ({ ...prev, missions: updated, allComplete: allDone }));
 
-      supabase.from("user_daily_missions").upsert({
+      void Promise.resolve(supabase.from("user_daily_missions").upsert({
         user_id: userId,
         mission_date: today,
-        missions: updated.map(({ current, completed, ...rest }) => ({ ...rest, current, completed })) as unknown as Record<string, unknown>,
+        missions: serializeMissions(updated),
         claimed_bonus: claimedRef.current,
-      }, { onConflict: "user_id,mission_date" }).catch(() => {});
+      }, { onConflict: "user_id,mission_date" })).catch((error) => {
+        console.error("Failed to persist daily mission progress:", error);
+      });
     }
   }, [userId, today, progress.mealsLogged, progress.proteinHit, progress.allMacrosHit, progress.caloriesUnder, progress.waterGlasses, progress.stepsCount, progress.workoutCompleted, progress.usedNewRestaurant, progress.mealsScheduled]);
 
@@ -201,7 +212,7 @@ export function useDailyMissions(
     await supabase.from("user_daily_missions").upsert({
       user_id: userId,
       mission_date: today,
-      missions: state.missions.map(({ current, completed, ...rest }) => ({ ...rest, current, completed })) as unknown as Record<string, unknown>,
+      missions: serializeMissions(state.missions),
       claimed_bonus: true,
     }, { onConflict: "user_id,mission_date" });
 

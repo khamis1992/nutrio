@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import {
   Users, TrendingDown, TrendingUp, Minus, Flame, Target,
-  CalendarCheck, ArrowRight, Loader2, AlertCircle, UserPlus,
+  CalendarCheck, Loader2, AlertCircle, UserPlus,
   Check, X, Bell, ChevronRight
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,12 +13,12 @@ import { InviteClientModal } from "@/components/coach/InviteClientModal";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-const fadeInUp = {
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 16 },
   visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 280, damping: 26 } },
 };
 
-const stagger = {
+const stagger: Variants = {
   visible: { transition: { staggerChildren: 0.06 } },
 };
 

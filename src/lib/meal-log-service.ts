@@ -2,6 +2,36 @@ import { supabase } from "@/integrations/supabase/client";
 import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 import { getQatarDay } from "@/lib/dateUtils";
 
+type ManualMealLogRpcClient = typeof supabase & {
+  rpc(
+    fn: "log_manual_meal_items",
+    args: {
+      p_items: Array<{
+        name: string;
+        calories: number;
+        protein_g: number;
+        carbs_g: number;
+        fat_g: number;
+        image_url: string | null;
+      }>;
+      p_log_date: string;
+      p_request_id: string;
+      p_source: string;
+    },
+  ): Promise<{
+    data: {
+      success?: boolean;
+      duplicate?: boolean;
+      history_ids?: string[];
+      logged_count?: number;
+      xp_awarded?: number;
+    } | null;
+    error: { message?: string } | null;
+  }>;
+};
+
+const manualMealRpc = supabase as ManualMealLogRpcClient;
+
 export interface MealLogItemInput {
   name: string;
   calories: number;
@@ -29,34 +59,60 @@ export interface LogMealItemsOptions {
   }) => Promise<boolean>;
 }
 
-const roundedMacro = (value: number, quantity = 1) => Math.max(0, Math.round((value || 0) * quantity));
+export interface LogMealItemsResult {
+  persisted: true;
+  loggedCount: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+const roundedMacro = (value: number, quantity = 1) => Math.round(value * quantity);
 
 export async function logMealItems({
   userId,
   items,
   logDate = getQatarDay(),
   source = "manual",
-  awardXp = true,
+  awardXp: _awardXp = true,
   track,
   writeMealToHealth,
-}: LogMealItemsOptions) {
-  const normalizedItems = items
-    .map((item) => {
-      const quantity = item.quantity ?? 1;
-      return {
-        name: item.name || "Meal",
-        calories: roundedMacro(item.calories, quantity),
-        protein_g: roundedMacro(item.protein_g, quantity),
-        carbs_g: roundedMacro(item.carbs_g, quantity),
-        fat_g: roundedMacro(item.fat_g, quantity),
-        image_url: item.image_url || null,
-      };
-    })
-    .filter((item) => item.calories > 0 || item.protein_g > 0 || item.carbs_g > 0 || item.fat_g > 0);
+}: LogMealItemsOptions): Promise<LogMealItemsResult> {
+  if (items.length === 0) throw new Error("MEAL_ITEMS_REQUIRED");
 
-  if (normalizedItems.length === 0) {
-    return { loggedCount: 0, calories: 0, protein: 0, carbs: 0, fat: 0 };
-  }
+  const normalizedItems = items.map((item, index) => {
+    const quantity = item.quantity ?? 1;
+    const nutrition = [item.calories, item.protein_g, item.carbs_g, item.fat_g];
+
+    if (
+      !Number.isFinite(quantity)
+      || quantity <= 0
+      || nutrition.some((value) => !Number.isFinite(value) || value < 0)
+    ) {
+      throw new Error(`INVALID_MEAL_ITEM_AT_INDEX_${index + 1}`);
+    }
+
+    const normalizedItem = {
+      name: item.name || "Meal",
+      calories: roundedMacro(item.calories, quantity),
+      protein_g: roundedMacro(item.protein_g, quantity),
+      carbs_g: roundedMacro(item.carbs_g, quantity),
+      fat_g: roundedMacro(item.fat_g, quantity),
+      image_url: item.image_url || null,
+    };
+
+    if (
+      normalizedItem.calories === 0
+      && normalizedItem.protein_g === 0
+      && normalizedItem.carbs_g === 0
+      && normalizedItem.fat_g === 0
+    ) {
+      throw new Error(`EMPTY_NUTRITION_AT_INDEX_${index + 1}`);
+    }
+
+    return normalizedItem;
+  });
 
   const totals = normalizedItems.reduce(
     (sum, item) => ({
@@ -68,67 +124,26 @@ export async function logMealItems({
     { calories: 0, protein: 0, carbs: 0, fat: 0 },
   );
 
-  const { data: existing, error: progressReadError } = await supabase
-    .from("progress_logs")
-    .select("id, calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
-    .eq("user_id", userId)
-    .eq("log_date", logDate)
-    .maybeSingle();
+  const requestId = globalThis.crypto.randomUUID();
+  const { data: logResult, error: logError } = await manualMealRpc.rpc(
+    "log_manual_meal_items",
+    {
+      p_items: normalizedItems,
+      p_log_date: logDate,
+      p_request_id: requestId,
+      p_source: source,
+    },
+  );
+  if (logError) throw logError;
 
-  if (progressReadError) throw progressReadError;
-
-  if (existing) {
-    const { error } = await supabase
-      .from("progress_logs")
-      .update({
-        calories_consumed: (existing.calories_consumed || 0) + totals.calories,
-        protein_consumed_g: (existing.protein_consumed_g || 0) + totals.protein,
-        carbs_consumed_g: (existing.carbs_consumed_g || 0) + totals.carbs,
-        fat_consumed_g: (existing.fat_consumed_g || 0) + totals.fat,
-      })
-      .eq("id", existing.id);
-    if (error) throw error;
-  } else {
-    const { error } = await supabase.from("progress_logs").insert({
-      user_id: userId,
-      log_date: logDate,
-      calories_consumed: totals.calories,
-      protein_consumed_g: totals.protein,
-      carbs_consumed_g: totals.carbs,
-      fat_consumed_g: totals.fat,
-    });
-    if (error) throw error;
+  const persistedCount = logResult?.logged_count
+    ?? (logResult?.duplicate ? logResult.history_ids?.length : undefined);
+  if (logResult?.success !== true || persistedCount !== normalizedItems.length) {
+    throw new Error("MEAL_LOG_NOT_PERSISTED");
   }
 
-  const { error: historyError } = await supabase.from("meal_history").insert(
-    normalizedItems.map((item) => ({
-      user_id: userId,
-      name: item.name,
-      calories: item.calories,
-      protein_g: item.protein_g,
-      carbs_g: item.carbs_g,
-      fat_g: item.fat_g,
-      image_url: item.image_url,
-    })),
-  );
-  if (historyError) throw historyError;
-
-  if (awardXp) {
-    try {
-      await supabase.rpc("award_xp_for_meal_log", {
-        p_user_id: userId,
-        p_xp_amount: 10 * normalizedItems.length,
-      });
-      track?.("xp_earned", { amount: 10 * normalizedItems.length, source });
-    } catch (xpError) {
-      console.warn("Failed to award meal log XP:", xpError);
-    }
-
-    try {
-      await supabase.rpc("increment_meals_logged", { p_user_id: userId });
-    } catch (counterError) {
-      console.warn("Failed to increment meals logged:", counterError);
-    }
+  if ((logResult?.xp_awarded || 0) > 0) {
+    track?.("xp_earned", { amount: logResult?.xp_awarded, source });
   }
 
   if (writeMealToHealth) {
@@ -155,6 +170,7 @@ export async function logMealItems({
   await syncCommunityChallengeProgressQuietly(userId);
 
   return {
+    persisted: true,
     loggedCount: normalizedItems.length,
     calories: totals.calories,
     protein: totals.protein,

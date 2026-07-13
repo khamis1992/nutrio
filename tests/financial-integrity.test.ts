@@ -4,14 +4,21 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
+const supabaseUrl = process.env.SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const integrationEnabled =
+  process.env.RUN_FINANCIAL_INTEGRATION_TESTS === 'true' &&
+  Boolean(supabaseUrl && serviceRoleKey);
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || '',
-  process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || ''
+  supabaseUrl || 'http://127.0.0.1:54321',
+  serviceRoleKey || 'integration-test-disabled',
 );
 
-describe('Financial Integrity Tests', () => {
+const describeFinancial = integrationEnabled ? describe : describe.skip;
+
+describeFinancial('Financial Integrity Tests', () => {
   let testUserId: string;
   let testSubscriptionId: string;
   let testOrderId: string;
@@ -21,7 +28,7 @@ describe('Financial Integrity Tests', () => {
     // Setup: Create test data
     const { data: user } = await supabase.auth.admin.createUser({
       email: `test-${Date.now()}@example.com`,
-      password: 'test-password-123'
+      password: `E2E-${crypto.randomUUID()}-Aa1!`,
     });
     testUserId = user.user?.id || '';
 
@@ -51,6 +58,12 @@ describe('Financial Integrity Tests', () => {
       .select()
       .single();
     testSubscriptionId = subscription?.id || '';
+  });
+
+  afterAll(async () => {
+    if (testUserId) {
+      await supabase.auth.admin.deleteUser(testUserId);
+    }
   });
 
   describe('Credit System Integrity', () => {

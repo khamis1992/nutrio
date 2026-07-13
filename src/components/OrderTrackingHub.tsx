@@ -131,10 +131,21 @@ export function OrderTrackingHub() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            No Active Orders
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              No Active Orders
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              aria-label="Refresh orders"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground mb-4">
@@ -209,7 +220,7 @@ export function OrderTrackingHub() {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate("/orders")}
         >
           View All Orders
         </Button>

@@ -5,7 +5,6 @@ import {
   MapPin,
   SendHorizonal,
   CreditCard,
-  Settings,
   LogOut,
   LayoutDashboard,
   Car,

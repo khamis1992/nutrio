@@ -95,14 +95,11 @@ export function useSimulatedPayment({
 
       // Create payment
       const response = await paymentSimulation.createPayment({
-        merchant_id: 'SIM_MERCHANT',
         amount,
-        currency: 'QAR',
-        order_id: orderId,
-        customer_id: 'SIM_CUSTOMER',
-        callback_url: '',
-        success_url: '',
-        failure_url: '',
+        orderId,
+        customerId: 'SIM_CUSTOMER',
+        successUrl: '',
+        failureUrl: '',
       });
 
       setPaymentId(response.payment_id);

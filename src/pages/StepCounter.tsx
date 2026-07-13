@@ -6,15 +6,16 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useProfile } from "@/hooks/useProfile";
 import { format, subDays, isSameDay, isToday, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth, addMonths, subMonths } from "date-fns";
 
-import { ArrowLeft, ChevronDown, ChevronUp, Footprints, AlertTriangle, Clock, Flame, MapPin, Plus, Check, Dumbbell, X, RefreshCw, Link, Link2Off, Apple, Smartphone } from "lucide-react";
+import { ChevronDown, ChevronUp, Footprints, AlertTriangle, Clock, Flame, MapPin, Plus, Check, Dumbbell, X, Apple, Smartphone } from "lucide-react";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useGoogleFitWorkouts } from "@/hooks/useGoogleFitWorkouts";
 import { useAutoWorkoutDetection } from "@/hooks/useAutoWorkoutDetection";
 import { useHealthKitIntegration } from "@/hooks/useHealthKitIntegration";
+import { useHealthTrackingGoals } from "@/hooks/useHealthTrackingGoals";
 import { Badge } from "@/components/ui/badge";
 import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
+import { toast } from "sonner";
 
 const GOAL_OPTIONS = [3000, 5000, 6000, 8000, 10000, 15000];
 const QUICK_ADD_OPTIONS = [500, 1000, 2000, 5000];
@@ -22,10 +23,6 @@ const WEEK_DAYS = 7;
 
 function getStepsKey(userId: string | undefined, dateStr: string) {
   return `tracker_steps_${userId}_${dateStr}`;
-}
-
-function getGoalKey(userId: string | undefined) {
-  return `tracker_step_goal_${userId}`;
 }
 
 function getStepsSessionKey(userId: string | undefined, dateStr: string) {
@@ -42,33 +39,18 @@ export default function StepCounter() {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { t, isRTL } = useLanguage();
+  const { PrevIcon } = getNavArrows(isRTL);
   const calPerStep = calcCaloriesPerStep(profile?.current_weight_kg, 3.5);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [steps, setSteps] = useState(0);
-  const [goalSteps, setGoalSteps] = useState<number>(() => {
-    const stored = localStorage.getItem(getGoalKey(undefined));
-    return stored ? parseInt(stored, 10) : 6000;
-  });
+  const { goals: healthTrackingGoals, updateGoals } = useHealthTrackingGoals(user?.id);
+  const goalSteps = healthTrackingGoals.stepGoal;
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [customInput, setCustomInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-workout detection state
-  const [detectedWorkouts, setDetectedWorkouts] = useState<{
-    id: string;
-    type: string;
-    startTime: Date;
-    calories: number;
-    duration: number;
-  }[]>([]);
-  const [loadingWorkouts, setLoadingWorkouts] = useState(false);
-  const [googleFitConnected, setGoogleFitConnected] = useState(false);
-  
-  // Google Fit hook
-  const { isConnected, checkConnection, fetchWorkouts } = useGoogleFitWorkouts();
-  
   // HealthKit integration hook
   const {
     isConnected: healthKitConnected,
@@ -83,11 +65,8 @@ export default function StepCounter() {
   const { 
     detectedWorkouts: autoDetectedWorkouts, 
     isMonitoring: isAutoDetecting,
-    pendingConfirmation: pendingAutoWorkout,
     confirmWorkout: confirmAutoWorkout,
     dismissWorkout: dismissAutoWorkout,
-    addManualWorkout: addManualWorkout,
-    thresholds: workoutThresholds,
   } = useAutoWorkoutDetection();
 
   const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
@@ -100,12 +79,6 @@ export default function StepCounter() {
 
   // Burned calories derived from user profile weight and steps
   const burnedCal = calPerStep > 0 ? Math.round(steps * calPerStep) : null;
-
-  // Load goal from localStorage once user is available
-  useEffect(() => {
-    const stored = localStorage.getItem(getGoalKey(user?.id));
-    if (stored) setGoalSteps(parseInt(stored, 10));
-  }, [user?.id]);
 
   useEffect(() => {
     const key = getStepsKey(user?.id, selectedDateStr);
@@ -125,13 +98,14 @@ export default function StepCounter() {
     const mins = Math.max(1, Math.round(stepsVal / 100));
 
     if (existingId) {
-      await supabase
+      const { error } = await supabase
         .from("workout_sessions")
         .update({ duration_minutes: mins, calories_burned: cal })
         .eq("id", existingId)
         .eq("user_id", user.id);
+      if (error) throw error;
     } else {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("workout_sessions")
         .insert({
           user_id: user.id,
@@ -139,111 +113,16 @@ export default function StepCounter() {
           workout_type: t('workout_type_walking_steps') || "Walking (steps)",
           duration_minutes: mins,
           calories_burned: cal,
+          source: "manual",
+          confirmed: true,
         })
         .select("id")
         .single();
+      if (error) throw error;
       if (data?.id) localStorage.setItem(sessionKey, data.id);
     }
     await syncCommunityChallengeProgressQuietly(user.id);
   }, [calPerStep, user, todayStr, t]);
-
-  // Check Google Fit connection on mount
-  useEffect(() => {
-    const checkFit = async () => {
-      const connected = await checkConnection();
-      setGoogleFitConnected(connected);
-    };
-    if (user) checkFit();
-  }, [user, checkConnection]);
-
-  // Fetch detected workouts (now with Google Fit integration)
-  const fetchDetectedWorkouts = useCallback(async () => {
-    if (!user) return;
-    setLoadingWorkouts(true);
-    
-    try {
-      // First try to get from Supabase/workout_sessions
-      const { data: workouts } = await supabase
-        .from("workout_sessions")
-        .select("id, workout_type, session_date, duration_minutes, calories_burned, created_at")
-        .eq("user_id", user.id)
-        .eq("session_date", selectedDateStr)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      
-      let allWorkouts: typeof detectedWorkouts = [];
-      
-      if (workouts && workouts.length > 0) {
-        const dbWorkouts = workouts.map(w => ({
-          id: w.id,
-          type: w.workout_type || "Workout",
-          startTime: new Date(w.created_at),
-          calories: w.calories_burned || 0,
-          duration: w.duration_minutes || 0,
-        }));
-        allWorkouts = [...allWorkouts, ...dbWorkouts];
-      }
-      
-      // If Google Fit is connected, fetch from there too
-      const fitConnected = await checkConnection();
-      setGoogleFitConnected(fitConnected);
-      
-      if (fitConnected) {
-        const startOfDay = new Date(selectedDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        
-        const googleWorkouts = await fetchWorkouts(startOfDay, endOfDay);
-        if (googleWorkouts.length > 0) {
-          const fitWorkouts = googleWorkouts.map(w => ({
-            id: w.id,
-            type: w.type,
-            startTime: new Date(w.startTime),
-            calories: w.calories,
-            duration: w.duration,
-          }));
-          // Add Google Fit workouts that aren't already in the list
-          const existingIds = new Set(allWorkouts.map(w => w.id));
-          const newFitWorkouts = fitWorkouts.filter(w => !existingIds.has(w.id));
-          allWorkouts = [...allWorkouts, ...newFitWorkouts];
-        }
-      }
-      
-      setDetectedWorkouts(allWorkouts);
-    } catch (error) {
-      console.error("Failed to fetch workouts:", error);
-    } finally {
-      setLoadingWorkouts(false);
-    }
-  }, [user, selectedDateStr, selectedDate, checkConnection, fetchWorkouts]);
-
-  // Load workouts when page loads or date changes
-  useEffect(() => {
-    fetchDetectedWorkouts();
-  }, [fetchDetectedWorkouts]);
-
-  // Confirm a detected workout
-  const handleConfirmWorkout = async (workout: typeof detectedWorkouts[0]) => {
-    if (!user) return;
-    
-    try {
-      await supabase
-        .from("workout_sessions")
-        .update({ confirmed: true })
-        .eq("id", workout.id);
-      
-      setDetectedWorkouts(prev => prev.filter(w => w.id !== workout.id));
-      await syncCommunityChallengeProgressQuietly(user.id);
-    } catch (error) {
-      console.error("Failed to confirm workout:", error);
-    }
-  };
-
-  // Dismiss a detected workout
-  const handleDismissWorkout = (workoutId: string) => {
-    setDetectedWorkouts(prev => prev.filter(w => w.id !== workoutId));
-  };
 
   const saveSteps = (value: number) => {
     const val = Math.max(0, value);
@@ -252,13 +131,20 @@ export default function StepCounter() {
     localStorage.setItem(key, String(val));
     // Only sync to workout_sessions for today
     if (selectedDateStr === todayStr) {
-      syncStepsToWorkout(val);
+      void syncStepsToWorkout(val).catch((error) => {
+        console.error("Failed to sync steps:", error);
+        toast.error("Steps were saved on this device but could not be synced");
+      });
     }
   };
 
-  const handleSetGoal = (goal: number) => {
-    setGoalSteps(goal);
-    localStorage.setItem(getGoalKey(user?.id), String(goal));
+  const handleSetGoal = async (goal: number) => {
+    try {
+      await updateGoals({ stepGoal: goal });
+    } catch (error) {
+      console.error("Failed to update step goal:", error);
+      toast.error("Could not update step goal");
+    }
   };
 
   const handleOpenAddSheet = () => {
@@ -318,7 +204,7 @@ export default function StepCounter() {
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition-transform active:scale-95"
             aria-label="Go back"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <PrevIcon className="h-5 w-5" />
           </button>
           <div className="min-w-0 text-center">
             <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">

@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { BadgePercent, Calendar } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-export type BillingInterval = "monthly" | "annual";
+export type BillingInterval = "weekly" | "monthly" | "annual";
 
 interface BillingIntervalToggleProps {
   value: BillingInterval;

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, UserPlus, Users, Bell, Check, X, UserMinus, UserCheck, Flame } from "lucide-react";
+import { Trophy, UserPlus, Users, Bell, Check, X, UserCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFriends, Friend, FriendRequest } from "@/hooks/useFriends";
+import { useFriends } from "@/hooks/useFriends";
 import { AddFriendSheet } from "@/components/friends/AddFriendSheet";
 import { FriendsList } from "@/components/friends/FriendsList";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ export default function Friends() {
     requests,
     loadingFriends,
     loadingRequests,
-    sendFriendRequest,
     acceptFriendRequest,
     rejectFriendRequest,
     removeFriend,

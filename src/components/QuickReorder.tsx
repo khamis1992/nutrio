@@ -15,7 +15,6 @@ import { TOUCH, CARD } from "@/constants/sizes";
 
 import type { Database } from "@/integrations/supabase/types";
 
-type MealRow = Database["public"]["Tables"]["meals"]["Row"];
 type RestaurantRow = Database["public"]["Tables"]["restaurants"]["Row"];
 
 interface QuickMeal {
@@ -65,76 +64,10 @@ function announceToSr(message: string): void {
   setTimeout(() => el.remove(), 1000);
 }
 
-async function addMealToCart(
-  userId: string,
-  meal: QuickMeal,
-  onSuccess: (name: string) => void,
-  onError: () => void,
-): Promise<void> {
-  try {
-    const { data: cart, error: cartError } = await supabase
-      .from("carts")
-      .select("id, items")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (cartError) throw cartError;
-
-    const cartItem = {
-      meal_id: meal.meal_id,
-      meal_name: meal.meal_name,
-      quantity: 1,
-      price: meal.price || 0,
-      image_url: meal.image_url,
-      restaurant_id: meal.restaurant_id,
-      restaurant_name: meal.restaurant_name,
-      added_at: new Date().toISOString(),
-    };
-
-    if (cart) {
-      const existing = (cart.items || []) as Array<Record<string, unknown>>;
-      const idx = existing.findIndex((item) => item.meal_id === meal.meal_id);
-      const merged =
-        idx >= 0
-          ? existing.map((item, i) =>
-              i === idx ? { ...item, quantity: (item.quantity as number) + 1, added_at: cartItem.added_at } : item,
-            )
-          : [...existing, cartItem];
-
-      const { error: updateError } = await supabase
-        .from("carts")
-        .update({ items: merged, updated_at: new Date().toISOString() })
-        .eq("id", cart.id);
-
-      if (updateError) throw updateError;
-    } else {
-      const { error: createError } = await supabase
-        .from("carts")
-        .insert({ user_id: userId, items: [cartItem] });
-      if (createError) throw createError;
-    }
-
-    onSuccess(meal.meal_name);
-  } catch (err) {
-    console.error("Error adding to cart:", err);
-    onError();
-  }
-}
-
 // ── Query fn ───────────────────────────────────────────────────────────────
 
 async function fetchPastOrders(userId: string): Promise<QuickMeal[]> {
-  const { data: orderItems, error } = await supabase
-    .from("order_items")
-    .select("id, meal_id, quantity, order_id, meals(id, name, image_url, restaurant_id, price)")
-    .eq("order_items.order_id", "")
-    .limit(0);
-
-  // The above is a placeholder – the real query uses `orders!inner` which
-  // generates a complex type that varies across Supabase versions.
-  // We use a two-step approach: fetch order ids first, then items.
-
-  const { data: schedules } = await supabase
+  const { data: schedules, error: schedulesError } = await supabase
     .from("meal_schedules")
     .select("id, meal_id, scheduled_date")
     .eq("user_id", userId)
@@ -142,22 +75,33 @@ async function fetchPastOrders(userId: string): Promise<QuickMeal[]> {
     .order("scheduled_date", { ascending: false })
     .limit(20);
 
+  if (schedulesError) throw schedulesError;
+
   if (!schedules || schedules.length === 0) return [];
 
   const mealIds = [...new Set(schedules.map((s) => s.meal_id).filter(Boolean))];
   if (mealIds.length === 0) return [];
 
-  const { data: meals } = await supabase
+  const { data: meals, error: mealsError } = await supabase
     .from("meals")
     .select("id, name, image_url, restaurant_id, price")
-    .in("id", mealIds);
+    .in("id", mealIds)
+    .eq("is_available", true);
+
+  if (mealsError) throw mealsError;
 
   if (!meals) return [];
 
-  const restIds = [...new Set(meals.map((m) => m.restaurant_id).filter(Boolean))];
-  const { data: restaurants } = restIds.length > 0
+  const restIds = [...new Set(
+    meals
+      .map((meal) => meal.restaurant_id)
+      .filter((restaurantId): restaurantId is string => Boolean(restaurantId)),
+  )];
+  const { data: restaurants, error: restaurantsError } = restIds.length > 0
     ? await supabase.from("restaurants").select("id, name").in("id", restIds)
-    : { data: null };
+    : { data: null, error: null };
+
+  if (restaurantsError) throw restaurantsError;
 
   const restMap = new Map<string, string>();
   if (restaurants) {
@@ -209,12 +153,6 @@ export function QuickReorder() {
   });
 
   const [favorites, setFavorites] = useState<Set<string>>(() => loadFavorites());
-  const [isReordering, setIsReordering] = useState<string | null>(null);
-
-  const persistAndSetFavorites = useCallback((next: Set<string>) => {
-    saveFavorites(next);
-    setFavorites(next);
-  }, []);
 
   const toggleFavorite = useCallback(
     (mealId: string, mealName: string) => {
@@ -240,31 +178,14 @@ export function QuickReorder() {
     [t],
   );
 
-  const handleReorder = async (meal: QuickMeal) => {
+  const handleReorder = (meal: QuickMeal) => {
     if (!user) {
       toast.error(t("sign_in_to_order") || "Please sign in to order");
       return;
     }
 
-    setIsReordering(meal.meal_id);
-
-    await addMealToCart(
-      user.id,
-      meal,
-      (name) => {
-        announceToSr(`${name} added to cart`);
-        toast.success(t("added_to_cart") || "Added to cart", {
-          description: name,
-          action: {
-            label: t("checkout") || "Checkout",
-            onClick: () => navigate("/checkout"),
-          },
-        });
-      },
-      () => toast.error(t("failed_to_add") || "Failed to add to cart"),
-    );
-
-    setIsReordering(null);
+    announceToSr(`${meal.meal_name} ready to schedule`);
+    navigate(`/meals/${meal.meal_id}`, { state: { openSchedule: true } });
   };
 
   // ── Render states ──────────────────────────────────────────────────────
@@ -399,23 +320,14 @@ export function QuickReorder() {
                 <motion.button
                   whileTap={prefersReducedMotion ? undefined : { scale: 0.9 }}
                   onClick={() => handleReorder(meal)}
-                  disabled={isReordering === meal.meal_id}
                   className={cn(
                     "absolute bottom-1.5 right-1.5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg",
                     "hover:bg-primary/90 active:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
                   )}
                   style={{ width: TOUCH.minimum, height: TOUCH.minimum }}
-                  aria-label={`${t("add_to_cart") || "Add to cart"}: ${meal.meal_name}`}
+                  aria-label={`${t("reorder") || "Schedule again"}: ${meal.meal_name}`}
                 >
-                  {isReordering === meal.meal_id ? (
-                    <div
-                      className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"
-                      role="status"
-                      aria-label={t("adding_to_cart") || "Adding to cart"}
-                    />
-                  ) : (
-                    <Plus className="w-5 h-5" />
-                  )}
+                  <Plus className="w-5 h-5" />
                 </motion.button>
               </div>
 

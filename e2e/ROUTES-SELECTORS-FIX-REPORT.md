@@ -67,7 +67,7 @@ Created `e2e/customer/auth-fixed.spec.ts` with:
 
 ### Failed Tests:
 1. ❌ TC001: Login with Valid Credentials
-   - **Issue:** User `khamis--1992@hotmail.com` not in database
+   - **Issue:** User `<E2E_ACCOUNT_EMAIL>` not in database
    - **Error:** Page stays at `/auth`, no redirect
 
 2. ❌ TC003: New Customer Registration
@@ -93,7 +93,7 @@ Received string: "http://localhost:8080/auth"
 ```
 
 ### Why:
-The user `khamis--1992@hotmail.com` with password `Khamees1992#` **does not exist** in your local Supabase database.
+The user `<E2E_ACCOUNT_EMAIL>` with password `<E2E_ADMIN_PASSWORD>` **does not exist** in your local Supabase database.
 
 ---
 
@@ -107,7 +107,7 @@ The user `khamis--1992@hotmail.com` with password `Khamees1992#` **does not exis
 3. Select `auth.users` table
 4. Click "Insert Row"
 5. Fill:
-   - email: `khamis--1992@hotmail.com`
+   - email: `<E2E_ACCOUNT_EMAIL>`
    - encrypted_password: (use SQL below)
    - email_confirmed_at: `now()`
 
@@ -124,8 +124,8 @@ INSERT INTO auth.users (
   raw_app_meta_data
 ) VALUES (
   gen_random_uuid(),
-  'khamis--1992@hotmail.com',
-  crypt('Khamees1992#', gen_salt('bf')),
+  '<E2E_ACCOUNT_EMAIL>',
+  crypt('<E2E_ADMIN_PASSWORD>', gen_salt('bf')),
   NOW(),
   NOW(),
   NOW(),
@@ -136,8 +136,8 @@ INSERT INTO auth.users (
 **Method C: Via App**
 1. Open browser to `http://localhost:8080/auth`
 2. Click "Sign up"
-3. Use email: `khamis--1992@hotmail.com`
-4. Use password: `Khamees1992#`
+3. Use email: `<E2E_ACCOUNT_EMAIL>`
+4. Use password: `<E2E_ADMIN_PASSWORD>`
 5. Complete registration
 6. Verify email (if required)
 

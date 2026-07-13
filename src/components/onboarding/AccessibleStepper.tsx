@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState, useEffect, type ReactNode } from "react";
 import { Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/capacitor";
 
 export type AccessibleStepperProps = {
-  label: string;
+  label: ReactNode;
+  ariaLabel: string;
   subtitle?: string;
   value: number;
   onChange: (value: number) => void;
@@ -25,6 +26,7 @@ export type AccessibleStepperProps = {
 
 export function AccessibleStepper({
   label,
+  ariaLabel,
   subtitle,
   value,
   onChange,
@@ -127,7 +129,7 @@ export function AccessibleStepper({
           <div
             className="flex gap-1 rounded-full bg-[#F6F8FB] p-1"
             role="radiogroup"
-            aria-label={`${label} unit`}
+            aria-label={`${ariaLabel} unit`}
           >
             {unitToggle.options.map((u) => (
               <button
@@ -165,7 +167,7 @@ export function AccessibleStepper({
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#020617] focus-visible:ring-offset-2",
             "disabled:opacity-30 disabled:cursor-not-allowed",
           )}
-          aria-label={`Decrease ${label}`}
+          aria-label={`Decrease ${ariaLabel}`}
         >
           <Minus className="w-6 h-6" />
         </button>
@@ -222,7 +224,7 @@ export function AccessibleStepper({
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#020617] focus-visible:ring-offset-2",
             "disabled:opacity-30 disabled:cursor-not-allowed",
           )}
-          aria-label={`Increase ${label}`}
+          aria-label={`Increase ${ariaLabel}`}
         >
           <Plus className="w-6 h-6" />
         </button>

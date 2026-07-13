@@ -238,7 +238,7 @@ export default function AdminCommunityChallenges() {
 
       const { data, error } = withWalletReward;
       if (error) throw error;
-      setChallenges((data ?? []) as ChallengeRow[]);
+      setChallenges((data ?? []) as unknown as ChallengeRow[]);
     } catch (error) {
       console.error("Error loading community challenges:", error);
       toast.error("Could not load community challenges");

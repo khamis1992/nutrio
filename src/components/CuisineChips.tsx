@@ -9,7 +9,7 @@ interface CuisineChipsProps {
 
 const cuisines = [
   { id: "all", labelKey: "cuisine_all", icon: "✨" },
-  { id: "healthy", label: t("healthy_label"), icon: "🥗" },
+  { id: "healthy", labelKey: "healthy_label", icon: "🥗" },
   { id: "italian", labelKey: "cuisine_italian", icon: "🍝" },
   { id: "asian", labelKey: "cuisine_asian", icon: "🥢" },
   { id: "mediterranean", labelKey: "cuisine_mediterranean", icon: "🫒" },
@@ -23,7 +23,8 @@ export function CuisineChips({ selectedCuisine, onSelect }: CuisineChipsProps) {
   // Translate cuisine labels
   const translatedCuisines = cuisines.map(cuisine => {
     const labelKey = `category_${cuisine.id}`;
-    const translatedLabel = t(labelKey) !== labelKey ? t(labelKey) : cuisine.label;
+    const categoryLabel = t(labelKey);
+    const translatedLabel = categoryLabel !== labelKey ? categoryLabel : t(cuisine.labelKey);
     return { ...cuisine, label: translatedLabel };
   });
   return (

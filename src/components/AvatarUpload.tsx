@@ -26,6 +26,7 @@ export const AvatarUpload = ({
   onAvatarUpdate,
   size = "md",
 }: AvatarUploadProps) => {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);

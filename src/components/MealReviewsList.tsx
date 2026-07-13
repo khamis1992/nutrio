@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { StarRating, RatingDisplay, RatingBreakdown } from "@/components/StarRating";
+import { StarRating, RatingBreakdown } from "@/components/StarRating";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, ChevronDown, Check, Flag, ImageIcon } from "lucide-react";
+import { ThumbsUp, ChevronDown, Check, Flag } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +53,7 @@ export function MealReviewsList({
   showWriteReview = true,
   onWriteReview,
 }: MealReviewsListProps) {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [stats, setStats] = useState<RatingStats | null>(null);
@@ -92,17 +93,20 @@ export function MealReviewsList({
 
       if (statsError) throw statsError;
 
+      const fetchedReviews = Array.isArray(reviewsData) ? reviewsData as Review[] : [];
+      const fetchedStats = Array.isArray(statsData) ? statsData as RatingStats[] : [];
+
       if (reset) {
-        setReviews(reviewsData || []);
+        setReviews(fetchedReviews);
       } else {
-        setReviews((prev) => [...prev, ...(reviewsData || [])]);
+        setReviews((prev) => [...prev, ...fetchedReviews]);
       }
 
-      if (statsData && statsData.length > 0) {
-        setStats(statsData[0]);
+      if (fetchedStats.length > 0) {
+        setStats(fetchedStats[0]);
       }
 
-      setHasMore((reviewsData || []).length === 10);
+      setHasMore(fetchedReviews.length === 10);
       if (!reset) {
         setOffset((prev) => prev + 10);
       }

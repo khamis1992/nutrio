@@ -7,7 +7,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 import { BarcodeScanner, type ScannedProduct } from "./BarcodeScanner";
 import { FoodPhotoLogSheet } from "./FoodPhotoLogSheet";
 import { logMealItems } from "@/lib/meal-log-service";
@@ -39,13 +38,11 @@ interface LogMealModalProps {
 const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) => {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [recentItems, setRecentItems] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState<FoodItem[]>([]);
-  const [tab, setTab] = useState<"Recent">("Recent");
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
   const [showScanChoice, setShowScanChoice] = useState(false);
@@ -55,9 +52,9 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
       id: `barcode-${product.barcode}-${Date.now()}`,
       name: product.name,
       calories: product.calories ?? 0,
-      protein_g: product.protein_g ?? 0,
-      carbs_g: product.carbs_g ?? 0,
-      fat_g: product.fat_g ?? 0,
+      protein_g: product.protein ?? 0,
+      carbs_g: product.carbs ?? 0,
+      fat_g: product.fat ?? 0,
     };
     setSelectedItems((prev) => [...prev, item]);
     toast.success("Product found!", { description: product.name });
@@ -143,7 +140,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
     if (!user?.id) return;
     setLoading(true);
     try {
-      await logMealItems({
+      const result = await logMealItems({
         userId: user.id,
         source: "log_meal_modal",
         items: selectedItems.map((item) => ({
@@ -155,6 +152,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
           image_url: item.image_url,
         })),
       });
+      if (result.persisted !== true) throw new Error("MEAL_LOG_NOT_PERSISTED");
 
       toast.success(t("meal_logged"));
       onMealLogged();

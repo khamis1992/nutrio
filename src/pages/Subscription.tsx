@@ -10,11 +10,9 @@ import { formatCurrency } from "@/lib/currency";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useRolloverCredits } from "@/hooks/useRolloverCredits";
 import { useFreezeDaysRemaining } from "@/hooks/useSubscriptionFreeze";
 import { useWallet } from "@/hooks/useWallet";
 import { useSubscriptionPlans, type DbSubscriptionPlan } from "@/hooks/useSubscriptionPlans";
-import { useRecoveryStatus, useRecoveryOffers, useReactivateSubscription, useApplyRecoveryOffer, useDismissRecovery } from "@/hooks/useSubscriptionRecovery";
 import { supabase } from "@/integrations/supabase/client";
 import { type BillingInterval } from "@/components/BillingIntervalToggle";
 import { differenceInDays, format } from "date-fns";
@@ -26,7 +24,6 @@ import { type PlanCardData } from "@/components/subscription/PlanCard";
 import { SubscriptionManage } from "@/components/subscription/SubscriptionManage";
 import { SubscriptionPlansTab } from "@/components/subscription/SubscriptionPlansTab";
 import { UpgradeBottomSheet } from "@/components/subscription/UpgradeBottomSheet";
-import { RecoveryOfferSheet } from "@/components/subscription/RecoveryOfferSheet";
 import { ExpiryBanner } from "@/components/subscription/ExpiryBanner";
 
 const TIER_META: Record<string, { icon: LucideIcon; color: string; descriptionKey: string; popular: boolean; isVip: boolean }> = {
@@ -51,13 +48,11 @@ const TIER_NAMES: Record<string, string> = {
   vip: "VIP",
 };
 
-function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval, t: (key: string) => string, isRTL: boolean): PlanCardData {
+function dbPlanToUiPlan(p: DbSubscriptionPlan, isRTL: boolean): PlanCardData {
   const meta = TIER_META[p.tier] ?? TIER_META.basic;
-  const monthlyPrice = p.price_qar ?? 0;
-  const price = billingInterval === "annual" ? monthlyPrice * 10 : monthlyPrice;
-  const period = billingInterval === "annual" ? "year" : "month";
+  const price = p.price_qar ?? 0;
+  const period = p.billing_interval === "weekly" ? "week" : "month";
   const features = Array.isArray(p.features) ? p.features : [];
-  const annualFeatures = billingInterval === "annual" ? [...features, `${t("save_17_percent_banner")}`] : features;
 
   const description = isRTL
     ? (p.short_description_ar || p.description || "")
@@ -75,7 +70,7 @@ function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval,
     tier: p.tier,
     description,
     icon: meta.icon,
-    features: annualFeatures,
+    features,
     popular: meta.popular,
     isVip: meta.isVip,
     color: meta.color,
@@ -99,10 +94,10 @@ export default function SubscriptionPage() {
     snacksPerMonth,
     snacksUsed,
     remainingSnacks,
-    hasSnacks,
     isUnlimited,
     isVip,
     isPaused,
+    resumeSubscription,
     refetch
   } = useSubscription();
 
@@ -154,56 +149,13 @@ export default function SubscriptionPage() {
     discountAmount: number;
   } | null>(null);
 
-  const [autoRenew, setAutoRenew] = useState(true);
-  const [autoRenewLoading, setAutoRenewLoading] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
-  const { status: recoveryStatus, isLoading: recoveryLoading } = useRecoveryStatus();
-  const { offers: recoveryOffers } = useRecoveryOffers();
-  const { reactivate: handleReactivateSub } = useReactivateSubscription();
-  const { applyOffer } = useApplyRecoveryOffer();
-  const { dismiss } = useDismissRecovery();
-  const [showRecoverySheet, setShowRecoverySheet] = useState(false);
-  const [isApplyingOffer, setIsApplyingOffer] = useState(false);
-
-  useEffect(() => {
-    if (subscription) {
-      setAutoRenew((subscription as { auto_renew?: boolean }).auto_renew ?? true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subscription?.id, (subscription as { auto_renew?: boolean })?.auto_renew]);
-
-  const handleToggleAutoRenew = async (value: boolean) => {
-    if (!subscription?.id) return;
-    setAutoRenewLoading(true);
-    const { error } = await supabase.rpc("toggle_subscription_auto_renew", {
-      p_subscription_id: subscription.id,
-      p_auto_renew: value,
-    });
-    if (error) {
-      toast({ title: t("error"), description: t("auto_renewal_error"), variant: "destructive" });
-    } else {
-      setAutoRenew(value);
-      toast({
-        title: value ? t("auto_renew_enabled") : t("auto_renew_disabled"),
-        description: value ? t("auto_renewal_on_desc") : t("auto_renewal_off_desc"),
-      });
-    }
-    setAutoRenewLoading(false);
-  };
-
   const { wallet } = useWallet();
-  const { data: rolloverInfo } = useRolloverCredits(subscription?.id);
   const { data: freezeDays } = useFreezeDaysRemaining(subscription?.id);
 
   const { plans: dbPlans } = useSubscriptionPlans();
-  const plans = dbPlans.map(p => dbPlanToUiPlan(p, selectedBillingInterval, t, isRTL));
-
-  const vipPlan = plans.find(p => p.tier === "vip");
-  const vipMonthlyPrice = vipPlan
-    ? selectedBillingInterval === "annual" ? vipPlan.price / 10 : vipPlan.price
-    : 0;
-  const vipAnnualSavings = vipMonthlyPrice * 2;
+  const plans = dbPlans.map(p => dbPlanToUiPlan(p, isRTL));
 
   const applyPromoCode = async () => {
     if (!promoCode.trim() || !selectedPlan) return;
@@ -269,49 +221,50 @@ export default function SubscriptionPage() {
     setIsProcessing(true);
 
     try {
-      const walletBalance = wallet?.balance || 0;
-      if (selectedPaymentMethod === "wallet" && walletBalance < selectedPlan.price) {
-        throw new Error(`Insufficient wallet balance. You have QAR ${walletBalance.toFixed(2)} but need QAR ${selectedPlan.price}. Please top up your wallet or use a card.`);
+      if (selectedPaymentMethod === "card") {
+        if (appliedPromo) {
+          throw new Error("Promo codes are currently available for wallet payments only.");
+        }
+        const query = new URLSearchParams({
+          type: "subscription",
+          planId: selectedPlan.id,
+          subscriptionId: subscription.id,
+        });
+        setIsProcessing(false);
+        navigate(`/checkout?${query.toString()}`);
+        return;
       }
 
       const { data: upgradeResult, error } = await supabase.functions.invoke("upgrade-subscription", {
         body: {
           subscription_id: subscription.id,
-          new_tier: selectedPlan.tier,
-          new_billing_interval: selectedBillingInterval,
+          new_plan_id: selectedPlan.id,
           payment_method: selectedPaymentMethod,
+          promo_code: appliedPromo ? promoCode.trim().toUpperCase() : undefined,
         },
       });
 
       if (error) throw error;
 
-      const result = upgradeResult as { success: boolean; error?: string; code?: string; prorated_credit?: number; amount_due?: number };
+      const result = upgradeResult as {
+        success: boolean;
+        error?: string;
+        code?: string;
+        prorated_credit?: number;
+        discount?: number;
+        amount_due?: number;
+      };
 
       if (result.success) {
-        const billingText = selectedBillingInterval === "annual" ? " (Annual billing - 17% savings)" : "";
-        const paymentText = selectedPaymentMethod === "wallet" ? ` Paid QAR ${selectedPlan.price} from your wallet.` : "";
+        const billingText = selectedBillingInterval === "weekly" ? " (Weekly billing)" : "";
+        const paymentText = selectedPaymentMethod === "wallet"
+          ? ` Paid QAR ${Number(result.amount_due || 0).toFixed(2)} from your wallet.`
+          : "";
 
         toast({
           title: t("plan_updated_toast"),
           description: `Your subscription has been updated to ${selectedPlan.name} plan${billingText}.${paymentText} ${result.prorated_credit ? `Prorated credit: ${result.prorated_credit} QAR` : ""}`,
         });
-
-        if (appliedPromo && user) {
-          try {
-            await supabase.from("promotion_usage").insert({
-              promotion_id: appliedPromo.id,
-              user_id: user.id,
-              discount_applied: appliedPromo.discountAmount,
-            });
-            const { data: promoRow } = await supabase.from("promotions")
-              .select("uses_count").eq("id", appliedPromo.id).single();
-            if (promoRow) {
-              await supabase.from("promotions")
-                .update({ uses_count: (promoRow.uses_count || 0) + 1 })
-                .eq("id", appliedPromo.id);
-            }
-          } catch { /* non-critical */ }
-        }
 
         await refetch();
         setShowUpgradeDialog(false);
@@ -333,58 +286,27 @@ export default function SubscriptionPage() {
   };
 
   const handleReactivate = async () => {
-    setIsProcessing(true);
-    if (subscription?.id) {
-      try {
-        const result = await handleReactivateSub(subscription.id);
-        if (!result.success) throw new Error(result.error || "Reactivation failed");
-        await refetch();
-      } catch (err) {
-        toast({ title: "Error", description: `Failed to reactivate: ${err instanceof Error ? err.message : "Unknown error"}`, variant: "destructive" });
-      }
-    }
-    setIsProcessing(false);
-  };
-
-  const handleShowRecoverySheet = () => setShowRecoverySheet(true);
-
-  const handleApplyOffer = async (offerCode: string) => {
     if (!subscription?.id) return;
-    setIsApplyingOffer(true);
-    try {
-      const result = await applyOffer(subscription.id, offerCode);
-      if (result.success) {
-        setShowRecoverySheet(false);
-        await refetch();
-      } else {
-        toast({ title: "Error", description: result.error || "Failed to apply offer", variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Error", description: `Failed to apply offer: ${err instanceof Error ? err.message : "Unknown error"}`, variant: "destructive" });
-    }
-    setIsApplyingOffer(false);
-  };
 
-  const handleDismissRecovery = async () => {
-    await dismiss();
-    setShowRecoverySheet(false);
+    if (!isPaused) {
+      navigate("/subscription/plans?source=reactivation");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const resumed = await resumeSubscription();
+      if (!resumed) throw new Error("Subscription cannot be resumed yet");
+      await refetch();
+    } catch (err) {
+      toast({ title: "Error", description: `Failed to resume: ${err instanceof Error ? err.message : "Unknown error"}`, variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleReactivateDirect = async () => {
-    if (!subscription?.id) return;
-    setIsProcessing(true);
-    try {
-      const result = await handleReactivateSub(subscription.id);
-      if (result.success) {
-        setShowRecoverySheet(false);
-        await refetch();
-      } else {
-        toast({ title: "Error", description: result.error || "Failed to reactivate", variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Error", description: `Failed to reactivate: ${err instanceof Error ? err.message : "Unknown error"}`, variant: "destructive" });
-    }
-    setIsProcessing(false);
+    navigate("/subscription/plans?source=reactivation");
   };
 
   const daysRemaining = subscription?.month_start_date
@@ -446,22 +368,13 @@ export default function SubscriptionPage() {
                   </div>
                   <h2 className="mt-3 text-xl font-black leading-tight">We miss you!</h2>
                   <p className="mt-1.5 max-w-xs text-sm leading-relaxed text-[#94A3B8]">
-                    Your subscription ended. Don't worry — we have exclusive offers to welcome you back.
+                    Your subscription ended. Choose a plan to reactivate securely and continue your meals.
                   </p>
                   <div className="mt-4 flex gap-3">
                     <button
-                      data-testid="subscription-welcome-offers-btn"
-                      onClick={handleShowRecoverySheet}
-                      disabled={recoveryLoading || isProcessing}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-[#020617] px-5 py-3 text-sm font-extrabold text-white shadow-lg transition-transform active:scale-95"
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      See Welcome Offers
-                    </button>
-                    <button
                       data-testid="subscription-reactivate-btn"
                       onClick={handleReactivateDirect}
-                      disabled={recoveryLoading || isProcessing}
+                      disabled={isProcessing}
                       className="inline-flex items-center gap-2 rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] px-5 py-3 text-sm font-bold text-[#020617] transition-transform active:scale-95"
                     >
                       {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -474,24 +387,10 @@ export default function SubscriptionPage() {
               {/* Plan Picker */}
               <PlanPickerMode
                 plans={plans}
-                billingInterval={selectedBillingInterval}
-                onBillingIntervalChange={setSelectedBillingInterval}
-                vipAnnualSavings={vipAnnualSavings}
               />
             </div>
           </div>
 
-          <RecoveryOfferSheet
-            isOpen={showRecoverySheet}
-            onClose={() => setShowRecoverySheet(false)}
-            offers={recoveryOffers}
-            daysSinceExpiry={recoveryStatus?.days_since_expiry ?? 1}
-            subscriptionId={subscription.id}
-            isApplying={isApplyingOffer}
-            onApplyOffer={handleApplyOffer}
-            onDismiss={handleDismissRecovery}
-            onReactivateDirect={handleReactivateDirect}
-          />
         </>
       );
     }
@@ -499,9 +398,6 @@ export default function SubscriptionPage() {
     return (
       <PlanPickerMode
         plans={plans}
-        billingInterval={selectedBillingInterval}
-        onBillingIntervalChange={setSelectedBillingInterval}
-        vipAnnualSavings={vipAnnualSavings}
       />
     );
   }
@@ -794,26 +690,23 @@ export default function SubscriptionPage() {
           </div>
           <SubscriptionPlansTab
             plans={plans}
-            billingInterval={selectedBillingInterval}
-            onBillingIntervalChange={setSelectedBillingInterval}
             currentTier={subscription?.tier}
-            onSelectPlan={(plan) => { setSelectedPlan(plan); setShowUpgradeDialog(true); }}
+            onSelectPlan={(plan) => {
+              setSelectedBillingInterval(plan.period === "week" ? "weekly" : "monthly");
+              setSelectedPlan(plan);
+              setShowUpgradeDialog(true);
+            }}
           />
         </div>
 
         {/* Settings Section */}
         <SubscriptionManage
-          hasActiveSubscription={hasActiveSubscription}
-          endDate={subscription?.end_date ?? null}
           subscriptionId={subscription?.id ?? null}
           subscriptionStatus={subscription?.status}
           freezeDays={freezeDays ?? null}
           isProcessing={isProcessing}
           onReactivate={handleReactivate}
           onRefetch={refetch}
-          autoRenew={autoRenew}
-          autoRenewLoading={autoRenewLoading}
-          onToggleAutoRenew={handleToggleAutoRenew}
           rolloverCredits={rolloverCredits}
         />
       </div>

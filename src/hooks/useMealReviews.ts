@@ -59,7 +59,7 @@ export function useMealReviews(mealId: string): UseMealReviewsReturn {
   const [error, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [sortBy, setSortBy] = useState("newest");
+  const [sortBy] = useState("newest");
 
   const fetchReviews = useCallback(
     async (reset = false) => {
@@ -127,10 +127,10 @@ export function useMealReviews(mealId: string): UseMealReviewsReturn {
           p_meal_id: params.mealId,
           p_user_id: user.id,
           p_rating: params.rating,
-          p_title: params.title || null,
-          p_review_text: params.reviewText || null,
+          p_title: params.title,
+          p_review_text: params.reviewText,
           p_photo_urls: params.photoUrls || [],
-          p_would_recommend: params.wouldRecommend ?? null,
+          p_would_recommend: params.wouldRecommend,
           p_tags: params.tags || [],
         });
 

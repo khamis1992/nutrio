@@ -167,7 +167,6 @@ export function useMealRecommendations() {
       protein_target_g: profile.protein_target_g || 150,
       carbs_target_g: profile.carbs_target_g || 200,
       fat_target_g: profile.fat_target_g || 65,
-      goal_type: (profile.goal_type as string | null) || null,
     };
   }, [profile]);
 

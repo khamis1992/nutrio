@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import sync_playwright
 import time
 
@@ -16,8 +17,8 @@ with sync_playwright() as p:
     # Handle auth redirect
     if "/auth" in page.url or page.locator('input[type="email"]').count() > 0:
         print("Login required — logging in...")
-        page.fill('input[type="email"]', "eng.aljabor@gmail.com")
-        page.fill('input[type="password"]', "123456789")
+        page.fill('input[type="email"]', os.environ["E2E_CUSTOMER_EMAIL"])
+        page.fill('input[type="password"]', os.environ["E2E_CUSTOMER_PASSWORD"])
         page.locator('button:has-text("Sign In"), button:has-text("Login"), button[type="submit"]').first.click()
         page.wait_for_load_state("networkidle", timeout=30000)
         time.sleep(3)

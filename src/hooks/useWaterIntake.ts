@@ -1,21 +1,22 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 import {
   addWaterEntry,
   deleteWaterEntry,
-  fetchTodayWaterEntries,
+  fetchWaterEntriesForDate,
   summarizeWaterMl,
   updateWaterEntryAmount,
   WATER_GLASS_ML,
 } from "@/lib/water-service";
 import { supabase } from "@/integrations/supabase/client";
+import { getQatarDay } from "@/lib/dateUtils";
+import { useHealthTrackingGoals } from "@/hooks/useHealthTrackingGoals";
 
 interface WaterIntake {
   id: string;
   log_date: string;
   glasses: number;
   amount_ml: number;
-  created_at: string;
+  created_at: string | null;
 }
 
 interface DailyWaterSummary {
@@ -27,10 +28,10 @@ interface DailyWaterSummary {
   logs: WaterIntake[];
 }
 
-async function fetchWaterIntake(userId: string): Promise<DailyWaterSummary> {
-  const logs = await fetchTodayWaterEntries(userId);
+async function fetchWaterIntake(userId: string, dateKey: string, goalMl: number): Promise<DailyWaterSummary> {
+  const logs = await fetchWaterEntriesForDate(userId, dateKey);
   const totalMl = logs.reduce((sum, log) => sum + (log.amount_ml || 0), 0);
-  const summary = summarizeWaterMl(totalMl);
+  const summary = summarizeWaterMl(totalMl, goalMl);
 
   return {
     total: summary.glasses,
@@ -48,14 +49,16 @@ async function fetchWaterIntake(userId: string): Promise<DailyWaterSummary> {
   };
 }
 
-export function useWaterIntake(userId: string | undefined) {
+export function useWaterIntake(userId: string | undefined, selectedDate: Date = new Date()) {
   const queryClient = useQueryClient();
-  const queryKey = ["waterIntake", userId];
+  const { goals, loading: goalsLoading, error: goalsError } = useHealthTrackingGoals(userId);
+  const dateKey = getQatarDay(selectedDate);
+  const queryKey = ["waterIntake", userId, dateKey, goals.waterGoalMl];
 
-  const { data: dailySummary = null, isLoading: loading, refetch } = useQuery({
+  const { data: dailySummary = null, isLoading: loading, error, refetch } = useQuery({
     queryKey,
-    queryFn: () => fetchWaterIntake(userId!),
-    enabled: !!userId,
+    queryFn: () => fetchWaterIntake(userId!, dateKey, goals.waterGoalMl),
+    enabled: Boolean(userId) && !goalsLoading && !goalsError,
     staleTime: 60 * 1000,
   });
 
@@ -63,14 +66,14 @@ export function useWaterIntake(userId: string | undefined) {
     if (!userId) return;
 
     try {
-      const today = format(new Date(), "yyyy-MM-dd");
       const amountMl = Math.max(0, Math.round(glasses * WATER_GLASS_ML));
       if (amountMl <= 0) return;
-      await addWaterEntry(userId, today, amountMl);
+      await addWaterEntry(userId, dateKey, amountMl);
 
       await queryClient.invalidateQueries({ queryKey });
     } catch (error) {
       console.error("Error adding water intake:", error);
+      throw error;
     }
   };
 
@@ -83,22 +86,24 @@ export function useWaterIntake(userId: string | undefined) {
       await queryClient.invalidateQueries({ queryKey });
     } catch (error) {
       console.error("Error removing water intake:", error);
+      throw error;
     }
   };
 
   const decrementWater = async () => {
-    if (!userId) return;
+    if (!userId) return false;
 
     try {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const { data: existing } = await supabase
+      const { data: existing, error } = await supabase
         .from("water_entries")
         .select("id, amount_ml, created_at")
         .eq("user_id", userId)
-        .eq("log_date", today)
+        .eq("log_date", dateKey)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      if (error) throw error;
 
       if (existing && existing.amount_ml > 0) {
         const nextMl = Math.max(0, existing.amount_ml - WATER_GLASS_ML);
@@ -109,15 +114,19 @@ export function useWaterIntake(userId: string | undefined) {
         }
 
         await queryClient.invalidateQueries({ queryKey });
+        return true;
       }
+      return false;
     } catch (error) {
       console.error("Error decrementing water intake:", error);
+      return false;
     }
   };
 
   return {
     dailySummary,
-    loading,
+    loading: loading || goalsLoading,
+    error: error ?? goalsError,
     addWater,
     removeWater,
     decrementWater,

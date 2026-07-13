@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { checkIPLocation } from "@/lib/ipCheck";
+import { checkIPLocation, logUserIP } from "@/lib/ipCheck";
 import { Capacitor } from "@capacitor/core";
 import { pushNotificationService } from "@/lib/notifications/push";
 import { clearRoleCache } from "@/components/ProtectedRoute";
@@ -130,6 +130,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       if (error) throw error;
+      if (data?.session) void logUserIP("signup");
       return { error: null, user: data?.user ?? null, session: data?.session ?? null };
     } catch (error) {
       return { error: error as Error };
@@ -138,17 +139,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
 const signIn = async (email: string, password: string) => {
     try {
-      // Check IP location before login (optional, don't block if check fails)
-      try {
-        const ipCheck = await checkIPLocation();
-        
-        if (!ipCheck.allowed && ipCheck.blocked) {
-          // Only block if explicitly blocked
-          return { error: new Error("Your IP address has been blocked.") };
-        }
-      } catch (ipError) {
-        // If IP check fails, log but don't block login
-        console.warn("IP location check failed, allowing login:", ipError);
+      const ipCheck = await checkIPLocation();
+      if (!ipCheck.allowed) {
+        return {
+          error: new Error(
+            ipCheck.blocked
+              ? "Your IP address has been blocked."
+              : ipCheck.reason || "Unable to verify your location.",
+          ),
+        };
       }
 
       const { error } = await supabase.auth.signInWithPassword({
@@ -157,6 +156,7 @@ const signIn = async (email: string, password: string) => {
       });
 
       if (error) throw error;
+      void logUserIP("login");
       return { error: null };
     } catch (error) {
       return { error: error as Error };

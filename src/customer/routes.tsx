@@ -34,6 +34,7 @@ const Support = lazy(() => import("@/pages/Support"));
 const Wallet = lazy(() => import("@/pages/Wallet"));
 const InvoiceHistory = lazy(() => import("@/pages/InvoiceHistory"));
 const Checkout = lazy(() => import("@/pages/Checkout"));
+const PaymentResult = lazy(() => import("@/pages/PaymentResult"));
 const OrderHistory = lazy(() => import("@/pages/OrderHistory"));
 const OrderDetail = lazy(() => import("@/pages/OrderDetail"));
 const DeliveryTracking = lazy(() => import("@/pages/DeliveryTracking"));
@@ -252,7 +253,7 @@ export const customerRoutes = (
     <Route path="/tracking" element={<ProtectedRoute><DeliveryTracking /></ProtectedRoute>} />
     <Route path="/plans" element={<Navigate to="/subscription/plans" replace />} />
     <Route path="/subscribe" element={<Navigate to="/subscription" replace />} />
-    <Route path="/cart" element={<Navigate to="/checkout" replace />} />
+    <Route path="/cart" element={<Navigate to="/meals" replace />} />
     <Route
       path="/subscription"
       element={
@@ -314,6 +315,14 @@ export const customerRoutes = (
       element={
         <ProtectedRoute>
           <Checkout />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/payment/result"
+      element={
+        <ProtectedRoute>
+          <PaymentResult />
         </ProtectedRoute>
       }
     />

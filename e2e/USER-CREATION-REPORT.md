@@ -9,7 +9,7 @@
 ### 1. Test User Created in Supabase
 
 **User Details:**
-- **Email:** `khamis--1992@hotmail.com`
+- **Email:** `<E2E_ACCOUNT_EMAIL>`
 - **User ID:** `1b35e3f3-0271-4bd9-a517-1acdce00e4b0`
 - **Status:** Email confirmed ✅
 - **Created:** 2026-03-02 15:39:50 UTC
@@ -18,7 +18,7 @@
 ```sql
 SELECT email, email_confirmed_at 
 FROM auth.users 
-WHERE email = 'khamis--1992@hotmail.com';
+WHERE email = '<E2E_ACCOUNT_EMAIL>';
 
 -- Result: ✅ User exists and email is confirmed
 ```
@@ -186,7 +186,7 @@ All 12 auth tests should now pass!
 ### Database Entries:
 ```sql
 -- User exists
-SELECT * FROM auth.users WHERE email = 'khamis--1992@hotmail.com';
+SELECT * FROM auth.users WHERE email = '<E2E_ACCOUNT_EMAIL>';
 -- Result: 1 row
 
 -- No IP blocks for localhost

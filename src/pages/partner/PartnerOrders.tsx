@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { PartnerDeliveryHandoff } from "@/components/partner/PartnerDeliveryHandoff";
+import { getQatarDay } from "@/lib/dateUtils";
 
 // Extended order status type with all new statuses
 type OrderStatus =
@@ -203,7 +204,7 @@ interface TransformMaps {
   >;
   addressesMap: Record<string, Record<string, unknown>>;
   addonsMap: Record<string, ScheduleAddon[]>;
-  driversMap: Record<string, unknown>;
+  driversMap: Record<string, Order["driver"]>;
 }
 
 /** Type-safe transform: raw Supabase row to Order. All `as` casts are contained here. */
@@ -213,6 +214,7 @@ function transformScheduleToOrder(
 ): Order {
   return {
     id: s.id as string,
+    source: "meal_schedule",
     order_status: ((s.order_status as string) || "pending") as OrderStatus,
     scheduled_date: s.scheduled_date as string,
     delivery_time_slot: (s.delivery_time_slot as string) || null,
@@ -243,7 +245,54 @@ function transformScheduleToOrder(
         }
       : null,
     addons: maps.addonsMap[s.id as string] || [],
-    driver: maps.driversMap[s.id as string] || null,
+    driver: maps.driversMap[s.id as string] ?? null,
+  };
+}
+
+function normalizeDirectOrderStatus(status: string | null): OrderStatus {
+  if (status === "ready_for_pickup") return "ready";
+  if (status === "picked_up") return "out_for_delivery";
+  return (status || "pending") as OrderStatus;
+}
+
+function transformDirectOrderToOrder(
+  order: Record<string, unknown>,
+  profilesMap: TransformMaps["profilesMap"],
+  mealsMap: Record<string, Order["meal"]>,
+): Order {
+  const createdAt = order.created_at as string;
+  const userId = order.user_id as string | null;
+  const profile = userId ? profilesMap[userId] : null;
+
+  return {
+    id: order.id as string,
+    source: "order",
+    order_status: normalizeDirectOrderStatus(order.status as string | null),
+    scheduled_date: getQatarDay(new Date(createdAt)),
+    delivery_time_slot: (order.estimated_delivery_time as string) || null,
+    meal_type: "order",
+    delivery_type: "delivery",
+    delivery_fee: order.delivery_fee as number | null,
+    addons_total: 0,
+    restaurant_note: (order.special_instructions as string) || (order.notes as string) || null,
+    created_at: createdAt,
+    cancellation_reason: null,
+    meal: mealsMap[order.meal_id as string] || null,
+    customer: {
+      full_name: profile?.full_name || null,
+      phone: (order.phone_number as string) || null,
+    },
+    delivery_address: order.delivery_address
+      ? {
+          address_line1: order.delivery_address as string,
+          address_line2: null,
+          city: null,
+          phone: (order.phone_number as string) || null,
+          delivery_instructions: (order.special_instructions as string) || null,
+        }
+      : null,
+    addons: [],
+    driver: null,
   };
 }
 
@@ -267,6 +316,7 @@ function buildAddonsMap(
 
 interface Order {
   id: string;
+  source: "order" | "meal_schedule";
   order_status: OrderStatus;
   scheduled_date: string;
   delivery_time_slot: string | null;
@@ -291,7 +341,7 @@ interface Order {
   delivery_address: {
     address_line1: string;
     address_line2: string | null;
-    city: string;
+    city: string | null;
     phone: string | null;
     delivery_instructions: string | null;
   } | null;
@@ -361,6 +411,7 @@ const PartnerOrders = () => {
           event: "UPDATE",
           schema: "public",
           table: "meal_schedules",
+          filter: `restaurant_id=eq.${restaurantId}`,
         },
         (payload) => {
           // Show toast notification for status changes
@@ -394,6 +445,18 @@ const PartnerOrders = () => {
           setTimeout(() => {
             fetchOrders();
           }, 500);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        () => {
+          setTimeout(() => fetchOrders(), 500);
         },
       )
       .subscribe();
@@ -441,27 +504,28 @@ const PartnerOrders = () => {
       // Get all meal IDs for this restaurant
       const { data: meals, error: mealsError } = await supabase
         .from("meals")
-        .select("id")
+        .select("id, name, image_url, calories, price")
         .eq("restaurant_id", restaurant.id);
 
       if (mealsError) throw mealsError;
 
       const mealIds = meals?.map((m) => m.id) || [];
-
-      if (mealIds.length === 0) {
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
+      const partnerMealsMap: Record<string, Order["meal"]> = Object.fromEntries(
+        (meals || []).map((meal) => [meal.id, {
+          ...meal,
+          calories: meal.calories ?? 0,
+          price: meal.price ?? 0,
+        }]),
+      );
 
       // Only show today's meals so the restaurant doesn't prepare future orders early
-      const today = new Date().toISOString().split("T")[0];
+      const today = getQatarDay();
 
-      // Fetch meal schedules (orders) for these meals
-      const { data: schedules, error: schedulesError } = await supabase
-        .from("meal_schedules")
-        .select(
-          `
+      const [scheduleResult, directOrderResult] = await Promise.all([
+        mealIds.length > 0
+          ? supabase
+              .from("meal_schedules")
+              .select(`
           id,
           scheduled_date,
           delivery_time_slot,
@@ -473,27 +537,57 @@ const PartnerOrders = () => {
           restaurant_note,
           created_at,
           user_id,
-          meals!meal_id (
+          meals:meals!meal_schedules_meal_id_fkey (
             id,
             name,
             image_url,
             calories,
             price
           )
-        `,
-        )
-        .in("meal_id", mealIds)
-        .eq("scheduled_date", today)
-        .order("scheduled_date", { ascending: true });
+              `)
+              .in("meal_id", mealIds)
+              .or(
+                `scheduled_date.eq.${today},order_status.in.(confirmed,preparing,ready,out_for_delivery)`,
+              )
+              .order("scheduled_date", { ascending: true })
+          : Promise.resolve({ data: [], error: null }),
+        supabase
+          .from("orders")
+          .select(`
+            id,
+            status,
+            created_at,
+            user_id,
+            delivery_address,
+            delivery_fee,
+            phone_number,
+            special_instructions,
+            notes,
+            estimated_delivery_time,
+            meal_id
+          `)
+          .eq("restaurant_id", restaurant.id)
+          .order("created_at", { ascending: false })
+          .limit(100),
+      ]);
+
+      const { data: schedules, error: schedulesError } = scheduleResult;
+      const { data: directOrders, error: directOrdersError } = directOrderResult;
 
       if (schedulesError) throw schedulesError;
+      if (directOrdersError) throw directOrdersError;
 
       // Get user info from auth
       const userIds = [
         ...new Set(
-          (schedules || []).map(
-            (s: Record<string, unknown>) => s.user_id as string,
-          ),
+          [
+            ...((schedules || []) as Array<Record<string, unknown>>).map(
+              (s: Record<string, unknown>) => s.user_id as string,
+            ),
+            ...((directOrders || []) as Array<Record<string, unknown>>).map(
+              (o: Record<string, unknown>) => o.user_id as string,
+            ),
+          ].filter(Boolean),
         ),
       ];
 
@@ -529,8 +623,8 @@ const PartnerOrders = () => {
         // Fetch customer names from profiles (profiles has no 'phone' column)
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, full_name, email")
-          .in("id", userIds);
+          .select("user_id, full_name, email")
+          .in("user_id", userIds);
 
         if (profiles) {
           profilesMap = profiles.reduce(
@@ -541,7 +635,7 @@ const PartnerOrders = () => {
               >,
               p: Record<string, unknown>,
             ) => {
-              acc[p.id as string] = {
+              acc[p.user_id as string] = {
                 full_name: p.full_name as string | null,
                 email: p.email as string | null,
               };
@@ -553,7 +647,7 @@ const PartnerOrders = () => {
       }
 
       // Fetch addons for each schedule
-      const scheduleIds = (schedules || []).map(
+      const scheduleIds = ((schedules || []) as Array<Record<string, unknown>>).map(
         (s: Record<string, unknown>) => s.id as string,
       );
       let addonsMap: Record<string, ScheduleAddon[]> = {};
@@ -575,7 +669,7 @@ const PartnerOrders = () => {
         }
       }
 
-      const driversMap: Record<string, unknown> = {};
+      const driversMap: Record<string, Order["driver"]> = {};
 
       // Transform data via typed helper
       const maps: TransformMaps = {
@@ -584,16 +678,33 @@ const PartnerOrders = () => {
         addonsMap,
         driversMap,
       };
-      const transformedOrders: Order[] = (schedules || []).map(
+      const transformedOrders: Order[] = ((schedules || []) as Array<Record<string, unknown>>).map(
         (s: Record<string, unknown>) => transformScheduleToOrder(s, maps),
       );
 
-      setOrders(transformedOrders);
+      const transformedDirectOrders = ((directOrders || []) as Array<Record<string, unknown>>)
+        .filter((order: Record<string, unknown>) => {
+          const status = order.status as string;
+          const isClosed = status === "completed" || status === "cancelled";
+          return !isClosed || getQatarDay(new Date(order.created_at as string)) === today;
+        })
+        .map((order: Record<string, unknown>) =>
+          transformDirectOrderToOrder(order, profilesMap, partnerMealsMap),
+        );
+
+      setOrders(
+        [...transformedOrders, ...transformedDirectOrders].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        ),
+      );
     } catch (error) {
-      console.error("Error fetching orders:", error);
+      const message = error instanceof Error
+        ? error.message
+        : (error as { message?: string } | null)?.message || "Failed to load orders";
+      console.error("Error fetching orders:", message, error);
       toast({
         title: "Error",
-        description: "Failed to load orders",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -603,11 +714,13 @@ const PartnerOrders = () => {
 
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
-      // Use the database function for role-based status update
-      const { error } = await supabase.rpc("update_order_status", {
+      const order = orders.find((item) => item.id === orderId);
+      if (!order) throw new Error("Order not found");
+
+      const { error } = await supabase.rpc("partner_update_order_status", {
+        p_source: order.source,
         p_order_id: orderId,
         p_new_status: newStatus,
-        p_user_role: "partner",
       });
 
       if (error) throw error;
@@ -760,6 +873,8 @@ const PartnerOrders = () => {
       return (
         <article
           key={order.id}
+          data-testid={`partner-order-${order.id}`}
+          data-order-source={order.source}
           className="overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white shadow-[0_14px_36px_rgba(2,6,23,0.04)]"
         >
           <div className="p-4 sm:p-5">
@@ -944,6 +1059,7 @@ const PartnerOrders = () => {
               <div className="mt-4 border-t border-[#E5EAF1] pt-4">
                 <PartnerDeliveryHandoff
                   scheduleId={order.id}
+                  source={order.source}
                   restaurantName={restaurantName}
                 />
               </div>

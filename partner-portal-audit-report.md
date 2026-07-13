@@ -250,7 +250,7 @@ This report provides a comprehensive audit of the Nutrio Fuel Restaurant Partner
 - Contact Information:
   - Address (Al Dafna, Doha, Qatar)
   - Phone Number (+974 1234 5678)
-  - Email Address (khamis4evereyer@gmail.com)
+  - Email Address (<E2E_ACCOUNT_EMAIL>)
 - Availability section:
   - "Restaurant Active" toggle switch
   - Description: "When disabled, your restaurant won't appear in search results"
@@ -277,7 +277,7 @@ This report provides a comprehensive audit of the Nutrio Fuel Restaurant Partner
 - Personal Information section:
   - Profile avatar (M initial)
   - Name display (Mohamed Khalil)
-  - Email (khamis4evereyer@gmail.com)
+  - Email (<E2E_ACCOUNT_EMAIL>)
   - Full Name field (Mohamed Khalil)
 - Restaurant Information section:
   - Restaurant Logo upload
@@ -286,7 +286,7 @@ This report provides a comprehensive audit of the Nutrio Fuel Restaurant Partner
 - Contact Details section:
   - Address (Al Dafna, Doha, Qatar)
   - Phone (+974 1234 5678)
-  - Email (khamis4evereyer@gmail.com)
+  - Email (<E2E_ACCOUNT_EMAIL>)
 - Pickup Location section:
   - Latitude: 25.2854
   - Longitude: 51.5310

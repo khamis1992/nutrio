@@ -1,19 +1,20 @@
 import { test, expect } from '@playwright/test';
+import { appUrl } from './config';
 
 test.describe('Authentication', () => {
   test('landing page loads', async ({ page }) => {
-    await page.goto('/auth');
+    await page.goto(appUrl('/auth'));
     await expect(page.locator('text=Welcome')).toBeVisible({ timeout: 10000 });
   });
 
   test('can navigate to sign in', async ({ page }) => {
-    await page.goto('/auth');
+    await page.goto(appUrl('/auth'));
     await page.click('text=Sign In');
     await expect(page.locator('input[type="email"]')).toBeVisible();
   });
 
   test('can navigate to sign up', async ({ page }) => {
-    await page.goto('/auth');
+    await page.goto(appUrl('/auth'));
     await page.click('text=Sign Up');
     await expect(page.locator('input[type="email"]')).toBeVisible();
   });
@@ -21,7 +22,7 @@ test.describe('Authentication', () => {
 
 test.describe('Arabic Localization', () => {
   test('switches to Arabic and shows RTL', async ({ page }) => {
-    await page.goto('/auth');
+    await page.goto(appUrl('/auth'));
     await page.evaluate(() => {
       localStorage.setItem('nutrio_language', 'ar');
     });
@@ -33,7 +34,7 @@ test.describe('Arabic Localization', () => {
 
 test.describe('Protected Routes', () => {
   test('redirects to auth when not logged in', async ({ page }) => {
-    await page.goto('/dashboard');
+    await page.goto(appUrl('/dashboard'));
     await page.waitForURL('**/auth**', { timeout: 10000 });
   });
 });

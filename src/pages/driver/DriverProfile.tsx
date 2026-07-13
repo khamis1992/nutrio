@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,34 +30,68 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { DriverLayoutContext } from "@/components/driver/DriverLayout";
 
-type VehicleType = "bike" | "car";
+type VehicleType = "bike" | "scooter" | "motorcycle" | "car";
 
 const vehicleLabels: Record<VehicleType, string> = {
   bike: "Bicycle",
+  scooter: "Scooter",
+  motorcycle: "Motorcycle",
   car: "Car",
 };
 
 const vehicleIcons: Record<VehicleType, React.ReactNode> = {
   bike: <Bike className="h-5 w-5" />,
+  scooter: <Bike className="h-5 w-5" />,
+  motorcycle: <Bike className="h-5 w-5" />,
   car: <Car className="h-5 w-5" />,
 };
 
 export default function DriverProfile() {
   const navigate = useNavigate();
   const { driver } = useOutletContext<DriverLayoutContext>();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
 
   const [saving, setSaving] = useState(false);
+  const [deliverySummary, setDeliverySummary] = useState({
+    deliveries: 0,
+    earnings: 0,
+  });
   const [vehicleInfo, setVehicleInfo] = useState({
-    vehicle_type: (driver.vehicle_type as VehicleType) || "car",
-    license_plate: driver.license_plate || "",
-    phone_number: driver.phone_number || "",
+    vehicle_type: (driver?.vehicle_type as VehicleType | null) || "car",
+    license_plate: driver?.license_plate || "",
+    phone_number: driver?.phone_number || "",
   });
 
-  const user = driver.user;
+  useEffect(() => {
+    if (!driver?.id) return;
+
+    const loadDeliverySummary = async () => {
+      const { data, error } = await supabase
+        .from("delivery_jobs")
+        .select("driver_earnings")
+        .eq("driver_id", driver.id)
+        .in("status", ["delivered", "completed"]);
+
+      if (error) {
+        console.error("Error loading driver delivery summary:", error);
+        return;
+      }
+
+      setDeliverySummary({
+        deliveries: data?.length || 0,
+        earnings: (data || []).reduce(
+          (sum, job) => sum + (job.driver_earnings || 0),
+          0,
+        ),
+      });
+    };
+
+    loadDeliverySummary();
+  }, [driver?.id]);
 
   const handleSave = async () => {
+    if (!driver) return;
     setSaving(true);
 
     try {
@@ -93,6 +127,14 @@ export default function DriverProfile() {
     navigate("/driver/auth");
   };
 
+  if (!driver) {
+    return (
+      <div className="flex min-h-48 items-center justify-center p-4 text-sm text-muted-foreground">
+        Driver profile is unavailable.
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 space-y-4 pb-24">
       {/* Profile Header */}
@@ -100,11 +142,11 @@ export default function DriverProfile() {
         <CardContent className="p-6 text-center">
           <Avatar className="h-20 w-20 mx-auto mb-4 bg-white/20">
             <AvatarFallback className="bg-white/20 text-white text-2xl">
-              {user?.raw_user_meta_data?.name?.charAt(0) || "D"}
+              {(user?.user_metadata?.full_name || driver.full_name || "D").charAt(0)}
             </AvatarFallback>
           </Avatar>
           <h2 className="text-xl font-bold">
-            {user?.raw_user_meta_data?.name || "Driver"}
+            {user?.user_metadata?.full_name || driver.full_name || "Driver"}
           </h2>
           <p className="text-primary-foreground/80 text-sm mt-1">
             {user?.email}
@@ -112,7 +154,7 @@ export default function DriverProfile() {
           <div className="flex items-center justify-center gap-2 mt-3">
             <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
               <Star className="w-4 h-4 fill-current" />
-              <span>{driver.rating || 5.0}</span>
+              <span>{driver.rating != null ? driver.rating.toFixed(1) : "New"}</span>
             </div>
             <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
               {vehicleIcons[vehicleInfo.vehicle_type]}
@@ -127,14 +169,14 @@ export default function DriverProfile() {
         <Card>
           <CardContent className="p-4 text-center">
             <Package className="w-6 h-6 mx-auto mb-2 text-primary" />
-            <p className="text-2xl font-bold">{driver.total_deliveries || 0}</p>
+            <p className="text-2xl font-bold">{deliverySummary.deliveries}</p>
             <p className="text-xs text-muted-foreground">Deliveries</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <DollarSign className="w-6 h-6 mx-auto mb-2 text-primary" />
-            <p className="text-2xl font-bold">{driver.total_earnings || 0}</p>
+            <p className="text-2xl font-bold">{deliverySummary.earnings.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">QAR Earned</p>
           </CardContent>
         </Card>

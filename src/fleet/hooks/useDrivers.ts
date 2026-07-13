@@ -18,9 +18,6 @@ export function useDrivers(options: UseDriversOptions = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [total, setTotal] = useState(0);
 
-  // Memoize cityIds to prevent infinite re-renders
-  const cityIdsKey = options.cityIds?.join(',') || '';
-
   const fetchDrivers = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -34,6 +31,14 @@ export function useDrivers(options: UseDriversOptions = {}) {
 
       if (options.isOnline !== undefined) {
         query = query.eq("is_online", options.isOnline);
+      }
+
+      if (options.cityIds?.length) {
+        query = query.in("city_id", options.cityIds);
+      }
+
+      if (options.zoneId) {
+        query = query.contains("assigned_zone_ids", [options.zoneId]);
       }
 
       if (options.search) {
@@ -54,6 +59,7 @@ export function useDrivers(options: UseDriversOptions = {}) {
       // Fetch vehicle plates for these drivers
       const driverIds = (data || []).map((d: { id: string }) => d.id);
       const plateMap: Record<string, string> = {};
+      const cityMap: Record<string, string> = {};
       if (driverIds.length > 0) {
         const { data: vehicles } = await supabase
           .from("vehicles")
@@ -66,26 +72,45 @@ export function useDrivers(options: UseDriversOptions = {}) {
         });
       }
 
-      const transformedDrivers: Driver[] = (data || []).map((d: { id: string; user_id?: string; phone_number?: string; approval_status?: string; is_active?: boolean; is_online?: boolean; current_lat?: number; current_lng?: number; last_location_update?: string; total_deliveries?: number; rating?: number; wallet_balance?: number; total_earnings?: number; created_at?: string }) => ({
+      const cityIds = [
+        ...new Set(
+          (data || [])
+            .map((driver) => driver.city_id)
+            .filter((cityId): cityId is string => Boolean(cityId)),
+        ),
+      ];
+      if (cityIds.length > 0) {
+        const { data: cities, error: citiesError } = await supabase
+          .from("cities")
+          .select("id, name")
+          .in("id", cityIds);
+        if (citiesError) throw citiesError;
+        (cities || []).forEach((city) => {
+          cityMap[city.id] = city.name;
+        });
+      }
+
+      const transformedDrivers: Driver[] = (data || []).map((d) => ({
         id: d.id,
-        authUserId: d.user_id,
-        email: "",
+        authUserId: d.user_id || undefined,
+        email: d.email || "",
         phone: d.phone_number || "",
-        fullName: `Driver ${d.phone_number?.slice(-4) || d.id.slice(0, 8)}`,
-        cityId: "doha",
-        assignedZoneIds: [],
+        fullName: d.full_name || `Driver ${d.phone_number?.slice(-4) || d.id.slice(0, 8)}`,
+        cityId: d.city_id || "",
+        cityName: d.city_id ? cityMap[d.city_id] : undefined,
+        assignedZoneIds: d.assigned_zone_ids || [],
         status: d.approval_status === "approved" && d.is_active 
           ? "active" 
           : d.approval_status === "pending" 
             ? "pending_verification" 
             : "inactive",
-        currentLatitude: d.current_lat || undefined,
-        currentLongitude: d.current_lng || undefined,
+        currentLatitude: d.current_lat ?? undefined,
+        currentLongitude: d.current_lng ?? undefined,
         locationUpdatedAt: d.last_location_update || undefined,
         isOnline: d.is_online || false,
         totalDeliveries: d.total_deliveries || 0,
         rating: d.rating || 5.0,
-        cancellationRate: 0,
+        cancellationRate: d.cancellation_rate || 0,
         currentBalance: d.wallet_balance || 0,
         totalEarnings: d.total_earnings || 0,
         assignedVehicleId: undefined,
@@ -105,7 +130,7 @@ export function useDrivers(options: UseDriversOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-    }, [options.status, options.isOnline, options.search, options.page, options.limit]);
+    }, [options.cityIds, options.isOnline, options.limit, options.page, options.search, options.status, options.zoneId]);
 
   useEffect(() => {
     fetchDrivers();
@@ -115,6 +140,11 @@ export function useDrivers(options: UseDriversOptions = {}) {
     drivers,
     isLoading,
     total,
+    pagination: {
+      page: options.page || 1,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / (options.limit || 20))),
+    },
     refetch: fetchDrivers,
   };
 }
@@ -131,16 +161,17 @@ export function useFleetStats(cityIds?: string[]) {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Memoize cityIds to prevent infinite re-renders
-  const cityIdsKey = cityIds?.join(',') || '';
-
   const fetchStats = useCallback(async () => {
     setIsLoading(true);
     try {
       // Fetch all drivers regardless of city selection
-      const driversQuery = supabase
+      let driversQuery = supabase
         .from("drivers")
-        .select("approval_status, is_online, is_active", { count: "exact" });
+        .select("id, approval_status, is_online, is_active", { count: "exact" });
+
+      if (cityIds?.length) {
+        driversQuery = driversQuery.in("city_id", cityIds);
+      }
       
       const { data: drivers, count: totalDrivers, error: driversError } = await driversQuery;
       
@@ -149,32 +180,75 @@ export function useFleetStats(cityIds?: string[]) {
         throw driversError;
       }
 
-      const { count: ordersInProgress, error: ordersError } = await supabase
+      const driverIds = (drivers || []).map((driver) => driver.id);
+      let activeOrdersQuery = supabase
         .from("delivery_jobs")
         .select("id", { count: "exact" })
-        .in("status", ["assigned", "accepted", "picked_up", "in_transit"]);
+        .in("status", ["assigned", "accepted", "picked_up", "in_transit", "on_the_way"]);
+
+      if (cityIds?.length && driverIds.length > 0) {
+        activeOrdersQuery = activeOrdersQuery.in("driver_id", driverIds);
+      }
+
+      const { count: queriedOrdersInProgress, error: ordersError } = cityIds?.length && driverIds.length === 0
+        ? { count: 0, error: null }
+        : await activeOrdersQuery;
       
       if (ordersError) console.error("Error fetching orders:", ordersError);
 
       const today = new Date().toISOString().split("T")[0];
-      const { count: todayDeliveries, error: deliveriesError } = await supabase
+      let deliveredTodayQuery = supabase
         .from("delivery_jobs")
         .select("id", { count: "exact" })
-        .eq("status", "completed")
+        .in("status", ["delivered", "completed"])
         .gte("delivered_at", today);
+
+      if (cityIds?.length && driverIds.length > 0) {
+        deliveredTodayQuery = deliveredTodayQuery.in("driver_id", driverIds);
+      }
+
+      const { count: queriedTodayDeliveries, error: deliveriesError } = cityIds?.length && driverIds.length === 0
+        ? { count: 0, error: null }
+        : await deliveredTodayQuery;
       
       if (deliveriesError) console.error("Error fetching deliveries:", deliveriesError);
 
       const activeDrivers = drivers?.filter(d => d.approval_status === "approved" && d.is_active).length || 0;
       const onlineDrivers = drivers?.filter(d => d.is_online).length || 0;
 
+      let durationQuery = supabase
+        .from("delivery_jobs")
+        .select("accepted_at, delivered_at")
+        .not("accepted_at", "is", null)
+        .not("delivered_at", "is", null)
+        .order("delivered_at", { ascending: false })
+        .limit(100);
+
+      if (cityIds?.length && driverIds.length > 0) {
+        durationQuery = durationQuery.in("driver_id", driverIds);
+      }
+
+      const { data: completedJobs, error: durationError } = cityIds?.length && driverIds.length === 0
+        ? { data: [], error: null }
+        : await durationQuery;
+      if (durationError) console.error("Error fetching delivery durations:", durationError);
+
+      const durations = (completedJobs || []).flatMap((job) => {
+        if (!job.accepted_at || !job.delivered_at) return [];
+        const minutes = (new Date(job.delivered_at).getTime() - new Date(job.accepted_at).getTime()) / 60000;
+        return minutes >= 0 ? [minutes] : [];
+      });
+      const averageDeliveryTime = durations.length
+        ? Math.round(durations.reduce((total, minutes) => total + minutes, 0) / durations.length)
+        : 0;
+
       const newStats = {
         totalDrivers: totalDrivers || 0,
         activeDrivers,
         onlineDrivers,
-        ordersInProgress: ordersInProgress || 0,
-        todayDeliveries: todayDeliveries || 0,
-        averageDeliveryTime: 25,
+        ordersInProgress: queriedOrdersInProgress || 0,
+        todayDeliveries: queriedTodayDeliveries || 0,
+        averageDeliveryTime,
         cities: [],
       };
       
@@ -184,7 +258,7 @@ export function useFleetStats(cityIds?: string[]) {
     } finally {
       setIsLoading(false);
     }
-    }, []);
+    }, [cityIds]);
 
   useEffect(() => {
     fetchStats();
@@ -230,16 +304,14 @@ export function useDriverDetail(driverId: string) {
         return;
       }
 
-      const assignedVehicleId: string | undefined = (data as { assigned_vehicle_id?: string }).assigned_vehicle_id || undefined;
-
       setDriver({
         id: data.id,
         authUserId: data.user_id,
-        email: "",
+        email: data.email || "",
         phone: data.phone_number || "",
-        fullName: `Driver ${data.phone_number?.slice(-4) || data.id.slice(0, 8)}`,
-        cityId: "doha",
-        assignedZoneIds: [],
+        fullName: data.full_name || `Driver ${data.phone_number?.slice(-4) || data.id.slice(0, 8)}`,
+        cityId: data.city_id || "",
+        assignedZoneIds: data.assigned_zone_ids || [],
         status: data.approval_status === "approved" && data.is_active 
           ? "active" 
           : data.approval_status === "pending" 
@@ -251,46 +323,20 @@ export function useDriverDetail(driverId: string) {
         isOnline: data.is_online || false,
         totalDeliveries: data.total_deliveries || 0,
         rating: data.rating || 5.0,
-        cancellationRate: 0,
+        cancellationRate: data.cancellation_rate || 0,
         currentBalance: data.wallet_balance || 0,
         totalEarnings: data.total_earnings || 0,
-        assignedVehicleId,
+        assignedVehicleId: undefined,
         createdAt: data.created_at || new Date().toISOString(),
       });
 
-      // Fetch vehicle record if assigned
-      if (assignedVehicleId) {
-        const { data: vData } = await supabase
-          .from("vehicles")
-          .select("id, plate_number, type, make, model, year, color, insurance_expiry, status")
-          .eq("id", assignedVehicleId)
-          .maybeSingle();
+      const { data: vData } = await supabase
+        .from("vehicles")
+        .select("id, plate_number, type, make, model, year, color, insurance_expiry, status")
+        .eq("assigned_driver_id", data.id)
+        .maybeSingle();
 
-        if (vData) {
-          setVehicle({
-            id: vData.id,
-            plateNumber: vData.plate_number,
-            type: vData.type,
-            make: vData.make,
-            model: vData.model,
-            year: vData.year,
-            color: vData.color,
-            insuranceExpiry: vData.insurance_expiry,
-            status: vData.status || "unknown",
-          });
-        } else {
-          setVehicle(null);
-        }
-      } else {
-        // Also try looking up by assigned_driver_id on vehicles table
-        const { data: vData } = await supabase
-          .from("vehicles")
-          .select("id, plate_number, type, make, model, year, color, insurance_expiry, status")
-          .eq("assigned_driver_id", data.id)
-          .eq("status", "assigned")
-          .maybeSingle();
-
-        setVehicle(vData ? {
+      setVehicle(vData ? {
           id: vData.id,
           plateNumber: vData.plate_number,
           type: vData.type,
@@ -300,8 +346,7 @@ export function useDriverDetail(driverId: string) {
           color: vData.color,
           insuranceExpiry: vData.insurance_expiry,
           status: vData.status || "unknown",
-        } : null);
-      }
+      } : null);
     } catch (error) {
       console.error("Error fetching driver detail:", error);
       toast({
@@ -372,17 +417,17 @@ export function usePayouts(options: UsePayoutsOptions = {}) {
 
       if (error) throw error;
 
-      const transformedPayouts: Payout[] = (data || []).map((p: { id: string; driver_id: string; drivers?: { full_name?: string }; amount?: number; period_start: string; period_end: string; status?: string; processed_at?: string | null; payout_method?: string; created_at: string }) => ({
+      const transformedPayouts: Payout[] = (data || []).map((p) => ({
         id: p.id,
         driverId: p.driver_id,
         driverName: p.drivers?.full_name || 'Unknown Driver',
         amount: p.amount || 0,
         periodStart: p.period_start,
         periodEnd: p.period_end,
-        status: p.status || 'pending',
-        processedAt: p.processed_at,
-        payoutMethod: p.payout_method,
-        createdAt: p.created_at,
+        status: (p.status || 'pending') as Payout['status'],
+        processedAt: p.processed_at || null,
+        payoutMethod: p.payout_method || undefined,
+        createdAt: p.created_at || new Date().toISOString(),
       }));
 
       setPayouts(transformedPayouts);

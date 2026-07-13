@@ -1,8 +1,19 @@
-// Sadad Payment Gateway client — proxies to the `sadad-payment` Supabase edge function.
-// All secrets (SADAD_MERCHANT_ID, SADAD_SECRET_KEY, SADAD_API_URL) live server-side now.
-// Documentation: https://developer.sadad.qa/
-
 import { supabase } from "@/integrations/supabase/client";
+
+export type SadadPaymentType = "wallet_topup" | "subscription" | "coach_subscription";
+
+// Kept for the isolated development-only simulator. Production checkout does
+// not use these caller-priced request/response shapes.
+export interface SadadPaymentRequest {
+  amount: number;
+  orderId: string;
+  customerId: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  description?: string;
+  successUrl: string;
+  failureUrl: string;
+}
 
 export interface SadadPaymentResponse {
   payment_id: string;
@@ -11,109 +22,102 @@ export interface SadadPaymentResponse {
   expiry_time?: string;
 }
 
-export interface SadadCallbackData {
+export interface SadadCheckoutResponse {
   payment_id: string;
-  order_id: string;
-  status: "success" | "failed" | "cancelled";
   amount: number;
   currency: string;
-  transaction_id?: string;
-  signature?: string;
+  payment_type: SadadPaymentType;
+  description: string;
+  metadata?: Record<string, unknown>;
+  form_action: string;
+  form_method: "POST";
+  fields: Record<string, string | number>;
+}
+
+export interface SadadPaymentStatus {
+  payment_id: string;
+  amount: number;
+  currency: string;
+  payment_type: SadadPaymentType;
+  status: "pending" | "processing" | "completed" | "failed" | "refunded";
+  fulfillment_status: "pending" | "completed" | "failed";
+  description: string | null;
+  metadata: Record<string, unknown>;
+  transaction_id: string | null;
+  created_at: string;
+  completed_at: string | null;
+  error: string | null;
+}
+
+interface FunctionErrorPayload {
+  error?: string;
+}
+
+function getFunctionError(
+  fallback: string,
+  result: FunctionErrorPayload | null | undefined,
+  message?: string,
+): Error {
+  return new Error(result?.error || message || fallback);
 }
 
 class SadadService {
-  // Configuration is server-side only; the client cannot determine "is configured".
-  // We assume the function is deployed when this code runs in production.
-  isConfigured(): boolean {
-    return true;
-  }
-
-  async createPayment(data: {
-    amount: number;
-    orderId: string;
-    customerId: string;
-    customerEmail?: string;
-    customerPhone?: string;
-    description?: string;
-    successUrl: string;
-    failureUrl: string;
-  }): Promise<SadadPaymentResponse> {
-    const { data: result, error } = await supabase.functions.invoke("sadad-payment", {
+  async createPayment(input: {
+    paymentType: SadadPaymentType;
+    referenceId: string;
+    mobileNumber: string;
+    subscriptionId?: string;
+    coachPlan?: "weekly" | "monthly";
+    language?: "ar" | "en";
+  }): Promise<SadadCheckoutResponse> {
+    const { data, error } = await supabase.functions.invoke("sadad-payment", {
       body: {
         op: "create",
-        payload: {
-          amount: data.amount,
-          orderId: data.orderId,
-          customerEmail: data.customerEmail,
-          customerPhone: data.customerPhone,
-          description: data.description ?? "Wallet Top-up",
-          successUrl: data.successUrl,
-          failureUrl: data.failureUrl,
-          callbackUrl: `${window.location.origin}/api/payment/callback`,
-        },
+        payload: input,
       },
     });
 
+    const result = data as (SadadCheckoutResponse & FunctionErrorPayload) | null;
     if (error || !result || result.error) {
-      throw new Error(error?.message ?? result?.error ?? "Sadad create failed");
+      throw getFunctionError("SADAD_PAYMENT_CREATION_FAILED", result, error?.message);
     }
 
-    return result as SadadPaymentResponse;
+    return result;
   }
 
-  async getPaymentStatus(paymentId: string): Promise<{
-    status: string;
-    amount: number;
-    transactionId?: string;
-  }> {
-    const { data, error } = await supabase.functions.invoke("sadad-payment", {
-      body: { op: "status", payload: { paymentId } },
+  submitHostedCheckout(checkout: SadadCheckoutResponse): void {
+    const form = document.createElement("form");
+    form.method = checkout.form_method;
+    form.action = checkout.form_action;
+    form.style.display = "none";
+
+    Object.entries(checkout.fields).forEach(([name, value]) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = String(value);
+      form.appendChild(input);
     });
-    if (error || !data || data.error) {
-      throw new Error(error?.message ?? data?.error ?? "Status lookup failed");
-    }
-    return data;
+
+    document.body.appendChild(form);
+    form.submit();
   }
 
-  async refundPayment(paymentId: string, amount?: number): Promise<{
-    refundId: string;
-    status: string;
-  }> {
+  async getPaymentStatus(paymentId: string): Promise<SadadPaymentStatus> {
     const { data, error } = await supabase.functions.invoke("sadad-payment", {
-      body: { op: "refund", payload: { paymentId, amount } },
+      body: {
+        op: "status",
+        payload: { paymentId },
+      },
     });
-    if (error || !data || data.error) {
-      throw new Error(error?.message ?? data?.error ?? "Refund failed");
+
+    const result = data as (SadadPaymentStatus & FunctionErrorPayload) | null;
+    if (error || !result || (result.error && !result.payment_id)) {
+      throw getFunctionError("SADAD_STATUS_LOOKUP_FAILED", result, error?.message);
     }
-    return data;
+
+    return result;
   }
 }
 
 export const sadadService = new SadadService();
-
-export async function initiateSadadPayment(params: {
-  amount: number;
-  bonusAmount?: number;
-  packageId: string;
-  userId: string;
-  userEmail?: string;
-  userPhone?: string;
-}): Promise<{ paymentId: string; paymentUrl: string }> {
-  const orderId = `WAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-  const response = await sadadService.createPayment({
-    amount: params.amount,
-    orderId,
-    customerId: params.userId,
-    customerEmail: params.userEmail,
-    customerPhone: params.userPhone,
-    description: `Wallet Top-up - ${params.amount} QAR${params.bonusAmount ? ` + ${params.bonusAmount} QAR bonus` : ""}`,
-    successUrl: `${window.location.origin}/wallet?payment=success&order=${orderId}`,
-    failureUrl: `${window.location.origin}/wallet?payment=failed&order=${orderId}`,
-  });
-
-  return {
-    paymentId: response.payment_id,
-    paymentUrl: response.payment_url,
-  };
-}

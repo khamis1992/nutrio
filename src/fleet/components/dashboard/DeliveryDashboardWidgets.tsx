@@ -7,7 +7,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Truck, Clock, CheckCircle2, TrendingUp, Loader2 } from "lucide-react";
 
@@ -20,7 +19,6 @@ interface DeliveryStats {
 }
 
 export function DeliveryDashboardWidgets() {
-  const { user } = useAuth();
   const [stats, setStats] = useState<DeliveryStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +37,7 @@ export function DeliveryDashboardWidgets() {
         supabase
           .from("delivery_jobs")
           .select("*", { count: "exact", head: true })
-          .in("status", ["claimed", "picked_up", "on_the_way"]),
+          .in("status", ["assigned", "accepted", "picked_up", "in_transit", "on_the_way"]),
         supabase
           .from("delivery_jobs")
           .select("*", { count: "exact", head: true })
@@ -51,7 +49,7 @@ export function DeliveryDashboardWidgets() {
           .eq("is_online", true),
         supabase
           .from("delivery_jobs")
-          .select("created_at, delivered_at, estimated_delivery_time")
+          .select("created_at, delivered_at")
           .in("status", ["delivered", "completed"])
           .gte("delivered_at", todayISO)
           .limit(200),
@@ -59,23 +57,18 @@ export function DeliveryDashboardWidgets() {
 
       // Calculate avg delivery time
       let avgTime = 0;
-      let onTime = 0;
       let total = 0;
 
-      (deliveryTimes || []).forEach((d: { delivered_at?: string; created_at?: string; estimated_delivery_time?: string }) => {
+      (deliveryTimes || []).forEach((d) => {
         if (d.delivered_at && d.created_at) {
           const mins = (new Date(d.delivered_at).getTime() - new Date(d.created_at).getTime()) / 60000;
           avgTime += mins;
           total++;
-          if (d.estimated_delivery_time) {
-            const est = new Date(d.estimated_delivery_time).getTime();
-            if (new Date(d.delivered_at).getTime() <= est) onTime++;
-          }
         }
       });
 
       avgTime = total > 0 ? Math.round(avgTime / total) : 0;
-      const onTimeRate = total > 0 ? Math.round((onTime / total) * 100) : 0;
+      const onTimeRate = 0;
 
       setStats({
         activeDeliveries: activeCount || 0,

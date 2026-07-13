@@ -9,7 +9,6 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { posthog } from "posthog-js";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { captureError } from "@/lib/sentry";
 
 interface MealLimitUpsellBannerProps {
   threshold?: number; // Default 0.8 (80%)
@@ -23,7 +22,7 @@ export function MealLimitUpsellBanner({
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { subscription, mealsUsed, totalMeals, remainingMeals, loading } = useSubscription();
+  const { subscription, mealsUsed, totalMeals, remainingMeals, isUnlimited, loading } = useSubscription();
   const [hasBeenDismissed, setHasBeenDismissed] = useState(false);
   const [impressionTracked, setImpressionTracked] = useState(false);
 
@@ -31,7 +30,7 @@ export function MealLimitUpsellBanner({
   const usageRatio = totalMeals > 0 ? mealsUsed / totalMeals : 0;
   const shouldShow = !loading && 
     subscription?.status === "active" && 
-    !subscription?.isUnlimited && 
+    !isUnlimited && 
     usageRatio >= threshold && 
     !hasBeenDismissed;
 
@@ -120,10 +119,10 @@ export function MealLimitUpsellBanner({
                     className={`h-2 ${isCritical ? '[&>div]:bg-amber-500' : '[&>div]:bg-blue-500'}`}
                   />
                   <p className={`text-xs ${isCritical ? 'text-amber-600' : 'text-blue-600'}`}>
-                    {subscription?.next_renewal_date 
+                    {subscription?.end_date 
                       ? t("mealLimit.mealsRemainingUntil", { 
                           count: remainingMeals, 
-                          date: new Date(subscription.next_renewal_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                          date: new Date(subscription.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                         })
                       : t("mealLimit.mealsRemainingUntilNextRenewal", { count: remainingMeals })}
                   </p>
@@ -184,12 +183,12 @@ export function useMealLimitTracking() {
 
 // Hook to check if user should see the banner
 export function useShouldShowMealLimitBanner(threshold = 0.8) {
-  const { subscription, mealsUsed, totalMeals, loading } = useSubscription();
+  const { subscription, mealsUsed, totalMeals, isUnlimited, loading } = useSubscription();
   
   if (loading) return false;
   if (!subscription) return false;
   if (subscription.status !== "active") return false;
-  if (subscription.isUnlimited) return false;
+  if (isUnlimited) return false;
   if (totalMeals === 0) return false;
   
   const usageRatio = mealsUsed / totalMeals;

@@ -71,6 +71,25 @@ function activityFuelAdjustment(input: NutritionPerformanceInput) {
 }
 
 export function calculateNutritionPerformance(input: NutritionPerformanceInput): NutritionPerformanceResult {
+  if (input.calorieTarget <= 0 || input.proteinTarget <= 0) {
+    return {
+      score: 0,
+      label: "Needs a nutrition goal",
+      summary: "Set your calorie and protein targets to unlock a personalized readiness score.",
+      primaryReason: "No saved nutrition target is available for this calculation.",
+      reasons: ["No saved nutrition target is available for this calculation."],
+      actionLabel: "Set nutrition goal",
+      actionPath: "/progress?tab=goals",
+      mealNeed: {
+        protein: 0,
+        calories: 0,
+        query: "",
+        category: "",
+        focus: "balanced",
+      },
+    };
+  }
+
   const calories = calorieScore(input.caloriesConsumed, input.calorieTarget);
   const protein = proteinScore(input.proteinConsumed, input.proteinTarget);
   const hydration = clamp(Math.round(input.waterPercent), 0, 100);
@@ -180,7 +199,7 @@ export function findNutritionMatchedMeal(
   candidates: MealCandidate[],
   performance: NutritionPerformanceResult,
 ): NutritionMatchedMeal | null {
-  if (!candidates.length) return null;
+  if (!candidates.length || performance.mealNeed.calories <= 0 || performance.mealNeed.protein <= 0) return null;
 
   const preferredType = performance.mealNeed.category;
   const calorieBudget = performance.mealNeed.calories;

@@ -255,7 +255,7 @@ export function useAutoWorkoutDetection() {
   }, [user]);
 
   // Adjust sensitivity thresholds (for tuning)
-  const updateThresholds = useCallback((newThreshold: number, newMinDuration?: number) => {
+  const updateThresholds = useCallback((newThreshold: number, _newMinDuration?: number) => {
     if (newThreshold >= 50 && newThreshold <= 200) {
       // Can't modify const, but logic uses these - in production would be state
 

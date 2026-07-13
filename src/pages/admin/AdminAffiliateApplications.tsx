@@ -42,9 +42,7 @@ import {
   Download,
   ChevronDown,
   ChevronUp,
-  Mail,
   RefreshCw,
-  UserCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -60,7 +58,7 @@ interface Application {
   reviewed_at: string | null;
   profile: {
     full_name: string | null;
-    email?: string;
+    email: string | null;
   } | null;
 }
 
@@ -97,7 +95,7 @@ const AdminAffiliateApplications = () => {
 
       const userIds = [...new Set((appsData || []).map((app) => app.user_id).filter(Boolean))];
       
-      let profilesData: { user_id: string; full_name: string | null; email?: string }[] = [];
+      let profilesData: { user_id: string; full_name: string | null; email: string | null }[] = [];
       if (userIds.length > 0) {
         const { data } = await supabase
           .from("profiles")

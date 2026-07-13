@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 interface Milestone {
   id: string;
@@ -24,7 +24,7 @@ export function useCelebrate(conditions: {
     if (check && !celebrated.current.has(id)) {
       celebrated.current.add(id);
       toast.custom(
-        (t) => (
+        () => (
           <motion.div
              initial={{ x: 50, opacity: 0, scale: 0.9 }}
              animate={{ x: 0, opacity: 1, scale: 1 }}

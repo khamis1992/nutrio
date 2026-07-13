@@ -1,3 +1,4 @@
+import os
 import time
 from playwright.sync_api import sync_playwright
 
@@ -22,8 +23,8 @@ def run_tests():
         
         # Fill credentials
         print("Filling credentials...")
-        page.fill('#si-email', 'eng.aljabor@gmail.com')
-        page.fill('#si-password', '123456789')
+        page.fill('#si-email', os.environ["E2E_CUSTOMER_EMAIL"])
+        page.fill('#si-password', os.environ["E2E_CUSTOMER_PASSWORD"])
         
         # Click Sign In submit button
         time.sleep(2)

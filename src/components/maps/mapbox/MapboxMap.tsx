@@ -141,7 +141,8 @@ export const MapContainer = forwardRef<MapRef, MapContainerProps>(function MapCo
     });
 
     // Expose map instance globally for child components
-    (mapContainerRef.current as HTMLDivElement).__map__ = map;
+    const mapContainer = mapContainerRef.current as HTMLDivElement & { __map__?: mapboxgl.Map };
+    mapContainer.__map__ = map;
     mapRef.current = map;
 
     return () => {

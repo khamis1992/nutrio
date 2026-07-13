@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import sync_playwright
 
 def debug_restaurants_query():
@@ -40,8 +41,8 @@ def debug_restaurants_query():
         page.wait_for_load_state('networkidle')
         
         if '/auth' in page.url:
-            page.fill('input[type="email"]', 'khamis-1992@hotmail.com')
-            page.fill('input[type="password"]', 'Khamees1992#')
+            page.fill('input[type="email"]', os.environ["E2E_ADMIN_EMAIL"])
+            page.fill('input[type="password"]', os.environ["E2E_ADMIN_PASSWORD"])
             page.click('button[type="submit"]')
             page.wait_for_timeout(4000)
         

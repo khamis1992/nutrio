@@ -78,12 +78,8 @@ export default function Tracker() {
         return () => clearTimeout(tmr);
       }
     }
+    return undefined;
   }, [user, profile, showActivityPrompt]);
-
-  const saveSteps = (value: number) => {
-    setSteps(value);
-    localStorage.setItem(`tracker_steps_${user?.id}_${today}`, String(value));
-  };
 
   const currentWeight = latestMeasurement?.weight_kg ?? profile?.current_weight_kg ?? null;
   const prevWeight = measurements[1]?.weight_kg ?? null;

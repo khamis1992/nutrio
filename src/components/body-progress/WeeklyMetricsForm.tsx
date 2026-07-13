@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Scale, Ruler, Percent, Dumbbell, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, startOfWeek } from "date-fns";
+import { startOfWeek } from "date-fns";
 
 interface WeeklyMetricsFormProps {
   onSuccess: () => void;

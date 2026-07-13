@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface UseRealtimeTableOptions<T = Record<string, unknown>> {
   event?: "INSERT" | "UPDATE" | "DELETE" | "*";
   filter?: string;
-  schema?: string;
+  schema?: "public";
   enabled?: boolean;
   onInsert?: (payload: { new: T }) => void;
   onUpdate?: (payload: { new: T; old: T }) => void;
@@ -53,7 +53,8 @@ export function useRealtimeTable<T = Record<string, unknown>>(
       .on(
         "postgres_changes",
         { event, schema, table, filter },
-        (payload: PostgresChangePayload<T>) => {
+        (rawPayload) => {
+          const payload = rawPayload as unknown as PostgresChangePayload<T>;
           const { onInsert: ins, onUpdate: upd, onDelete: del, onChange: chg } = callbacksRef.current;
           chg?.();
 

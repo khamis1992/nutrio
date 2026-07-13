@@ -3,7 +3,6 @@ import { useCallback, useState, type ReactNode } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  ChevronLeft,
   HeartPulse,
   ShieldCheck,
   Sparkles,

@@ -1,8 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { captureError } from '@/lib/sentry';
+import type { Database } from '@/integrations/supabase/types';
+
+type CancellationReason = Database['public']['Enums']['cancellation_reason'];
 
 export interface SubscriptionPlan {
   id: string;
@@ -35,7 +39,7 @@ interface UseSubscriptionManagementReturn {
   createSubscription: (tier: string, billingInterval: string) => Promise<{ success: boolean; error?: string }>;
   upgradeSubscription: (tier: string, billingInterval?: string, paymentMethod?: 'wallet' | 'card') => Promise<{ success: boolean; error?: string }>;
   getWinBackOffers: (step: number) => Promise<WinBackOffer[]>;
-  processCancellation: (step: number, reason?: string, reasonDetails?: string, offerCode?: string, acceptOffer?: boolean) => Promise<{ success: boolean; action?: string; error?: string }>;
+  processCancellation: (step: number, reason?: CancellationReason, reasonDetails?: string, offerCode?: string, acceptOffer?: boolean) => Promise<{ success: boolean; action?: string; error?: string }>;
   resumeSubscription: () => Promise<{ success: boolean; error?: string }>;
   isLoading: boolean;
   isProcessing: boolean;
@@ -48,6 +52,7 @@ interface UseSubscriptionManagementReturn {
 export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan | null>(null);
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
@@ -66,7 +71,17 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
           .order('price_qar', { ascending: true });
 
         if (error) throw error;
-        setPlans(data || []);
+        setPlans((data || []).map((plan) => ({
+          id: plan.id,
+          tier: plan.tier,
+          billing_interval: plan.billing_interval,
+          price_qar: plan.price_qar,
+          meals_per_month: plan.meals_per_month,
+          discount_percent: plan.discount_percent ?? 0,
+          features: Array.isArray(plan.features)
+            ? plan.features.filter((feature): feature is string => typeof feature === 'string')
+            : [],
+        })));
       } catch (err) {
         captureError(err instanceof Error ? err : new Error('Failed to fetch plans'), {
           context: 'useSubscriptionManagement.fetchPlans'
@@ -123,25 +138,13 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
 
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.rpc('create_subscription', {
-        p_user_id: user.id,
-        p_tier: tier,
-        p_billing_interval: interval,
-      });
+      const plan = plans.find(
+        (candidate) => candidate.tier === tier && candidate.billing_interval === interval,
+      );
+      if (!plan) throw new Error('Subscription plan is not available');
 
-      if (error) throw error;
-
-      const result = data as { success: boolean; error?: string; subscription_id?: string };
-
-      if (result.success) {
-        toast({
-          title: 'Subscription Created! 🎉',
-          description: `Your ${tier} plan is now active.`,
-        });
-        return { success: true };
-      } else {
-        throw new Error(result.error || 'Failed to create subscription');
-      }
+      navigate(`/checkout?type=subscription&planId=${encodeURIComponent(plan.id)}`);
+      return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create subscription';
       captureError(err instanceof Error ? err : new Error(message), {
@@ -158,7 +161,7 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
     } finally {
       setIsProcessing(false);
     }
-  }, [user, toast]);
+  }, [navigate, plans, toast, user]);
 
   const upgradeSubscription = useCallback(async (
     tier: string,
@@ -180,12 +183,24 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
         return { success: false, error: 'No active subscription found' };
       }
 
+      const targetInterval = interval || billingInterval;
+      const targetPlan = plans.find(
+        (candidate) => candidate.tier === tier && candidate.billing_interval === targetInterval,
+      );
+      if (!targetPlan) return { success: false, error: 'Target plan not found' };
+
+      if (paymentMethod === 'card') {
+        navigate(
+          `/checkout?type=subscription&planId=${encodeURIComponent(targetPlan.id)}&subscriptionId=${encodeURIComponent(subscription.id)}`,
+        );
+        return { success: true };
+      }
+
       const { data, error } = await supabase.functions.invoke('upgrade-subscription', {
         body: {
           subscription_id: subscription.id,
-          new_tier: tier,
-          new_billing_interval: interval,
-          payment_method: paymentMethod,
+          new_plan_id: targetPlan.id,
+          payment_method: 'wallet',
         },
       });
 
@@ -220,7 +235,7 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
     } finally {
       setIsProcessing(false);
     }
-  }, [user, toast]);
+  }, [billingInterval, navigate, plans, toast, user]);
 
   const getWinBackOffers = useCallback(async (step: number): Promise<WinBackOffer[]> => {
     if (!user) return [];
@@ -252,7 +267,7 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
 
   const processCancellation = useCallback(async (
     step: number,
-    reason?: string,
+    reason?: CancellationReason,
     reasonDetails?: string,
     offerCode?: string,
     acceptOffer?: boolean
@@ -342,7 +357,7 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
         .from('subscriptions')
         .select('id')
         .eq('user_id', user.id)
-        .eq('status', 'paused')
+        .eq('status', 'pending')
         .single();
 
       if (!subscription) {
@@ -355,16 +370,14 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
 
       if (error) throw error;
 
-      const result = data as { success: boolean; error?: string; message?: string };
-
-      if (result.success) {
+      if (data === true) {
         toast({
           title: 'Subscription Resumed! 🎉',
-          description: result.message || 'Your subscription has been resumed.',
+          description: 'Your subscription has been resumed.',
         });
         return { success: true };
       } else {
-        throw new Error(result.error || 'Failed to resume subscription');
+        throw new Error('This subscription cannot be resumed yet.');
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to resume subscription';

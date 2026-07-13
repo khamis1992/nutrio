@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import sync_playwright
 import time
 
@@ -19,10 +20,10 @@ with sync_playwright() as p:
             attrs = inp.evaluate("el => ({type: el.type, placeholder: el.placeholder})")
             print(f"  Input {i}: {attrs}")
         if len(inputs) > 0:
-            inputs[0].fill("eng.aljabor@gmail.com")
+            inputs[0].fill(os.environ["E2E_CUSTOMER_EMAIL"])
             print("Filled email")
         if len(inputs) > 1:
-            inputs[1].fill("123456789")
+            inputs[1].fill(os.environ["E2E_CUSTOMER_PASSWORD"])
             print("Filled password")
         time.sleep(1)
         buttons = page.locator("button").all()

@@ -94,11 +94,14 @@ Generate a 7-day plan (28 meals total). Include ~6 discovery meals. Match taste 
 
   if (aiResponse) {
     try {
-      const parsed = JSON.parse(aiResponse.replace(/```json\n?|\n?```/g, ""));
+      const parsed = JSON.parse(aiResponse.replace(/```json\n?|\n?```/g, "")) as { meals?: ParsedMeal[] };
       type ParsedMeal = { meal_id: string; meal_type?: string; day_index?: number; confidence?: number; reason?: string };
-      const recommendations = (parsed.meals || []).map((m: ParsedMeal) => ({
+      const mealTypes: TasteAwareMeal["meal_type"][] = ["breakfast", "lunch", "dinner", "snack"];
+      const recommendations: TasteAwareMeal[] = (parsed.meals || []).map((m) => ({
         meal_id: m.meal_id,
-        meal_type: m.meal_type || "lunch",
+        meal_type: mealTypes.includes(m.meal_type as TasteAwareMeal["meal_type"])
+          ? m.meal_type as TasteAwareMeal["meal_type"]
+          : "lunch",
         day_index: m.day_index || 0,
         confidence: m.confidence || 70,
         reason: m.reason || "Recommended based on your preferences",

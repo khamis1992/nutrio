@@ -12,8 +12,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchAndSaveGoogleFitWorkouts } from "@/lib/google-fit-workout-service";
+import { getQatarDay } from "@/lib/dateUtils";
 import {
   getConfig,
   saveConfig,
@@ -33,7 +35,7 @@ import type { HealthDailyMetrics } from "@/lib/health-readiness";
 const POLL_INTERVAL = 15 * 60 * 1000; // 15 minutes
 
 async function upsertHealthDailyMetrics(userId: string, syncedData: SyncedHealthData) {
-  const metricDate = new Date().toISOString().split("T")[0];
+  const metricDate = getQatarDay(new Date(syncedData.syncedAt));
   const payload: Partial<HealthDailyMetrics> & { user_id: string; metric_date: string } = {
     user_id: userId,
     metric_date: metricDate,
@@ -57,7 +59,7 @@ async function upsertHealthDailyMetrics(userId: string, syncedData: SyncedHealth
     .upsert(payload as never, { onConflict: "user_id,metric_date" });
 
   if (error) {
-    console.warn("Failed to save health daily metrics:", error.message);
+    throw error;
   }
 }
 
@@ -74,14 +76,14 @@ export interface HealthKitState {
 export function useHealthKitIntegration() {
   const { user } = useAuth();
   const [state, setState] = useState<HealthKitState>(() => {
-    const config = getConfig();
+    const config = getConfig(user?.id);
     return {
       platform: config.platform,
       isAvailable: false,
       isConnected: config.enabledDataTypes.length > 0,
       enabledTypes: config.enabledDataTypes,
       lastSyncTimestamp: config.lastSyncTimestamp,
-      syncedData: getCachedHealthData(),
+      syncedData: getCachedHealthData(user?.id, getQatarDay()),
       isSyncing: false,
     };
   });
@@ -170,7 +172,7 @@ export function useHealthKitIntegration() {
 
   const syncData = useCallback(async (): Promise<void> => {
     if (!user) return;
-    const config = getConfig();
+    const config = getConfig(user.id);
     if (config.enabledDataTypes.length === 0) return;
 
     setState((prev) => ({ ...prev, isSyncing: true }));
@@ -260,18 +262,18 @@ export function useHealthKitIntegration() {
         }
       }
 
-      setCachedHealthData(syncedData);
-
-      await supabase.from("health_sync_data").upsert({
+      const { error: syncHistoryError } = await supabase.from("health_sync_data").upsert({
         user_id: user.id,
         platform: config.platform,
-        data: syncedData,
+        data: syncedData as unknown as Json,
         synced_at: new Date().toISOString(),
       });
+      if (syncHistoryError) throw syncHistoryError;
 
       await upsertHealthDailyMetrics(user.id, syncedData);
+      setCachedHealthData(syncedData, user.id, getQatarDay(new Date(syncedData.syncedAt)));
 
-      const updatedConfig = markSynced();
+      const updatedConfig = markSynced(user.id);
       setState((prev) => ({
         ...prev,
         syncedData,
@@ -296,13 +298,13 @@ export function useHealthKitIntegration() {
         }
       }
 
-      const config = getConfig();
+      const config = getConfig(user.id);
       if (enabled && !config.enabledDataTypes.includes(dataType)) {
         config.enabledDataTypes.push(dataType);
       } else if (!enabled) {
         config.enabledDataTypes = config.enabledDataTypes.filter((d) => d !== dataType);
       }
-      saveConfig(config);
+      saveConfig(config, user.id);
 
       const hasAny = config.enabledDataTypes.length > 0;
       setState((prev) => ({
@@ -323,7 +325,7 @@ export function useHealthKitIntegration() {
   );
 
   const disconnect = useCallback(() => {
-    disconnectAll();
+    disconnectAll(user?.id);
     setState((prev) => ({
       ...prev,
       enabledTypes: [],
@@ -332,7 +334,7 @@ export function useHealthKitIntegration() {
       lastSyncTimestamp: null,
     }));
     toast.success(`Disconnected from ${PLATFORM_LABELS[state.platform]}`);
-  }, [state.platform]);
+  }, [state.platform, user?.id]);
 
   const formatLastSync = useCallback((): string => {
     if (!state.lastSyncTimestamp) return "Never";
@@ -357,7 +359,7 @@ export function useHealthKitIntegration() {
     }
 
     const doSync = async () => {
-      if (shouldSync()) {
+      if (user && shouldSync(getConfig(user.id))) {
         await syncData();
       }
     };
@@ -374,12 +376,25 @@ export function useHealthKitIntegration() {
         intervalRef.current = null;
       }
     };
-  }, [state.enabledTypes, syncData]);
+  }, [state.enabledTypes, syncData, user]);
 
   // Check availability on mount
   useEffect(() => {
     checkAvailability();
   }, [checkAvailability]);
+
+  useEffect(() => {
+    const config = getConfig(user?.id);
+    setState((previous) => ({
+      ...previous,
+      platform: config.platform,
+      isConnected: config.enabledDataTypes.length > 0,
+      enabledTypes: config.enabledDataTypes,
+      lastSyncTimestamp: config.lastSyncTimestamp,
+      syncedData: getCachedHealthData(user?.id, getQatarDay()),
+      isSyncing: false,
+    }));
+  }, [user?.id]);
 
   return {
     ...state,

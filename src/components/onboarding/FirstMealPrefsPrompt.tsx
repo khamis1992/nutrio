@@ -15,8 +15,12 @@ export const FirstMealPrefsPrompt = ({ onClose }: FirstMealPrefsPromptProps) => 
   const { dietTags, allergyTags, loading: dietTagsLoading } = useDietTags();
   const { toast } = useToast();
   const { t } = useLanguage();
-  const [prefs, setPrefs] = useState<string[]>(profile?.food_preferences ?? []);
-  const [allergies, setAllergies] = useState<string[]>(profile?.allergies ?? []);
+  const mealPreferences = profile as (typeof profile & {
+    food_preferences?: string[] | null;
+    allergies?: string[] | null;
+  });
+  const [prefs, setPrefs] = useState<string[]>(mealPreferences?.food_preferences ?? []);
+  const [allergies, setAllergies] = useState<string[]>(mealPreferences?.allergies ?? []);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {

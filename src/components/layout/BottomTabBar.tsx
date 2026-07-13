@@ -20,11 +20,6 @@ export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
 
   const visibleNavItems = isRTL ? [...navItems].reverse() : navItems;
 
-  // Track which item is active based on path, not position
-  const activeTab = navItems.find(
-    (item) => location.pathname === item.path || location.pathname.startsWith(item.path + "/")
-  )?.key ?? null;
-
   const isActiveTab = (item: typeof navItems[0]) => {
     if (item.path === "/dashboard") {
       return location.pathname === "/dashboard";

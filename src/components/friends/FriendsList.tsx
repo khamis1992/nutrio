@@ -1,6 +1,5 @@
-import { User, Flame, MoreVertical, UserMinus, ChevronRight } from "lucide-react";
+import { User, Flame, UserMinus, ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Friend } from "@/hooks/useFriends";
 import { useLanguage } from "@/contexts/LanguageContext";
 

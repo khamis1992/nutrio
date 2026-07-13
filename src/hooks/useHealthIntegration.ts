@@ -7,7 +7,8 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import type { HealthData, WorkoutData } from "@/lib/health-types";
+import type { WorkoutData } from "@/lib/health-types";
+import type { Json } from "@/integrations/supabase/types";
 import {
   detectHealthPlatform,
   fetchHealthData,
@@ -82,7 +83,7 @@ export function useHealthIntegration() {
         await supabase.from("health_sync_data").upsert({
           user_id: user.id,
           platform: currentPlatform,
-          data: healthData,
+          data: JSON.parse(JSON.stringify(healthData)) as Json,
           synced_at: new Date().toISOString(),
         });
         

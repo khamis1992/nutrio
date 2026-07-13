@@ -24,6 +24,24 @@ export interface MealAllergen {
   notes: string | null;
 }
 
+type MealAllergenRow = {
+  id: string;
+  severity: string | null;
+  notes: string | null;
+  allergen: AllergenTag | null;
+};
+
+type MealAllergenResult = {
+  data: MealAllergenRow[] | null;
+  error: { message: string } | null;
+};
+
+type MealAllergenTable = {
+  select: (columns: string) => {
+    eq: (column: "meal_id", value: string) => PromiseLike<MealAllergenResult>;
+  };
+};
+
 export const useDietTags = () => {
   const [dietTags, setDietTags] = useState<DietTag[]>([]);
   const [allergyTags, setAllergyTags] = useState<DietTag[]>([]);
@@ -124,18 +142,22 @@ export const useMealAllergens = (mealId: string | undefined) => {
     const fetchMealAllergens = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("meal_allergens")
+        const mealAllergenTable = (supabase as unknown as {
+          from: (table: "meal_allergens") => MealAllergenTable;
+        }).from("meal_allergens");
+        const { data, error } = await mealAllergenTable
           .select("id, severity, notes, allergen:allergen_id(*)")
           .eq("meal_id", mealId);
 
         if (error) throw error;
-        setMealAllergens((data || []).map(item => ({
-          id: item.id,
-          allergen: item.allergen as unknown as AllergenTag,
-          severity: item.severity || "moderate",
-          notes: item.notes,
-        })));
+        setMealAllergens((data ?? [])
+          .filter((item): item is MealAllergenRow & { allergen: AllergenTag } => Boolean(item.allergen))
+          .map(item => ({
+            id: item.id,
+            allergen: item.allergen,
+            severity: item.severity || "moderate",
+            notes: item.notes,
+          })));
       } catch (err) {
         console.error("Error fetching meal allergens:", err);
         setMealAllergens([]);

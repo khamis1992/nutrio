@@ -25,7 +25,7 @@ interface ScoredMeal extends Meal {
 }
 
 export function RecommendedForYou() {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const { profile, loading: profileLoading } = useTastePreferences();
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,8 +48,6 @@ export function RecommendedForYou() {
     if (profileLoading || !meals.length) return [];
 
     const orderedMealIds = new Set<string>();
-    const reasons: string[] = [];
-
     // Safe access to taste profile fields (JSONB may have empty object)
     const favCuisines = profile?.favoriteCuisines || [];
     const topIngredients = profile?.topIngredients || [];

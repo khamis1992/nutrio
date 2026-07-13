@@ -14,13 +14,7 @@ import {
 } from "lucide-react";
 import { useDrivers } from "@/fleet/hooks/useDrivers";
 import { toast } from "@/hooks/use-toast";
-
-// Mock driver data for calculation
-const mockDriverEarnings = [
-  { driverId: "1", driverName: "Ahmed M.", deliveries: 45, baseEarnings: 1125, rating: 4.8 },
-  { driverId: "2", driverName: "Mohammed S.", deliveries: 38, baseEarnings: 950, rating: 4.9 },
-  { driverId: "3", driverName: "Khalid A.", deliveries: 32, baseEarnings: 800, rating: 4.5 },
-];
+import { createDriverPayoutForOperator } from "@/lib/payouts";
 
 export default function PayoutProcessing() {
   const navigate = useNavigate();
@@ -31,6 +25,7 @@ export default function PayoutProcessing() {
   const [processing, setProcessing] = useState(false);
   
   const { drivers } = useDrivers({});
+  const eligibleDrivers = drivers.filter((driver) => driver.currentBalance > 0);
 
   const toggleDriver = (driverId: string) => {
     setSelectedDrivers(prev => 
@@ -41,15 +36,14 @@ export default function PayoutProcessing() {
   };
 
   const calculateEarnings = (driverId: string) => {
-    const mock = mockDriverEarnings.find(m => m.driverId === driverId);
-    if (!mock) return { base: 0, bonus: 0, penalty: 0, total: 0 };
-    
-    const bonus = mock.rating >= 4.8 ? mock.baseEarnings * 0.1 : 0;
+    const driver = drivers.find((candidate) => candidate.id === driverId);
+    const availableBalance = driver?.currentBalance || 0;
+
     return {
-      base: mock.baseEarnings,
-      bonus: Math.round(bonus),
+      base: availableBalance,
+      bonus: 0,
       penalty: 0,
-      total: mock.baseEarnings + Math.round(bonus)
+      total: availableBalance,
     };
   };
 
@@ -81,17 +75,43 @@ export default function PayoutProcessing() {
 
   const confirmPayout = async () => {
     setProcessing(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    toast({
-      title: "Success",
-      description: `Processed payouts for ${selectedDrivers.length} drivers (QAR ${totalAmount.toLocaleString()})`,
-    });
-    
-    setProcessing(false);
-    navigate("/fleet/payouts");
+
+    try {
+      const results = await Promise.allSettled(
+        selectedDrivers.map((driverId) =>
+          createDriverPayoutForOperator(driverId, periodStart, periodEnd),
+        ),
+      );
+      const completed = results.filter((result) => result.status === "fulfilled");
+      const failed = results.filter((result) => result.status === "rejected");
+
+      if (completed.length === 0) {
+        const firstFailure = failed[0];
+        throw firstFailure?.status === "rejected"
+          ? firstFailure.reason
+          : new Error("No payout could be created");
+      }
+
+      toast({
+        title: "Payouts reserved",
+        description: `${completed.length} payout request(s) created from live driver balances${
+          failed.length > 0 ? `; ${failed.length} require bank details or review` : ""
+        }.`,
+      });
+      navigate("/fleet/payouts");
+    } catch (error) {
+      console.error("Failed to create driver payouts:", error);
+      toast({
+        title: "Payout processing failed",
+        description:
+          error instanceof Error
+            ? error.message.replace(/_/g, " ")
+            : "Could not create payout requests",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   if (showConfirmation) {
@@ -238,7 +258,7 @@ export default function PayoutProcessing() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {drivers.map((driver) => {
+            {eligibleDrivers.map((driver) => {
               const earnings = calculateEarnings(driver.id);
               const isSelected = selectedDrivers.includes(driver.id);
               
@@ -260,12 +280,11 @@ export default function PayoutProcessing() {
                   <div className="text-right">
                     {isSelected ? (
                       <div className="text-sm">
-                        <p>Base: QAR {earnings.base}</p>
-                        {earnings.bonus > 0 && <p className="text-green-600">Bonus: +QAR {earnings.bonus}</p>}
+                        <p>Available: QAR {earnings.base.toLocaleString()}</p>
                         <p className="font-semibold">Total: QAR {earnings.total}</p>
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">Click to calculate</p>
+                      <p className="text-sm text-muted-foreground">Live wallet balance</p>
                     )}
                   </div>
                 </div>
@@ -273,10 +292,10 @@ export default function PayoutProcessing() {
             })}
           </div>
 
-          {drivers.length === 0 && (
+          {eligibleDrivers.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>No drivers available</p>
+              <p>No drivers have an available payout balance</p>
             </div>
           )}
         </CardContent>

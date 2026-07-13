@@ -6,12 +6,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useNutritionGoals } from "@/hooks/useNutritionGoals";
 import { useWallet } from "@/hooks/useWallet";
 import { formatCurrency } from "@/lib/currency";
 import { findCoachMealSuggestion, getCoachMealScheduleFields } from "@/lib/coach-meal-schedule";
 import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
-import { calculateGoalAlignmentScore } from "@/lib/goal-engine";
+import { scheduleMealsAtomic, type ScheduleMealInput } from "@/lib/schedule-meals";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
@@ -43,8 +42,7 @@ import {
   Beef,
   Sparkles,
   Wallet,
-  ArrowLeft, ChevronLeft,
-  ArrowRight,
+  ArrowLeft,
   X,
   Utensils,
 } from "lucide-react";
@@ -55,7 +53,6 @@ import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { useLanguage } from "@/contexts/LanguageContext";
 import EmptyMealSlot from "@/components/schedule/EmptyMealSlot";
 import ScheduleHeader from "@/components/schedule/ScheduleHeader";
-import WeeklyProgressBar from "@/components/schedule/WeeklyProgressBar";
 import MealDetailSheet from "@/components/schedule/MealDetailSheet";
 import LogMealModal from "@/components/LogMealModal";
 import { MealPlanGenerator } from "@/components/meal/MealPlanGenerator";
@@ -66,6 +63,8 @@ interface ScheduledMeal {
   id: string;
   scheduled_date: string;
   meal_type: string;
+  meal_id: string;
+  created_at: string;
   is_completed: boolean;
   delivery_time_slot: string | null;
   order_status: string;
@@ -178,11 +177,10 @@ const Schedule = () => {
   const selectedComboParam = searchParams.get("combo") || "";
   const { user } = useAuth();
   const { profile } = useProfile();
-  const { activeGoal } = useNutritionGoals(user?.id);
   const { settings, loading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
   const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
-  const { remainingMeals, isUnlimited, hasActiveSubscription, subscription, remainingSnacks, snacksPerMonth, incrementMealUsage, incrementSnackUsage, refetch: refetchSubscription } = useSubscription();
+  const { remainingMeals, isUnlimited, hasActiveSubscription, subscription, remainingSnacks, snacksPerMonth, refetch: refetchSubscription } = useSubscription();
   const { wallet, refresh: refetchWallet } = useWallet();
 
   const pricePerMeal = subscription?.price_per_meal ?? 50;
@@ -197,27 +195,20 @@ const Schedule = () => {
     if (balance < pricePerMeal) { navigate("/wallet"); return; }
     setBuyLoading(true);
     try {
-      const { error: debitErr } = await supabase.rpc("debit_wallet", {
-        p_user_id: user.id,
-        p_amount: pricePerMeal,
-        p_reference_type: "order",
-        p_description: "Extra meal credit purchase",
-        p_metadata: { subscription_id: subscription.id },
-      });
-      if (debitErr) throw debitErr;
-
-      const { error: subErr } = await supabase
-        .from("subscriptions")
-        .update({ meals_per_month: subscription.meals_per_month + 1 })
-        .eq("id", subscription.id);
-      if (subErr) throw subErr;
+      const { data, error } = await supabase.rpc(
+        "purchase_extra_meal_credit" as never,
+        { p_subscription_id: subscription.id } as never,
+      );
+      if (error) throw error;
+      const result = data as unknown as { success?: boolean; amount?: number } | null;
+      if (!result?.success) throw new Error("Meal credit purchase was not completed");
 
       refetchWallet();
       await refetchSubscription();
       setShowBuyCredit(false);
       toast({
         title: "Meal credit added!",
-        description: `1 meal added to your plan — QAR ${pricePerMeal} deducted.`,
+        description: `1 meal added to your plan — QAR ${result.amount ?? pricePerMeal} deducted.`,
       });
     } catch (err) {
       toast({ title: "Purchase failed", description: err instanceof Error ? err.message : "Failed", variant: "destructive" });
@@ -239,7 +230,7 @@ const Schedule = () => {
   const [comboLoading, setComboLoading] = useState(false);
   const [comboApplying, setComboApplying] = useState(false);
 
-  const { unavailableMeals, dismissMeal, performSubstitution, hasUnavailable } = useSmartSubstitutions({
+  const { unavailableMeals, dismissMeal, performSubstitution } = useSmartSubstitutions({
     userId: user?.id,
     schedules,
     enabled: settings.features.meal_scheduling && !settingsLoading,
@@ -247,11 +238,7 @@ const Schedule = () => {
   const [showWizard, setShowWizard] = useState(false);
   const [wizardInitialStep, setWizardInitialStep] = useState(0);
   const [wizardAutoFill, setWizardAutoFill] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const [showInlinePreview, setShowInlinePreview] = useState(false);
-  const [inlinePreviewLoading, setInlinePreviewLoading] = useState(false);
-  const [inlinePreviewMeals, setInlinePreviewMeals] = useState<ScheduledMeal[]>([]);
+  const [, setIsRefreshing] = useState(false);
 
   const [selectedMeal, setSelectedMeal] = useState<ScheduledMeal | null>(null);
   const [showMealSheet, setShowMealSheet] = useState(false);
@@ -266,7 +253,7 @@ const Schedule = () => {
 
   useEffect(() => {
     if (sessionStorage.getItem("nutrio_onboarding_done") === "true") return;
-    if (profile && !profile.onboarding_completed && !profile.goal) {
+    if (profile && !profile.onboarding_completed && !profile.health_goal) {
       navigate("/onboarding");
     }
   }, [profile, navigate]);
@@ -285,6 +272,7 @@ const Schedule = () => {
         meal_type,
         is_completed,
         meal_id,
+        created_at,
         delivery_time_slot,
         order_status
       `)
@@ -300,7 +288,10 @@ const Schedule = () => {
       return;
     }
 
-    const mealIds = (schedulesData || []).map((s: { meal_id: string | null }) => s.meal_id).filter(Boolean);
+    const schedulesWithMeals = (schedulesData || []).filter(
+      (schedule): schedule is typeof schedule & { meal_id: string } => typeof schedule.meal_id === "string"
+    );
+    const mealIds = schedulesWithMeals.map((schedule) => schedule.meal_id);
     let mealsMap: Record<string, { id: string; name: string; calories: number; protein_g: number; carbs_g: number; fat_g: number; image_url: string | null }> = {};
 
     if (mealIds.length > 0) {
@@ -311,22 +302,32 @@ const Schedule = () => {
 
       if (mealsError) {
         console.error("Error fetching meals for schedule:", mealsError);
-        setError(mealsError.message);
+        toast({ title: t("error"), description: mealsError.message, variant: "destructive" });
         setLoading(false);
         return;
       }
 
       mealsMap = (mealsData || []).reduce((acc: Record<string, { id: string; name: string; calories: number; protein_g: number; carbs_g: number; fat_g: number; image_url: string | null }>, meal) => {
-        acc[meal.id] = meal;
+        acc[meal.id] = {
+          id: meal.id,
+          name: meal.name,
+          calories: meal.calories ?? 0,
+          protein_g: meal.protein_g ?? 0,
+          carbs_g: meal.carbs_g ?? 0,
+          fat_g: meal.fat_g ?? 0,
+          image_url: meal.image_url,
+        };
         return acc;
       }, {});
     }
 
-    const mergedSchedules: ScheduledMeal[] = (schedulesData || []).map((schedule) => ({
+    const mergedSchedules: ScheduledMeal[] = schedulesWithMeals.map((schedule) => ({
       id: schedule.id,
       scheduled_date: schedule.scheduled_date,
       meal_type: schedule.meal_type,
-      is_completed: schedule.is_completed,
+      meal_id: schedule.meal_id,
+      created_at: schedule.created_at ?? `${schedule.scheduled_date}T00:00:00.000Z`,
+      is_completed: schedule.is_completed ?? false,
       delivery_time_slot: schedule.delivery_time_slot || null,
       order_status: schedule.order_status || "pending",
       meal: mealsMap[schedule.meal_id] || {
@@ -376,11 +377,12 @@ const Schedule = () => {
     let cancelled = false;
     setComboLoading(true);
 
-    supabase
-      .from("meals")
-      .select("id,name,calories,protein_g,carbs_g,fat_g,image_url,meal_type,restaurant_id")
-      .in("id", mealIds)
-      .then(({ data, error }) => {
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("meals")
+          .select("id,name,calories,protein_g,carbs_g,fat_g,image_url,meal_type,restaurant_id")
+          .in("id", mealIds);
         if (cancelled) return;
         if (error) {
           console.error("Error loading selected combo:", error);
@@ -404,10 +406,10 @@ const Schedule = () => {
         }, {});
 
         setComboMeals(mealIds.map((id) => mealMap[id]).filter(Boolean));
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setComboLoading(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -473,6 +475,8 @@ const Schedule = () => {
 
     setComboApplying(true);
     try {
+      if (!subscription?.id) throw new Error("SUBSCRIPTION_NOT_FOUND");
+
       const rowsWithCoachContext = await Promise.all(
         rows.map(async (row) => {
           const coachSuggestion = await findCoachMealSuggestion({
@@ -489,16 +493,31 @@ const Schedule = () => {
         })
       );
 
-      const { error } = await supabase.from("meal_schedules").insert(rowsWithCoachContext);
-      if (error) throw error;
+      const items: ScheduleMealInput[] = rowsWithCoachContext.map((row) => ({
+        meal_id: row.meal_id,
+        scheduled_date: row.scheduled_date,
+        meal_type: row.meal_type,
+        delivery_time_slot: row.delivery_time_slot,
+        ...getCoachMealScheduleFields(
+          row.coach_program_id && row.program_meal_id && row.coach_suggested_meal_id
+            ? {
+                programMealId: row.program_meal_id,
+                coachProgramId: row.coach_program_id,
+                suggestedMealId: row.coach_suggested_meal_id,
+                suggestedMealName: "Coach meal",
+                status: row.coach_replacement_status as "followed" | "replaced",
+                macroDelta: row.coach_replacement_delta as {
+                  calories: number;
+                  protein_g: number;
+                  carbs_g: number;
+                  fat_g: number;
+                },
+              }
+            : null,
+        ),
+      }));
 
-      for (const row of rows) {
-        if (row?.meal_type === "snack") {
-          await incrementSnackUsage();
-        } else {
-          await incrementMealUsage();
-        }
-      }
+      await scheduleMealsAtomic(subscription.id, items);
 
       await refetchSubscription();
       await fetchSchedules();
@@ -517,7 +536,7 @@ const Schedule = () => {
     } finally {
       setComboApplying(false);
     }
-  }, [clearSelectedCombo, comboMeals, fetchSchedules, hasActiveSubscription, incrementMealUsage, incrementSnackUsage, refetchSubscription, schedules, selectedDate, toast, user]);
+  }, [clearSelectedCombo, comboMeals, fetchSchedules, hasActiveSubscription, refetchSubscription, schedules, selectedDate, subscription?.id, toast, user]);
 
   const toggleMealCompletion = async (scheduleId: string, isCompleted: boolean, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -551,8 +570,6 @@ const Schedule = () => {
       const success = raw.success ?? raw.s ?? false;
       const errMsg = (raw.error ?? raw.e ?? 'Failed to update meal') as string;
       const wasAlreadyCompleted = (raw.was_already_completed ?? raw.a ?? false) as boolean;
-      const nothingToUndo = (raw.nothing_to_undo ?? raw.u ?? false) as boolean;
-
       if (!success) {
         throw new Error(errMsg);
       }
@@ -569,7 +586,7 @@ const Schedule = () => {
       console.error('Error toggling meal completion:', err);
       toast({
         title: t("error"),
-        description: err.message || t("failed_update_status"),
+        description: err instanceof Error ? err.message : t("failed_update_status"),
         variant: "destructive"
       });
     } finally {
@@ -631,7 +648,7 @@ const Schedule = () => {
       console.error("Delete meal error:", err);
       toast({
         title: t("error"),
-        description: err.message || t("failed_to_remove_meal"),
+        description: err instanceof Error ? err.message : t("failed_to_remove_meal"),
         variant: "destructive"
       });
     }
@@ -717,31 +734,6 @@ const Schedule = () => {
 
   const displayMeals = getMealsForDay(selectedDate);
   const dailyNutrition = getDailyNutrition(selectedDate);
-  const scheduleCaloriePct = activeGoal?.daily_calorie_target
-    ? Math.round((dailyNutrition.calories / Math.max(activeGoal.daily_calorie_target, 1)) * 100)
-    : 0;
-  const scheduleProteinPct = activeGoal?.protein_target_g
-    ? Math.round((dailyNutrition.protein / Math.max(activeGoal.protein_target_g, 1)) * 100)
-    : 0;
-  const scheduleGoalScore = activeGoal
-    ? calculateGoalAlignmentScore({
-      caloriePct: scheduleCaloriePct,
-      proteinPct: scheduleProteinPct,
-      consistencyPct: dailyNutrition.total > 0 ? 100 : 0,
-    })
-    : 0;
-
-  const currentWeekEnd = addDays(currentWeekStart, 6);
-  const thisWeekSchedules = schedules.filter(s => {
-    const d = new Date(s.scheduled_date);
-    d.setHours(0, 0, 0, 0);
-    return d >= currentWeekStart && d <= currentWeekEnd;
-  });
-  const weekProgress = {
-    total: thisWeekSchedules.length,
-    completed: thisWeekSchedules.filter(s => s.is_completed).length,
-    calories: thisWeekSchedules.reduce((sum, s) => sum + (s.is_completed ? s.meal?.calories ?? 0 : 0), 0),
-  };
 
   if (!settingsLoading && !settings.features.meal_scheduling) {
     return (
@@ -785,16 +777,16 @@ const Schedule = () => {
     );
   }
 
-  const weekProgressPct = weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0;
+  const currentWeekEnd = addDays(currentWeekStart, 6);
+  const thisWeekSchedules = schedules.filter((schedule) => {
+    const scheduleDate = new Date(schedule.scheduled_date);
+    scheduleDate.setHours(0, 0, 0, 0);
+    return scheduleDate >= currentWeekStart && scheduleDate <= currentWeekEnd;
+  });
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#F8FAFC]">
+    <div className="relative min-h-screen overflow-hidden bg-[#F6F8FB]">
       {/* Scroll progress bar — native iOS style sub-bar */}
-      <motion.div
-        className="fixed left-0 right-0 top-0 z-50 h-0.5 origin-left bg-[#22C7A1]"
-        style={{ scaleX: weekProgressPct / 100 }}
-        aria-hidden
-      />
       {/* ── Unified Header (date info + calendar) ─────────────── */}
       <ScheduleHeader
         currentWeekStart={currentWeekStart}
@@ -816,47 +808,6 @@ const Schedule = () => {
       <div className="relative z-10 mx-auto max-w-[430px] px-3 pb-[88px] pt-4">
 
         {/* ── Weekly Stats ─────────────────────────────── */}
-        <WeeklyProgressBar
-          weekProgressPct={weekProgressPct}
-          weekProgress={weekProgress}
-          remainingMeals={remainingMeals}
-          isUnlimited={isUnlimited}
-          hasActiveSubscription={hasActiveSubscription}
-        />
-
-        {activeGoal && (
-          <section className="mb-4 rounded-[26px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">{t("schedule_goal_fit")}</p>
-                <h2 className="mt-1 text-[18px] font-black leading-tight text-[#020617]">{t("schedule_goal_fit_desc")}</h2>
-              </div>
-              <div className="grid h-[64px] w-[64px] shrink-0 place-items-center rounded-full bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
-                <div className="text-center">
-                  <p className="text-[22px] font-black leading-none text-[#020617]">{scheduleGoalScore}</p>
-                  <p className="mt-1 text-[8px] font-black uppercase tracking-wide text-[#94A3B8]">{t("score")}</p>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <div className="rounded-2xl bg-[#EFFFFA] p-3 ring-1 ring-[#22C7A1]/20">
-                <p className="text-[10px] font-black uppercase tracking-wide text-[#22C7A1]">{t("schedule_goal_calories")}</p>
-                <p className="mt-1 text-lg font-black text-[#020617]">{dailyNutrition.calories} / {activeGoal.daily_calorie_target}</p>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
-                  <div className="h-full rounded-full bg-[#22C7A1]" style={{ width: `${Math.min(scheduleCaloriePct, 100)}%` }} />
-                </div>
-              </div>
-              <div className="rounded-2xl bg-[#F3F4FF] p-3 ring-1 ring-[#7C83F6]/20">
-                <p className="text-[10px] font-black uppercase tracking-wide text-[#7C83F6]">{t("schedule_goal_protein")}</p>
-                <p className="mt-1 text-lg font-black text-[#020617]">{dailyNutrition.protein}g / {activeGoal.protein_target_g}g</p>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
-                  <div className="h-full rounded-full bg-[#7C83F6]" style={{ width: `${Math.min(scheduleProteinPct, 100)}%` }} />
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
         {!loading && hasActiveSubscription && (() => {
           const totalSlots = 7 * 4;
           const hasUnusedSlots = thisWeekSchedules.length < totalSlots;
@@ -871,26 +822,22 @@ const Schedule = () => {
               animate={{ opacity: 1, y: 0 }}
               onClick={() => setShowMealPlanGenerator(true)}
               whileTap={{ scale: 0.98 }}
-              className="mb-4 mt-2 flex w-full items-center gap-3 rounded-[24px] bg-white p-4 text-left shadow-[0_12px_32px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1] transition active:bg-[#F6F8FB]"
+              className="mb-4 flex min-h-[68px] w-full items-center gap-3 rounded-[20px] bg-white p-3 text-left shadow-[0_8px_24px_rgba(2,6,23,0.05)] ring-1 ring-[#E5EAF1] transition active:bg-[#F6F8FB]"
               dir={isRTL ? "rtl" : "ltr"}
             >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
-                <CalendarPlus className="h-6 w-6" strokeWidth={2.4} />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-[#E9FBF6] text-[#22C7A1] ring-1 ring-[#22C7A1]/15">
+                <CalendarPlus className="h-5 w-5" strokeWidth={2.4} />
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="mb-0.5 flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-[#F97316]" strokeWidth={2.5} />
-                  <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#7C83F6]">
-                    {isWeekEmpty ? "Smart planner" : `${openSlots} open slots`}
-                  </span>
-                </div>
-                <p className="truncate text-[15px] font-black text-[#020617]">{t("schedule_fill_week_title")}</p>
-                <p className="truncate text-[12px] font-semibold text-[#64748B]">{t("schedule_fill_week_desc")}</p>
+                <p className="truncate text-[14px] font-black text-[#020617]">{t("schedule_fill_week_title")}</p>
+                <p className="mt-0.5 truncate text-[11px] font-semibold text-[#64748B]">
+                  {isWeekEmpty ? "Build your week in one step" : `${openSlots} open slots this week`}
+                </p>
               </div>
 
-              <span className="flex h-10 shrink-0 items-center rounded-full bg-[#020617] px-4 text-[13px] font-black text-white">
-                {t("schedule_fill_my_week")}
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white">
+                <Sparkles className="h-4 w-4" strokeWidth={2.4} />
               </span>
             </motion.button>
           );
@@ -1062,7 +1009,7 @@ const Schedule = () => {
                               setSelectedMeal(schedule);
                               setShowMealSheet(true);
                             }}
-                            className="relative cursor-pointer rounded-[24px] bg-white p-3.5 shadow-[0_12px_32px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(2,6,23,0.09)] active:bg-[#F6F8FB]"
+                            className="relative cursor-pointer rounded-[20px] bg-white p-3 shadow-[0_8px_24px_rgba(2,6,23,0.05)] ring-1 ring-[#E5EAF1] transition active:bg-[#F6F8FB]"
                             dir={isRTL ? "rtl" : "ltr"}
                           >
                             <div className="flex items-center gap-3">
@@ -1071,7 +1018,7 @@ const Schedule = () => {
                                   <img
                                     src={schedule.meal.image_url}
                                     alt={schedule.meal.name}
-                                    className={`h-12 w-12 rounded-[14px] object-cover transition-all ${
+                                    className={`h-16 w-16 rounded-[16px] object-cover transition-all ${
                                       schedule.is_completed ? "opacity-50 saturate-0" : ""
                                     }`}
                                   />
@@ -1082,7 +1029,7 @@ const Schedule = () => {
                                   )}
                                 </div>
                               ) : (
-                                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] ${config.bgGradient} ${
+                                <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-[16px] ${config.bgGradient} ${
                                   schedule.is_completed ? "opacity-50" : ""
                                 }`}>
                                   <MealIcon className={`h-5 w-5 ${config.textColor}`} />
@@ -1090,25 +1037,25 @@ const Schedule = () => {
                               )}
 
                               <div className={`min-w-0 flex-1 ${isRTL ? "text-right" : "text-left"}`}>
-                                <h3 className={`truncate text-[16px] font-bold text-[#020617] ${
+                                <div className="mb-1 flex items-center gap-1.5">
+                                  <span className={`text-[9px] font-black uppercase tracking-[0.1em] ${config.textColor}`}>{mealTypeName}</span>
+                                  <span className="h-1 w-1 rounded-full bg-[#CBD5E1]" />
+                                  <span className="text-[10px] font-bold text-[#94A3B8]">{schedule.delivery_time_slot || timeLabel}</span>
+                                </div>
+                                <h3 className={`truncate text-[15px] font-black text-[#020617] ${
                                   schedule.is_completed ? "text-[#94A3B8]" : ""
                                 }`}>
                                   {schedule.meal?.name}
                                 </h3>
-                                <div className="mt-2 grid grid-cols-3 gap-1.5">
-                                  {[
-                                    { Icon: Clock, value: schedule.delivery_time_slot || timeLabel, label: "time", tone: "text-sky-700" },
-                                    { Icon: Flame, value: schedule.meal.calories, label: "kcal", tone: "text-[#F97316]" },
-                                    { Icon: Beef, value: `${schedule.meal.protein_g}g`, label: t("protein_label"), tone: "text-[#020617]" },
-                                  ].map(({ Icon, value, label, tone }) => (
-                                    <div key={`${label}-${value}`} className="min-w-0 rounded-[14px] bg-[#F6F8FB] px-2 py-2 ring-1 ring-[#E5EAF1] backdrop-blur">
-                                      <div className={`flex min-w-0 items-center gap-1 ${tone}`}>
-                                        <Icon className="h-3 w-3 shrink-0" strokeWidth={2.4} />
-                                        <span className="truncate text-[11px] font-black leading-none">{value}</span>
-                                      </div>
-                                      <p className="mt-1 truncate text-[8px] font-black uppercase tracking-[0.08em] text-[#94A3B8]">{label}</p>
-                                    </div>
-                                  ))}
+                                <div className="mt-2 flex items-center gap-3 text-[11px] font-extrabold text-[#64748B]">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Flame className="h-3.5 w-3.5 text-[#FB6B7A]" />
+                                    {schedule.meal.calories} kcal
+                                  </span>
+                                  <span className="inline-flex items-center gap-1">
+                                    <Beef className="h-3.5 w-3.5 text-[#7C83F6]" />
+                                    {schedule.meal.protein_g}g protein
+                                  </span>
                                 </div>
                               </div>
 
@@ -1116,22 +1063,19 @@ const Schedule = () => {
                                 onClick={(e) => toggleMealCompletion(schedule.id, schedule.is_completed, e)}
                                 whileTap={{ scale: 0.85 }}
                                 disabled={togglingMealId === schedule.id}
-                                className={`flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-[12px] font-black transition-all ${
+                                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all ${
                                   schedule.is_completed
                                     ? "bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20"
-                                    : "bg-[#020617] text-white shadow-lg shadow-[rgba(2,6,23,0.15)]"
+                                    : "bg-[#F6F8FB] text-[#94A3B8] ring-1 ring-[#E5EAF1]"
                                 } disabled:opacity-60`}
                                 aria-label={schedule.is_completed ? "Undo log" : "Log meal"}
                               >
                                 {togglingMealId === schedule.id ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : schedule.is_completed ? (
-                                  <>
-                                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                                    Logged
-                                  </>
+                                  <Check className="h-4 w-4" strokeWidth={3} />
                                 ) : (
-                                  "Log"
+                                  <Circle className="h-4 w-4" strokeWidth={2.4} />
                                 )}
                               </motion.button>
                             </div>

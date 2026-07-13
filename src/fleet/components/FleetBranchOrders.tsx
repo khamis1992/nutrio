@@ -7,14 +7,11 @@ import { Input } from "@/components/ui/input";
 import { 
   MapPin, 
   Navigation, 
-  Clock, 
-  Package, 
   ChefHat,
   Truck,
   RefreshCw,
   Filter,
   ChevronRight,
-  CheckCircle2,
   AlertCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,10 +31,10 @@ interface RestaurantBranch {
 
 interface BranchOrder {
   id: string;
-  created_at: string;
+  created_at: string | null;
   status: string;
-  total_amount: number;
-  delivery_address: string;
+  total_amount: number | null;
+  delivery_address: string | null;
   restaurant_branch_id: string;
   restaurant_name?: string;
   customer_name?: string;
@@ -97,20 +94,41 @@ export function FleetBranchOrders({ driverLat, driverLng }: FleetBranchOrdersPro
       const ordersByBranch = new Map<string, BranchOrder[]>();
       for (const order of ordersData || []) {
         const branchId = order.restaurant_branch_id;
+        if (!branchId) continue;
+        const restaurant = Array.isArray(order.restaurant)
+          ? order.restaurant[0]
+          : order.restaurant;
         if (!ordersByBranch.has(branchId)) {
           ordersByBranch.set(branchId, []);
         }
         ordersByBranch.get(branchId)!.push({
-          ...order,
-          restaurant_name: order.restaurant?.name,
+          id: order.id,
+          created_at: order.created_at,
+          status: order.status,
+          total_amount: order.total_amount,
+          delivery_address: order.delivery_address,
+          restaurant_branch_id: branchId,
+          restaurant_name: restaurant?.name,
         });
       }
 
       // Enrich branch data
-      const enrichedBranches: RestaurantBranch[] = (branchesData || []).map(b => ({
-        ...b,
-        restaurant_name: (b as { restaurant?: { name?: string } }).restaurant?.name,
-      }));
+      const enrichedBranches: RestaurantBranch[] = (branchesData || []).map((branch) => {
+        const restaurant = Array.isArray(branch.restaurant)
+          ? branch.restaurant[0]
+          : branch.restaurant;
+        return {
+          id: branch.id,
+          restaurant_id: branch.restaurant_id,
+          name: branch.name,
+          address: branch.address,
+          latitude: branch.latitude,
+          longitude: branch.longitude,
+          phone_number: branch.phone_number,
+          is_active: branch.is_active ?? false,
+          restaurant_name: restaurant?.name,
+        };
+      });
 
       setBranches(enrichedBranches);
       setBranchOrders(ordersByBranch);

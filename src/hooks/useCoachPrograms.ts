@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface CoachProgram {
   id: string;
@@ -7,17 +8,17 @@ export interface CoachProgram {
   client_id: string;
   title: string;
   description: string | null;
-  type: "meal_plan" | "workout_plan";
+  type: string;
   start_date: string;
   end_date: string;
-  status: "active" | "completed" | "cancelled";
+  status: string;
   created_at: string;
 }
 
 export interface ProgramMeal {
   id: string;
   program_id: string;
-  meal_id: string;
+  meal_id: string | null;
   assigned_date: string;
   meal_type: string;
   notes: string | null;
@@ -30,7 +31,7 @@ export interface ProgramExercise {
   exercise_name: string;
   sets: number;
   reps: string;
-  rest_seconds: number;
+  rest_seconds: number | null;
   notes: string | null;
   day_number: number;
   order_index: number;
@@ -58,7 +59,7 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
   const [loadedKey, setLoadedKey] = useState("");
   const requestKey = coachId && clientId ? `${coachId}:${clientId}` : "";
 
-  const notifyClient = useCallback(async (title: string, message: string, data: Record<string, unknown> = {}) => {
+  const notifyClient = useCallback(async (title: string, message: string, data: Json = {}) => {
     if (!isCoach || !clientId) return;
     try {
       await supabase.from("notifications").insert({
@@ -106,7 +107,11 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
         setProgramMeals(meals || []);
         setProgramExercises(exercises || []);
 
-        const mealIds = [...new Set((meals || []).map((m: ProgramMeal) => m.meal_id).filter(Boolean))];
+        const mealIds = [...new Set(
+          (meals || [])
+            .map((meal) => meal.meal_id)
+            .filter((mealId): mealId is string => Boolean(mealId)),
+        )];
         if (mealIds.length > 0) {
           const { data: mealsData } = await supabase
             .from("meals")

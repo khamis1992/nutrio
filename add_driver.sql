@@ -1,7 +1,3 @@
--- First get the user ID for driver@nutriofuel.com
--- Then insert into drivers table
-
--- Get user ID (we'll do this via the supabase client)
--- But for now, let's assume we need to create a driver record
-
--- The driver email is: driver@nutriofuel.com
+-- Driver provisioning requires an authenticated admin workflow. Use
+-- `node add_driver.js` with TARGET_USER_EMAIL and server-only Supabase
+-- credentials instead of embedding account data in SQL.

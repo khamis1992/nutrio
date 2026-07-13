@@ -22,6 +22,9 @@ const C = {
   progress: "#22C7A1",
 };
 
+const formatOptionalDate = (value: string | null, pattern: string) =>
+  value ? format(new Date(value), pattern) : "N/A";
+
 const AdminExports = () => {
   const [exporting, setExporting] = useState<ExportType | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>("30days");
@@ -131,11 +134,11 @@ const AdminExports = () => {
         Plan: sub.plan,
         Status: sub.status || "N/A",
         Price: `$${sub.price}`,
-        "Start Date": format(new Date(sub.start_date), "yyyy-MM-dd"),
-        "End Date": format(new Date(sub.end_date), "yyyy-MM-dd"),
+        "Start Date": formatOptionalDate(sub.start_date, "yyyy-MM-dd"),
+        "End Date": formatOptionalDate(sub.end_date, "yyyy-MM-dd"),
         "Meals Per Week": sub.meals_per_week || "N/A",
         "Auto Renew": sub.auto_renew ? "Yes" : "No",
-        "Created At": format(new Date(sub.created_at), "yyyy-MM-dd HH:mm:ss")
+        "Created At": formatOptionalDate(sub.created_at, "yyyy-MM-dd HH:mm:ss")
       }));
 
       downloadCSV(formattedData, "subscriptions_export");
@@ -159,9 +162,10 @@ const AdminExports = () => {
           user_id, 
           restaurant_id,
           status, 
-          total_price, 
-          delivery_date,
-          meal_type,
+          total_amount, 
+          estimated_delivery_time,
+          delivered_at,
+          order_type,
           notes,
           created_at,
           restaurants (name)
@@ -175,17 +179,26 @@ const AdminExports = () => {
 
       if (error) throw error;
 
-      const formattedData = (data || []).map(order => ({
-        ID: order.id,
-        "User ID": order.user_id,
-        Restaurant: (order.restaurants as { name: string } | null)?.name || "N/A",
-        Status: order.status || "N/A",
-        "Total Price": `$${order.total_price}`,
-        "Delivery Date": format(new Date(order.delivery_date), "yyyy-MM-dd"),
-        "Meal Type": order.meal_type || "N/A",
-        Notes: order.notes || "N/A",
-        "Created At": format(new Date(order.created_at), "yyyy-MM-dd HH:mm:ss")
-      }));
+      const formattedData = (data || []).map((order) => {
+        const restaurant = Array.isArray(order.restaurants)
+          ? order.restaurants[0]
+          : order.restaurants;
+
+        return {
+          ID: order.id,
+          "User ID": order.user_id,
+          Restaurant: restaurant?.name || "N/A",
+          Status: order.status || "N/A",
+          "Total Amount": `${order.total_amount ?? 0} QAR`,
+          "Delivery Date": formatOptionalDate(
+            order.delivered_at ?? order.estimated_delivery_time ?? order.created_at,
+            "yyyy-MM-dd"
+          ),
+          "Order Type": order.order_type || "N/A",
+          Notes: order.notes || "N/A",
+          "Created At": format(new Date(order.created_at), "yyyy-MM-dd HH:mm:ss"),
+        };
+      });
 
       downloadCSV(formattedData, "orders_export");
       toast.success(`Exported ${formattedData.length} orders`);

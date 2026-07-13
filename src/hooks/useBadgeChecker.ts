@@ -1,29 +1,25 @@
 import { useCallback, useRef, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type GamificationRpcClient = typeof supabase & {
+import { supabase } from "@/integrations/supabase/client";
+
+type BadgeCheckRpcClient = typeof supabase & {
   rpc(
-    fn: "award_xp",
-    args: {
-      p_user_id: string;
-      p_xp_amount: number;
-      p_reason?: string;
-      p_action_type?: string;
-      p_source_id?: string;
-      p_metadata?: Record<string, unknown>;
-    },
-  ): Promise<{ data: unknown; error: unknown }>;
-  rpc(
-    fn: "grant_badge_reward",
-    args: {
-      p_user_id: string;
-      p_badge_id: string;
-    },
-  ): Promise<{ data: unknown; error: unknown }>;
+    fn: "check_and_award_badges",
+    args: { p_user_id: string },
+  ): Promise<{ data: unknown; error: { message?: string } | null }>;
 };
 
-const gamificationRpc = supabase as GamificationRpcClient;
+interface BadgeCheckResult {
+  awarded_badges?: unknown;
+}
+
+interface BadgeRow {
+  id: string;
+  name: string;
+  description: string;
+  xp_reward: number;
+}
 
 export interface BadgeUnlockNotice {
   id: string;
@@ -32,224 +28,67 @@ export interface BadgeUnlockNotice {
   xpReward: number;
 }
 
-interface ExistingBadgeRow {
-  badge_id: string;
-}
+const badgeRpc = supabase as BadgeCheckRpcClient;
 
-interface MealScheduleBadgeRow {
-  meal_id: string | null;
-  order_status: string | null;
-  meals?: { name: string | null } | null;
-}
+function getAwardedBadgeIds(data: unknown): string[] {
+  if (!data || typeof data !== "object") return [];
 
-interface ProteinLogRow {
-  protein_consumed_g: number | null;
-}
+  const awarded = (data as BadgeCheckResult).awarded_badges;
+  if (!Array.isArray(awarded)) return [];
 
-interface OrderBadgeRow {
-  restaurant_id: string | null;
+  return awarded.filter((badgeId): badgeId is string => typeof badgeId === "string");
 }
 
 export function useBadgeChecker(userId: string | undefined) {
-  const checkedRef = useRef(false);
+  const checkedUserRef = useRef<string | null>(null);
   const [latestUnlock, setLatestUnlock] = useState<BadgeUnlockNotice | null>(null);
 
   const checkAndAwardBadges = useCallback(async () => {
-    if (!userId || checkedRef.current) return;
-    checkedRef.current = true;
+    if (!userId || checkedUserRef.current === userId) return;
+    checkedUserRef.current = userId;
 
     try {
-      const today = new Date().toISOString().split("T")[0];
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
+      const { data, error } = await badgeRpc.rpc("check_and_award_badges", {
+        p_user_id: userId,
+      });
+      if (error) throw error;
 
-      const { data: existing } = await supabase.from("user_badges").select("badge_id").eq("user_id", userId);
-      const existingBadges = (existing || []) as ExistingBadgeRow[];
-      const earned = new Set(existingBadges.map((b) => b.badge_id));
+      const awardedBadgeIds = getAwardedBadgeIds(data);
+      if (awardedBadgeIds.length === 0) return;
 
-      const [
-        { data: profile },
-        { data: mealSchedules },
-        { data: waterLogs },
-        { data: orders },
-        { data: calorieLogs },
-        { data: subscriptions },
-        { data: userProfile },
-      ] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("user_id, level, xp, daily_calorie_target, target_weight_kg, current_weight_kg, referral_rewards_earned")
-          .eq("user_id", userId)
-          .single(),
-        supabase.from("meal_schedules").select("meal_id, order_status, meals(name)").eq("user_id", userId).limit(200),
-        supabase.from("water_entries").select("amount_ml, log_date").eq("user_id", userId).gte("log_date", new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0]),
-        supabase.from("user_orders_view").select("restaurant_id, restaurant_name").eq("user_id", userId).limit(100),
-        supabase.from("progress_logs").select("calories_consumed, log_date").eq("user_id", userId).gte("log_date", thirtyDaysAgo).order("log_date", { ascending: false }),
-        supabase.from("subscriptions").select("start_date, status").eq("user_id", userId).neq("status", "cancelled").order("start_date", { ascending: true }),
-        supabase.from("profiles").select("level, referral_rewards_earned").eq("user_id", userId).single(),
-      ]);
+      const { data: badgeRows, error: badgeError } = await supabase
+        .from("badges")
+        .select("id, name, description, xp_reward")
+        .in("id", awardedBadgeIds);
+      if (badgeError) throw badgeError;
 
-      const newBadges: Array<{ badge_id: string; xp_reward: number }> = [];
+      const badgesById = new Map(
+        ((badgeRows || []) as BadgeRow[]).map((badge) => [badge.id, badge]),
+      );
 
-      // Salad Sampler — 5 different salads ordered
-      if (!earned.has("salad_sampler")) {
-        const saladMeals = new Set(
-          ((mealSchedules || []) as MealScheduleBadgeRow[])
-            .filter((m) => m.order_status === "delivered" && m.meals?.name?.toLowerCase().includes("salad"))
-            .map((m) => m.meal_id)
-        );
-        if (saladMeals.size >= 5) {
-          newBadges.push({ badge_id: "salad_sampler", xp_reward: 50 });
-        }
-      }
+      for (const badgeId of awardedBadgeIds) {
+        const badge = badgesById.get(badgeId);
+        const notice: BadgeUnlockNotice = {
+          id: badgeId,
+          name: badge?.name || badgeId,
+          description: badge?.description || "",
+          xpReward: badge?.xp_reward || 0,
+        };
 
-      // Protein King — 30 days hitting protein target
-      if (!earned.has("protein_king")) {
-        const target = 150; // protein_target_g not yet in profiles table
-        const { data: logs } = await supabase.from("progress_logs").select("protein_consumed_g, log_date").eq("user_id", userId).order("log_date", { ascending: false }).limit(30);
-        const proteinLogs = (logs || []) as ProteinLogRow[];
-        if (proteinLogs.length >= 30 && proteinLogs.every((l) => (l.protein_consumed_g || 0) >= target)) {
-          newBadges.push({ badge_id: "protein_king", xp_reward: 200 });
-        }
-      }
-
-      // Hydration Hero — 14 days of 8+ glasses (2000ml+)
-      if (!earned.has("hydration_hero")) {
-        const dailyWater = new Map<string, number>();
-        for (const w of waterLogs || []) {
-          dailyWater.set(w.log_date, (dailyWater.get(w.log_date) || 0) + (w.amount_ml || 0));
-        }
-        const hitDays = [...dailyWater.values()].filter(ml => ml >= 2000).length;
-        if (hitDays >= 14) {
-          newBadges.push({ badge_id: "hydration_hero", xp_reward: 100 });
-        }
-      }
-
-      // Explorer — orders from 10 different restaurants
-      if (!earned.has("explorer")) {
-        const restaurants = new Set(((orders || []) as OrderBadgeRow[]).map((o) => o.restaurant_id));
-        if (restaurants.size >= 10) {
-          newBadges.push({ badge_id: "explorer", xp_reward: 100 });
-        }
-      }
-
-      // Variety King — same as explorer (10 restaurants), separate badge
-      if (!earned.has("variety_king")) {
-        const restaurants = new Set(((orders || []) as OrderBadgeRow[]).map((o) => o.restaurant_id));
-        if (restaurants.size >= 10) {
-          newBadges.push({ badge_id: "variety_king", xp_reward: 200 });
-        }
-      }
-
-      // Nutrition Ninja — hit calorie goal 5 days in a row
-      if (!earned.has("nutrition_ninja")) {
-        const calorieTarget = profile?.daily_calorie_target || 2000;
-        if (calorieLogs && calorieLogs.length >= 5) {
-          const dailyCals = new Map<string, number>();
-          for (const l of calorieLogs || []) {
-            const current = dailyCals.get(l.log_date) || 0;
-            dailyCals.set(l.log_date, current + (l.calories_consumed || 0));
-          }
-          let consecutiveDays = 0;
-          for (const [_, total] of dailyCals) {
-            if (total >= calorieTarget) {
-              consecutiveDays++;
-              if (consecutiveDays >= 5) break;
-            } else {
-              consecutiveDays = 0;
-            }
-          }
-          if (consecutiveDays >= 5) {
-            newBadges.push({ badge_id: "nutrition_ninja", xp_reward: 150 });
-          }
-        }
-      }
-
-      // Goal Crusher — reached weight goal
-      if (!earned.has("goal_crusher") && profile?.target_weight_kg && profile?.current_weight_kg) {
-        if (profile.current_weight_kg <= profile.target_weight_kg) {
-          newBadges.push({ badge_id: "goal_crusher", xp_reward: 500 });
-        }
-      }
-
-      // Streak 30 — 30-day logging streak
-      const { data: streakData } = await supabase.from("user_streaks").select("current_streak").eq("user_id", userId).eq("streak_type", "logging").single();
-      if (!earned.has("streak_30") && streakData?.current_streak >= 30) {
-        newBadges.push({ badge_id: "streak_30", xp_reward: 300 });
-      }
-
-      // Social Butterfly — 3 referrals who subscribed
-      if (!earned.has("social_butterfly")) {
-        const referralCount = profile?.referral_rewards_earned || userProfile?.referral_rewards_earned || 0;
-        if (referralCount >= 3) {
-          newBadges.push({ badge_id: "social_butterfly", xp_reward: 250 });
-        }
-      }
-
-      // Subscription Hero — 6 months subscribed
-      if (!earned.has("subscription_hero")) {
-        const activeSubs = subscriptions || [];
-        if (activeSubs.length > 0) {
-          const earliestStart = new Date(activeSubs[0].start_date);
-          const monthsDiff = (new Date().getFullYear() - earliestStart.getFullYear()) * 12 + (new Date().getMonth() - earliestStart.getMonth());
-          if (monthsDiff >= 6) {
-            newBadges.push({ badge_id: "subscription_hero", xp_reward: 400 });
-          }
-        }
-      }
-
-      // Nutrio Royalty — Level 50
-      if (!earned.has("nutrio_royalty") && (profile?.level || 1) >= 50) {
-        newBadges.push({ badge_id: "nutrio_royalty", xp_reward: 1000 });
-      }
-
-      for (const badge of newBadges) {
-        const { error: badgeInsertError } = await supabase.from("user_badges").insert({
-          user_id: userId,
-          badge_id: badge.badge_id,
-          unlocked_at: new Date().toISOString(),
-        });
-
-        if (badgeInsertError) {
-          if (badgeInsertError.code === "23505") continue;
-          throw badgeInsertError;
-        }
-
-        const { data: b } = await supabase.from("badges").select("name, description, xp_reward").eq("id", badge.badge_id).single();
-        const xpReward = b?.xp_reward || badge.xp_reward;
-
-        await gamificationRpc.rpc("award_xp", {
-          p_user_id: userId,
-          p_xp_amount: xpReward,
-          p_reason: `Badge unlocked: ${b?.name || badge.badge_id}`,
-          p_action_type: "badge_unlock",
-          p_source_id: badge.badge_id,
-          p_metadata: { badge_id: badge.badge_id },
-        });
-
-        await gamificationRpc.rpc("grant_badge_reward", {
-          p_user_id: userId,
-          p_badge_id: badge.badge_id,
-        });
-
-        toast.success(`${b?.name || badge.badge_id} Unlocked!`, {
-          description: `+${b?.xp_reward || badge.xp_reward} XP — ${b?.description || ""}`,
+        toast.success(`${notice.name} Unlocked!`, {
+          description: `+${notice.xpReward} XP${notice.description ? ` - ${notice.description}` : ""}`,
           duration: 4000,
         });
-
-        setLatestUnlock({
-          id: badge.badge_id,
-          name: b?.name || badge.badge_id,
-          description: b?.description || "",
-          xpReward,
-        });
+        setLatestUnlock(notice);
       }
-    } catch (err) {
-      console.error("Badge checker error:", err);
+    } catch (error) {
+      checkedUserRef.current = null;
+      console.error("Badge checker error:", error);
     }
   }, [userId]);
 
   useEffect(() => {
-    if (userId) checkAndAwardBadges();
+    if (userId) void checkAndAwardBadges();
   }, [userId, checkAndAwardBadges]);
 
   return {

@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Snowflake, Calendar, AlertTriangle, Info, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, addDays, isBefore, isAfter, parseISO } from "date-fns";
+import { format, addDays, isBefore, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface FreezeSubscriptionModalProps {
@@ -63,11 +63,11 @@ export function FreezeSubscriptionModal({
       }
 
       // Use the database function to handle freeze
-      const { data, error } = await supabase.rpc("request_subscription_freeze", {
+      const { error } = await supabase.rpc("request_subscription_freeze", {
         p_user_id: user.id,
         p_subscription_id: subscription.id,
-        p_start_date: startDate,
-        p_end_date: endDate,
+        p_freeze_start_date: startDate,
+        p_freeze_end_date: endDate,
       });
 
       if (error) {

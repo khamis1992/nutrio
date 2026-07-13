@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { createPrivateStorageUrl } from "@/lib/private-storage";
 import {
   Search,
   MessageSquare,
@@ -193,7 +194,14 @@ export default function AdminSupport() {
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      setMessages((data as TicketMessage[]) || []);
+      setMessages((data || []).map((message) => ({
+        id: message.id,
+        ticket_id: message.ticket_id,
+        sender_id: message.sender_id,
+        message: message.message,
+        is_admin_reply: message.is_internal,
+        created_at: message.created_at,
+      })));
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
@@ -208,7 +216,13 @@ export default function AdminSupport() {
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      setAttachments((data as TicketAttachment[]) || []);
+      const signedAttachments = await Promise.all(
+        ((data || []) as TicketAttachment[]).map(async (attachment) => ({
+          ...attachment,
+          file_url: await createPrivateStorageUrl("ticket-attachments", attachment.file_url),
+        })),
+      );
+      setAttachments(signedAttachments);
     } catch (error) {
       console.error("Error fetching attachments:", error);
     }
@@ -303,15 +317,11 @@ export default function AdminSupport() {
         .upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("ticket-attachments").getPublicUrl(filePath);
-
       uploadedAttachments.push({
         ticket_id: ticketId,
         message_id: messageId,
         file_name: file.name,
-        file_url: publicUrl,
+        file_url: filePath,
         file_size: file.size,
         file_type: file.type,
         uploaded_by: user!.id,
@@ -341,7 +351,7 @@ export default function AdminSupport() {
           ticket_id: selectedTicket.id,
           sender_id: user.id,
           message: newMessage.trim() || "(attachment)",
-          is_admin_reply: true,
+          is_internal: true,
         })
         .select()
         .single();

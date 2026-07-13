@@ -177,7 +177,7 @@ npm run test:cross-portal:ui
 │  │  ┌─────────────────────────────────────────────────┐   │   │
 │  │  │  Nutrio Fuel - Login                            │   │   │
 │  │  │                                                 │   │   │
-│  │  │  Email: khamis--1992@hotmail.com ✓             │   │   │
+│  │  │  Email: <E2E_ACCOUNT_EMAIL> ✓             │   │   │
 │  │  │  Password: ******** ✓                          │   │   │
 │  │  │                                                 │   │   │
 │  │  │  [Sign in] ← Clicking...                       │   │   │

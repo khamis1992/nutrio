@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useCallback } from "react";
 import { addWaterEntry, deleteWaterEntry, fetchWaterEntriesForDate, fetchWaterMonthTotals } from "@/lib/water-service";
+import { useHealthTrackingGoals } from "@/hooks/useHealthTrackingGoals";
 
 export interface WaterEntry {
   id: string;
@@ -9,55 +9,36 @@ export interface WaterEntry {
   created_at: string;
 }
 
-const DEFAULT_GOAL_ML = 2500;
-const GOAL_STORAGE_KEY = "water_goal_ml";
-
-type AwardXpRpcClient = typeof supabase & {
-  rpc(
-    fn: "award_xp",
-    args: {
-      p_user_id: string;
-      p_xp_amount: number;
-      p_reason?: string;
-      p_action_type?: string;
-      p_source_id?: string;
-      p_metadata?: Record<string, unknown>;
-    },
-  ): Promise<{ data: unknown; error: unknown }>;
-};
-
-const xpRpc = supabase as AwardXpRpcClient;
+const normalizeWaterEntry = (entry: Omit<WaterEntry, "created_at"> & { created_at: string | null }): WaterEntry => ({
+  ...entry,
+  created_at: entry.created_at ?? "",
+});
 
 export function useWaterEntries(userId: string | undefined) {
   const [entries, setEntries] = useState<WaterEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [goalMl, setGoalMlState] = useState(DEFAULT_GOAL_ML);
+  const [entriesLoading, setEntriesLoading] = useState(true);
+  const {
+    goals,
+    loading: goalsLoading,
+    updateGoals,
+  } = useHealthTrackingGoals(userId);
+  const goalMl = goals.waterGoalMl;
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(GOAL_STORAGE_KEY);
-      setGoalMlState(stored ? parseInt(stored, 10) : DEFAULT_GOAL_ML);
-    }
-  }, []);
-
-  const setGoalMl = useCallback((ml: number) => {
-    setGoalMlState(ml);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(GOAL_STORAGE_KEY, String(ml));
-    }
-  }, []);
+  const setGoalMl = useCallback(async (ml: number) => {
+    await updateGoals({ waterGoalMl: ml });
+  }, [updateGoals]);
 
   const fetchEntries = useCallback(async (date: string) => {
     if (!userId) return;
 
     try {
-      setLoading(true);
+      setEntriesLoading(true);
       const data = await fetchWaterEntriesForDate(userId, date);
-      setEntries(data || []);
+      setEntries((data ?? []).map(normalizeWaterEntry));
     } catch (err) {
       console.error("Error fetching water entries:", err);
     } finally {
-      setLoading(false);
+      setEntriesLoading(false);
     }
   }, [userId]);
 
@@ -82,31 +63,11 @@ export function useWaterEntries(userId: string | undefined) {
       throw new Error("Amount must be greater than 0");
     }
 
-    const previousTotal = entries
-      .filter((entry) => entry.log_date === date)
-      .reduce((sum, entry) => sum + entry.amount_ml, 0);
-
     const data = await addWaterEntry(userId, date, amountMl);
-    setEntries((prev) => [data, ...prev]);
+    setEntries((prev) => [normalizeWaterEntry(data), ...prev]);
 
-    const nextTotal = previousTotal + amountMl;
-    if (previousTotal < goalMl && nextTotal >= goalMl) {
-      try {
-        await xpRpc.rpc("award_xp", {
-          p_user_id: userId,
-          p_xp_amount: 15,
-          p_reason: "Daily water goal reached",
-          p_action_type: "water_goal",
-          p_source_id: date,
-          p_metadata: { goal_ml: goalMl, total_ml: nextTotal },
-        });
-      } catch (xpError) {
-        console.warn("Failed to award water goal XP:", xpError);
-      }
-    }
-
-    return data;
-  }, [entries, goalMl, userId]);
+    return normalizeWaterEntry(data);
+  }, [userId]);
 
   const deleteEntry = useCallback(async (id: string) => {
     if (!userId) return;
@@ -130,7 +91,7 @@ export function useWaterEntries(userId: string | undefined) {
     goalMl,
     setGoalMl,
     percentage,
-    loading,
+    loading: entriesLoading || goalsLoading,
     fetchEntries,
     fetchMonthTotals,
     addEntry,

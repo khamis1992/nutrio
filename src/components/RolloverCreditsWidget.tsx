@@ -5,7 +5,7 @@ import { RefreshCw, ShoppingBag, Info, Clock, Lock, CheckCircle2 } from 'lucide-
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { differenceInDays, format, isBefore, parseISO } from 'date-fns';
+import { differenceInDays, isBefore, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
 interface RolloverCredit {
@@ -47,23 +47,27 @@ export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDa
   }, [user, subscriptionEndDate]);
 
   const syncExpiryWithPlan = async () => {
-    if (!subscriptionEndDate) return;
+    const userId = user?.id;
+    if (!subscriptionEndDate || !userId) return;
     // Update any rollover records whose expiry_date is after the plan's end_date
     await supabase
       .from('subscription_rollovers')
       .update({ expiry_date: subscriptionEndDate })
-      .eq('user_id', user?.id)
+      .eq('user_id', userId)
       .eq('status', 'active')
       .gt('expiry_date', subscriptionEndDate);
   };
 
   const fetchRolloverCredits = async () => {
+    const userId = user?.id;
+    if (!userId) return;
+
     try {
       const today = new Date().toISOString().split('T')[0];
       const { data, error } = await supabase
         .from('subscription_rollovers')
         .select('id, rollover_credits, expiry_date, status')
-        .eq('user_id', user?.id)
+        .eq('user_id', userId)
         .eq('status', 'active')
         .gte('expiry_date', today)
         .order('expiry_date', { ascending: true });

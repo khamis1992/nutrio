@@ -107,8 +107,15 @@ END $$;
 
 
 -- 3. Enable realtime for live workout tracking
+DO $$ BEGIN
 ALTER PUBLICATION supabase_realtime ADD TABLE coach_workout_sessions;
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
 ALTER PUBLICATION supabase_realtime ADD TABLE coach_workout_set_logs;
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
 
 -- 4. Trigger: auto-update updated_at on session update

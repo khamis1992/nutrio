@@ -100,7 +100,9 @@ export function getCoachMealScheduleFields(context: CoachMealSuggestionContext |
   if (!context) return {};
 
   return {
-    schedule_source: context.status === "followed" ? "coach_program" : "coach_replacement",
+    schedule_source: context.status === "followed"
+      ? ("coach_program" as const)
+      : ("coach_replacement" as const),
     coach_program_id: context.coachProgramId,
     program_meal_id: context.programMealId,
     coach_suggested_meal_id: context.suggestedMealId,

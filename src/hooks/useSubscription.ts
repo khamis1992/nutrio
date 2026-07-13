@@ -13,12 +13,16 @@ export interface Subscription {
   end_date: string;
   meals_per_month: number;
   meals_used_this_month: number;
-  month_start_date: string;
+  month_start_date: string | null;
   meals_per_week: number;
   meals_used_this_week: number;
-  week_start_date: string;
+  week_start_date: string | null;
   snacks_per_month: number;
   snacks_used_this_month: number;
+  price: number;
+  price_per_meal: number | null;
+  billing_interval: string | null;
+  auto_renew: boolean | null;
   tier: 'basic' | 'standard' | 'premium' | 'vip';
   active: boolean | null;
 }
@@ -26,6 +30,7 @@ export interface Subscription {
 interface UseSubscriptionReturn {
   subscription: Subscription | null;
   loading: boolean;
+  error: Error | null;
   hasActiveSubscription: boolean;
   isExpired: boolean;
   isPaused: boolean;
@@ -54,7 +59,9 @@ const SUBSCRIPTION_KEY = "subscription";
 
 async function fetchSub(userId: string): Promise<Subscription | null> {
   const today = getQatarDay();
-  const cols = "id, plan, status, start_date, end_date, meals_per_month, meals_used_this_month, month_start_date, meals_per_week, meals_used_this_week, week_start_date, tier, active, snacks_per_month, snacks_used_this_month";
+  // Freeze transitions are synchronized server-side. Keeping this query read-only
+  // also allows the client to work while newer subscription migrations roll out.
+  const cols = "id, plan, status, start_date, end_date, meals_per_month, meals_used_this_month, month_start_date, meals_per_week, meals_used_this_week, week_start_date, tier, active, snacks_per_month, snacks_used_this_month, price, billing_interval, auto_renew";
 
   const { data: activeOrPending, error: activeError } = await supabase
     .from("subscriptions")
@@ -87,16 +94,23 @@ async function fetchSub(userId: string): Promise<Subscription | null> {
   if (!data) return null;
 
   return {
-    id: data.id, plan: data.plan, status: data.status,
-    start_date: data.start_date, end_date: data.end_date,
+    id: data.id,
+    plan: data.plan ?? data.tier ?? "basic",
+    status: data.status ?? "expired",
+    start_date: data.start_date ?? today,
+    end_date: data.end_date ?? today,
     meals_per_month: data.meals_per_month ?? 0,
     meals_used_this_month: data.meals_used_this_month ?? 0,
-    month_start_date: data.month_start_date || getQatarDay(),
-    meals_per_week: data.meals_per_week ?? 5,
+    month_start_date: data.month_start_date || null,
+    meals_per_week: data.meals_per_week ?? 0,
     meals_used_this_week: data.meals_used_this_week ?? 0,
-    week_start_date: data.week_start_date || getQatarDay(),
+    week_start_date: data.week_start_date || null,
     snacks_per_month: data.snacks_per_month ?? 0,
     snacks_used_this_month: data.snacks_used_this_month ?? 0,
+    price: data.price ?? 0,
+    price_per_meal: null,
+    billing_interval: data.billing_interval,
+    auto_renew: data.auto_renew,
     tier: (data.tier || data.plan || 'basic') as 'basic' | 'standard' | 'premium' | 'vip',
     active: data.active,
   };
@@ -108,7 +122,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const userId = user?.id;
   const queryKey = useMemo(() => [SUBSCRIPTION_KEY, userId] as const, [userId]);
 
-  const { data: subscription, isLoading: loading } = useQuery({
+  const { data: subscription, isLoading: loading, error } = useQuery({
     queryKey,
     queryFn: () => fetchSub(userId!),
     enabled: !!userId,
@@ -187,15 +201,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
 
     try {
       const { error } = await supabase.rpc("increment_snack_usage", { p_subscription_id: subscription.id });
-
-      if (error) {
-        console.warn("Snack RPC not available, falling back to direct update:", error);
-        const { error: fallbackError } = await supabase
-          .from("subscriptions")
-          .update({ snacks_used_this_month: snacksUsed + 1 })
-          .eq("id", subscription.id);
-        if (fallbackError) throw fallbackError;
-      }
+      if (error) throw error;
 
       refetch();
       return true;
@@ -203,21 +209,15 @@ export const useSubscription = (): UseSubscriptionReturn => {
       console.error("Error incrementing snack usage:", err);
       return false;
     }
-  }, [subscription, hasActiveSubscription, hasSnacks, isUnlimited, remainingSnacks, snacksUsed, refetch]);
+  }, [subscription, hasActiveSubscription, hasSnacks, isUnlimited, remainingSnacks, refetch]);
 
   const pauseSubscription = useCallback(async (): Promise<boolean> => {
     if (!subscription || !hasActiveSubscription) return false;
 
     try {
-      const { error } = await supabase.rpc("pause_subscription", { p_subscription_id: subscription.id });
-      if (error) {
-        console.warn("pause_subscription RPC not available, falling back to direct update:", error);
-        const { error: fallbackError } = await supabase
-          .from("subscriptions")
-          .update({ status: "pending" })
-          .eq("id", subscription.id);
-        if (fallbackError) throw fallbackError;
-      }
+      const { data, error } = await supabase.rpc("pause_subscription", { p_subscription_id: subscription.id });
+      if (error) throw error;
+      if (!data) return false;
       refetch();
       return true;
     } catch (err) {
@@ -230,15 +230,9 @@ export const useSubscription = (): UseSubscriptionReturn => {
     if (!subscription || !isPaused) return false;
 
     try {
-      const { error } = await supabase.rpc("resume_subscription", { p_subscription_id: subscription.id });
-      if (error) {
-        console.warn("resume_subscription RPC not available, falling back to direct update:", error);
-        const { error: fallbackError } = await supabase
-          .from("subscriptions")
-          .update({ status: "active" })
-          .eq("id", subscription.id);
-        if (fallbackError) throw fallbackError;
-      }
+      const { data, error } = await supabase.rpc("resume_subscription", { p_subscription_id: subscription.id });
+      if (error) throw error;
+      if (!data) return false;
       refetch();
       return true;
     } catch (err) {
@@ -252,6 +246,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
   return {
     subscription: stableSub,
     loading,
+    error: error instanceof Error ? error : null,
     hasActiveSubscription,
     isExpired,
     isPaused,

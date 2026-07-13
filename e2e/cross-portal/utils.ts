@@ -4,33 +4,11 @@
  */
 
 import { Page, BrowserContext, expect } from '@playwright/test';
+import { TEST_BASE_URL, getTestUser } from '../config';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
+const BASE_URL = TEST_BASE_URL;
 
 // Test user credentials â€” must match actual accounts in database
-export const TEST_USERS = {
-  customer: {
-    email: 'eng.aljabor@gmail.com',
-    password: '123456789',
-    name: 'Khamis',
-  },
-  admin: {
-    email: 'khamis-1992@hotmail.com',
-    password: 'Khamees1992#',
-    name: 'Admin',
-  },
-  partner: {
-    email: 'khamis4everever@gmail.com',
-    password: '123456789',
-    name: 'Khamis Kitchen',
-  },
-  driver: {
-    email: 'driver@nutriofuel.com',
-    password: '123456789',
-    name: 'Test Driver',
-  },
-};
-
 // Portal contexts holder
 export interface PortalContexts {
   customerContext: BrowserContext;
@@ -96,6 +74,7 @@ export const safeFill = async (page: Page, selector: string, value: string, maxR
  * Login as customer
  */
 export const loginAsCustomer = async (page: Page) => {
+  const credentials = getTestUser('customer');
   await page.goto(`${BASE_URL}/auth`);
   await waitForNetworkIdle(page);
   
@@ -106,8 +85,8 @@ export const loginAsCustomer = async (page: Page) => {
     await page.waitForTimeout(1000);
   }
   
-  await safeFill(page, 'input#si-email, input[type="email"]', TEST_USERS.customer.email);
-  await safeFill(page, 'input#si-password, input[type="password"]', TEST_USERS.customer.password);
+  await safeFill(page, 'input#si-email, input[type="email"]', credentials.email);
+  await safeFill(page, 'input#si-password, input[type="password"]', credentials.password);
   await safeClick(page, 'button[type="submit"]');
   
   await page.waitForURL(/.*dashboard|.*onboarding/, { timeout: 10000 });
@@ -117,6 +96,7 @@ export const loginAsCustomer = async (page: Page) => {
  * Login as admin
  */
 export const loginAsAdmin = async (page: Page) => {
+  const credentials = getTestUser('admin');
   await page.goto(`${BASE_URL}/admin`);
   await waitForNetworkIdle(page);
   
@@ -133,8 +113,8 @@ export const loginAsAdmin = async (page: Page) => {
     await page.waitForTimeout(1000);
   }
   
-  await safeFill(page, 'input#si-email, input[type="email"]', TEST_USERS.admin.email);
-  await safeFill(page, 'input#si-password, input[type="password"]', TEST_USERS.admin.password);
+  await safeFill(page, 'input#si-email, input[type="email"]', credentials.email);
+  await safeFill(page, 'input#si-password, input[type="password"]', credentials.password);
   await safeClick(page, 'button[type="submit"]');
   
   await page.waitForURL(/.*admin/, { timeout: 10000 });
@@ -144,6 +124,7 @@ export const loginAsAdmin = async (page: Page) => {
  * Login as partner
  */
 export const loginAsPartner = async (page: Page) => {
+  const credentials = getTestUser('partner');
   await page.goto(`${BASE_URL}/partner/auth`);
   await waitForNetworkIdle(page);
   
@@ -159,8 +140,8 @@ export const loginAsPartner = async (page: Page) => {
     await page.waitForTimeout(1000);
   }
   
-  await safeFill(page, 'input#si-email, input[type="email"]', TEST_USERS.partner.email);
-  await safeFill(page, 'input#si-password, input[type="password"]', TEST_USERS.partner.password);
+  await safeFill(page, 'input#si-email, input[type="email"]', credentials.email);
+  await safeFill(page, 'input#si-password, input[type="password"]', credentials.password);
   await safeClick(page, 'button[type="submit"]');
   
   await page.waitForURL(/.*partner/, { timeout: 10000 });
@@ -170,6 +151,7 @@ export const loginAsPartner = async (page: Page) => {
  * Login as driver
  */
 export const loginAsDriver = async (page: Page) => {
+  const credentials = getTestUser('driver');
   await page.goto(`${BASE_URL}/driver/auth`);
   await waitForNetworkIdle(page);
   
@@ -185,8 +167,8 @@ export const loginAsDriver = async (page: Page) => {
     await page.waitForTimeout(1000);
   }
   
-  await safeFill(page, 'input#si-email, input[type="email"]', TEST_USERS.driver.email);
-  await safeFill(page, 'input#si-password, input[type="password"]', TEST_USERS.driver.password);
+  await safeFill(page, 'input#si-email, input[type="email"]', credentials.email);
+  await safeFill(page, 'input#si-password, input[type="password"]', credentials.password);
   await safeClick(page, 'button[type="submit"]');
   
   await page.waitForURL(/.*driver/, { timeout: 10000 });

@@ -90,14 +90,14 @@ export function useFeaturedRestaurants() {
         });
 
         // Map restaurants with featured listing info
-        const featured: FeaturedRestaurant[] = (restaurants || []).map((r: { id: string; name: string; description: string | null; logo_url: string | null; }) => {
+        const featured: FeaturedRestaurant[] = (restaurants || []).map((r) => {
           const listing = listings.find((l) => l.restaurant_id === r.id);
           return {
             id: r.id,
             name: r.name,
             description: r.description,
             logo_url: r.logo_url,
-            rating: parseFloat(r.rating) || 0,
+            rating: Number(r.rating) || 0,
             total_orders: r.total_orders || 0,
             meal_count: mealCountMap.get(r.id) || 0,
             featured_listing_id: listing?.id || "",

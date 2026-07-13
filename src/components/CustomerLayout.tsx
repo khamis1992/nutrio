@@ -5,8 +5,24 @@ import { useSmartGoalAdjustmentNotifications } from "@/hooks/useSmartGoalAdjustm
 
 const HIDDEN_NAV_PATHS = [
   "/checkout",
+  "/payment/result",
   "/onboarding",
   "/subscription",
+  "/personal-info",
+  "/dietary",
+  "/medications",
+  "/health/dashboard",
+  "/addresses",
+  "/wallet",
+  "/rewards",
+  "/invoices",
+  "/orders",
+  "/favorites",
+  "/community",
+  "/support",
+  "/notifications",
+  "/settings",
+  "/affiliate",
 ];
 
 // Keep content clear of the native-style bottom tab bar.

@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, Bell, Zap, Save, Loader2, Crown, Users, Bike, MapPin, Store, Settings } from "lucide-react";
+import { DollarSign, Bell, Zap, Save, Loader2, Crown, Users, Bike, Clock, Mail, MapPin, Phone, Store, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
+import { DEFAULT_CONTACT_SETTINGS, type ContactSettings } from "@/hooks/useContactSettings";
 import { toast } from "sonner";
 
 
@@ -114,6 +116,8 @@ export default function AdminSettings() {
     sms_enabled: false,
   });
 
+  const [contactSettings, setContactSettings] = useState<ContactSettings>(DEFAULT_CONTACT_SETTINGS);
+
   const [featuredPrices, setFeaturedPrices] = useState<FeaturedListingPrices>({
     weekly: 49,
     biweekly: 89,
@@ -200,6 +204,12 @@ export default function AdminSettings() {
           case "driver_settings":
             setDriverEarningsSettings(value as unknown as DriverEarningsSettings);
             break;
+          case "contact_settings":
+            setContactSettings({
+              ...DEFAULT_CONTACT_SETTINGS,
+              ...(value as unknown as Partial<ContactSettings>),
+            });
+            break;
         }
       });
     } catch (error) {
@@ -226,11 +236,21 @@ export default function AdminSettings() {
       for (const update of updates) {
         const { error } = await supabase
           .from("platform_settings")
-          .update({ value: update.value })
+          .update({ value: update.value as Json })
           .eq("key", update.key);
 
         if (error) throw error;
       }
+
+      const { error: contactSettingsError } = await supabase
+        .from("platform_settings")
+        .upsert({
+          key: "contact_settings",
+          value: { ...contactSettings } as Json,
+          description: "Public contact page details managed by administrators",
+        }, { onConflict: "key" });
+
+      if (contactSettingsError) throw contactSettingsError;
 
       toast.success("Settings saved successfully");
     } catch (error) {
@@ -309,6 +329,96 @@ export default function AdminSettings() {
         </div>
 
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
+          <Card className={`${cardClass} md:col-span-2`}>
+            <CardHeader className={cardHeaderClass}>
+              <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
+                <Mail className="h-5 w-5 text-[#7C83F6]" />
+                Contact page
+              </CardTitle>
+              <CardDescription className="font-medium text-[#94A3B8]">
+                Update the public email, phone, office location, map link, and support hours shown to customers.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 p-5 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="contact-email" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-[#7C83F6]" /> Support email
+                </Label>
+                <Input
+                  id="contact-email"
+                  type="email"
+                  value={contactSettings.support_email}
+                  onChange={(event) => setContactSettings({ ...contactSettings, support_email: event.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact-phone" className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-[#22C7A1]" /> Phone number
+                </Label>
+                <Input
+                  id="contact-phone"
+                  type="tel"
+                  value={contactSettings.phone}
+                  onChange={(event) => setContactSettings({ ...contactSettings, phone: event.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact-address-en">Office address (English)</Label>
+                <Input
+                  id="contact-address-en"
+                  value={contactSettings.address_en}
+                  onChange={(event) => setContactSettings({ ...contactSettings, address_en: event.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact-address-ar">Office address (Arabic)</Label>
+                <Input
+                  id="contact-address-ar"
+                  dir="rtl"
+                  value={contactSettings.address_ar}
+                  onChange={(event) => setContactSettings({ ...contactSettings, address_ar: event.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="contact-map" className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-[#38BDF8]" /> Map URL
+                </Label>
+                <Input
+                  id="contact-map"
+                  type="url"
+                  value={contactSettings.map_url}
+                  onChange={(event) => setContactSettings({ ...contactSettings, map_url: event.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact-hours-en" className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-[#22C7A1]" /> Support hours (English)
+                </Label>
+                <Input
+                  id="contact-hours-en"
+                  value={contactSettings.hours_en}
+                  onChange={(event) => setContactSettings({ ...contactSettings, hours_en: event.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact-hours-ar">Support hours (Arabic)</Label>
+                <Input
+                  id="contact-hours-ar"
+                  dir="rtl"
+                  value={contactSettings.hours_ar}
+                  onChange={(event) => setContactSettings({ ...contactSettings, hours_ar: event.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Commission Rates */}
           <Card className={cardClass}>
             <CardHeader className={cardHeaderClass}>

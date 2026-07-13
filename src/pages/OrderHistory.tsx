@@ -38,12 +38,13 @@ interface Meal {
   id: string;
   name: string;
   image_url: string | null;
-  calories: number;
-  restaurant_id: string;
+  calories: number | null;
+  restaurant_id: string | null;
 }
 
 interface ScheduledMeal {
   id: string;
+  source: "meal_schedule" | "order";
   scheduled_date: string;
   meal_type: string;
   is_completed: boolean;
@@ -63,17 +64,26 @@ interface RawScheduledMeal {
   meal_id: string;
 }
 
+interface RawDirectOrder {
+  id: string;
+  created_at: string;
+  status: string;
+  meal_id: string | null;
+}
+
 const statusConfig: Record<string, { labelKey: string; icon: React.ElementType; color: string }> = {
   pending: { labelKey: "status_pending", icon: CircleDot, color: "bg-warning/10 text-warning border-warning/20" },
   confirmed: { labelKey: "status_confirmed", icon: CheckCircle2, color: "bg-[#020617]/5 text-[#020617] border-[#020617]/10" },
   preparing: { labelKey: "status_preparing", icon: ChefHat, color: "bg-[#020617]/5 text-[#020617] border-[#020617]/10" },
+  ready: { labelKey: "status_ready", icon: CheckCircle2, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  ready_for_pickup: { labelKey: "status_ready", icon: CheckCircle2, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   out_for_delivery: { labelKey: "status_out_for_delivery", icon: Truck, color: "bg-warning/10 text-warning border-warning/20" },
   delivered: { labelKey: "status_delivered", icon: CheckCircle2, color: "bg-[#020617]/5 text-[#020617] border-[#020617]/10" },
   cancelled: { labelKey: "status_cancelled", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
 };
 
 const OrderHistory = () => {
-  const { t, isRTL } = useLanguage();
+  const { t } = useLanguage();
   useEffect(() => { document.title = `${t("order_history")} — Nutrio`; }, [t]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -112,28 +122,53 @@ const OrderHistory = () => {
       const from = page * pageSize;
       const to = from + pageSize - 1;
 
-      // Fetch scheduled meals
-      const { data: schedulesData, error: schedulesError } = await supabase
-        .from("meal_schedules")
-        .select("id, scheduled_date, meal_type, is_completed, order_status, created_at, meal_id")
-        .eq("user_id", user.id)
-        .order("scheduled_date", { ascending: false })
-        .range(from, to);
+      const [schedulesResult, activeSchedulesResult, directOrdersResult] = await Promise.all([
+        supabase
+          .from("meal_schedules")
+          .select("id, scheduled_date, meal_type, is_completed, order_status, created_at, meal_id")
+          .eq("user_id", user.id)
+          .order("scheduled_date", { ascending: false })
+          .range(from, to),
+        supabase
+          .from("meal_schedules")
+          .select("id, scheduled_date, meal_type, is_completed, order_status, created_at, meal_id")
+          .eq("user_id", user.id)
+          .eq("is_completed", false)
+          .in("order_status", ["confirmed", "preparing", "ready", "out_for_delivery"])
+          .order("scheduled_date", { ascending: false }),
+        supabase
+          .from("orders")
+          .select("id, created_at, status, meal_id")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .range(from, to),
+      ]);
+
+      const { data: pagedSchedules, error: schedulesError } = schedulesResult;
+      const { data: activeSchedules, error: activeSchedulesError } = activeSchedulesResult;
+      const { data: directOrders, error: directOrdersError } = directOrdersResult;
 
       if (schedulesError) throw schedulesError;
+      if (activeSchedulesError) throw activeSchedulesError;
+      if (directOrdersError) throw directOrdersError;
+
+      const activeScheduleIds = new Set((activeSchedules || []).map((schedule) => schedule.id));
+      const schedulesData = [
+        ...(activeSchedules || []),
+        ...(pagedSchedules || []).filter((schedule) => !activeScheduleIds.has(schedule.id)),
+      ];
       
-      if (!schedulesData || schedulesData.length === 0) {
+      if ((!schedulesData || schedulesData.length === 0) && (!directOrders || directOrders.length === 0)) {
         setScheduledHasMore(false);
         setScheduledLoading(false);
         return;
       }
 
       // Get unique meal IDs
-      const mealIds = [...new Set(
-        (schedulesData as RawScheduledMeal[])
-          .map(s => s.meal_id)
-          .filter((id): id is string => !!id)
-      )];
+      const mealIds = [...new Set([
+        ...(schedulesData as RawScheduledMeal[]).map(schedule => schedule.meal_id),
+        ...((directOrders || []) as RawDirectOrder[]).map(order => order.meal_id),
+      ].filter((id): id is string => !!id))];
       
       // Fetch meals with restaurant info
       let mealsData: (Meal & { restaurant?: Restaurant })[] = [];
@@ -172,6 +207,7 @@ const OrderHistory = () => {
       // Transform data
       const transformedSchedules: ScheduledMeal[] = (schedulesData as RawScheduledMeal[]).map(schedule => ({
         id: schedule.id,
+        source: "meal_schedule",
         scheduled_date: schedule.scheduled_date,
         meal_type: schedule.meal_type,
         is_completed: schedule.is_completed || false,
@@ -181,9 +217,30 @@ const OrderHistory = () => {
         meal: mealsData.find(m => m.id === schedule.meal_id),
       }));
 
-      setScheduledMeals(prev => append ? [...prev, ...transformedSchedules] : transformedSchedules);
+      const transformedDirectOrders: ScheduledMeal[] = ((directOrders || []) as RawDirectOrder[]).map(order => ({
+        id: order.id,
+        source: "order",
+        scheduled_date: order.created_at,
+        meal_type: "Direct order",
+        is_completed: ["delivered", "completed", "cancelled"].includes(order.status),
+        order_status: order.status === "ready_for_pickup"
+          ? "ready"
+          : order.status === "picked_up" || order.status === "in_transit"
+            ? "out_for_delivery"
+            : order.status,
+        created_at: order.created_at,
+        meal_id: order.meal_id || "",
+        meal: order.meal_id ? mealsData.find(meal => meal.id === order.meal_id) : undefined,
+      }));
+
+      const mergedOrders = [...transformedSchedules, ...transformedDirectOrders]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setScheduledMeals(prev => append ? [...prev, ...mergedOrders] : mergedOrders);
       setScheduledPage(page);
-      setScheduledHasMore(schedulesData.length === pageSize);
+      setScheduledHasMore(
+        (pagedSchedules?.length || 0) === pageSize || (directOrders?.length || 0) === pageSize,
+      );
     } catch (error) {
       console.error("Error fetching scheduled meals:", error);
     } finally {
@@ -230,25 +287,44 @@ const OrderHistory = () => {
   };
 
   // Cancel order function
-  const handleCancelOrder = async (orderId: string) => {
+  const handleCancelOrder = async (orderId: string, source: ScheduledMeal["source"]) => {
     if (!confirm("Are you sure you want to cancel this order?")) return;
     
     setCancelling(orderId);
     try {
-      const { data, error } = await supabase.rpc("cancel_meal_schedule", {
-        p_schedule_id: orderId,
-        p_reason: null,
-      });
-      
-      if (error) {
-        const errorMessage = error.message || "";
-        if (errorMessage.includes('preparing')) {
-          throw new Error("Cannot cancel order - it's already being prepared. Please contact the restaurant for assistance.");
+      let cancellationResult: { success?: boolean } | null = null;
+
+      if (source === "meal_schedule") {
+        const { data, error } = await supabase.rpc("cancel_meal_schedule", {
+            p_schedule_id: orderId,
+            p_reason: null,
+          });
+
+        if (error) {
+          const errorMessage = error.message || "";
+          if (errorMessage.includes('preparing')) {
+            throw new Error("Cannot cancel order - it's already being prepared. Please contact the restaurant for assistance.");
+          }
+          throw error;
         }
-        throw error;
+        cancellationResult = data as { success?: boolean } | null;
+      } else {
+        const cancelDirectOrder = supabase.rpc as unknown as (
+          name: "cancel_customer_order",
+          args: { p_order_id: string; p_reason?: string },
+        ) => PromiseLike<{
+          data: { success?: boolean } | null;
+          error: { message?: string } | null;
+        }>;
+        const { data, error } = await cancelDirectOrder("cancel_customer_order", {
+            p_order_id: orderId,
+            p_reason: "Customer cancellation",
+          });
+        if (error) throw error;
+        cancellationResult = data as { success?: boolean } | null;
       }
       
-      if (!data?.success) throw new Error("Cancellation failed. Please try again.");
+      if (!cancellationResult?.success) throw new Error("Cancellation failed. Please try again.");
 
       setScheduledMeals(prev => prev.map(meal => 
         meal.id === orderId ? { ...meal, order_status: 'cancelled' } : meal
@@ -308,13 +384,23 @@ const OrderHistory = () => {
             };
             
             if (statusMessages[newStatus]) {
-              toast.success(statusMessages[newStatus]);
+              toast({ title: statusMessages[newStatus] });
             }
           }
           
           // Refresh the list when an update occurs
           fetchScheduledMeals(0, false);
         }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => fetchScheduledMeals(0, false),
       )
       .subscribe();
 
@@ -327,7 +413,7 @@ const OrderHistory = () => {
   // Check if user completed onboarding
   useEffect(() => {
     if (sessionStorage.getItem("nutrio_onboarding_done") === "true") return;
-    if (profile && !profile.onboarding_completed && !profile.goal) {
+    if (profile && !profile.onboarding_completed) {
       navigate("/onboarding");
     }
   }, [profile, navigate]);
@@ -346,8 +432,18 @@ const OrderHistory = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = format(today, "yyyy-MM-dd");
-  const upcomingMeals = scheduledMeals.filter(m => !m.is_completed && m.scheduled_date >= todayStr);
-  const completedMeals = scheduledMeals.filter(m => m.is_completed);
+  const operationalStatuses = ["confirmed", "preparing", "ready", "out_for_delivery"];
+  const upcomingMeals = scheduledMeals.filter(m =>
+    !m.is_completed && m.order_status !== "cancelled" &&
+    (
+      m.source === "order" ||
+      m.scheduled_date >= todayStr ||
+      operationalStatuses.includes(m.order_status)
+    ),
+  );
+  const completedMeals = scheduledMeals.filter(m =>
+    m.is_completed || ["delivered", "completed", "cancelled"].includes(m.order_status),
+  );
   const upcomingProgress = 0;
 
   const loading = scheduledLoading;
@@ -377,8 +473,10 @@ const OrderHistory = () => {
           return (
             <div
               key={schedule.id}
+              data-testid={`order-history-item-${schedule.id}`}
+              data-order-source={schedule.source}
               className="overflow-hidden rounded-[28px] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition-all active:scale-[0.99]"
-              onClick={() => navigate(`/order/${schedule.id}`)}
+              onClick={() => navigate(schedule.source === "order" ? "/tracking" : `/order/${schedule.id}`)}
             >
               <div className="p-4">
                 {/* Card header */}
@@ -422,9 +520,11 @@ const OrderHistory = () => {
                       {schedule.meal.calories} cal
                     </span>
                   ) : null}
-                  <span className="ml-auto rounded-full bg-[#020617]/5 px-2.5 py-1 text-[11px] font-extrabold text-[#020617]">
-                    {t("included_badge")}
-                  </span>
+                  {schedule.source === "meal_schedule" && (
+                    <span className="ml-auto rounded-full bg-[#020617]/5 px-2.5 py-1 text-[11px] font-extrabold text-[#020617]">
+                      {t("included_badge")}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -435,6 +535,7 @@ const OrderHistory = () => {
                     data-testid="order-history-modify-btn"
                     className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-[#020617] text-sm font-extrabold text-white transition-all active:scale-[0.98]"
                     onClick={(e) => { e.stopPropagation(); setModifyingSchedule(schedule); }}
+                    disabled={schedule.source !== "meal_schedule"}
                   >
                     <Pencil className="h-4 w-4" />
                     {t("modify_btn")}
@@ -442,7 +543,7 @@ const OrderHistory = () => {
                   <button
                     data-testid="order-history-cancel-btn"
                     className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-red-50 text-sm font-extrabold text-red-600 transition-all active:scale-[0.98] disabled:opacity-50"
-                    onClick={(e) => { e.stopPropagation(); handleCancelOrder(schedule.id); }}
+                    onClick={(e) => { e.stopPropagation(); handleCancelOrder(schedule.id, schedule.source); }}
                     disabled={cancelling === schedule.id}
                   >
                     {cancelling === schedule.id ? (

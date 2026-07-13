@@ -4,8 +4,7 @@ import {
   ZoomOut, 
   Navigation, 
   Layers,
-  Filter,
-  Map as MapIcon
+  Filter
 } from 'lucide-react';
 
 interface MapControlsProps {

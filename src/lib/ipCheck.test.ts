@@ -33,7 +33,7 @@ describe("ipCheck", () => {
 
   describe("logUserIP", () => {
     it("does not call fetch in dev mode", async () => {
-      await logUserIP("signup", "user-1");
+      await logUserIP("signup");
 
       expect(mockFetch).not.toHaveBeenCalled();
     });
@@ -70,7 +70,7 @@ describe("ipCheck", () => {
       }
     });
 
-    it("fails open when fetch throws", async () => {
+    it("does not mark a failed lookup as blocked", async () => {
       vi.stubGlobal("import_meta_env", { DEV: false });
       mockFetch.mockRejectedValueOnce(new Error("Network error"));
 

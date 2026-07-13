@@ -68,7 +68,21 @@ const PartnerNotifications = () => {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    setNotifications(data || []);
+    setNotifications(
+      (data || []).map((notification) => ({
+        id: notification.id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        status: notification.status,
+        read_at: notification.read_at,
+        data:
+          notification.data && typeof notification.data === "object" && !Array.isArray(notification.data)
+            ? notification.data as Record<string, unknown>
+            : null,
+        created_at: notification.created_at,
+      })),
+    );
     setLoading(false);
   };
 

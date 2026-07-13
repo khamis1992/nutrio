@@ -1,64 +1,27 @@
-const { createClient } = require('@supabase/supabase-js');
+import { createAdminClient, findAuthUserByEmail } from "./scripts/supabase-admin.mjs";
+import { requireEnv } from "./scripts/required-env.mjs";
 
-// Configuration
-const SUPABASE_URL = 'https://loepcagitrijlfksawfm.supabase.co';
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvZXBjYWdpdHJpamxma3Nhd2ZtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0OTUwNTU1OCwiZXhwIjoyMDY1MDgxNTU4fQ.Aj8np5SmmjzGjxNA9KkeYQ2iCG35deP49gUoSrSeHEA';
-const USER_EMAIL = 'khamis-1992@hotmail.com';
-const NEW_PASSWORD = 'Khamees1992#';
+const supabase = createAdminClient();
+const email = requireEnv("TARGET_USER_EMAIL");
+const password = requireEnv("TARGET_USER_PASSWORD");
 
 async function changeUserPassword() {
-  try {
-    console.log('🚀 Starting password change process...');
-    
-    // Create Supabase client with service role key
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-
-    // Find user by email
-    console.log(`🔍 Searching for user with email: ${USER_EMAIL}`);
-    
-    const { data: user, error: fetchError } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('email', USER_EMAIL)
-      .single();
-
-    if (fetchError) {
-      console.error('❌ Error finding user:', fetchError.message);
-      return;
-    }
-
-    if (!user) {
-      console.error('❌ User not found with email:', USER_EMAIL);
-      return;
-    }
-
-    console.log(`✅ Found user: ${user.email} (ID: ${user.id})`);
-
-    // Update user password
-    console.log('🔐 Updating password...');
-    
-    const { data, error: updateError } = await supabase.auth.admin.updateUserById(
-      user.id,
-      { password: NEW_PASSWORD }
-    );
-
-    if (updateError) {
-      console.error('❌ Error updating password:', updateError.message);
-      return;
-    }
-
-    console.log('✅ Password updated successfully!');
-    console.log('🎉 User can now log in with the new password.');
-
-  } catch (error) {
-    console.error('❌ Unexpected error:', error.message);
+  if (password.length < 8) {
+    throw new Error("TARGET_USER_PASSWORD must contain at least 8 characters");
   }
+
+  const user = await findAuthUserByEmail(supabase, email);
+  if (!user) throw new Error(`No auth user found for ${email}`);
+
+  const { error } = await supabase.auth.admin.updateUserById(user.id, {
+    password,
+  });
+  if (error) throw error;
+
+  console.log(`Password updated for ${email}.`);
 }
 
-// Run the function
-changeUserPassword();
+changeUserPassword().catch((error) => {
+  console.error("Unable to update password:", error.message);
+  process.exitCode = 1;
+});

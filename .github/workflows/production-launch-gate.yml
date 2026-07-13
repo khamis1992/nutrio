@@ -1,0 +1,62 @@
+name: Production Launch Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      shared_schedule_id:
+        description: Optional ready or out-for-delivery schedule assigned to the test driver
+        required: false
+        type: string
+
+env:
+  NODE_VERSION: '22'
+  PRODUCTION_APP_URL: ${{ vars.PRODUCTION_APP_URL || 'https://nutrio.me/nutrio' }}
+
+jobs:
+  launch-gate:
+    name: Verify all production portals
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: Production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Require production URL
+        run: |
+          if [ -z "$PRODUCTION_APP_URL" ]; then
+            echo "Set the production environment variable PRODUCTION_APP_URL before running this gate."
+            exit 1
+          fi
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run six-portal launch gate
+        run: npm run test:e2e:launch
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ env.PRODUCTION_APP_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          E2E_CUSTOMER_EMAIL: ${{ secrets.E2E_CUSTOMER_EMAIL }}
+          E2E_CUSTOMER_PASSWORD: ${{ secrets.E2E_CUSTOMER_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_PARTNER_EMAIL: ${{ secrets.E2E_PARTNER_EMAIL }}
+          E2E_PARTNER_PASSWORD: ${{ secrets.E2E_PARTNER_PASSWORD }}
+          E2E_DRIVER_EMAIL: ${{ secrets.E2E_DRIVER_EMAIL }}
+          E2E_DRIVER_PASSWORD: ${{ secrets.E2E_DRIVER_PASSWORD }}
+          E2E_FLEET_EMAIL: ${{ secrets.E2E_FLEET_EMAIL }}
+          E2E_FLEET_PASSWORD: ${{ secrets.E2E_FLEET_PASSWORD }}
+          E2E_COACH_EMAIL: ${{ secrets.E2E_COACH_EMAIL }}
+          E2E_COACH_PASSWORD: ${{ secrets.E2E_COACH_PASSWORD }}
+          E2E_SHARED_SCHEDULE_ID: ${{ inputs.shared_schedule_id }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-launch-evidence
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+export type CoachSessionStatus = "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
+
 export interface CoachSession {
   id: string;
   coach_id: string;
@@ -10,12 +12,23 @@ export interface CoachSession {
   session_type: string;
   scheduled_at: string;
   duration_minutes: number;
-  status: "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
+  status: CoachSessionStatus;
   meeting_link: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
 }
+
+type CoachSessionRow = Omit<CoachSession, "status"> & { status: string };
+
+const SESSION_STATUSES: CoachSessionStatus[] = ["scheduled", "confirmed", "completed", "cancelled", "no_show"];
+
+const normalizeSession = (session: CoachSessionRow): CoachSession => ({
+  ...session,
+  status: SESSION_STATUSES.includes(session.status as CoachSessionStatus)
+    ? session.status as CoachSessionStatus
+    : "scheduled",
+});
 
 export function useCoachSessions(coachId: string | undefined, clientId: string | undefined) {
   const [sessions, setSessions] = useState<CoachSession[]>([]);
@@ -36,7 +49,7 @@ export function useCoachSessions(coachId: string | undefined, clientId: string |
         .order("scheduled_at", { ascending: false });
 
       if (error) throw error;
-      setSessions(data || []);
+      setSessions((data ?? []).map(normalizeSession));
     } catch (err) {
       console.error("Error fetching sessions:", err);
     } finally {
@@ -71,7 +84,8 @@ export function useCoachSessions(coachId: string | undefined, clientId: string |
           .single();
 
         if (error) throw error;
-        setSessions((prev) => [session, ...prev].sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()));
+        const normalizedSession = normalizeSession(session);
+        setSessions((prev) => [normalizedSession, ...prev].sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()));
         return { success: true, error: null, data: session };
       } catch (err) {
         console.error("Error creating session:", err);
@@ -82,7 +96,7 @@ export function useCoachSessions(coachId: string | undefined, clientId: string |
   );
 
   const updateSession = useCallback(
-    async (sessionId: string, updates: { status?: string; title?: string; description?: string | null; meeting_link?: string | null; notes?: string | null }) => {
+    async (sessionId: string, updates: { status?: CoachSessionStatus; title?: string; description?: string | null; meeting_link?: string | null; notes?: string | null }) => {
       try {
         const { error } = await supabase
           .from("coach_sessions")

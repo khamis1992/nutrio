@@ -8,11 +8,10 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useFleetRealtimeDrivers, type FleetDriverLocation } from "@/fleet/hooks/useFleetRealtimeDrivers";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MapPin, Phone, Star, Package, Navigation, Wifi, WifiOff, Loader2 } from "lucide-react";
+import { Star, Package, Wifi, WifiOff } from "lucide-react";
 
 const DOHA_CENTER: [number, number] = [25.2854, 51.1839];
 

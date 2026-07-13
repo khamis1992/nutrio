@@ -3,19 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
 import { 
   MapPin, 
   Navigation, 
   Clock, 
-  Package, 
   ChefHat,
   RefreshCw,
   Phone,
   User,
   Truck,
-  CheckCircle,
-  AlertCircle
+  CheckCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,6 +35,8 @@ interface BranchOrder {
   status: string;
   total_amount: number;
   delivery_address: string;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
   customer_name?: string;
   customer_phone?: string;
   estimated_delivery_time?: string;
@@ -58,8 +57,6 @@ export function PartnerBranchOrders() {
   const [selectedBranch, setSelectedBranch] = useState<RestaurantBranch | null>(null);
   const [orders, setOrders] = useState<BranchOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [customerLat, setCustomerLat] = useState<number | null>(null);
-  const [customerLng, setCustomerLng] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "pending" | "preparing" | "ready">("all");
 
   useEffect(() => {
@@ -102,11 +99,15 @@ export function PartnerBranchOrders() {
 
       if (branchError) throw branchError;
       
-      setBranches(branchData || []);
+      const normalizedBranches = (branchData || []).map((branch) => ({
+        ...branch,
+        is_active: branch.is_active ?? false,
+      }));
+      setBranches(normalizedBranches);
       
       // Auto-select first branch
-      if (branchData && branchData.length > 0) {
-        setSelectedBranch(branchData[0]);
+      if (normalizedBranches.length > 0) {
+        setSelectedBranch(normalizedBranches[0]);
       }
     } catch (error) {
       console.error("Error fetching partner branches:", error);
@@ -122,14 +123,30 @@ export function PartnerBranchOrders() {
         .from('orders')
         .select(`
           *,
-          meals:order_items(meal_id, meals(name, quantity))
+          meals:order_items(quantity, meals(name))
         `)
         .eq('restaurant_branch_id', branchId)
         .in('status', ['pending', 'confirmed', 'preparing', 'ready_for_pickup'])
         .order('created_at', { ascending: false });
 
       if (orderError) throw orderError;
-      setOrders(ordersData || []);
+      const normalizedOrders: BranchOrder[] = (ordersData || []).map((order) => ({
+        id: order.id,
+        created_at: order.created_at,
+        status: order.status,
+        total_amount: order.total_amount ?? 0,
+        delivery_address: order.delivery_address ?? "",
+        delivery_lat: order.delivery_lat,
+        delivery_lng: order.delivery_lng,
+        customer_phone: order.phone_number ?? undefined,
+        estimated_delivery_time: order.estimated_delivery_time ?? undefined,
+        meals: order.meals.flatMap((item) =>
+          item.meals
+            ? [{ name: item.meals.name, quantity: item.quantity ?? 1 }]
+            : []
+        ),
+      }));
+      setOrders(normalizedOrders);
     } catch (error) {
       console.error("Error fetching branch orders:", error);
     }

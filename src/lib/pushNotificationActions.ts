@@ -1,7 +1,6 @@
 import { NavigateFunction } from "react-router-dom";
 import {
   Utensils,
-  Bell,
   Calendar,
   Flame,
   Clock,
@@ -11,7 +10,6 @@ import {
   X,
   BarChart3,
   Share2,
-  Trophy,
   MapPin,
 } from "lucide-react";
 import React from "react";

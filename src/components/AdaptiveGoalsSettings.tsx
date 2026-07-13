@@ -12,8 +12,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Calendar, Info, History } from "lucide-react";
 import { useAdaptiveGoals } from "@/hooks/useAdaptiveGoals";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const AdaptiveGoalsSettings = () => {
+  const { t } = useLanguage();
   const {
     settings,
     adjustmentHistory,

@@ -46,7 +46,9 @@ export function useCoachClients(coachId: string | undefined) {
         return;
       }
 
-      const clientIds = pendingRows.filter((r) => r.client_id).map((r) => r.client_id);
+      const clientIds = pendingRows
+        .map((row) => row.client_id)
+        .filter((clientId): clientId is string => Boolean(clientId));
       const profileMap = new Map<string, { full_name: string | null; avatar_url: string | null }>();
 
       if (clientIds.length > 0) {
@@ -74,6 +76,7 @@ export function useCoachClients(coachId: string | undefined) {
 
   const handleAccept = useCallback(
     async (assignmentId: string) => {
+      if (!coachId) return;
       const { error } = await supabase
         .from("coach_client_assignments")
         .update({ status: "active" })
@@ -89,6 +92,7 @@ export function useCoachClients(coachId: string | undefined) {
 
   const handleReject = useCallback(
     async (assignmentId: string) => {
+      if (!coachId) return;
       const { error } = await supabase
         .from("coach_client_assignments")
         .update({ status: "revoked" })
@@ -126,7 +130,9 @@ export function useCoachClients(coachId: string | undefined) {
         return;
       }
 
-      const clientIds = assignments.map((a) => a.client_id);
+      const clientIds = assignments
+        .map((assignment) => assignment.client_id)
+        .filter((clientId): clientId is string => Boolean(clientId));
 
       const [
         { data: profiles },
@@ -199,7 +205,6 @@ export function useCoachClients(coachId: string | undefined) {
       for (const goal of goals || []) {
         const c = byClient.get(goal.user_id);
         if (!c) continue;
-        c.goal_type = goal.goal_type as string | null;
         (c as any)._goalCalories = goal.daily_calorie_target;
         (c as any)._goalProtein = goal.protein_target_g;
       }

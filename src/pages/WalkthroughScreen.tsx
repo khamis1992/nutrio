@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { useLanguage } from "@/contexts/LanguageContext";
 import { assetPath } from "@/lib/asset-path";
 
 /* ─── Circular macro ring ────────────────────────────────────────── */
@@ -353,7 +352,6 @@ const SLIDES = [
 
 /* ─── Main component ─────────────────────────────────────────────── */
 const WalkthroughScreen = () => {
-  const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const [current, setCurrent] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -363,7 +361,6 @@ const WalkthroughScreen = () => {
     setCurrent(next);
   };
 
-  const handleSkip = () => navigate("/", { replace: true });
   const handleContinue = () => {
     if (current < SLIDES.length - 1) goTo(current + 1);
     else navigate("/auth", { replace: true });

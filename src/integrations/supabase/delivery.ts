@@ -3,6 +3,14 @@
 
 import { supabase } from "./client";
 
+const asJsonObject = (value: unknown): Record<string, unknown> | null =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+
+const readString = (value: unknown, fallback = "") =>
+  typeof value === "string" ? value : fallback;
+
 // ==================== DRIVER MANAGEMENT ====================
 
 /**
@@ -120,52 +128,27 @@ function calculateDistance(loc1: Location, loc2: Location): number {
   return R * c;
 }
 
-/**
- * Get restaurant location from meal schedule
- */
-async function getRestaurantLocation(scheduleId: string): Promise<Location> {
-  // Fetch meal schedule without embedded queries
-  const { data: schedule, error: scheduleError } = await supabase
-    .from("meal_schedules")
-    .select("meal_id")
-    .eq("id", scheduleId)
-    .single();
-  
-  if (scheduleError || !schedule) {
-    return { lat: 25.276987, lng: 51.520008 };
+/** Get the pickup location from the restaurant already bound to the job. */
+async function getRestaurantLocation(restaurantId: string | null): Promise<Location> {
+  if (!restaurantId) {
+    throw new Error("Delivery job has no restaurant");
   }
 
-  // Fetch meal to get restaurant_id
-  const { data: meal, error: mealError } = await supabase
-    .from("meals")
-    .select("restaurant_id")
-    .eq("id", schedule.meal_id)
-    .single();
-
-  if (mealError || !meal?.restaurant_id) {
-    return { lat: 25.276987, lng: 51.520008 };
-  }
-
-  // Fetch restaurant coordinates
   const { data: restaurant, error: restaurantError } = await supabase
     .from("restaurants")
     .select("latitude, longitude")
-    .eq("id", meal.restaurant_id)
+    .eq("id", restaurantId)
     .single();
-  
-  if (restaurantError || !restaurant) {
-    return { lat: 25.276987, lng: 51.520008 };
+
+  if (restaurantError) throw restaurantError;
+  if (!restaurant?.latitude || !restaurant?.longitude) {
+    throw new Error("Restaurant location is not configured");
   }
-  
-  // Use restaurant coordinates if available
-  if (restaurant.latitude && restaurant.longitude) {
-    return {
-      lat: Number(restaurant.latitude),
-      lng: Number(restaurant.longitude)
-    };
-  }
-  
-  return { lat: 25.276987, lng: 51.520008 };
+
+  return {
+    lat: Number(restaurant.latitude),
+    lng: Number(restaurant.longitude),
+  };
 }
 
 /**
@@ -175,7 +158,7 @@ export async function assignDriverToJob(jobId: string) {
   // Get job details
   const { data: job, error: jobError } = await supabase
     .from("delivery_jobs")
-    .select("schedule_id")
+    .select("restaurant_id")
     .eq("id", jobId)
     .eq("status", "pending")
     .single();
@@ -185,7 +168,7 @@ export async function assignDriverToJob(jobId: string) {
   }
   
   // Get restaurant location
-  const restaurantLocation = await getRestaurantLocation(job.schedule_id);
+  const restaurantLocation = await getRestaurantLocation(job.restaurant_id);
   
   // Find online drivers with location
   const { data: drivers, error: driverError } = await supabase
@@ -299,9 +282,6 @@ export async function driverRejectJob(driverId: string, jobId: string) {
     .eq("status", "assigned");
   
   if (error) throw error;
-  
-  // Try to assign to another driver
-  await assignDriverToJob(jobId);
 }
 
 /**
@@ -350,7 +330,7 @@ export async function driverDeliverJob(
     })
     .eq("id", jobId)
     .eq("driver_id", driverId)
-    .eq("status", "picked_up")
+    .in("status", ["picked_up", "in_transit"])
     .select()
     .single();
   
@@ -375,7 +355,7 @@ export async function driverFailJob(
     })
     .eq("id", jobId)
     .eq("driver_id", driverId)
-    .in("status", ["assigned", "accepted", "picked_up"])
+    .in("status", ["assigned", "accepted", "picked_up", "in_transit"])
     .select()
     .single();
   
@@ -387,36 +367,55 @@ export async function driverFailJob(
  * Get driver's current active job
  */
 export async function getDriverCurrentJob(driverId: string) {
-  const { data, error } = await supabase
+  const { data: job, error } = await supabase
     .from("delivery_jobs")
-    .select(`
-      *,
-      schedule:schedule_id(
-        *,
-        meal:meal_id(
-          name,
-          restaurant:restaurant_id(
-            name,
-            address,
-            phone_number,
-            current_lat,
-            current_lng
-          )
-        ),
-        user:user_id(
-          email,
-          raw_user_meta_data
-        )
-      )
-    `)
+    .select("*")
     .eq("driver_id", driverId)
-    .in("status", ["assigned", "accepted", "picked_up"])
+    .in("status", ["assigned", "accepted", "picked_up", "in_transit"])
     .order("created_at", { ascending: false })
     .limit(1)
     .single();
   
   if (error && error.code !== "PGRST116") throw error;
-  return data;
+  if (!job) return null;
+
+  const [{ data: details, error: detailsError }, { data: restaurant, error: restaurantError }] =
+    await Promise.all([
+      supabase.rpc("get_delivery_details_for_driver", { p_delivery_job_id: job.id }),
+      job.restaurant_id
+        ? supabase
+            .from("restaurants")
+            .select("name, address, phone, latitude, longitude")
+            .eq("id", job.restaurant_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+  if (detailsError) throw detailsError;
+  if (restaurantError) throw restaurantError;
+  const detailObject = asJsonObject(details);
+
+  return {
+    ...job,
+    schedule: {
+      meal: {
+        name: readString(detailObject?.meal_name, "Order"),
+        restaurant: restaurant
+          ? {
+              ...restaurant,
+              phone_number: restaurant.phone,
+              current_lat: restaurant.latitude,
+              current_lng: restaurant.longitude,
+            }
+          : null,
+      },
+      user: {
+        email: null,
+        raw_user_meta_data: { name: readString(detailObject?.customer_name, "Customer") },
+      },
+    },
+    customer_phone: typeof detailObject?.customer_phone === "string" ? detailObject.customer_phone : null,
+  };
 }
 
 /**
@@ -435,51 +434,29 @@ export async function getDriverJobHistory(driverId: string, limit = 20) {
   if (jobsError) throw jobsError;
   if (!jobs || jobs.length === 0) return [];
 
-  // Get unique schedule IDs
-  const scheduleIds = [...new Set(jobs.map(j => j.schedule_id).filter(Boolean))];
-  
-  // Fetch meal schedules
-  const { data: schedules } = scheduleIds.length > 0 ? await supabase
-    .from("meal_schedules")
-    .select("id, meal_id, user_id")
-    .in("id", scheduleIds) : { data: [] };
+  const restaurantIds = [...new Set(jobs.map((job) => job.restaurant_id).filter((id): id is string => Boolean(id)))];
+  const { data: restaurants, error: restaurantsError } = restaurantIds.length > 0
+    ? await supabase.from("restaurants").select("id, name").in("id", restaurantIds)
+    : { data: [], error: null };
+  if (restaurantsError) throw restaurantsError;
+  const restaurantNames = new Map((restaurants || []).map((restaurant) => [restaurant.id, restaurant.name]));
 
-  // Get unique meal IDs and user IDs
-  const mealIds = [...new Set((schedules || []).map(s => s.meal_id).filter(Boolean))];
-  const userIds = [...new Set((schedules || []).map(s => s.user_id).filter(Boolean))];
+  return Promise.all(jobs.map(async (job) => {
+    const { data: details, error } = await supabase.rpc(
+      "get_delivery_details_for_driver",
+      { p_delivery_job_id: job.id },
+    );
+    if (error) throw error;
+    const detailObject = asJsonObject(details);
 
-  // Fetch meals
-  const { data: meals } = mealIds.length > 0 ? await supabase
-    .from("meals")
-    .select("id, name")
-    .in("id", mealIds) : { data: [] };
-
-  // Fetch profiles
-  const { data: profiles } = userIds.length > 0 ? await supabase
-    .from("profiles")
-    .select("user_id, full_name")
-    .in("user_id", userIds) : { data: [] };
-
-  // Build lookup maps
-  const mealsMap: Record<string, string> = {};
-  meals?.forEach(m => mealsMap[m.id] = m.name);
-  
-  const profilesMap: Record<string, string> = {};
-  profiles?.forEach(p => profilesMap[p.user_id] = p.full_name || "Customer");
-
-  const schedulesMap: Record<string, { meal_name: string; customer_name: string }> = {};
-  schedules?.forEach(s => {
-    schedulesMap[s.id] = {
-      meal_name: mealsMap[s.meal_id] || "Meal",
-      customer_name: profilesMap[s.user_id] || "Customer"
+    return {
+      ...job,
+      meal_name: readString(detailObject?.meal_name, "Order"),
+      customer_name: readString(detailObject?.customer_name, "Customer"),
+      restaurant_name: job.restaurant_id
+        ? restaurantNames.get(job.restaurant_id) || "Restaurant"
+        : "Restaurant",
     };
-  });
-
-  // Transform jobs
-  return jobs.map(job => ({
-    ...job,
-    meal_name: schedulesMap[job.schedule_id]?.meal_name || "Meal",
-    customer_name: schedulesMap[job.schedule_id]?.customer_name || "Customer"
   }));
 }
 
@@ -510,7 +487,7 @@ export async function getActiveDeliveries() {
   const { data: jobs, error } = await supabase
     .from("delivery_jobs")
     .select("*")
-    .in("status", ["assigned", "accepted", "picked_up"])
+    .in("status", ["assigned", "accepted", "picked_up", "in_transit", "on_the_way"])
     .order("created_at", { ascending: true });
 
   if (error) throw error;
@@ -522,46 +499,93 @@ export async function getActiveDeliveries() {
 async function enrichDeliveryJobs(jobs: Record<string, unknown>[]) {
   const driverIds = [...new Set(jobs.map((j) => j.driver_id as string).filter(Boolean))];
   const scheduleIds = [...new Set(jobs.map((j) => j.schedule_id as string).filter(Boolean))];
+  const orderIds = [...new Set(jobs.map((j) => j.order_id as string).filter(Boolean))];
 
-  const [drivers, schedules] = await Promise.all([
+  const [driversResult, schedulesResult, ordersResult] = await Promise.all([
     driverIds.length > 0
-      ? supabase.from("drivers").select("*").in("id", driverIds).then((r) => r.data || [])
-      : [],
+      ? supabase.from("drivers").select("*").in("id", driverIds)
+      : Promise.resolve({ data: [], error: null }),
     scheduleIds.length > 0
-      ? supabase.from("meal_schedules").select("*").in("id", scheduleIds).then((r) => r.data || [])
-      : [],
+      ? supabase.from("meal_schedules").select("*").in("id", scheduleIds)
+      : Promise.resolve({ data: [], error: null }),
+    orderIds.length > 0
+      ? supabase.from("orders").select("*").in("id", orderIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
-  const mealIds = [...new Set(schedules.map((s) => s.meal_id as string).filter(Boolean))];
-  const userIds = [...new Set(schedules.map((s) => s.user_id as string).filter(Boolean))];
+  if (driversResult.error) throw driversResult.error;
+  if (schedulesResult.error) throw schedulesResult.error;
+  if (ordersResult.error) throw ordersResult.error;
 
-  const [meals, profiles] = await Promise.all([
+  const drivers = driversResult.data || [];
+  const schedules = schedulesResult.data || [];
+  const orders = ordersResult.data || [];
+  const sources = [...schedules, ...orders];
+  const mealIds = [...new Set(sources.map((source) => source.meal_id as string).filter(Boolean))];
+  const userIds = [...new Set(sources.map((source) => source.user_id as string).filter(Boolean))];
+  const sourceRestaurantIds = sources
+    .map((source) => source.restaurant_id as string)
+    .filter(Boolean);
+
+  const [mealsResult, profilesResult] = await Promise.all([
     mealIds.length > 0
-      ? supabase.from("meals").select("id, name, image_url").in("id", mealIds).then((r) => r.data || [])
-      : [],
+      ? supabase.from("meals").select("id, name, image_url, restaurant_id").in("id", mealIds)
+      : Promise.resolve({ data: [], error: null }),
     userIds.length > 0
-      ? supabase.from("profiles").select("id, full_name").in("id", userIds).then((r) => r.data || [])
-      : [],
+      ? supabase.from("profiles").select("id, full_name").in("id", userIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
+
+  if (mealsResult.error) throw mealsResult.error;
+  if (profilesResult.error) throw profilesResult.error;
+
+  const meals = mealsResult.data || [];
+  const profiles = profilesResult.data || [];
+  const restaurantIds = [...new Set([
+    ...sourceRestaurantIds,
+    ...meals.map((meal) => meal.restaurant_id as string).filter(Boolean),
+  ])];
+  const { data: restaurants, error: restaurantsError } = restaurantIds.length > 0
+    ? await supabase
+        .from("restaurants")
+        .select("id, name, address, phone_number")
+        .in("id", restaurantIds)
+    : { data: [], error: null };
+
+  if (restaurantsError) throw restaurantsError;
 
   const driverMap = Object.fromEntries(drivers.map((d) => [d.id, d]));
   const scheduleMap = Object.fromEntries(schedules.map((s) => [s.id, s]));
+  const orderMap = Object.fromEntries(orders.map((order) => [order.id, order]));
   const mealMap = Object.fromEntries(meals.map((m) => [m.id, m]));
   const profileMap = Object.fromEntries(profiles.map((p) => [p.id, p]));
+  const restaurantMap = Object.fromEntries((restaurants || []).map((restaurant) => [restaurant.id, restaurant]));
 
   return jobs.map((job) => {
     const schedule = scheduleMap[job.schedule_id as string];
-    const meal = schedule ? mealMap[schedule.meal_id as string] : null;
-    const profile = schedule ? profileMap[schedule.user_id as string] : null;
+    const order = orderMap[job.order_id as string];
+    const source = schedule || order;
+    const meal = source ? mealMap[source.meal_id as string] : null;
+    const profile = source ? profileMap[source.user_id as string] : null;
+    const restaurantId = (source?.restaurant_id || meal?.restaurant_id || job.restaurant_id) as string | undefined;
+    const restaurant = restaurantId ? restaurantMap[restaurantId] : null;
 
     return {
       ...job,
       driver: driverMap[job.driver_id as string] || null,
-      schedule: schedule
+      schedule: source
         ? {
-            ...schedule,
+            ...source,
+            source_type: schedule ? "meal_schedule" : "order",
+            meal_type: schedule?.meal_type || "Direct order",
+            order_status: schedule?.order_status || order?.status || job.status,
             meal: meal
-              ? { id: meal.id, name: meal.name, image_url: meal.image_url }
+              ? {
+                  id: meal.id,
+                  name: meal.name,
+                  image_url: meal.image_url,
+                  restaurant,
+                }
               : null,
             user: profile
               ? { email: null, raw_user_meta_data: { name: profile.full_name } }

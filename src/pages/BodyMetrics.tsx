@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import {
@@ -43,6 +43,11 @@ const BodyMetrics = () => {
   const { data: metricsHistory, isLoading: historyLoading } = useBodyMetrics(user?.id);
   const { mutate: logMetrics, isPending } = useLogBodyMetrics();
   const { mutate: deleteMetrics } = useDeleteBodyMetrics();
+  const [showOptionalMetrics, setShowOptionalMetrics] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [hiddenMetricIds, setHiddenMetricIds] = useState<string[]>([]);
+  const deleteTimersRef = useRef(new Map<string, number>());
 
   const [formData, setFormData] = useState({
     weight_kg: "",
@@ -52,12 +57,54 @@ const BodyMetrics = () => {
     notes: "",
   });
 
-  const latestMetric = metricsHistory?.[0];
-  const previousMetric = metricsHistory?.[1];
+  const activeMetricsHistory = (metricsHistory ?? []).filter((metric) => !hiddenMetricIds.includes(metric.id));
+  const latestMetric = activeMetricsHistory[0];
+  const previousMetric = activeMetricsHistory[1];
   const weightDelta = useMemo(() => {
     if (!latestMetric?.weight_kg || !previousMetric?.weight_kg) return null;
     return Number((latestMetric.weight_kg - previousMetric.weight_kg).toFixed(1));
   }, [latestMetric, previousMetric]);
+  const weightTrend = useMemo(() => {
+    const points = (metricsHistory ?? [])
+      .filter((metric) => Number.isFinite(metric.weight_kg))
+      .slice(0, 10)
+      .reverse();
+    if (points.length < 2) return null;
+    const values = points.map((metric) => metric.weight_kg);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = Math.max(max - min, 1);
+    const polyline = points.map((metric, index) => {
+      const x = points.length === 1 ? 50 : (index / (points.length - 1)) * 100;
+      const y = 36 - ((metric.weight_kg - min) / range) * 28;
+      return `${x},${y}`;
+    }).join(" ");
+    return { points, polyline, min, max };
+  }, [metricsHistory]);
+  const visibleMetricsHistory = activeMetricsHistory;
+  const displayedMetricsHistory = showAllHistory ? visibleMetricsHistory : visibleMetricsHistory.slice(0, 3);
+
+  const scheduleMetricDelete = (metricId: string) => {
+    setPendingDeleteId(null);
+    setHiddenMetricIds((ids) => [...ids, metricId]);
+    const timer = window.setTimeout(() => {
+      deleteMetrics(metricId);
+      deleteTimersRef.current.delete(metricId);
+      setHiddenMetricIds((ids) => ids.filter((id) => id !== metricId));
+    }, 5000);
+    deleteTimersRef.current.set(metricId, timer);
+    toast(t("body_metrics_delete_scheduled"), {
+      action: {
+        label: t("undo"),
+        onClick: () => {
+          const pendingTimer = deleteTimersRef.current.get(metricId);
+          if (pendingTimer) window.clearTimeout(pendingTimer);
+          deleteTimersRef.current.delete(metricId);
+          setHiddenMetricIds((ids) => ids.filter((id) => id !== metricId));
+        },
+      },
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,7 +185,7 @@ const BodyMetrics = () => {
           <div className="mt-5 grid grid-cols-3 gap-2">
             <div className="rounded-[20px] bg-[#EFFFFA] px-3 py-3 ring-1 ring-[#22C7A1]/15">
               <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#22C7A1]">{t("body_metrics_entries")}</p>
-              <p className="mt-1 text-[20px] font-black text-[#020617]">{metricsHistory?.length ?? 0}</p>
+              <p className="mt-1 text-[20px] font-black text-[#020617]">{activeMetricsHistory.length}</p>
             </div>
             <div className="rounded-[20px] bg-[#FFF7ED] px-3 py-3 ring-1 ring-[#F97316]/15">
               <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#F97316]">{t("body_metrics_change")}</p>
@@ -154,6 +201,33 @@ const BodyMetrics = () => {
             </div>
           </div>
         </section>
+
+        {weightTrend && (
+          <section className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#22C7A1]">{t("body_metrics_trend_title")}</p>
+                <h3 className="mt-1 text-[17px] font-black text-[#020617]">{weightTrend.points[0].weight_kg} - {weightTrend.points[weightTrend.points.length - 1].weight_kg} kg</h3>
+              </div>
+              <span className="rounded-full bg-[#EFFFFA] px-3 py-1.5 text-[10px] font-black text-[#22C7A1]">{weightTrend.points.length} {t("body_metrics_entries").toLowerCase()}</span>
+            </div>
+            <svg className="h-24 w-full overflow-visible" viewBox="0 0 100 44" preserveAspectRatio="none" aria-label={t("body_metrics_trend_title")}>
+              <defs>
+                <linearGradient id="bodyWeightTrendFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#22C7A1" stopOpacity="0.2" />
+                  <stop offset="100%" stopColor="#22C7A1" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <polyline fill="none" stroke="#E5EAF1" strokeWidth="0.7" points="0,36 100,36" />
+              <polygon fill="url(#bodyWeightTrendFill)" points={`0,40 ${weightTrend.polyline} 100,40`} />
+              <polyline fill="none" stroke="#22C7A1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" points={weightTrend.polyline} />
+            </svg>
+            <div className="mt-1 flex justify-between text-[10px] font-bold text-[#94A3B8]">
+              <span>{format(new Date(weightTrend.points[0].recorded_at), "MMM d")}</span>
+              <span>{format(new Date(weightTrend.points[weightTrend.points.length - 1].recorded_at), "MMM d")}</span>
+            </div>
+          </section>
+        )}
 
         <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.05)]">
           <div className="mb-4 flex items-center gap-3">
@@ -187,7 +261,17 @@ const BodyMetrics = () => {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setShowOptionalMetrics((shown) => !shown)}
+              className="flex h-11 w-full items-center justify-between rounded-[16px] bg-[#F6F8FB] px-4 text-[12px] font-black text-[#020617] ring-1 ring-[#E5EAF1] active:scale-[0.99]"
+              aria-expanded={showOptionalMetrics}
+            >
+              <span>{showOptionalMetrics ? t("body_metrics_hide_optional") : t("body_metrics_add_more")}</span>
+              <span className="text-lg leading-none text-[#22C7A1]">{showOptionalMetrics ? "-" : "+"}</span>
+            </button>
+
+            {showOptionalMetrics && <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
               <MetricInput
                 color={SYSTEM_COLORS.orange}
                 icon={Ruler}
@@ -215,7 +299,7 @@ const BodyMetrics = () => {
                 value={formData.muscle_mass_percent}
                 onChange={(value) => setFormData((prev) => ({ ...prev, muscle_mass_percent: value }))}
               />
-            </div>
+            </div>}
 
             <div className="rounded-[22px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
               <Label htmlFor="notes" className="mb-2 flex items-center gap-2 text-[12px] font-black uppercase tracking-[0.08em] text-[#020617]">
@@ -260,11 +344,16 @@ const BodyMetrics = () => {
                 <h3 className="text-[17px] font-black tracking-[-0.04em] text-[#020617]">{t("body_metrics_history")}</h3>
                 <p className="truncate text-[12px] font-semibold text-[#64748B]">{t("body_metrics_history_desc")}</p>
               </div>
+              {visibleMetricsHistory.length > 3 && (
+                <button type="button" onClick={() => setShowAllHistory((shown) => !shown)} className="min-h-11 shrink-0 rounded-full bg-[#F6F8FB] px-3 text-[11px] font-black text-[#020617] ring-1 ring-[#E5EAF1]">
+                  {showAllHistory ? t("body_metrics_show_less") : t("body_metrics_view_all")}
+                </button>
+              )}
             </div>
 
-            <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {metricsHistory.map((metric, index) => {
-                const prev = metricsHistory[index + 1];
+            <div className="space-y-3">
+              {displayedMetricsHistory.map((metric, index) => {
+                const prev = visibleMetricsHistory[index + 1];
                 const delta = prev?.weight_kg ? Number((metric.weight_kg - prev.weight_kg).toFixed(1)) : null;
                 const TrendIcon = delta != null && delta <= 0 ? TrendingDown : TrendingUp;
                 const trendColor = delta == null ? SYSTEM_COLORS.muted : delta <= 0 ? SYSTEM_COLORS.progress : SYSTEM_COLORS.orange;
@@ -272,7 +361,7 @@ const BodyMetrics = () => {
                 return (
                   <article
                     key={metric.id}
-                    className="min-w-[260px] snap-start rounded-[26px] border border-[#E5EAF1] bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.04)]"
+                    className="rounded-[26px] border border-[#E5EAF1] bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.04)]"
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div>
@@ -288,7 +377,7 @@ const BodyMetrics = () => {
                         variant="ghost"
                         size="icon"
                         className="h-10 w-10 shrink-0 rounded-full bg-[#FFF0F2] text-[#FB6B7A] active:scale-95"
-                        onClick={() => deleteMetrics(metric.id)}
+                        onClick={() => setPendingDeleteId(metric.id)}
                         aria-label="Delete measurement"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -332,6 +421,28 @@ const BodyMetrics = () => {
           </div>
         )}
       </main>
+
+      {pendingDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#020617]/45 p-3 backdrop-blur-sm">
+          <section className="w-full max-w-lg rounded-[28px] bg-white p-5 shadow-[0_24px_80px_rgba(2,6,23,0.24)]">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#E5EAF1]" />
+            <h3 className="text-[19px] font-black text-[#020617]">{t("body_metrics_confirm_delete")}</h3>
+            <p className="mt-2 text-[13px] font-semibold leading-5 text-[#64748B]">{t("body_metrics_confirm_delete_desc")}</p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" className="h-12 rounded-[16px]" onClick={() => setPendingDeleteId(null)}>{t("cancel")}</Button>
+              <Button
+                type="button"
+                className="h-12 rounded-[16px] bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90"
+                onClick={() => {
+                  scheduleMetricDelete(pendingDeleteId);
+                }}
+              >
+                {t("delete")}
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 };

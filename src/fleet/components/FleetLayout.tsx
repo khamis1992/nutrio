@@ -6,7 +6,6 @@ import {
   Users, 
   Truck, 
   MapPin, 
-  Wallet,
   Menu,
   LogOut,
   SendHorizonal,

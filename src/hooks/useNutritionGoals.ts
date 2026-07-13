@@ -33,9 +33,9 @@ interface Milestone {
   milestone_type: string;
   milestone_value: number | null;
   description: string;
-  achieved_at: string;
-  is_celebrated: boolean;
-  icon_emoji: string;
+  achieved_at: string | null;
+  is_celebrated: boolean | null;
+  icon_emoji: string | null;
 }
 
 export function useNutritionGoals(userId: string | undefined) {
@@ -44,12 +44,14 @@ export function useNutritionGoals(userId: string | undefined) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [goalEvents, setGoalEvents] = useState<GoalEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchGoals = useCallback(async () => {
     if (!userId) return;
 
     try {
       setLoading(true);
+      setError(null);
 
       // Fetch nutrition goals
       let { data: goalsData, error: goalsError } = await supabase
@@ -64,18 +66,33 @@ export function useNutritionGoals(userId: string | undefined) {
           .select("id, goal_type, target_weight_kg, target_date, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g, fiber_target_g, is_active")
           .eq("user_id", userId)
           .order("created_at", { ascending: false });
-        goalsData = fallback.data;
+        goalsData = (fallback.data || []).map((goal) => ({
+          ...goal,
+          calculation_source: null,
+          reason: null,
+          version: null,
+          activity_level_snapshot: null,
+        }));
         goalsError = fallback.error;
       }
 
       if (goalsError) throw goalsError;
 
-      const goalsList = goalsData || [];
+      const goalsList: NutritionGoal[] = (goalsData || []).map((goal) => ({
+        ...goal,
+        goal_type: goal.goal_type as NutritionGoal["goal_type"],
+        daily_calorie_target: goal.daily_calorie_target ?? 0,
+        protein_target_g: goal.protein_target_g ?? 0,
+        carbs_target_g: goal.carbs_target_g ?? 0,
+        fat_target_g: goal.fat_target_g ?? 0,
+        fiber_target_g: goal.fiber_target_g ?? 0,
+        is_active: goal.is_active ?? false,
+      }));
       setGoals(goalsList);
-      setActiveGoal(goalsList.find((g: NutritionGoal) => g.is_active) || goalsList[0] || null);
+      setActiveGoal(goalsList.find((goal) => goal.is_active) || goalsList[0] || null);
 
       const { data: eventsData, error: eventsError } = await supabase
-        .from("nutrition_goal_events" as never)
+        .from("nutrition_goal_events")
         .select("id, goal_id, event_type, previous_values, new_values, reason, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
@@ -97,6 +114,7 @@ export function useNutritionGoals(userId: string | undefined) {
       setMilestones(milestonesData || []);
     } catch (error) {
       console.error("Error fetching nutrition goals:", error);
+      setError(error instanceof Error ? error : new Error(String(error)));
     } finally {
       setLoading(false);
     }
@@ -112,7 +130,7 @@ export function useNutritionGoals(userId: string | undefined) {
     if (!userId) return;
 
     const { error } = await supabase
-      .from("nutrition_goal_events" as never)
+      .from("nutrition_goal_events")
       .insert({
         user_id: userId,
         goal_id: goalId,
@@ -274,6 +292,7 @@ export function useNutritionGoals(userId: string | undefined) {
     milestones,
     goalEvents,
     loading,
+    error,
     setGoal,
     updateActiveGoal,
     updateGoalTargets,

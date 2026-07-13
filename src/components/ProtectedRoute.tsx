@@ -4,7 +4,6 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { PostgrestError } from "@supabase/supabase-js";
 import { assetPath } from "@/lib/asset-path";
 
 // Define user roles
@@ -16,20 +15,15 @@ export type UserRole =
   | "driver"
   | "admin"
   | "staff"
+  | "gym_owner"
   | "fleet_manager"
   | "coach";
 
-// Role hierarchy for permission checking
-const ROLE_HIERARCHY: Record<UserRole, number> = {
-  user: 1,
-  customer: 1,
-  restaurant: 2,
-  partner: 2,
-  driver: 2,
-  staff: 3,
-  admin: 4,
-  fleet_manager: 2,
-  coach: 2,
+const ROLE_ALIASES: Partial<Record<UserRole, UserRole[]>> = {
+  user: ["customer"],
+  customer: ["user"],
+  restaurant: ["partner"],
+  partner: ["restaurant"],
 };
 
 interface ProtectedRouteProps {
@@ -39,10 +33,6 @@ interface ProtectedRouteProps {
   fallback?: ReactNode;
 }
 
-interface UserRoleRow {
-  role: UserRole;
-}
-
 // Cache for role checks to prevent repeated DB queries
 const roleCache = new Map<string, { roles: UserRole[]; timestamp: number }>();
 const partnerApprovalCache = new Map<
@@ -50,10 +40,6 @@ const partnerApprovalCache = new Map<
   { approved: boolean; timestamp: number }
 >();
 const CACHE_TTL = 60 * 1000; // 60 seconds
-
-// Track which tables have been verified to exist (to avoid repeated errors)
-const tableExistsCache = new Map<string, boolean>();
-const TABLE_CHECK_TIMEOUT = 3000; // 3 second timeout for table checks
 
 /**
  * Clear role cache on logout to prevent stale role data persisting across sessions
@@ -80,136 +66,63 @@ function getCachedPartnerApproval(userId: string): boolean | null {
 }
 
 /**
- * Check if a table exists by attempting a lightweight query with timeout
- */
-async function checkTableExists(tableName: string): Promise<boolean> {
-  if (tableExistsCache.has(tableName)) {
-    return tableExistsCache.get(tableName)!;
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TABLE_CHECK_TIMEOUT);
-
-    await supabase
-      .from(tableName)
-      .select("id")
-      .limit(1)
-      .abortSignal(controller.signal);
-
-    clearTimeout(timeoutId);
-    tableExistsCache.set(tableName, true);
-    return true;
-  } catch (error: unknown) {
-    // 406 or 404 means table doesn't exist or has issues
-    // PQ/ Postgres errors often indicate table missing
-    const errorMsg =
-      (error as PostgrestError)?.message?.toLowerCase() ||
-      String(error ?? "").toLowerCase();
-    const isNotFound =
-      errorMsg.includes("not found") ||
-      errorMsg.includes("does not exist") ||
-      errorMsg.includes("invalid") ||
-      errorMsg.includes("406") ||
-      errorMsg.includes("404");
-
-    tableExistsCache.set(tableName, !isNotFound);
-    return !isNotFound;
-  }
-}
-
-/**
  * Gets user roles from cache or database
  */
 export async function getUserRoles(userId: string): Promise<UserRole[]> {
   const cached = getCachedUserRoles(userId);
   if (cached) return cached;
 
-  const roles: UserRole[] = [];
-
-  const [userRolesTableExists, driversTableExists, fleetManagersTableExists] =
-    await Promise.all([
-      checkTableExists("user_roles"),
-      checkTableExists("drivers"),
-      checkTableExists("fleet_managers"),
-    ]);
-
-  const roleQueries: Promise<void>[] = [];
-
-  if (userRolesTableExists) {
-    roleQueries.push(
-      supabase
+  const roleSources: Array<Promise<UserRole[]>> = [
+    (async () => {
+      const { data, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", userId)
-        .then(({ data: roleData }) => {
-          if (roleData && roleData.length > 0) {
-            roleData.forEach((r: UserRoleRow) => {
-              if (r.role && !roles.includes(r.role)) {
-                roles.push(r.role);
-              }
-            });
-          }
-        })
-        .catch((error) => {
-          console.warn("[ProtectedRoute] user_roles query failed:", error);
-        }),
-    );
-  }
-
-  roleQueries.push(
-    supabase
-      .from("restaurants")
-      .select("id, approval_status")
-      .eq("owner_id", userId)
-      .maybeSingle()
-      .then(({ data: restaurantData }) => {
-        if (restaurantData) {
-          if (!roles.includes("partner")) roles.push("partner");
-          if (!roles.includes("restaurant")) roles.push("restaurant");
-        }
-      })
-      .catch((error) => {
-        console.warn("[ProtectedRoute] restaurants query failed:", error);
-      }),
-  );
-
-  if (driversTableExists) {
-    roleQueries.push(
-      supabase
+        .eq("user_id", userId);
+      if (error) throw error;
+      return (data ?? [])
+        .map((row) => row.role)
+        .filter(Boolean);
+    })(),
+    (async () => {
+      const { data, error } = await supabase
         .from("drivers")
         .select("id")
         .eq("user_id", userId)
-        .maybeSingle()
-        .then(({ data: driverData }) => {
-          if (driverData && !roles.includes("driver")) roles.push("driver");
-        })
-        .catch((error) => {
-          console.warn("[ProtectedRoute] drivers query failed:", error);
-        }),
-    );
-  }
-
-  if (fleetManagersTableExists) {
-    roleQueries.push(
-      supabase
+        .maybeSingle();
+      if (error) throw error;
+      return data ? ["driver"] : [];
+    })(),
+    (async () => {
+      const { data, error } = await supabase
         .from("fleet_managers")
-        .select("id, is_active")
+        .select("id")
         .eq("auth_user_id", userId)
         .eq("is_active", true)
-        .maybeSingle()
-        .then(({ data: fleetData }) => {
-          if (fleetData) roles.push("fleet_manager");
-        })
-        .catch((error) => {
-          console.warn("[ProtectedRoute] fleet_managers query failed:", error);
-        }),
-    );
+        .maybeSingle();
+      if (error) throw error;
+      return data ? ["fleet_manager"] : [];
+    })(),
+  ];
+
+  const results = await Promise.allSettled(roleSources);
+  const successfulResults = results.filter(
+    (result): result is PromiseFulfilledResult<UserRole[]> =>
+      result.status === "fulfilled",
+  );
+
+  results.forEach((result) => {
+    if (result.status === "rejected") {
+      console.warn("[ProtectedRoute] role source query failed:", result.reason);
+    }
+  });
+
+  if (successfulResults.length === 0) {
+    throw new Error("All role source queries failed");
   }
 
-  await Promise.all(roleQueries);
-
-  // Cache the result
+  const roles = Array.from(
+    new Set(successfulResults.flatMap((result) => result.value)),
+  );
   roleCache.set(userId, { roles, timestamp: Date.now() });
 
   return roles;
@@ -224,16 +137,13 @@ export function hasRequiredRole(
 ): boolean {
   const required = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
 
-  return required.some((role) => {
-    // Direct match
-    if (userRoles.includes(role)) return true;
+  if (userRoles.includes("admin")) return true;
 
-    // Check hierarchy (higher roles can access lower role routes)
-    const requiredLevel = ROLE_HIERARCHY[role];
-    return userRoles.some(
-      (userRole) => ROLE_HIERARCHY[userRole] >= requiredLevel,
-    );
-  });
+  return required.some(
+    (role) =>
+      userRoles.includes(role) ||
+      (ROLE_ALIASES[role] ?? []).some((alias) => userRoles.includes(alias)),
+  );
 }
 
 /**
@@ -244,11 +154,12 @@ async function isPartnerApproved(userId: string): Promise<boolean> {
   if (cached !== null) return cached;
 
   try {
-    const { data: restaurant } = await supabase
+    const { data: restaurant, error } = await supabase
       .from("restaurants")
       .select("approval_status")
       .eq("owner_id", userId)
       .maybeSingle();
+    if (error) throw error;
 
     const approved = restaurant?.approval_status === "approved";
     partnerApprovalCache.set(userId, { approved, timestamp: Date.now() });
@@ -288,18 +199,26 @@ export const ProtectedRoute = ({
       : !requiredRole;
   const cachedApproval =
     user && requireApproval ? getCachedPartnerApproval(user.id) : null;
-  const shouldCheckInitially = Boolean(
-    !authLoading &&
-    user &&
-    requiredRole &&
-    (!cachedRoles ||
-      (cachedHasRole && requireApproval && cachedApproval === null)),
+  const requiredRolesKey = requiredRole
+    ? (Array.isArray(requiredRole) ? requiredRole : [requiredRole]).join("|")
+    : "";
+  const authorizationKey =
+    user && requiredRole
+      ? `${user.id}:${requiredRolesKey}:${requireApproval}`
+      : null;
+  const hasResolvedCache = Boolean(
+    cachedRoles && (!requireApproval || cachedApproval !== null),
   );
 
-  const [checkingRole, setCheckingRole] = useState(shouldCheckInitially);
+  const [checkingRole, setCheckingRole] = useState(
+    Boolean(authorizationKey && !hasResolvedCache),
+  );
+  const [checkedAuthorizationKey, setCheckedAuthorizationKey] = useState<
+    string | null
+  >(hasResolvedCache ? authorizationKey : null);
   const [hasRole, setHasRole] = useState(cachedHasRole);
   const [isApproved, setIsApproved] = useState(
-    requireApproval ? (cachedApproval ?? true) : true,
+    requireApproval ? (cachedApproval ?? false) : true,
   );
   const [userRoles, setUserRoles] = useState<UserRole[]>(cachedRoles ?? []);
 
@@ -311,10 +230,12 @@ export const ProtectedRoute = ({
 
     if (!user) {
       setCheckingRole(false);
+      setCheckedAuthorizationKey(null);
       return;
     }
 
     const checkRole = async () => {
+      setCheckingRole(Boolean(requiredRole));
       const cached = getCachedUserRoles(user.id);
       if (cached) {
         const hasRoleAccess = requiredRole
@@ -327,7 +248,8 @@ export const ProtectedRoute = ({
         if (!requireApproval || approved !== null || !hasRoleAccess) {
           setUserRoles(cached);
           setHasRole(hasRoleAccess);
-          setIsApproved(approved ?? true);
+          setIsApproved(approved ?? false);
+          setCheckedAuthorizationKey(authorizationKey);
           setCheckingRole(false);
           return;
         }
@@ -348,22 +270,15 @@ export const ProtectedRoute = ({
         setUserRoles(roles);
 
         if (requiredRole) {
-          // When role queries return empty (all failed silently due to RLS,
-          // network, or table issues), treat as inconclusive — let the user
-          // through. Denying access on missing data creates an infinite
-          // redirect loop because the target route's ProtectedRoute runs
-          // the same check and fails identically. RLS blocks unauthorized
-          // data access at the database level regardless.
-          const hasRoleAccess = roles.length > 0
-            ? hasRequiredRole(roles, requiredRole)
-            : true;
+          // Empty or unavailable role data must never grant portal access.
+          const hasRoleAccess = hasRequiredRole(roles, requiredRole);
           setHasRole(hasRoleAccess);
 
           if (requireApproval && hasRoleAccess) {
             const approved = await Promise.race([
               isPartnerApproved(user.id),
               new Promise<boolean>((resolve) =>
-                setTimeout(() => resolve(true), 4000),
+                setTimeout(() => resolve(false), 4000),
               ),
             ]);
             setIsApproved(approved);
@@ -376,18 +291,12 @@ export const ProtectedRoute = ({
           "[ProtectedRoute] Role check failed (timeout or error):",
           error,
         );
-        // CRITICAL: When role check fails, do NOT redirect — show children
-        // with a fallback role. Redirecting on failure creates an infinite
-        // re-render loop because the target route's ProtectedRoute also
-        // runs checkRole(), which can fail again, triggering another
-        // redirect, and so on.
-        //
-        // Instead, treat failure as "insufficient data to deny access."
-        // The user is authenticated; let them through. If they truly lack
-        // the role, the page's data queries will fail gracefully.
-        setHasRole(true);
-        setUserRoles(requiredRole ? (Array.isArray(requiredRole) ? requiredRole : [requiredRole]) : []);
+        // Fail closed for role- or approval-protected routes.
+        setHasRole(!requiredRole);
+        setIsApproved(!requireApproval);
+        setUserRoles([]);
       } finally {
+        setCheckedAuthorizationKey(authorizationKey);
         setCheckingRole(false);
       }
     };
@@ -415,10 +324,20 @@ export const ProtectedRoute = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, authLoading, requiredRole, requireApproval]);
+  }, [
+    user,
+    authLoading,
+    requiredRole,
+    requireApproval,
+    authorizationKey,
+  ]);
 
   // Show loading state
-  if (authLoading || checkingRole) {
+  const authorizationPending = Boolean(
+    authorizationKey && checkedAuthorizationKey !== authorizationKey,
+  );
+
+  if (authLoading || checkingRole || authorizationPending) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-5">
         <img

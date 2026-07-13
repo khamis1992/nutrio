@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  ArrowLeft, CalendarCheck, Target, TrendingDown, TrendingUp, Minus,
-  Flame, Loader2, UtensilsCrossed, Clock, ChefHat, AlertCircle, Pencil,
+  ArrowLeft, CalendarCheck, TrendingDown, TrendingUp, Minus,
+  Flame, Loader2, UtensilsCrossed, ChefHat, AlertCircle, Pencil,
   Lock, Plus, Check, X, Ruler, Camera, Dumbbell, Flag, FileDown,
   ChevronDown, ChevronUp, Search, Trash2, Sun, Moon, Cookie, Zap,
-  GripVertical, Calendar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EditClientTargetsModal } from "@/components/coach/EditClientTargetsModal";
@@ -56,7 +55,7 @@ interface DayAdherence {
   mealsDelivered: number;
 }
 
-const fadeInUp = {
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 24 } },
 };
@@ -76,7 +75,7 @@ export default function CoachClientDetail() {
   const coachId = user?.id;
   const { notes, loading: notesLoading, addNote, updateNote, deleteNote } = useCoachNotes(coachId, clientId);
   const { measurements, photos, loading: measurementsLoading, uploadPhoto } = useBodyMeasurements(clientId);
-  const { proposals, proposeGoal, acceptGoal, rejectGoal, completeGoal } = useGoalProposals(coachId, clientId);
+  const { proposals, proposeGoal, completeGoal } = useGoalProposals(coachId, clientId);
   const { programs, programMeals, programExercises, mealInfos, createProgram, updateProgram, assignMeal, updateMeal, removeMeal, assignExercise, updateExercise, removeExercise } = useCoachPrograms(coachId, clientId, true);
   const { getExerciseStat, getMealStat } = useClientCompletionStats(clientId);
   const { weekAdherence, alerts: workoutAlerts, overallWeeklyPct, loading: adherenceLoading, getExerciseWeightHistory, getExerciseTrend } = useWorkoutAdherence(clientId);
@@ -99,8 +98,7 @@ export default function CoachClientDetail() {
   const [mealPlanProgramId, setMealPlanProgramId] = useState<string | null>(null);
   const [mealPlanStep, setMealPlanStep] = useState<"create" | "assign">("create");
   const [selectedMealDate, setSelectedMealDate] = useState("");
-  const [selectedMealType, setSelectedMealType] = useState("lunch");
-  const [selectedMealId, setSelectedMealId] = useState("");
+  const [, setSelectedMealType] = useState("lunch");
   const [availableMeals, setAvailableMeals] = useState<{ id: string; name: string; calories: number; protein_g: number; carbs_g: number; fat_g: number; image_url: string | null; price: number; restaurant_name?: string }[]>([]);
   // Workout builder state
   const [workoutPlanTitle, setWorkoutPlanTitle] = useState("");
@@ -112,10 +110,6 @@ export default function CoachClientDetail() {
   const [exerciseSets, setExerciseSets] = useState(3);
   const [exerciseReps, setExerciseReps] = useState("10");
   const [exerciseRest, setExerciseRest] = useState(60);
-  const [exerciseDayNumber, setExerciseDayNumber] = useState(1);
-  const [exerciseOrderIndex, setExerciseOrderIndex] = useState(0);
-  const [photoInputRef] = useState<React.RefObject<HTMLInputElement>>({ current: null });
-  const fileInputRef = { current: null };
   const [programTab, setProgramTab] = useState<"meal" | "workout">("meal");
   const [expandedProgramId, setExpandedProgramId] = useState<string | null>(null);
   const [mealSearch, setMealSearch] = useState("");
@@ -184,7 +178,13 @@ export default function CoachClientDetail() {
       }
 
       if (weightData) {
-        setWeights(weightData.map(w => ({ log_date: w.log_date, weight_kg: w.weight_kg })));
+        setWeights(
+          weightData.flatMap((entry) =>
+            entry.weight_kg === null
+              ? []
+              : [{ log_date: entry.log_date, weight_kg: entry.weight_kg }]
+          )
+        );
       }
 
       if (mealData) {
@@ -312,11 +312,8 @@ export default function CoachClientDetail() {
     ? Math.round((weights[weights.length - 1].weight_kg - weights[0].weight_kg) * 100) / 100
     : null;
 
-  const lastWeight = weights.length > 0 ? weights[weights.length - 1].weight_kg : null;
-  const weightIcon = weightTrend === null ? null : weightTrend < 0 ? TrendingDown : weightTrend > 0 ? TrendingUp : Minus;
+  const WeightIcon = weightTrend === null ? null : weightTrend < 0 ? TrendingDown : weightTrend > 0 ? TrendingUp : Minus;
   const weightColor = weightTrend === null ? "text-slate-400" : weightTrend < 0 ? "text-emerald-500" : weightTrend > 0 ? "text-red-500" : "text-slate-400";
-
-  const adherenceColor = overallAdherence >= 80 ? "text-emerald-600" : overallAdherence >= 50 ? "text-amber-600" : "text-red-500";
 
   return (
     <div className="space-y-5">
@@ -472,7 +469,7 @@ export default function CoachClientDetail() {
           </div>
           {weightTrend !== null && (
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
-              {weightIcon && <weightIcon className={cn("w-4 h-4", weightColor)} />}
+              {WeightIcon && <WeightIcon className={cn("w-4 h-4", weightColor)} />}
               <span className={cn("text-[12px] font-semibold", weightColor)}>
                 7-day change: {weightTrend > 0 ? "+" : ""}{weightTrend} kg
               </span>
@@ -714,7 +711,7 @@ export default function CoachClientDetail() {
                 {weightTrend !== null && (
                   <div className="flex items-center gap-1.5 mt-1.5">
                     <div className={cn("flex items-center gap-1 rounded-full px-2 py-0.5", weightTrend < 0 ? "bg-emerald-50" : weightTrend > 0 ? "bg-red-50" : "bg-slate-50")}>
-                      {weightIcon && <weightIcon className={cn("w-3 h-3", weightColor)} />}
+                      {WeightIcon && <WeightIcon className={cn("w-3 h-3", weightColor)} />}
                       <span className={cn("text-[10px] font-bold", weightColor)}>
                         {weightTrend > 0 ? "+" : ""}{weightTrend} kg
                       </span>
@@ -1136,7 +1133,7 @@ export default function CoachClientDetail() {
                                       setExerciseName(ex.exercise_name);
                                       setExerciseSets(ex.sets);
                                       setExerciseReps(ex.reps);
-                                      setExerciseRest(ex.rest_seconds);
+                                      setExerciseRest(ex.rest_seconds ?? 60);
                                     }}
                                     className="text-slate-300 hover:text-purple-500 transition-colors shrink-0"
                                   >
@@ -1685,7 +1682,7 @@ export default function CoachClientDetail() {
                                   setExerciseName(ex.exercise_name);
                                   setExerciseSets(ex.sets);
                                   setExerciseReps(ex.reps);
-                                  setExerciseRest(ex.rest_seconds);
+                                  setExerciseRest(ex.rest_seconds ?? 60);
                                 }}
                                 className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-slate-300 hover:text-purple-600 hover:bg-purple-50 transition-all shrink-0"
                               >

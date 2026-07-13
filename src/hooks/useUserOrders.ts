@@ -83,18 +83,45 @@ export const useUserOrders = (userId: string | null) => {
 
       if (fetchError) throw fetchError;
 
-      setOrders(data || []);
+      const normalizedOrders: UserOrder[] = (data || [])
+        .filter((order) => Boolean(
+          order.id && order.user_id && order.scheduled_date && order.meal_id &&
+          order.meal_name && order.restaurant_id && order.restaurant_name,
+        ))
+        .map((order) => ({
+          id: order.id!,
+          user_id: order.user_id!,
+          scheduled_date: order.scheduled_date!,
+          meal_type: order.meal_type || "meal",
+          is_completed: order.is_completed ?? false,
+          order_created_at: order.order_created_at || order.scheduled_date!,
+          delivery_type: order.delivery_type,
+          delivery_fee: order.delivery_fee,
+          meal_id: order.meal_id!,
+          meal_name: order.meal_name!,
+          meal_description: order.meal_description,
+          calories: order.calories ?? 0,
+          protein_g: order.protein_g ?? 0,
+          carbs_g: order.carbs_g ?? 0,
+          fat_g: order.fat_g ?? 0,
+          meal_image_url: order.meal_image_url,
+          restaurant_id: order.restaurant_id!,
+          restaurant_name: order.restaurant_name!,
+          restaurant_logo_url: order.restaurant_logo_url,
+        }));
+
+      setOrders(normalizedOrders);
 
       // Calculate stats
-      if (data && data.length > 0) {
-        const totalOrders = data.length;
-        const completedOrders = data.filter(o => o.is_completed).length;
-        const totalCalories = data.reduce((sum, o) => sum + (o.calories || 0), 0);
-        const totalProtein = data.reduce((sum, o) => sum + (o.protein_g || 0), 0);
+      if (normalizedOrders.length > 0) {
+        const totalOrders = normalizedOrders.length;
+        const completedOrders = normalizedOrders.filter(o => o.is_completed).length;
+        const totalCalories = normalizedOrders.reduce((sum, o) => sum + o.calories, 0);
+        const totalProtein = normalizedOrders.reduce((sum, o) => sum + o.protein_g, 0);
 
         // Find favorite restaurant
         const restaurantCounts: Record<string, number> = {};
-        data.forEach(o => {
+        normalizedOrders.forEach(o => {
           restaurantCounts[o.restaurant_name] = (restaurantCounts[o.restaurant_name] || 0) + 1;
         });
         const favoriteRestaurant = Object.entries(restaurantCounts)
@@ -102,7 +129,7 @@ export const useUserOrders = (userId: string | null) => {
 
         // Find favorite meal type
         const mealTypeCounts: Record<string, number> = {};
-        data.forEach(o => {
+        normalizedOrders.forEach(o => {
           mealTypeCounts[o.meal_type] = (mealTypeCounts[o.meal_type] || 0) + 1;
         });
         const favoriteMealType = Object.entries(mealTypeCounts)

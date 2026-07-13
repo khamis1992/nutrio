@@ -52,7 +52,7 @@
 
 ### P2-3: Validate full order lifecycle manually
 - **Problem:** The cross-portal workflow (Customer orders → Partner accepts → Driver delivers → Customer gets confirmation) has never been fully tested end-to-end with real accounts.
-- **Fix:** Manual test using: customer (eng.aljabor@gmail.com) + partner (khamis4everever@gmail.com) + admin (khamis-1992@hotmail.com) + driver (driver@nutriofuel.com) simultaneously.
+- **Fix:** Manual test using: customer (<E2E_CUSTOMER_EMAIL>) + partner (<E2E_ACCOUNT_EMAIL>) + admin (<E2E_ADMIN_EMAIL>) + driver (<E2E_DRIVER_EMAIL>) simultaneously.
 - **Effort:** Medium (1–2 hours of manual testing)
 
 ### P2-4: Create Sadad Payment Webhook Edge Function

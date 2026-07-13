@@ -41,6 +41,7 @@ vi.mock("@/contexts/LanguageContext", () => ({
         order_cannot_cancel_description: "This order is already being prepared.",
         order_cancel_success: "Order cancelled",
         order_cancel_error: "Error cancelling",
+        cancel_button: "Cancel order",
         date_today: "Today",
         date_tomorrow: "Tomorrow",
       };
@@ -91,7 +92,9 @@ describe("ActiveOrderBanner", () => {
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           in: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            gte: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
           }),
         }),
       }),
@@ -103,7 +106,7 @@ describe("ActiveOrderBanner", () => {
 
   it("renders active orders with restaurant name", async () => {
     const mockSchedules = [
-      { id: "s1", scheduled_date: "2026-04-15", order_status: "confirmed", meal_id: "m1", addons_total: 25, delivery_fee: 5, delivery_type: "delivery" },
+      { id: "s1", scheduled_date: "2099-04-15", order_status: "confirmed", meal_id: "m1", addons_total: 25, delivery_fee: 5, delivery_type: "delivery" },
     ];
     const mockMeals = [
       { id: "m1", name: "Grilled Chicken", restaurant_id: "r1" },
@@ -120,7 +123,9 @@ describe("ActiveOrderBanner", () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               in: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({ data: mockSchedules, error: null }),
+                gte: vi.fn().mockReturnValue({
+                  order: vi.fn().mockResolvedValue({ data: mockSchedules, error: null }),
+                }),
               }),
             }),
           }),
@@ -152,7 +157,7 @@ describe("ActiveOrderBanner", () => {
 
   it("shows cancel button for pending orders", async () => {
     const mockSchedules = [
-      { id: "s1", scheduled_date: "2026-04-15", order_status: "pending", meal_id: "m1", addons_total: 0, delivery_fee: 0, delivery_type: "pickup" },
+      { id: "s1", scheduled_date: "2099-04-15", order_status: "pending", meal_id: "m1", addons_total: 0, delivery_fee: 0, delivery_type: "pickup" },
     ];
     const mockMeals = [
       { id: "m1", name: "Test Meal", restaurant_id: "r1" },
@@ -167,7 +172,9 @@ describe("ActiveOrderBanner", () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               in: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({ data: mockSchedules, error: null }),
+                gte: vi.fn().mockReturnValue({
+                  order: vi.fn().mockResolvedValue({ data: mockSchedules, error: null }),
+                }),
               }),
             }),
           }),

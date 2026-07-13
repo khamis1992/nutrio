@@ -10,13 +10,14 @@ export function QuotaWarningBanner() {
   const { t } = useLanguage();
   const { remainingMeals, totalMeals, isUnlimited, hasActiveSubscription } = useSubscription();
 
-  if (!hasActiveSubscription || isUnlimited) return null;
+  if (!hasActiveSubscription || isUnlimited || totalMeals <= 0) return null;
 
-  const usagePercent = ((totalMeals - remainingMeals) / totalMeals) * 100;
+  const safeRemainingMeals = Math.max(0, remainingMeals);
+  const usagePercent = Math.min(100, ((totalMeals - safeRemainingMeals) / totalMeals) * 100);
 
   if (usagePercent < 75) return null;
 
-  const isExhausted = remainingMeals === 0;
+  const isExhausted = remainingMeals <= 0;
 
   return (
     <Alert variant={isExhausted ? "destructive" : "default"} className="mb-4">
@@ -28,7 +29,7 @@ export function QuotaWarningBanner() {
       <AlertTitle>
         {isExhausted
           ? t("quota_exhausted_title")
-          : t("meals_remaining_title").replace("{count}", String(remainingMeals))}
+          : t("meals_remaining_title").replace("{count}", String(safeRemainingMeals))}
       </AlertTitle>
       <AlertDescription className="flex items-center justify-between">
         <span>

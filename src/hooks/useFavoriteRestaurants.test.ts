@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
+import { createMockUser } from "@/test/factories";
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: vi.fn(),
@@ -37,7 +38,7 @@ describe("useFavoriteRestaurants", () => {
 
   it("fetches favorites and returns correct isFavorite", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -63,7 +64,7 @@ describe("useFavoriteRestaurants", () => {
 
   it("toggles favorite add", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -92,7 +93,7 @@ describe("useFavoriteRestaurants", () => {
 
   it("handles fetch error gracefully", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -113,7 +114,7 @@ describe("useFavoriteRestaurants", () => {
 
   it("toggles favorite remove (unfavorite)", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -151,7 +152,7 @@ describe("useFavoriteRestaurants", () => {
 
   it("toggles favorite failure reverts optimistic update", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),

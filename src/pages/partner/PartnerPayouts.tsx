@@ -48,6 +48,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { formatCurrency } from "@/lib/currency";
+import { requestPartnerPayout } from "@/lib/payouts";
 
 /**
  * Payouts reads from partner_payouts table for admin-processed settlement records.
@@ -98,6 +99,8 @@ interface EarningRow {
   delivery_fee: number | null;
   created_at: string | null;
   order_id: string | null;
+  status: string | null;
+  payout_id: string | null;
 }
 
 interface WeeklyEarning {
@@ -163,10 +166,7 @@ function getWeekEnd(date: Date): Date {
   return start;
 }
 
-function buildWeeklyEarnings(
-  earnings: EarningRow[],
-  rate = 0.18,
-): WeeklyEarning[] {
+function buildWeeklyEarnings(earnings: EarningRow[]): WeeklyEarning[] {
   const map = new Map<string, WeeklyEarning>();
   earnings.forEach((e) => {
     if (!e.created_at) return;
@@ -185,20 +185,16 @@ function buildWeeklyEarnings(
       });
     }
     const week = map.get(key)!;
-    const gross = e.gross_amount ?? 0;
-    week.gross_amount += gross;
-    week.platform_fee += gross * rate;
-    week.net_amount += gross * (1 - rate);
+    week.gross_amount += e.gross_amount ?? 0;
+    week.platform_fee += e.platform_fee ?? 0;
+    week.net_amount += e.net_amount ?? 0;
   });
   return Array.from(map.values()).sort((a, b) =>
     b.week_start.localeCompare(a.week_start),
   );
 }
 
-function buildMonthlyEarnings(
-  earnings: EarningRow[],
-  rate = 0.18,
-): MonthlyEarning[] {
+function buildMonthlyEarnings(earnings: EarningRow[]): MonthlyEarning[] {
   const map = new Map<string, MonthlyEarning>();
   earnings.forEach((e) => {
     if (!e.created_at) return;
@@ -218,25 +214,24 @@ function buildMonthlyEarnings(
       });
     }
     const month = map.get(key)!;
-    const gross = e.gross_amount ?? 0;
-    month.gross_amount += gross;
-    month.platform_fee += gross * rate;
-    month.net_amount += gross * (1 - rate);
+    month.gross_amount += e.gross_amount ?? 0;
+    month.platform_fee += e.platform_fee ?? 0;
+    month.net_amount += e.net_amount ?? 0;
   });
   return Array.from(map.values()).sort((a, b) =>
     b.month_key.localeCompare(a.month_key),
   );
 }
 
-function exportToCsv(earnings: EarningRow[], rate = 0.18) {
+function exportToCsv(earnings: EarningRow[]) {
   const header = "Date,Order ID,Gross (QAR),Commission (QAR),Net (QAR)";
   const rows = earnings.map((e) => {
     const date = e.created_at
       ? new Date(e.created_at).toLocaleDateString()
       : "";
     const gross = (e.gross_amount ?? 0).toFixed(2);
-    const commission = ((e.gross_amount ?? 0) * rate).toFixed(2);
-    const net = ((e.gross_amount ?? 0) * (1 - rate)).toFixed(2);
+    const commission = (e.platform_fee ?? 0).toFixed(2);
+    const net = (e.net_amount ?? 0).toFixed(2);
     return `${date},${e.order_id ?? ""},${gross},${commission},${net}`;
   });
   const csv = [header, ...rows].join("\n");
@@ -309,27 +304,28 @@ const PartnerPayouts = () => {
     const filtered = filterByDateRange(rawEarnings, dateRange);
 
     const totalGross = filtered.reduce((s, e) => s + (e.gross_amount ?? 0), 0);
-    const totalCommission = totalGross * platformRate;
-    const totalNet = totalGross - totalCommission;
+    const totalCommission = filtered.reduce(
+      (sum, earning) => sum + (earning.platform_fee ?? 0),
+      0,
+    );
+    const totalNet = filtered.reduce(
+      (sum, earning) => sum + (earning.net_amount ?? 0),
+      0,
+    );
 
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const thisMonthGross = rawEarnings
+    const thisMonthNet = rawEarnings
       .filter((e) => e.created_at && new Date(e.created_at) >= thisMonthStart)
-      .reduce((s, e) => s + (e.gross_amount ?? 0), 0);
-    const thisMonthNet = thisMonthGross * (1 - platformRate);
+      .reduce((s, e) => s + (e.net_amount ?? 0), 0);
 
     const pendingAmount = payouts
       .filter((p) => p.status === "pending" || p.status === "processing")
       .reduce((s, p) => s + p.amount, 0);
 
-    const rawTotalNet =
-      rawEarnings.reduce((s, e) => s + (e.gross_amount ?? 0), 0) *
-      (1 - platformRate);
-    const totalAllocated = payouts
-      .filter((p) => p.status !== "failed")
-      .reduce((s, p) => s + p.amount, 0);
-    const availableForPayout = Math.max(0, rawTotalNet - totalAllocated);
+    const availableForPayout = rawEarnings
+      .filter((earning) => earning.status === "pending" && !earning.payout_id)
+      .reduce((sum, earning) => sum + (earning.net_amount ?? 0), 0);
 
     setSummary({
       totalGross,
@@ -340,9 +336,9 @@ const PartnerPayouts = () => {
       commissionRate: Math.round(platformRate * 100),
       availableForPayout,
     });
-    setWeeklyEarnings(buildWeeklyEarnings(filtered, platformRate).slice(0, 12));
+    setWeeklyEarnings(buildWeeklyEarnings(filtered).slice(0, 12));
     setMonthlyEarnings(
-      buildMonthlyEarnings(filtered, platformRate).slice(0, 12),
+      buildMonthlyEarnings(filtered).slice(0, 12),
     );
   }, [rawEarnings, dateRange, payouts, platformRate]);
 
@@ -366,7 +362,7 @@ const PartnerPayouts = () => {
         supabase
           .from("partner_earnings")
           .select(
-            "gross_amount, platform_fee, net_amount, delivery_fee, created_at, order_id",
+            "gross_amount, platform_fee, net_amount, delivery_fee, created_at, order_id, status, payout_id",
           )
           .eq("restaurant_id", restaurant.id)
           .order("created_at", { ascending: false }),
@@ -413,27 +409,19 @@ const PartnerPayouts = () => {
     if (!restaurantId) return;
     setRequestingPayout(true);
     try {
-      const now = new Date();
-      const periodEnd = now.toISOString().split("T")[0];
-      const periodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0];
-      const { error } = await supabase.from("partner_payouts").insert({
-        restaurant_id: restaurantId,
-        amount: summary.availableForPayout,
-        status: "pending",
-        period_start: periodStart,
-        period_end: periodEnd,
-        payout_method: "bank_transfer",
-      });
-      if (error) throw error;
+      await requestPartnerPayout(restaurantId);
       toast.success(
         "Payout request submitted. The admin team will process it within 3-5 business days.",
       );
       setShowPayoutDialog(false);
       fetchPayoutData();
-    } catch {
-      toast.error("Failed to submit payout request. Please try again.");
+    } catch (error) {
+      console.error("Failed to request partner payout:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message.replace(/_/g, " ")
+          : "Failed to submit payout request. Please try again.",
+      );
     } finally {
       setRequestingPayout(false);
     }
@@ -790,10 +778,7 @@ const PartnerPayouts = () => {
               variant="outline"
               className="min-h-11 rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
               onClick={() =>
-                exportToCsv(
-                  filterByDateRange(rawEarnings, dateRange),
-                  platformRate,
-                )
+                exportToCsv(filterByDateRange(rawEarnings, dateRange))
               }
               disabled={rawEarnings.length === 0}
             >
@@ -916,8 +901,7 @@ const PartnerPayouts = () => {
               ) : (
                 <div className="space-y-3">
                   {payouts.map((payout) => {
-                    const cfg =
-                      statusConfig[payout.status] - statusConfig.pending;
+                    const cfg = statusConfig[payout.status] ?? statusConfig.pending;
                     return (
                       <div
                         key={payout.id}

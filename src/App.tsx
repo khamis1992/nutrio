@@ -37,6 +37,7 @@ const PartnerOrders = lazy(() => import("./pages/partner/PartnerOrders"));
 const PartnerSettings = lazy(() => import("./pages/partner/PartnerSettings"));
 const PartnerAnalytics = lazy(() => import("./pages/partner/PartnerAnalytics"));
 const PartnerNotifications = lazy(() => import("./pages/partner/PartnerNotifications"));
+const PartnerReviews = lazy(() => import("./pages/partner/PartnerReviews"));
 const PartnerProfile = lazy(() => import("./pages/partner/PartnerProfile"));
 const PartnerPayouts = lazy(() => import("./pages/partner/PartnerPayouts"));
 const PartnerOnboarding = lazy(() => import("./pages/partner/PartnerOnboarding"));
@@ -237,6 +238,14 @@ const App = () => (
                   <PartnerNotifications />
                 </ProtectedRoute>
               } 
+            />
+            <Route
+              path="/partner/reviews"
+              element={
+                <ProtectedRoute requiredRole="partner" requireApproval>
+                  <PartnerReviews />
+                </ProtectedRoute>
+              }
             />
             <Route 
               path="/partner/profile" 

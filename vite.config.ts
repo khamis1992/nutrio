@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import type { ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import legacy from "@vitejs/plugin-legacy";
 import path from "path";
@@ -32,7 +33,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     {
       name: 'nutrio-middleware',
-      configureServer(server) {
+      configureServer(server: ViteDevServer) {
         server.middlewares.use((req, res, next) => {
           // Redirect bare root to /nutrio/ so React Router's basename matches.
           // Without this, visiting http://localhost:5173/ produces a blank page

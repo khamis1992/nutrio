@@ -1,13 +1,44 @@
 import "@testing-library/jest-dom";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
+
+function createMemoryStorage(): Storage {
+  let values: Record<string, string> = {};
+
+  return {
+    get length() { return Object.keys(values).length; },
+    clear: vi.fn(() => { values = {}; }),
+    getItem: vi.fn((key: string) => values[key] ?? null),
+    key: vi.fn((index: number) => Object.keys(values)[index] ?? null),
+    removeItem: vi.fn((key: string) => { delete values[key]; }),
+    setItem: vi.fn((key: string, value: string) => { values[key] = String(value); }),
+  };
+}
+
+beforeEach(() => {
+  const storage = window.localStorage;
+  if (
+    typeof storage?.getItem !== "function" ||
+    typeof storage?.setItem !== "function" ||
+    typeof storage?.removeItem !== "function" ||
+    typeof storage?.clear !== "function"
+  ) {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: createMemoryStorage(),
+    });
+  }
+});
 
 export function createSupabaseMockChain(resolver?: () => Promise<unknown>): Record<string, ReturnType<typeof vi.fn>> {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-  const methods = new Set(["select", "insert", "update", "delete", "upsert", "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "is", "in", "contains", "not", "or", "and", "filter", "match", "order", "limit", "range", "offset", "maybeSingle", "single", "then", "setHeader", "overrideTypes"]);
+  const methods = new Set(["select", "insert", "update", "delete", "upsert", "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "is", "in", "contains", "not", "or", "and", "filter", "match", "order", "limit", "range", "offset", "maybeSingle", "single", "setHeader", "overrideTypes"]);
   const proxy = new Proxy(chain, {
     get(target, prop) {
       if (typeof prop === "symbol") return undefined;
-      if (prop === "then") { if (!resolver) return undefined; return (cb: (v: unknown) => unknown) => Promise.resolve(resolver()).then(cb); }
+      if (prop === "then") {
+        return (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
+          Promise.resolve(resolver ? resolver() : { data: [], error: null }).then(resolve, reject);
+      }
       if (prop in target) return (target as any)[prop];
       const fn = vi.fn().mockReturnValue(proxy);
       (target as any)[prop] = fn;
@@ -27,6 +58,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     removeChannel: vi.fn(),
     auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }), signInWithPassword: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }) },
     functions: { invoke: vi.fn().mockResolvedValue({ data: null, error: null }) },
+    rpc: vi.fn().mockResolvedValue({ data: null, error: { message: "RPC unavailable in unit tests" } }),
     realtime: { setAuth: vi.fn() },
   },
 }));

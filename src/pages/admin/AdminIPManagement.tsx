@@ -58,7 +58,14 @@ export default function AdminIPManagement() {
           variant: "destructive",
         });
       } else {
-        setBlockedIPs(blockedData || []);
+        setBlockedIPs((blockedData || []).map((row) => ({
+          id: row.id,
+          ip_address: String(row.ip_address || ""),
+          reason: row.reason,
+          is_active: row.is_active ?? false,
+          created_at: row.created_at || new Date(0).toISOString(),
+          updated_at: row.updated_at || new Date(0).toISOString(),
+        })));
       }
 
       // Fetch user IP logs
@@ -76,7 +83,17 @@ export default function AdminIPManagement() {
           variant: "destructive",
         });
       } else {
-        setUserIPLogs(logData || []);
+        setUserIPLogs((logData || []).map((row) => ({
+          id: row.id,
+          user_id: row.user_id || "",
+          ip_address: String(row.ip_address || ""),
+          country_code: row.country_code,
+          country_name: row.country_name,
+          city: row.city,
+          action: row.action,
+          user_agent: row.user_agent,
+          created_at: row.created_at || new Date(0).toISOString(),
+        })));
       }
     } catch (error: unknown) {
       console.error("Error fetching data:", error);

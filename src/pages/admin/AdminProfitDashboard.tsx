@@ -197,15 +197,23 @@ export default function AdminProfitDashboard() {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - daysAgo);
 
-      // 1. Fetch subscription revenue
+      // Active subscriptions are an operational count. Revenue comes only
+      // from completed, fulfilled payment records.
       const { data: subscriptions } = await supabase
         .from("subscriptions")
-        .select("plan_type, price, created_at")
-        .gte("created_at", startDate.toISOString())
+        .select("id, created_at")
         .eq("status", "active");
 
-      const subscriptionRevenue = (subscriptions || []).reduce(
-        (sum: number, s: { price?: number; plan_type?: string; created_at?: string }) => sum + (s.price || 0),
+      const { data: subscriptionPayments } = await supabase
+        .from("payments")
+        .select("amount, completed_at")
+        .eq("payment_type", "subscription")
+        .eq("status", "completed")
+        .eq("fulfillment_status", "completed")
+        .gte("completed_at", startDate.toISOString());
+
+      const subscriptionRevenue = (subscriptionPayments || []).reduce(
+        (sum, payment) => sum + (payment.amount ?? 0),
         0
       );
 
@@ -213,83 +221,88 @@ export default function AdminProfitDashboard() {
       const { data: orders } = await supabase
         .from("orders")
         .select("id, total_amount, created_at, restaurant_id")
-        .gte("created_at", startDate.toISOString());
+        .gte("created_at", startDate.toISOString())
+        .in("status", ["completed", "delivered"]);
 
       // 2b. Fetch restaurant names separately (no FK relationship on orders)
-      const restaurantIds = [...new Set((orders || []).map((o: { restaurant_id?: string }) => o.restaurant_id).filter(Boolean))];
+      const restaurantIds = [...new Set(
+        (orders || [])
+          .map((order) => order.restaurant_id)
+          .filter((restaurantId): restaurantId is string => restaurantId !== null)
+      )];
       const { data: restaurantsList } = restaurantIds.length > 0
-        ? await supabase.from("restaurants").select("id, name").in("id", restaurantIds)
+        ? await supabase.from("restaurants").select("id, name, commission_rate").in("id", restaurantIds)
         : { data: [] };
       const restaurantNameMap: Record<string, string> = {};
-      (restaurantsList || []).forEach((r: { id: string; name: string }) => { restaurantNameMap[r.id] = r.name; });
+      const restaurantCommissionMap: Record<string, number> = {};
+      (restaurantsList || []).forEach((restaurant) => {
+        restaurantNameMap[restaurant.id] = restaurant.name;
+        restaurantCommissionMap[restaurant.id] = restaurant.commission_rate ?? commissionRate;
+      });
 
       // 3. Calculate commission from total_amount using platform commission rate
       const commissionRevenue = (orders || []).reduce(
-        (sum: number, o: { total_amount?: unknown; created_at?: string; restaurant_id?: string; id?: string }) => sum + (Number(o.total_amount) || 0) * (commissionRate / 100),
+        (sum, order) =>
+          sum +
+          (order.total_amount ?? 0) *
+            ((order.restaurant_id
+              ? restaurantCommissionMap[order.restaurant_id]
+              : commissionRate) /
+              100),
         0
       );
 
-      // 4. Calculate unused meals profit
-      const avgMealPrice = 50;
       const totalOrderedMeals = (orders || []).length;
-      
-      // Get subscription meal counts
-      const { data: subscriptionPlans } = await supabase
-        .from("subscription_plans")
-        .select("tier, meals_per_month")
-        .eq("is_active", true);
-
-      // Calculate expected meals vs ordered
-      const expectedMeals = (subscriptions || []).reduce((sum: number, sub: { plan_type?: string; price?: number; created_at?: string }) => {
-        const plan = subscriptionPlans?.find((p: { tier: string; meals_per_month?: number }) => p.tier === sub.plan_type);
-        return sum + (plan?.meals_per_month || 0);
-      }, 0);
-
-      // Estimate unused meals profit
-      const unusedMeals = Math.max(0, expectedMeals - totalOrderedMeals);
-      const unusedMealsProfit = unusedMeals * avgMealPrice;
+      const unusedMealsProfit = 0;
 
       // 5. Fetch featured listings revenue
       const { data: featuredListings } = await supabase
         .from("featured_listings")
-        .select("price_paid, created_at")
-        .gte("created_at", startDate.toISOString());
+        .select("price_paid, created_at, payment_reference, status")
+        .gte("created_at", startDate.toISOString())
+        .in("status", ["active", "expired"])
+        .not("payment_reference", "is", null);
 
       const featuredListingsRevenue = (featuredListings || []).reduce(
-        (sum: number, f: { price_paid?: unknown; created_at?: string }) => sum + (Number(f.price_paid) || 0),
+        (sum, listing) => sum + (listing.price_paid ?? 0),
         0
       );
 
       // 6. Fetch premium analytics purchases revenue
       const { data: analyticsPurchases } = await supabase
         .from("premium_analytics_purchases")
-        .select("price_paid, created_at")
-        .gte("created_at", startDate.toISOString());
+        .select("price_paid, created_at, payment_reference, status")
+        .gte("created_at", startDate.toISOString())
+        .eq("status", "active")
+        .not("payment_reference", "is", null);
 
       const premiumAnalyticsRevenue = (analyticsPurchases || []).reduce(
-        (sum: number, p: { price_paid?: unknown; created_at?: string }) => sum + (Number(p.price_paid) || 0),
+        (sum, purchase) => sum + (purchase.price_paid ?? 0),
         0
       );
 
       // 7. Fetch expenses
       
-      // a) Driver costs - from deliveries table
+      // Driver costs are recognized only for completed delivery jobs.
       const { data: deliveries } = await supabase
-        .from("deliveries")
-        .select("delivery_fee, tip_amount, created_at");
+        .from("delivery_jobs")
+        .select("delivery_fee, tip_amount, delivered_at")
+        .in("status", ["delivered", "completed"])
+        .gte("delivered_at", startDate.toISOString());
       
       const driverCosts = (deliveries || []).reduce(
-        (sum: number, d: Record<string, unknown>) => sum + (Number(d.delivery_fee) || 0) + (Number(d.tip_amount) || 0),
+        (sum, delivery) => sum + (delivery.delivery_fee ?? 0) + (delivery.tip_amount ?? 0),
         0
       );
 
       // b) Refund costs - from order_cancellations table
       const { data: cancellations } = await supabase
         .from("order_cancellations")
-        .select("refund_amount, created_at");
+        .select("refund_amount, created_at")
+        .gte("created_at", startDate.toISOString());
       
       const refundCosts = (cancellations || []).reduce(
-        (sum: number, c: Record<string, unknown>) => sum + (Number(c.refund_amount) || 0),
+        (sum, cancellation) => sum + (cancellation.refund_amount ?? 0),
         0
       );
 
@@ -301,7 +314,7 @@ export default function AdminProfitDashboard() {
         .eq("status", "paid");
       
       const affiliateCosts = (affiliateCommissions || []).reduce(
-        (sum: number, c: Record<string, unknown>) => sum + (Number(c.commission_amount) || 0),
+        (sum, commission) => sum + (commission.commission_amount ?? 0),
         0
       );
 
@@ -309,7 +322,7 @@ export default function AdminProfitDashboard() {
       const totalExpenses = driverCosts + refundCosts + affiliateCosts;
 
       // Total revenue and net profit
-      const totalRevenue = subscriptionRevenue + commissionRevenue + unusedMealsProfit + featuredListingsRevenue + premiumAnalyticsRevenue;
+      const totalRevenue = subscriptionRevenue + commissionRevenue + featuredListingsRevenue + premiumAnalyticsRevenue;
       const netProfit = totalRevenue - totalExpenses;
       const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
@@ -327,7 +340,7 @@ export default function AdminProfitDashboard() {
         refundCosts,
         affiliateCosts,
         totalOrders: totalOrderedMeals,
-        totalRestaurants: new Set((orders || []).map((o: Record<string, unknown>) => o.restaurant_id)).size,
+        totalRestaurants: new Set((orders || []).map((order) => order.restaurant_id).filter(Boolean)).size,
         totalSubscribers: (subscriptions || []).length,
       });
 
@@ -346,18 +359,20 @@ export default function AdminProfitDashboard() {
       }
 
       // Add subscription revenue by day
-      (subscriptions || []).forEach((s: Record<string, unknown>) => {
-        const dateStr = (s.created_at as string)?.split("T")[0];
+      (subscriptionPayments || []).forEach((payment: Record<string, unknown>) => {
+        const dateStr = (payment.completed_at as string)?.split("T")[0];
         if (dateStr && dailyMap[dateStr]) {
-          dailyMap[dateStr].revenue += (s.price as number) || 0;
-          dailyMap[dateStr].profit += (s.price as number) || 0;
+          dailyMap[dateStr].revenue += (payment.amount as number) || 0;
+          dailyMap[dateStr].profit += (payment.amount as number) || 0;
         }
       });
 
       (orders || []).forEach((o: Record<string, unknown>) => {
         const dateStr = (o.created_at as string)?.split("T")[0];
         if (dateStr && dailyMap[dateStr]) {
-          const comm = (Number(o.total_amount) || 0) * (commissionRate / 100);
+          const restaurantId = o.restaurant_id as string | undefined;
+          const rate = restaurantId ? restaurantCommissionMap[restaurantId] ?? commissionRate : commissionRate;
+          const comm = (Number(o.total_amount) || 0) * (rate / 100);
           dailyMap[dateStr].revenue += comm;
           dailyMap[dateStr].profit += comm;
         }
@@ -382,7 +397,7 @@ export default function AdminProfitDashboard() {
       });
 
       (deliveries || []).forEach((d: Record<string, unknown>) => {
-        const dateStr = (d.created_at as string)?.split("T")[0];
+        const dateStr = (d.delivered_at as string)?.split("T")[0];
         if (dateStr && dailyMap[dateStr]) {
           const cost = (Number(d.delivery_fee) || 0) + (Number(d.tip_amount) || 0);
           dailyMap[dateStr].expenses += cost;
@@ -408,7 +423,8 @@ export default function AdminProfitDashboard() {
           };
         }
         const orderTotal = Number(o.total_amount) || 0;
-        const orderCommission = orderTotal * (commissionRate / 100);
+        const restaurantRate = restaurantCommissionMap[rid] ?? commissionRate;
+        const orderCommission = orderTotal * (restaurantRate / 100);
         restaurantMap[rid].totalOrders += 1;
         restaurantMap[rid].grossRevenue += orderTotal;
         restaurantMap[rid].commission += orderCommission;
@@ -438,8 +454,7 @@ export default function AdminProfitDashboard() {
 
     const revenueRows = [
       { label: "Subscriptions", value: stats?.subscriptionRevenue || 0, detail: `${stats?.totalSubscribers || 0} subscribers` },
-      { label: `Commission (${globalCommissionRate}%)`, value: stats?.commissionRevenue || 0, detail: `${stats?.totalOrders || 0} orders` },
-      { label: "Unused Meals", value: stats?.unusedMealsProfit || 0, detail: "Unordered meal credits" },
+      { label: "Order commissions", value: stats?.commissionRevenue || 0, detail: `${stats?.totalOrders || 0} completed orders` },
       { label: "Featured Listings", value: stats?.featuredListingsRevenue || 0, detail: "Partner boosts" },
       { label: "Premium Analytics", value: stats?.premiumAnalyticsRevenue || 0, detail: "Analytics upgrades" },
     ];
@@ -545,8 +560,8 @@ export default function AdminProfitDashboard() {
       <th>Restaurant</th>
       <th class="right">Orders</th>
       <th class="right">Gross Revenue</th>
-      <th class="right">Commission (${globalCommissionRate}%)</th>
-      <th class="right">Payout (${100 - globalCommissionRate}%)</th>
+      <th class="right">Commission</th>
+      <th class="right">Payout</th>
     </tr>
   </thead>
   <tbody>
@@ -582,8 +597,7 @@ export default function AdminProfitDashboard() {
 
   const revenueItems = [
     { label: "Subscriptions", value: stats?.subscriptionRevenue || 0, icon: Users, color: C.protein, detail: `${stats?.totalSubscribers || 0} subscribers` },
-    { label: `Commission (${globalCommissionRate}%)`, value: stats?.commissionRevenue || 0, icon: Percent, color: C.progress, detail: `${stats?.totalOrders || 0} orders` },
-    { label: "Unused Meals", value: stats?.unusedMealsProfit || 0, icon: Utensils, color: C.water, detail: "Unordered meal credits" },
+    { label: "Order commissions", value: stats?.commissionRevenue || 0, icon: Percent, color: C.progress, detail: `${stats?.totalOrders || 0} completed orders` },
     { label: "Featured Listings", value: stats?.featuredListingsRevenue || 0, icon: Star, color: C.danger, detail: "Partner boosts" },
     { label: "Premium Analytics", value: stats?.premiumAnalyticsRevenue || 0, icon: BarChart3, color: C.protein, detail: "Analytics upgrades" },
   ];
@@ -790,8 +804,8 @@ export default function AdminProfitDashboard() {
                   <TableHead className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Restaurant</TableHead>
                   <TableHead className="text-right text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Orders</TableHead>
                   <TableHead className="text-right text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Gross Revenue</TableHead>
-                  <TableHead className="text-right text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Commission ({globalCommissionRate}%)</TableHead>
-                  <TableHead className="text-right text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Payout ({100 - globalCommissionRate}%)</TableHead>
+                  <TableHead className="text-right text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Commission</TableHead>
+                  <TableHead className="text-right text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">Payout</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

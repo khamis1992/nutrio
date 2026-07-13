@@ -1,6 +1,9 @@
+import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useSubscription } from "@/hooks/useSubscription";
+import { createMockUser } from "@/test/factories";
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: vi.fn(),
@@ -38,11 +41,27 @@ const buildChain = (resolver: () => Promise<any>) => {
   return chain;
 };
 
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+};
+
+const renderSubscription = () =>
+  renderHook(() => useSubscription(), { wrapper: createWrapper() });
+
 describe("useSubscription", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -61,7 +80,7 @@ describe("useSubscription", () => {
       user: null, session: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn(),
     });
 
-    const { result } = renderHook(() => useSubscription());
+    const { result } = renderSubscription();
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.subscription).toBeNull();
     expect(result.current.hasActiveSubscription).toBe(false);
@@ -77,7 +96,7 @@ describe("useSubscription", () => {
       return buildChain(async () => ({ data: null, error: null }));
     });
 
-    const { result } = renderHook(() => useSubscription());
+    const { result } = renderSubscription();
     await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
     expect(result.current.subscription).toBeNull();
     expect(result.current.hasActiveSubscription).toBe(false);
@@ -107,7 +126,7 @@ describe("useSubscription", () => {
       return buildChain(async () => ({ data: null, error: null }));
     });
 
-    const { result } = renderHook(() => useSubscription());
+    const { result } = renderSubscription();
     await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
     expect(result.current.hasActiveSubscription).toBe(true);
     expect(result.current.isUnlimited).toBe(false);
@@ -140,7 +159,7 @@ describe("useSubscription", () => {
       return buildChain(async () => ({ data: null, error: null }));
     });
 
-    const { result } = renderHook(() => useSubscription());
+    const { result } = renderSubscription();
     await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
     expect(result.current.isVip).toBe(true);
     expect(result.current.isUnlimited).toBe(true);
@@ -150,7 +169,7 @@ describe("useSubscription", () => {
     vi.mocked(useAuth).mockReturnValue({
       user: null, session: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn(),
     });
-    const { result } = renderHook(() => useSubscription());
+    const { result } = renderSubscription();
     const res = await result.current.incrementMealUsage();
     expect(res).toBe(false);
   });
@@ -178,7 +197,7 @@ describe("useSubscription", () => {
       return buildChain(async () => ({ data: { snacks_per_month: 0, snacks_used_this_month: 0 }, error: null }));
     });
 
-    const { result } = renderHook(() => useSubscription());
+    const { result } = renderSubscription();
     await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
     expect(result.current.hasActiveSubscription).toBe(true);
   });
@@ -203,7 +222,7 @@ describe("useSubscription", () => {
       return buildChain(async () => ({ data: { snacks_per_month: 0, snacks_used_this_month: 0 }, error: null }));
     });
 
-    const { result } = renderHook(() => useSubscription());
+    const { result } = renderSubscription();
     await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
     expect(result.current.isPaused).toBe(true);
   });
@@ -229,7 +248,7 @@ describe("useSubscription", () => {
       return buildChain(async () => ({ data: { snacks_per_month: 8, snacks_used_this_month: 3 }, error: null }));
     });
 
-    const { result } = renderHook(() => useSubscription());
+    const { result } = renderSubscription();
     await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
     expect(result.current.snacksPerMonth).toBe(8);
     expect(result.current.snacksUsed).toBe(3);
@@ -257,7 +276,7 @@ describe("useSubscription", () => {
       return buildChain(async () => ({ data: { snacks_per_month: 0, snacks_used_this_month: 0 }, error: null }));
     });
 
-    const { result } = renderHook(() => useSubscription());
+    const { result } = renderSubscription();
     await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
     expect(result.current.canOrderMeal).toBe(true);
   });

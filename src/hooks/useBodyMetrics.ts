@@ -242,7 +242,7 @@ export function useWeightChange(userId: string | undefined) {
         .limit(1)
         .single();
 
-      if (latestError || !latest) return null;
+      if (latestError || !latest || latest.weight_kg === null) return null;
 
       const { data: first, error: firstError } = await supabase
         .from("body_measurements")
@@ -252,7 +252,7 @@ export function useWeightChange(userId: string | undefined) {
         .limit(1)
         .single();
 
-      if (firstError || !first) return null;
+      if (firstError || !first || first.weight_kg === null) return null;
 
       const change = latest.weight_kg - first.weight_kg;
       const weeks = Math.max(

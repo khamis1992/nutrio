@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { format, subDays } from "date-fns";
+import { subDays } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -163,8 +163,8 @@ export default function HealthDashboard() {
     ? Math.round(mealLogs.reduce((sum, meal) => sum + (meal.calories || 0), 0) / mealLogs.length)
     : 0;
   const daysLogged = new Set(mealLogs.map((meal) => meal.date)).size;
-  const profileWeightKg = currentWeight ?? profile?.current_weight_kg ?? profile?.weight ?? null;
-  const profileHeightCm = profile?.height_cm ?? profile?.height ?? null;
+  const profileWeightKg = currentWeight ?? profile?.current_weight_kg ?? null;
+  const profileHeightCm = profile?.height_cm ?? null;
   const bmiValue = profileWeightKg && profileHeightCm
     ? Number((profileWeightKg / ((profileHeightCm / 100) ** 2)).toFixed(1))
     : null;

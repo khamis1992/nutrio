@@ -2,7 +2,7 @@ import type { BloodMarker } from "@/lib/blood-markers";
 
 interface UserProfile {
   fullName?: string | null;
-  age?: number;
+  age?: number | null;
   gender?: string | null;
   currentWeightKg?: number | null;
   targetWeightKg?: number | null;

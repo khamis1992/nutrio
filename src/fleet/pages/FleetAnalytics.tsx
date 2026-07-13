@@ -111,25 +111,35 @@ async function fetchAnalytics(from: string, to: string): Promise<AnalyticsData> 
     if (jobIds.length > 0) {
       const { data: jobsData } = await supabase
         .from("delivery_jobs")
-        .select("id, schedule_id")
+        .select("id, schedule_id, order_id")
         .in("id", jobIds);
 
-      const orderIds = (jobsData || []).map((j) => j.schedule_id).filter(Boolean) as string[];
-      if (orderIds.length > 0) {
-        const { data: ordersData } = await supabase
-          .from("orders")
-          .select("id, created_at")
-          .in("id", orderIds);
+      const orderIds = (jobsData || []).map((j) => j.order_id).filter(Boolean) as string[];
+      const scheduleIds = (jobsData || []).map((j) => j.schedule_id).filter(Boolean) as string[];
+      if (orderIds.length > 0 || scheduleIds.length > 0) {
+        const [{ data: ordersData }, { data: schedulesData }] = await Promise.all([
+          orderIds.length > 0
+            ? supabase.from("orders").select("id, created_at").in("id", orderIds)
+            : Promise.resolve({ data: [], error: null }),
+          scheduleIds.length > 0
+            ? supabase.from("meal_schedules").select("id, created_at").in("id", scheduleIds)
+            : Promise.resolve({ data: [], error: null }),
+        ]);
 
-        const orderCreatedMap = new Map((ordersData || []).map((o) => [o.id, o.created_at]));
-        const jobOrderMap = new Map((jobsData || []).map((j) => [j.id, j.schedule_id]));
+        const sourceCreatedMap = new Map([
+          ...(ordersData || []).map((o) => [o.id, o.created_at] as const),
+          ...(schedulesData || []).map((s) => [s.id, s.created_at] as const),
+        ]);
+        const jobSourceMap = new Map(
+          (jobsData || []).map((j) => [j.id, j.order_id ?? j.schedule_id] as const)
+        );
 
         const waits = historyData
           .map((h) => {
             if (!h.job_id || !h.performed_at) return null;
-            const orderId = jobOrderMap.get(h.job_id);
-            if (!orderId) return null;
-            const created = orderCreatedMap.get(orderId);
+            const sourceId = jobSourceMap.get(h.job_id);
+            if (!sourceId) return null;
+            const created = sourceCreatedMap.get(sourceId);
             if (!created) return null;
             return (new Date(h.performed_at).getTime() - new Date(created).getTime()) / 60000;
           })
@@ -146,8 +156,8 @@ async function fetchAnalytics(from: string, to: string): Promise<AnalyticsData> 
     .from("delivery_jobs")
     .select("driver_id")
     .in("status", ["delivered", "completed"])
-    .gte("created_at", from)
-    .lte("created_at", to)
+    .gte("delivered_at", from)
+    .lte("delivered_at", to)
     .limit(500);
 
   const driverDeliveryCount = new Map<string, number>();
@@ -180,27 +190,36 @@ async function fetchAnalytics(from: string, to: string): Promise<AnalyticsData> 
 
   const { data: pickedUpJobs } = await supabase
     .from("delivery_jobs")
-    .select("schedule_id, restaurant_id, picked_up_at")
+    .select("schedule_id, order_id, restaurant_id, picked_up_at")
     .not("picked_up_at", "is", null)
     .not("restaurant_id", "is", null)
-    .gte("created_at", from)
-    .lte("created_at", to)
+    .gte("picked_up_at", from)
+    .lte("picked_up_at", to)
     .limit(500);
 
   let slowRestaurants: SlowRestaurant[] = [];
   if (pickedUpJobs && pickedUpJobs.length > 0) {
-    const orderIds = pickedUpJobs.map((j) => j.schedule_id).filter(Boolean) as string[];
-    const { data: ordersForJobs } = await supabase
-      .from("orders")
-      .select("id, created_at")
-      .in("id", orderIds);
+    const orderIds = pickedUpJobs.map((j) => j.order_id).filter(Boolean) as string[];
+    const scheduleIds = pickedUpJobs.map((j) => j.schedule_id).filter(Boolean) as string[];
+    const [{ data: ordersForJobs }, { data: schedulesForJobs }] = await Promise.all([
+      orderIds.length > 0
+        ? supabase.from("orders").select("id, created_at").in("id", orderIds)
+        : Promise.resolve({ data: [], error: null }),
+      scheduleIds.length > 0
+        ? supabase.from("meal_schedules").select("id, created_at").in("id", scheduleIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
 
-    const orderCreatedMap2 = new Map((ordersForJobs || []).map((o) => [o.id, o.created_at]));
+    const sourceCreatedMap = new Map([
+      ...(ordersForJobs || []).map((o) => [o.id, o.created_at] as const),
+      ...(schedulesForJobs || []).map((s) => [s.id, s.created_at] as const),
+    ]);
     const restaurantWaits = new Map<string, { total: number; count: number }>();
 
     pickedUpJobs.forEach((job) => {
-      if (!job.restaurant_id || !job.schedule_id || !job.picked_up_at) return;
-      const created = orderCreatedMap2.get(job.schedule_id);
+      const sourceId = job.order_id ?? job.schedule_id;
+      if (!job.restaurant_id || !sourceId || !job.picked_up_at) return;
+      const created = sourceCreatedMap.get(sourceId);
       if (!created) return;
       const waitMin = (new Date(job.picked_up_at).getTime() - new Date(created).getTime()) / 60000;
       if (waitMin <= 0) return;

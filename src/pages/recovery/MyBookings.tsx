@@ -58,7 +58,7 @@ export default function MyBookings() {
     cancellingRef.current = false;
     setCancelling(true);
     try {
-      await cancelRecoveryBooking(cancelId, user.id);
+      await cancelRecoveryBooking(cancelId);
       if (cancellingRef.current) return;
       refetch();
       toast({ title: "Booking cancelled" });

@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { InvoicePDFGenerator, generateWalletTopupInvoice } from '@/lib/invoice-pdf';
+import { InvoicePDFGenerator, generateWalletTopupInvoice, type InvoiceData } from '@/lib/invoice-pdf';
 import { resendService } from '@/lib/resend';
 import { formatCurrency } from '@/lib/currency';
 
@@ -29,16 +29,17 @@ export async function processWalletTopup(
     }
 
     // Credit wallet with bonus amount
-    const totalCredit = pkg.amount + pkg.bonus_amount;
+    const bonusAmount = pkg.bonus_amount ?? 0;
+    const totalCredit = pkg.amount + bonusAmount;
     const { data: walletTxId, error: creditError } = await supabase.rpc('credit_wallet', {
       p_user_id: userId,
       p_amount: totalCredit,
       p_type: 'credit',
       p_reference_type: 'topup',
-      p_description: `Wallet top-up: ${formatCurrency(pkg.amount)} + ${formatCurrency(pkg.bonus_amount)} bonus`,
+      p_description: `Wallet top-up: ${formatCurrency(pkg.amount)} + ${formatCurrency(bonusAmount)} bonus`,
       p_metadata: {
         package_id: packageId,
-        bonus_amount: pkg.bonus_amount,
+        bonus_amount: bonusAmount,
         topup_amount: pkg.amount,
       },
     });
@@ -64,7 +65,7 @@ export async function processWalletTopup(
         paid_at: new Date().toISOString(),
         metadata: {
           package_id: packageId,
-          bonus_amount: pkg.bonus_amount,
+          bonus_amount: bonusAmount,
           topup_amount: pkg.amount,
         },
       })
@@ -82,7 +83,7 @@ export async function processWalletTopup(
       recipientName: userName,
       recipientEmail: userEmail,
       topupAmount: pkg.amount,
-      bonusAmount: pkg.bonus_amount,
+      bonusAmount,
       issueDate: new Date().toISOString(),
     });
 
@@ -97,7 +98,7 @@ export async function processWalletTopup(
     }
 
     // Send email if Resend is configured
-    if (resendService.isConfigured() && userEmail) {
+    if (userEmail) {
       try {
         await resendService.sendInvoiceEmail({
           to: userEmail,
@@ -127,7 +128,7 @@ export async function processWalletTopup(
     return {
       success: true,
       invoiceId: invoice?.id,
-      paymentId: walletTxId,
+      paymentId: walletTxId ?? undefined,
     };
 
   } catch (error: unknown) {
@@ -150,12 +151,21 @@ export async function downloadInvoice(invoiceId: string): Promise<void> {
 
     const generator = new InvoicePDFGenerator();
     
-    const invoiceData = {
+    const validStatuses: InvoiceData['status'][] = ['draft', 'sent', 'paid', 'cancelled'];
+    const status = validStatuses.includes(invoice.status as InvoiceData['status'])
+      ? invoice.status as InvoiceData['status']
+      : 'draft';
+    const validInvoiceTypes: InvoiceData['invoiceType'][] = ['wallet_topup', 'subscription', 'order', 'partner_payout', 'driver_payout'];
+    const invoiceType = validInvoiceTypes.includes(invoice.invoice_type as InvoiceData['invoiceType'])
+      ? invoice.invoice_type as InvoiceData['invoiceType']
+      : 'order';
+
+    const invoiceData: InvoiceData = {
       invoiceNumber: invoice.invoice_number,
-      invoiceType: invoice.invoice_type,
-      issueDate: invoice.created_at,
-      status: invoice.status,
-      paidAt: invoice.paid_at,
+      invoiceType,
+      issueDate: invoice.created_at || new Date().toISOString(),
+      status,
+      paidAt: invoice.paid_at || undefined,
       recipientName: 'Customer', // Simplified for now
       recipientEmail: '',
       items: [
@@ -167,9 +177,9 @@ export async function downloadInvoice(invoiceId: string): Promise<void> {
         }
       ],
       subtotal: invoice.amount,
-      taxAmount: invoice.tax_amount,
+      taxAmount: invoice.tax_amount ?? 0,
       totalAmount: invoice.total_amount,
-      currency: invoice.currency,
+      currency: invoice.currency || 'QAR',
     };
 
     generator.download(invoiceData, `invoice-${invoice.invoice_number}.pdf`);

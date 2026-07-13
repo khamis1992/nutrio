@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { captureError } from "@/lib/sentry";
 import { posthog } from "posthog-js";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Loader2 } from "lucide-react";
 
 import { Step1Survey, type CancellationReason } from "./Step1Survey";
 import { Step2PauseOffer } from "./Step2PauseOffer";
@@ -353,7 +354,14 @@ export function CancellationFlow({
         <DialogHeader className="sr-only">
           <DialogTitle>{t("cancel_subscription")}</DialogTitle>
         </DialogHeader>
-        {renderStep()}
+        <div className="relative">
+          {renderStep()}
+          {isLoading && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-background/75" aria-live="polite">
+              <Loader2 className="h-7 w-7 animate-spin text-primary" aria-label="Processing subscription request" />
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

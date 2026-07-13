@@ -98,12 +98,6 @@ function avg(arr: number[]) {
   return arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
-function stdDev(arr: number[]): number {
-  if (arr.length < 2) return 0;
-  const mean = avg(arr);
-  return Math.sqrt(arr.reduce((s, v) => s + (v - mean) ** 2, 0) / arr.length);
-}
-
 /** Consistency: fraction of values within ±15% of mean */
 function consistencyScore(arr: number[]): number {
   if (arr.length === 0) return 0;
@@ -134,7 +128,7 @@ export function useSmartAdjustments(
   activeGoal: GoalSnapshot | null,
   enabled: boolean
 ) {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [suggestions, setSuggestions] = useState<AdjustmentSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<AdjustmentHistory[]>([]);

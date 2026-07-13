@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget";
+import { createMockUser } from "@/test/factories";
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -16,6 +17,29 @@ Object.defineProperty(window, "localStorage", { value: localStorageMock });
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: vi.fn(),
+}));
+
+vi.mock("@/contexts/LanguageContext", () => ({
+  useLanguage: () => ({
+    t: (key: string) => ({
+      bp_ai_insight: "AI Insight",
+      bp_engagement: "engagement",
+      bp_we_miss_you: "We Miss You!",
+      bp_personal_outreach_desc: "Your nutrition coach wants to check in with you.",
+      bp_bonus_credit: "Special Bonus for You",
+      bp_bonus_credit_desc: "You've earned a bonus credit! Check your wallet.",
+      bp_try_something_new: "Try Something New",
+      bp_cuisine_exploration_desc: "Explore new restaurants and cuisines this week.",
+      bp_refresh_plan: "Refresh Your Meal Plan",
+      bp_plan_regeneration_desc: "Your AI recommends regenerating your meal plan.",
+      bp_challenge_yourself: "Challenge Yourself",
+      bp_gamification_desc: "Complete this week's challenge to earn rewards!",
+      bp_scheduling_tip: "Scheduling Tip",
+      bp_flexible_scheduling_desc: "Try flexible scheduling to match your lifestyle.",
+      bp_ai_recommendation: "AI Recommendation",
+      bp_ai_recommendation_desc: "Personalized suggestion based on your usage.",
+    } as Record<string, string>)[key] ?? key,
+  }),
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -55,7 +79,7 @@ describe("BehaviorPredictionWidget", () => {
 
   it("returns null when dismissed recently", () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -83,7 +107,7 @@ describe("BehaviorPredictionWidget", () => {
 
   it("renders prediction card for high churn risk", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -120,7 +144,7 @@ describe("BehaviorPredictionWidget", () => {
 
   it("dismisses prediction on click", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -160,7 +184,7 @@ describe("BehaviorPredictionWidget", () => {
 
   it("does not show for low-risk predictions", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -194,9 +218,9 @@ describe("BehaviorPredictionWidget", () => {
     expect(container.querySelector("[class*='Card']")).toBeNull();
   });
 
-  it("shows churn risk indicator for high churn", async () => {
+  it("shows the customer-facing outreach message for high churn risk", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -227,12 +251,12 @@ describe("BehaviorPredictionWidget", () => {
 
     render(<BehaviorPredictionWidget />);
     await screen.findByText("AI Insight");
-    expect(screen.getByText(/Churn risk/i)).toBeInTheDocument();
+    expect(screen.getByText("We Miss You!")).toBeInTheDocument();
   });
 
   it("shows fallback for unknown action type", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -279,7 +303,7 @@ describe("BehaviorPredictionWidget", () => {
     for (const { action, title } of actions) {
       vi.clearAllMocks();
       vi.mocked(useAuth).mockReturnValue({
-        user: { id: "user-1", email: "test@example.com" },
+        user: createMockUser(),
         session: null,
         loading: false,
         signUp: vi.fn(),

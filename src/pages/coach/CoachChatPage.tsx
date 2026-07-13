@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, ArrowLeft, Loader2, Search, MessageSquare, User, Paperclip, Image, FileText, Download, CheckSquare, Square, Megaphone, X } from "lucide-react";
+import { Send, ArrowLeft, Loader2, Search, MessageSquare, User, Paperclip, Megaphone, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoachMessages } from "@/hooks/useCoachMessages";
 import { useCoachAttachments } from "@/hooks/useCoachAttachments";
@@ -13,9 +13,9 @@ export default function CoachChatPage() {
   const coachId = user?.id;
   const {
     conversations, activeMessages, activeClientId, loading, sending,
-    fetchMessages, sendMessage, markAsRead, refreshConversations,
+    fetchMessages, sendMessage, markAsRead, closeConversation, refreshConversations,
   } = useCoachMessages(coachId);
-  const { uploading, uploadFile, saveAttachment } = useCoachAttachments(coachId, activeClientId);
+  const { uploading, uploadFile, saveAttachment } = useCoachAttachments(coachId, activeClientId ?? undefined);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
@@ -56,7 +56,9 @@ export default function CoachChatPage() {
       const fileMessage = file.type.startsWith("image/")
         ? `[Image: ${file.name}]`
         : `[File: ${file.name} (${(file.size / 1024).toFixed(1)} KB)]`;
-      await sendMessage(activeClientId, fileMessage);
+      const sentMessage = await sendMessage(activeClientId, fileMessage);
+      if (!sentMessage) throw new Error("Message could not be created");
+      await saveAttachment(sentMessage.id, fileData);
       refreshConversations();
       toast({ title: "File sent", description: `${file.name} uploaded successfully.` });
     } catch (err) {
@@ -223,7 +225,7 @@ export default function CoachChatPage() {
       {/* Chat header */}
       <div className="flex items-center gap-3 mb-3">
         <button
-          onClick={() => { setActiveClientId(null); }}
+          onClick={closeConversation}
           className="w-9 h-9 rounded-full bg-white border border-slate-100 flex items-center justify-center shrink-0 shadow-sm"
         >
           <ArrowLeft className="w-4 h-4 text-slate-600" />

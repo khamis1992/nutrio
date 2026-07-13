@@ -1,9 +1,9 @@
 ﻿import { test, expect } from '@playwright/test';
 
-const BASE = 'http://localhost:5173/nutrio';
+import { appUrl, getTestUser } from '../config';
 
 async function goToAuthFresh(page: import('@playwright/test').Page) {
-  await page.goto(`${BASE}/auth`);
+  await page.goto(appUrl('/auth'));
   await page.waitForLoadState('domcontentloaded');
   await page.waitForTimeout(8000);
 
@@ -18,6 +18,7 @@ async function goToAuthFresh(page: import('@playwright/test').Page) {
 test.describe('Customer Auth', () => {
   test.describe('Login', () => {
     test('logs in with valid credentials and lands on dashboard', async ({ page }) => {
+      const credentials = getTestUser('customer');
       await goToAuthFresh(page);
 
       const welcomeSignIn = page.locator('[data-testid="welcome-sign-in-btn"]');
@@ -26,14 +27,15 @@ test.describe('Customer Auth', () => {
         await page.waitForTimeout(500);
       }
 
-      await page.locator('[data-testid="signin-email-input"]').fill('eng.aljabor@gmail.com');
-      await page.locator('[data-testid="signin-password-input"]').fill('123456789');
+      await page.locator('[data-testid="signin-email-input"]').fill(credentials.email);
+      await page.locator('[data-testid="signin-password-input"]').fill(credentials.password);
       await page.locator('[data-testid="signin-submit-btn"]').click();
 
       await expect(page).toHaveURL(/.*dashboard.*/, { timeout: 15000 });
     });
 
     test('shows error for invalid password', async ({ page }) => {
+      const credentials = getTestUser('customer');
       await goToAuthFresh(page);
 
       const welcomeSignIn = page.locator('[data-testid="welcome-sign-in-btn"]');
@@ -42,8 +44,8 @@ test.describe('Customer Auth', () => {
         await page.waitForTimeout(500);
       }
 
-      await page.locator('[data-testid="signin-email-input"]').fill('eng.aljabor@gmail.com');
-      await page.locator('[data-testid="signin-password-input"]').fill('wrongpassword');
+      await page.locator('[data-testid="signin-email-input"]').fill(credentials.email);
+      await page.locator('[data-testid="signin-password-input"]').fill('invalid-e2e-password');
       await page.locator('[data-testid="signin-submit-btn"]').click();
 
       await expect(page.locator('body')).toContainText(/invalid|error|failed|wrong/i, { timeout: 10000 });
@@ -72,7 +74,7 @@ test.describe('Customer Auth', () => {
       }
 
       await page.locator('[data-testid="signin-email-input"]').fill('not-an-email');
-      await page.locator('[data-testid="signin-password-input"]').fill('123456789');
+      await page.locator('[data-testid="signin-password-input"]').fill('invalid-e2e-password');
       await page.locator('[data-testid="signin-submit-btn"]').click();
       await expect(page.locator('body')).toContainText(/valid|email|invalid/i);
     });
@@ -119,6 +121,7 @@ test.describe('Customer Auth', () => {
     });
 
     test('submits password reset request', async ({ page }) => {
+      const credentials = getTestUser('customer');
       await goToAuthFresh(page);
 
       const welcomeSignIn = page.locator('[data-testid="welcome-sign-in-btn"]');
@@ -130,7 +133,7 @@ test.describe('Customer Auth', () => {
       await page.locator('[data-testid="signin-forgot-link"]').click();
       await page.waitForTimeout(500);
 
-      await page.locator('[data-testid="forgot-email-input"]').fill('eng.aljabor@gmail.com');
+      await page.locator('[data-testid="forgot-email-input"]').fill(credentials.email);
       await page.locator('[data-testid="forgot-submit-btn"]').click();
       await expect(page.locator('body')).toContainText(/sent|email|reset|check/i);
     });

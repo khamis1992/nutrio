@@ -1,7 +1,6 @@
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { RotateCcw, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
 import { format, parseISO, isAfter } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -18,7 +17,6 @@ interface RolloverCreditsDisplayProps {
 }
 
 export function RolloverCreditsDisplay({
-  rolloverCredits, 
   rollovers,
   billingCycleEnd 
 }: RolloverCreditsDisplayProps) {

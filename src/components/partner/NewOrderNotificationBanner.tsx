@@ -55,6 +55,17 @@ export function NewOrderNotificationBanner() {
     };
     fetchMealIds();
 
+    const announceOrder = (notification: OrderNotification) => {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch((err) => {
+          console.warn("Audio playback prevented (browser autoplay policy):", err);
+        });
+      }
+
+      setNotifications((prev) => [notification, ...prev]);
+    };
+
     const channel = supabase
       .channel("new-order-notification-banner")
       .on(
@@ -71,19 +82,35 @@ export function NewOrderNotificationBanner() {
             .eq("id", newSchedule.meal_id)
             .maybeSingle();
 
-          // Play notification sound
-          if (audioRef.current) {
-            audioRef.current.currentTime = 0;
-            audioRef.current.play().catch((err) => {
-            console.warn("Audio playback prevented (browser autoplay policy):", err);
+          announceOrder({
+            id: newSchedule.id,
+            meal_name: meal?.name || "a meal",
           });
-          }
-
-          setNotifications((prev) => [
-            { id: newSchedule.id, meal_name: meal?.name || "a meal" },
-            ...prev,
-          ]);
         }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "orders",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        async (payload) => {
+          const order = payload.new as { id: string; meal_id: string | null };
+          const { data: meal } = order.meal_id
+            ? await supabase
+                .from("meals")
+                .select("name")
+                .eq("id", order.meal_id)
+                .maybeSingle()
+            : { data: null };
+
+          announceOrder({
+            id: order.id,
+            meal_name: meal?.name || "an order",
+          });
+        },
       )
       .subscribe();
 

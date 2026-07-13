@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface HealthScore {
   id: string;
@@ -33,6 +34,52 @@ export interface HealthScoreBreakdown {
   protein_accuracy: number;
 }
 
+type HealthScoreRow = {
+  id: string;
+  user_id: string;
+  calculated_at: string | null;
+  score_week_start: string;
+  macro_adherence_score: number | null;
+  meal_consistency_score: number | null;
+  weight_logging_score: number | null;
+  protein_accuracy_score: number | null;
+  overall_score: number;
+  category: string | null;
+  metrics_used: Json;
+};
+
+function normalizeHealthScore(row: HealthScoreRow): HealthScore {
+  const metrics = row.metrics_used && typeof row.metrics_used === "object" && !Array.isArray(row.metrics_used)
+    ? row.metrics_used as Record<string, Json | undefined>
+    : {};
+  const numberMetric = (key: string) => typeof metrics[key] === "number" ? metrics[key] : 0;
+  const optionalNumberMetric = (key: string) => typeof metrics[key] === "number" ? metrics[key] : undefined;
+  const category = row.category === "green" || row.category === "orange" || row.category === "red"
+    ? row.category
+    : "red";
+
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    calculated_at: row.calculated_at ?? row.score_week_start,
+    score_week_start: row.score_week_start,
+    macro_adherence_score: row.macro_adherence_score ?? 0,
+    meal_consistency_score: row.meal_consistency_score ?? 0,
+    weight_logging_score: row.weight_logging_score ?? 0,
+    protein_accuracy_score: row.protein_accuracy_score ?? 0,
+    overall_score: row.overall_score,
+    category,
+    metrics_used: {
+      body_measurements_count: optionalNumberMetric("body_measurements_count"),
+      weight_logs_count: optionalNumberMetric("weight_logs_count"),
+      target_meals: numberMetric("target_meals"),
+      actual_meals: numberMetric("actual_meals"),
+      target_protein: numberMetric("target_protein"),
+      actual_protein_avg: numberMetric("actual_protein_avg"),
+    },
+  };
+}
+
 // Fetch latest health score
 export function useHealthScore(userId: string | undefined) {
   return useQuery({
@@ -57,7 +104,7 @@ export function useHealthScore(userId: string | undefined) {
         throw error;
       }
 
-      return data as HealthScore;
+      return normalizeHealthScore(data);
     },
     enabled: !!userId,
   });
@@ -82,7 +129,7 @@ export function useHealthScoreHistory(userId: string | undefined, weeks: number 
         throw error;
       }
 
-      return (data as HealthScore[]).reverse(); // Reverse to show oldest first for charts
+      return (data || []).map(normalizeHealthScore).reverse(); // Reverse to show oldest first for charts
     },
     enabled: !!userId,
   });

@@ -1,223 +1,150 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type User } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface UpgradeRequest {
   subscription_id: string;
-  new_tier: string;
-  new_billing_interval?: string;
+  new_plan_id: string;
   payment_method: "wallet" | "card";
+  promo_code?: string;
 }
 
-interface UpgradeResponse {
-  success: boolean;
-  prorated_credit?: number;
-  amount_due?: number;
-  new_tier?: string;
-  new_billing_interval?: string;
-  error?: string;
-  code?: string;
+const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin");
+  const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const appUrl = Deno.env.get("APP_URL");
+
+  if (appUrl) {
+    try {
+      allowedOrigins.push(new URL(appUrl).origin);
+    } catch {
+      // Invalid deployment configuration will fail closed for browser origins.
+    }
+  }
+
+  return {
+    "Access-Control-Allow-Origin": origin && allowedOrigins.includes(origin)
+      ? origin
+      : allowedOrigins[0] ?? "null",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Vary": "Origin",
+  };
+}
+
+function json(
+  req: Request,
+  body: Record<string, unknown>,
+  status = 200,
+): Response {
+  return Response.json(body, { status, headers: corsHeaders(req) });
+}
+
+function adminClient() {
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("SUPABASE_SERVER_CONFIGURATION_MISSING");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
+async function authenticate(req: Request): Promise<User | null> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || !supabaseUrl || !anonKey) return null;
+
+  const client = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data, error } = await client.auth.getUser();
+  return error ? null : data.user;
+}
+
+function knownError(message: string): string {
+  const codes = [
+    "SUBSCRIPTION_NOT_FOUND",
+    "PAYMENT_PLAN_NOT_FOUND",
+    "SUBSCRIPTION_PLAN_UNCHANGED",
+    "PROMOTION_INVALID",
+    "PROMOTION_LIMIT_REACHED",
+    "PROMOTION_MINIMUM_NOT_MET",
+    "PROMOTION_USER_LIMIT_REACHED",
+    "WALLET_NOT_FOUND",
+    "INSUFFICIENT_WALLET_BALANCE",
+  ];
+
+  return codes.find((code) => message.includes(code)) ?? "UPGRADE_FAILED";
 }
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders(req) });
   }
   if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: "Method not allowed" }),
-      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json(req, { success: false, error: "METHOD_NOT_ALLOWED" }, 405);
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const user = await authenticate(req);
+    if (!user) return json(req, { success: false, error: "UNAUTHORIZED" }, 401);
+
+    const body = await req.json().catch(() => null) as UpgradeRequest | null;
+    if (
+      !body
+      || !UUID_PATTERN.test(body.subscription_id ?? "")
+      || !UUID_PATTERN.test(body.new_plan_id ?? "")
+    ) {
+      return json(req, { success: false, error: "INVALID_UPGRADE_REFERENCE" }, 400);
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseClient = createClient(supabaseUrl, supabaseKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    const jwt = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(jwt);
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (body.payment_method !== "wallet") {
+      return json(req, {
+        success: false,
+        error: "Card payment requires SADAD checkout",
+        code: "PAYMENT_REQUIRED",
+      }, 402);
     }
 
-    const body: UpgradeRequest = await req.json();
-
-    if (!body.subscription_id || !body.new_tier || !body.payment_method) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields: subscription_id, new_tier, payment_method" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const promoCode = body.promo_code?.trim();
+    if (promoCode && promoCode.length > 64) {
+      return json(req, { success: false, error: "PROMOTION_INVALID" }, 400);
     }
 
-    if (body.payment_method !== "wallet" && body.payment_method !== "card") {
-      return new Response(
-        JSON.stringify({ error: "Invalid payment_method. Must be 'wallet' or 'card'." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { data: subscription, error: subError } = await supabaseClient
-      .from("subscriptions")
-      .select("id, user_id, tier, price")
-      .eq("id", body.subscription_id)
-      .single();
-
-    if (subError || !subscription) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Subscription not found", code: "NOT_FOUND" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (subscription.user_id !== user.id) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Forbidden: not your subscription", code: "FORBIDDEN" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    let amountToDebit = 0;
-
-    if (body.payment_method === "wallet") {
-      const { data: planData, error: planError } = await supabaseClient
-        .from("subscription_plans")
-        .select("price_qar")
-        .eq("tier", body.new_tier)
-        .eq("billing_interval", body.new_billing_interval || "monthly")
-        .eq("is_active", true)
-        .single();
-
-      if (planError || !planData) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Target plan not found", code: "PLAN_NOT_FOUND" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      amountToDebit = planData.price_qar;
-
-      const { error: debitError } = await supabaseClient.rpc("debit_wallet", {
-        p_user_id: user.id,
-        p_amount: amountToDebit,
-        p_reference_type: "subscription_upgrade",
-        p_reference_id: body.subscription_id,
-        p_description: `Subscription upgrade to ${body.new_tier} (${body.new_billing_interval || "monthly"})`,
-        p_metadata: null,
-      });
-
-      if (debitError) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: debitError.message || "Insufficient wallet balance",
-            code: "INSUFFICIENT_FUNDS",
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-
-    const { data: upgradeResult, error: upgradeError } = await supabaseClient.rpc(
-      "upgrade_subscription",
+    const { data, error } = await adminClient().rpc(
+      "upgrade_subscription_with_wallet",
       {
+        p_user_id: user.id,
         p_subscription_id: body.subscription_id,
-        p_new_tier: body.new_tier,
-        p_new_billing_interval: body.new_billing_interval || null,
-      }
+        p_plan_id: body.new_plan_id,
+        p_promo_code: promoCode || null,
+      },
     );
 
-    if (upgradeError || !upgradeResult) {
-      if (body.payment_method === "wallet" && amountToDebit > 0) {
-        await supabaseClient.rpc("credit_wallet", {
-          p_user_id: user.id,
-          p_amount: amountToDebit,
-          p_type: "refund",
-          p_reference_type: "subscription_upgrade_refund",
-          p_reference_id: body.subscription_id,
-          p_description: `Refund: upgrade to ${body.new_tier} failed`,
-          p_metadata: null,
-        }).catch((refundErr) => {
-          console.error("Refund failed after upgrade error:", refundErr);
-        });
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: upgradeError?.message || "Upgrade RPC failed",
-          code: "UPGRADE_FAILED",
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (error) {
+      const code = knownError(error.message);
+      console.error("Atomic subscription upgrade rejected", code);
+      return json(req, { success: false, error: code, code });
     }
 
-    const result = upgradeResult as { success: boolean; error?: string; code?: string; prorated_credit?: number; amount_due?: number; new_tier?: string; new_billing_interval?: string };
-
-    if (!result.success) {
-      if (body.payment_method === "wallet" && amountToDebit > 0) {
-        await supabaseClient.rpc("credit_wallet", {
-          p_user_id: user.id,
-          p_amount: amountToDebit,
-          p_type: "refund",
-          p_reference_type: "subscription_upgrade_refund",
-          p_reference_id: body.subscription_id,
-          p_description: `Refund: upgrade to ${body.new_tier} returned success=false`,
-          p_metadata: null,
-        }).catch((refundErr) => {
-          console.error("Refund failed after upgrade error:", refundErr);
-        });
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: result.error || "Upgrade failed",
-          code: result.code || "UPGRADE_FAILED",
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const response: UpgradeResponse = {
-      success: true,
-      prorated_credit: result.prorated_credit,
-      amount_due: result.amount_due,
-      new_tier: result.new_tier,
-      new_billing_interval: result.new_billing_interval,
-    };
-
-    return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json(req, data as Record<string, unknown>);
   } catch (error) {
-    console.error("upgrade-subscription error:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: "Internal server error",
-        code: "INTERNAL_ERROR",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    const message = error instanceof Error ? error.message : "INTERNAL_SERVER_ERROR";
+    console.error("upgrade-subscription error", message);
+    const configurationError = message.endsWith("CONFIGURATION_MISSING");
+    return json(
+      req,
+      { success: false, error: configurationError ? message : "INTERNAL_SERVER_ERROR" },
+      configurationError ? 503 : 500,
     );
   }
 });

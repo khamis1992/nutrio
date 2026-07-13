@@ -215,7 +215,8 @@ export function getFeatureFlagPayload<T = Record<string, unknown>>(
 
 export function getExperimentVariant(experimentKey: string): string | null {
   if (import.meta.env.DEV || !posthogClient?.__loaded) return null;
-  return posthogClient.getFeatureFlag(experimentKey);
+  const variant = posthogClient.getFeatureFlag(experimentKey);
+  return typeof variant === "string" ? variant : null;
 }
 
 // Scroll depth tracking

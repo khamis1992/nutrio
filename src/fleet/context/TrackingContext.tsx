@@ -1,8 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import { trackingSocket } from '@/fleet/services/trackingSocket';
-import { useFleetAuth } from './FleetAuthContext';
-import type { DriverLocation } from '@/fleet/types/fleet';
+import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from "react";
+
+import { useFleetRealtimeDrivers } from "@/fleet/hooks/useFleetRealtimeDrivers";
+import type { DriverLocation } from "@/fleet/types/fleet";
 
 interface DriverWithTracking extends DriverLocation {
   lastUpdate: number;
@@ -20,133 +20,66 @@ interface TrackingContextType {
 
 const TrackingContext = createContext<TrackingContextType | undefined>(undefined);
 
-const DRIVER_OFFLINE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
-
 export function TrackingProvider({ children }: { children: ReactNode }) {
-  const [drivers, setDrivers] = useState<DriverWithTracking[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
-  const [lastUpdate, setLastUpdate] = useState<number | null>(null);
-  const { token, user, isAuthenticated } = useFleetAuth();
+  const { drivers: realtimeDrivers, connected, refetch } = useFleetRealtimeDrivers();
 
-  // Handle driver location updates
-  const handleDriverLocation = useCallback((data: DriverLocation) => {
-    setDrivers(prev => {
-      const index = prev.findIndex(d => d.driverId === data.driverId);
-      const now = Date.now();
-      
-      if (index >= 0) {
-        // Update existing driver
-        const updated = [...prev];
-        updated[index] = {
-          ...data,
-          lastUpdate: now,
-        };
-        return updated;
-      }
-      
-      // Add new driver
-      return [...prev, { ...data, lastUpdate: now }];
-    });
-    
-    setLastUpdate(Date.now());
-  }, []);
-
-  // Handle driver status changes
-  const handleDriverStatusChange = useCallback((data: { driverId: string; currentStatus: string }) => {
-    if (data.currentStatus === 'offline') {
-      setDrivers(prev => prev.filter(d => d.driverId !== data.driverId));
-    }
-  }, []);
-
-  // Connect to WebSocket
-  useEffect(() => {
-    if (!isAuthenticated || !token || !user) {
-      return;
-    }
-
-    trackingSocket.connect({
-      token,
-      userRole: user.role,
-      assignedCities: user.assignedCities,
-      onConnect: () => setIsConnected(true),
-      onDisconnect: () => setIsConnected(false),
-      onDriverLocation: handleDriverLocation,
-      onDriverStatusChange: handleDriverStatusChange,
-      onError: (error) => {
-        console.error('Tracking socket error:', error);
-      },
-    });
-
-    return () => {
-      trackingSocket.disconnect();
-    };
-  }, [isAuthenticated, token, user, handleDriverLocation, handleDriverStatusChange]);
-
-  // Clean up stale drivers periodically
-  useEffect(() => {
-    const cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      setDrivers(prev => 
-        prev.filter(d => now - d.lastUpdate < DRIVER_OFFLINE_TIMEOUT || d.isOnline)
-      );
-    }, 60000); // Check every minute
-
-    return () => clearInterval(cleanupInterval);
-  }, []);
+  const drivers = useMemo<DriverWithTracking[]>(
+    () =>
+      realtimeDrivers.map((driver) => ({
+        driverId: driver.driver_id,
+        driverName: driver.driver_name,
+        cityId: driver.city_id,
+        latitude: driver.lat,
+        longitude: driver.lng,
+        accuracy: driver.accuracy,
+        speed: driver.speed,
+        heading: driver.heading,
+        isOnline: driver.status !== "offline",
+        currentOrderId: driver.current_order_id,
+        timestamp: driver.last_seen,
+        lastUpdate: new Date(driver.last_seen).getTime(),
+      })),
+    [realtimeDrivers],
+  );
 
   const reconnect = useCallback(() => {
-    if (token && user) {
-      trackingSocket.disconnect();
-      trackingSocket.connect({
-        token,
-        userRole: user.role,
-        assignedCities: user.assignedCities,
-        onConnect: () => setIsConnected(true),
-        onDisconnect: () => setIsConnected(false),
-        onDriverLocation: handleDriverLocation,
-        onDriverStatusChange: handleDriverStatusChange,
-      });
-    }
-  }, [token, user, handleDriverLocation, handleDriverStatusChange]);
+    refetch().catch((error) => {
+      console.error("Failed to reconnect fleet tracking:", error);
+    });
+  }, [refetch]);
 
-  const onlineCount = drivers.filter(d => d.isOnline).length;
+  const lastUpdate = drivers.length
+    ? Math.max(...drivers.map((driver) => driver.lastUpdate))
+    : null;
 
   const value: TrackingContextType = {
     drivers,
-    isConnected,
+    isConnected: connected,
     selectedDriver,
     setSelectedDriver,
-    onlineCount,
+    onlineCount: drivers.filter((driver) => driver.isOnline).length,
     lastUpdate,
     reconnect,
   };
 
-  return (
-    <TrackingContext.Provider value={value}>
-      {children}
-    </TrackingContext.Provider>
-  );
+  return <TrackingContext.Provider value={value}>{children}</TrackingContext.Provider>;
 }
 
 export function useTracking() {
   const context = useContext(TrackingContext);
   if (context === undefined) {
-    throw new Error('useTracking must be used within a TrackingProvider');
+    throw new Error("useTracking must be used within a TrackingProvider");
   }
   return context;
 }
 
-// Hook for getting a specific driver's location
 export function useDriverLocation(driverId: string | null) {
   const { drivers } = useTracking();
-  
-  return driverId ? drivers.find(d => d.driverId === driverId) : null;
+  return driverId ? drivers.find((driver) => driver.driverId === driverId) : null;
 }
 
-// Hook for getting drivers by city
 export function useDriversByCity(cityId: string) {
   const { drivers } = useTracking();
-  
-  return drivers.filter(d => d.cityId === cityId);
+  return drivers.filter((driver) => driver.cityId === cityId);
 }

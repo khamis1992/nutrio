@@ -178,12 +178,12 @@ export const emailTemplates: Record<string, EmailTemplate> = {
   },
 
   marketing: {
-    subject: (data) => data.subject || "News from Nutrio",
+    subject: (data) => typeof data.subject === "string" ? data.subject : "News from Nutrio",
     html: (data) => baseTemplate(`
       <h2>${data.title || "News from Nutrio"}</h2>
       ${data.content}
       ${data.ctaUrl ? `<a href="${data.ctaUrl}" class="button">${data.ctaText || "Learn More"}</a>` : ""}
-    `, data.title || "Nutrio Update"),
+    `, typeof data.title === "string" ? data.title : "Nutrio Update"),
   },
 };
 

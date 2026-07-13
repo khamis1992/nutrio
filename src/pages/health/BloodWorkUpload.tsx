@@ -172,6 +172,7 @@ export default function BloodWorkUpload() {
               normal_max: selected.normal_max,
               status: computeMarkerStatus(value, selected.normal_min, selected.normal_max),
               category: selected.category,
+              notes: null,
             };
           });
 

@@ -35,6 +35,7 @@ import {
   type MarkerCategory,
 } from "@/lib/blood-markers";
 import { cn } from "@/lib/utils";
+import { createPrivateStorageUrl } from "@/lib/private-storage";
 import { analyzeBloodWork } from "@/services/blood-work-ai";
 import { extractBloodMarkersFromPdf } from "@/services/blood-work-extractor";
 import {
@@ -461,7 +462,8 @@ export default function BloodWorkResults() {
 
     setReadingReport(record.id);
     try {
-      const response = await fetch(record.report_url);
+      const reportUrl = await createPrivateStorageUrl("blood-reports", record.report_url);
+      const response = await fetch(reportUrl);
       if (!response.ok) throw new Error("Could not download the saved report.");
 
       const blob = await response.blob();
@@ -513,6 +515,21 @@ export default function BloodWorkResults() {
       });
     } finally {
       setReadingReport(null);
+    }
+  }
+
+  async function handleOpenSavedReport(record: BloodWorkRecord) {
+    if (!record.report_url) return;
+
+    try {
+      const reportUrl = await createPrivateStorageUrl("blood-reports", record.report_url);
+      window.open(reportUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast({
+        title: isRTL ? "تعذر فتح التقرير" : "Could not open report",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
     }
   }
 
@@ -843,12 +860,15 @@ export default function BloodWorkResults() {
 
                     <div className="flex gap-2 pt-1">
                       {record.report_url && (
-                        <a href={record.report_url} target="_blank" rel="noopener noreferrer">
-                          <Button variant="outline" size="sm" className="h-10 rounded-[14px] font-black">
-                            <FileText className="mr-1.5 h-4 w-4" />
-                            Report
-                          </Button>
-                        </a>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-10 rounded-[14px] font-black"
+                          onClick={() => handleOpenSavedReport(record)}
+                        >
+                          <FileText className="mr-1.5 h-4 w-4" />
+                          Report
+                        </Button>
                       )}
                       <Button
                         variant="ghost"

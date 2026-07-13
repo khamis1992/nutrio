@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { isToday, isTomorrow } from "date-fns";
-import { formatLocaleDate } from "@/lib/dateUtils";
+import { formatLocaleDate, getQatarDay } from "@/lib/dateUtils";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -185,7 +185,8 @@ export function ActiveOrderBanner({ userId, compact = false }: ActiveOrderBanner
           delivery_type
         `)
         .eq("user_id", userId)
-        .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery", "delivered"])
+        .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery"])
+        .gte("scheduled_date", getQatarDay())
         .order("scheduled_date", { ascending: true });
 
       if (schedulesError) throw schedulesError;

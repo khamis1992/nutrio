@@ -43,7 +43,7 @@ create policy "Interactions readable by all authenticated" on public.food_medici
   for select using (auth.role() = 'authenticated');
 
 -- 3. Seed common food–drug interactions
-insert into public.food_medicine_interactions (active_ingredient, food_ingredient, severity, description, recommendation, category) values
+insert into public.food_medicine_interactions (active_ingredient, food_ingredient, severity, description, recommendation) values
   ('atorvastatin', 'grapefruit', 'severe', 'Grapefruit can significantly increase statin levels in your blood, raising the risk of muscle damage and liver toxicity.', 'Avoid grapefruit and grapefruit juice while taking this medication.'),
   ('simvastatin', 'grapefruit', 'severe', 'Grapefruit can significantly increase statin levels in your blood, raising the risk of muscle damage and liver toxicity.', 'Avoid grapefruit and grapefruit juice while taking this medication.'),
   ('amlodipine', 'grapefruit', 'moderate', 'Grapefruit may increase the blood concentration of amlodipine, potentially causing dizziness, headache, and swelling.', 'Limit or avoid grapefruit consumption. Discuss with your doctor if symptoms appear.'),
@@ -73,12 +73,17 @@ insert into public.food_medicine_interactions (active_ingredient, food_ingredien
   ('sertraline', 'alcohol', 'moderate', 'Alcohol can worsen CNS depression and increase side effects of SSRIs like dizziness and drowsiness.', 'Limit or avoid alcohol while taking this medication.'),
   ('prednisone', 'high-sodium foods', 'moderate', 'Corticosteroids cause fluid retention; high-sodium foods can worsen bloating and blood pressure.', 'Limit salty foods and monitor sodium intake while on corticosteroids.'),
   ('prednisone', 'high-sugar foods', 'mild', 'Corticosteroids can raise blood sugar; high-sugar foods may amplify this effect.', 'Limit sugary foods and monitor blood sugar levels while on corticosteroids.'),
-  ('omeprazole', 'high-protein foods', 'mild', 'High-protein meals may slightly reduce omeprazole absorption, but clinical impact is minimal.', 'Take omeprazole before meals for best results. No need to avoid protein.', 'protein'),
+  ('omeprazole', 'high-protein foods', 'mild', 'High-protein meals may slightly reduce omeprazole absorption, but clinical impact is minimal.', 'Take omeprazole before meals for best results. No need to avoid protein.'),
   ('losartan', 'potassium-rich foods', 'moderate', 'ARBs can increase potassium levels; high-potassium foods may cause hyperkalemia.', 'Monitor potassium intake and avoid potassium supplements.'),
   ('insulin', 'high-sugar foods', 'severe', 'High-sugar meals can cause dangerous blood sugar spikes in insulin-dependent diabetics.', 'Monitor carbohydrate intake closely and adjust insulin according to your meal plan.'),
   ('insulin', 'alcohol', 'severe', 'Alcohol can cause delayed hypoglycemia (low blood sugar) hours after consumption.', 'Never drink alcohol on an empty stomach. Monitor blood sugar closely.'),
   ('methotrexate', 'alcohol', 'severe', 'Alcohol combined with methotrexate significantly increases liver toxicity risk.', 'Avoid alcohol completely while taking methotrexate.')
 on conflict (active_ingredient, food_ingredient) do nothing;
+
+update public.food_medicine_interactions
+set category = 'protein'
+where active_ingredient = 'omeprazole'
+  and food_ingredient = 'high-protein foods';
 
 -- 4. RPC: check a meal against the user's medications
 create or replace function check_meal_interactions(p_user_id uuid, p_meal_id uuid)

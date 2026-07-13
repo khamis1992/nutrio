@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Loader2, Check, X, User, CreditCard, Wallet, Shield } from "lucide-react";
+import { Loader2, Check, X, User, CreditCard, Shield } from "lucide-react";
 import { useCoachSubscription } from "@/hooks/useCoachSubscription";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -15,21 +16,19 @@ interface SubscribeModalProps {
 export function SubscribeModal({ coachId, open, onClose }: SubscribeModalProps) {
   const { user } = useAuth();
   const clientId = user?.id;
-  const { pricing, existingSub, loading, subscribing, subscribe, cancelSubscription } = useCoachSubscription(clientId, coachId);
+  const { pricing, existingSub, loading, cancelSubscription } = useCoachSubscription(clientId, coachId);
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState<"weekly" | "monthly">("monthly");
   const [step, setStep] = useState<"choose" | "confirm">("choose");
 
   if (!open) return null;
 
-  const handleSubscribe = async (method: string = "wallet") => {
-    const result = await subscribe(selectedPlan, method);
-    if (result.success) {
-      toast({ title: "Subscribed!", description: `You are now subscribed to ${pricing?.coachName}.` });
-      onClose();
-    } else {
-      toast({ title: "Failed", description: result.error?.message || "Please try again.", variant: "destructive" });
-    }
+  const handleSubscribe = () => {
+    onClose();
+    navigate(
+      `/checkout?type=coach_subscription&coachId=${encodeURIComponent(coachId)}&plan=${selectedPlan}`,
+    );
   };
 
   const handleCancel = async () => {
@@ -109,7 +108,7 @@ export function SubscribeModal({ coachId, open, onClose }: SubscribeModalProps) 
           </div>
         </div>
 
-        {existingSub ? (
+        {existingSub?.status === "active" ? (
           <div className="px-6 pb-6 space-y-4">
             <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-5 space-y-2">
               <div className="flex items-center gap-2">
@@ -195,20 +194,16 @@ export function SubscribeModal({ coachId, open, onClose }: SubscribeModalProps) 
 
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   <Shield className="w-3.5 h-3.5" />
-                  Billed securely via Nutrio wallet
+                  Paid securely through SADAD
                 </div>
 
                 <button
-                  onClick={() => handleSubscribe("wallet")}
-                  disabled={subscribing || (selectedPlan === "weekly" ? pricing.pricePerWeek === 0 : pricing.pricePerMonth === 0)}
+                  onClick={handleSubscribe}
+                  disabled={selectedPlan === "weekly" ? pricing.pricePerWeek <= 0 : pricing.pricePerMonth <= 0}
                   className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold shadow-lg shadow-emerald-600/20 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {subscribing ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <CreditCard className="w-4 h-4" />
-                  )}
-                  Confirm & Pay
+                  <CreditCard className="w-4 h-4" />
+                  Continue to SADAD
                 </button>
               </motion.div>
             )}

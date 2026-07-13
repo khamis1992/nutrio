@@ -24,7 +24,6 @@ export function useCoachSubscription(clientId: string | undefined, coachId: stri
   const [pricing, setPricing] = useState<CoachPricingInfo | null>(null);
   const [existingSub, setExistingSub] = useState<ExistingSubscription | null>(null);
   const [loading, setLoading] = useState(true);
-  const [subscribing, setSubscribing] = useState(false);
 
   const fetchPricing = useCallback(async () => {
     if (!coachId) { setLoading(false); return; }
@@ -32,10 +31,20 @@ export function useCoachSubscription(clientId: string | undefined, coachId: stri
       const [pricingResult, profileResult, subResult] = await Promise.all([
         supabase.from("coach_pricing").select("*").eq("coach_id", coachId).maybeSingle(),
         supabase.from("profiles").select("full_name, avatar_url").eq("user_id", coachId).single(),
-        clientId ? supabase.from("coach_subscriptions").select("*").eq("coach_id", coachId).eq("client_id", clientId).maybeSingle() : Promise.resolve({ data: null }),
+        clientId
+          ? supabase
+              .from("coach_subscriptions")
+              .select("*")
+              .eq("coach_id", coachId)
+              .eq("client_id", clientId)
+              .in("status", ["active", "cancelled"])
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
 
-      if (pricingResult.data) {
+      if (pricingResult.data?.is_active) {
         setPricing({
           coachId,
           coachName: profileResult.data?.full_name || "Coach",
@@ -62,49 +71,15 @@ export function useCoachSubscription(clientId: string | undefined, coachId: stri
     }
   }, [coachId, clientId]);
 
-  const subscribe = async (plan: "weekly" | "monthly", paymentMethod: string = "wallet") => {
-    if (!clientId || !coachId || !pricing) return { success: false, error: new Error("Missing data") };
-    setSubscribing(true);
+  const cancelSubscription = async () => {
+    if (!existingSub) return { success: false, error: new Error("Subscription not found") };
     try {
-      const price = plan === "weekly" ? pricing.pricePerWeek : pricing.pricePerMonth;
-      const now = new Date();
-      const endDate = new Date(now);
-      if (plan === "weekly") endDate.setDate(endDate.getDate() + 7);
-      else endDate.setMonth(endDate.getMonth() + 1);
-
-      const { data, error } = await supabase.from("coach_subscriptions").insert({
-        coach_id: coachId,
-        client_id: clientId,
-        plan,
-        price,
-        start_date: now.toISOString(),
-        end_date: endDate.toISOString(),
-        payment_method: paymentMethod,
-      }).select().single();
-
+      const { error } = await supabase.rpc(
+        "cancel_coach_subscription" as never,
+        { p_subscription_id: existingSub.id } as never,
+      );
       if (error) throw error;
 
-      setExistingSub({
-        id: data.id,
-        plan: data.plan,
-        status: data.status,
-        price: Number(data.price),
-        endDate: data.end_date,
-      });
-      await syncCommunityChallengeProgressQuietly(clientId);
-
-      return { success: true, error: null, data };
-    } catch (err) {
-      return { success: false, error: err as Error };
-    } finally {
-      setSubscribing(false);
-    }
-  };
-
-  const cancelSubscription = async () => {
-    if (!existingSub) return;
-    try {
-      await supabase.from("coach_subscriptions").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", existingSub.id);
       setExistingSub((prev) => prev ? { ...prev, status: "cancelled" } : null);
       if (clientId) {
         await syncCommunityChallengeProgressQuietly(clientId);
@@ -117,5 +92,5 @@ export function useCoachSubscription(clientId: string | undefined, coachId: stri
 
   useEffect(() => { fetchPricing(); }, [fetchPricing]);
 
-  return { pricing, existingSub, loading, subscribing, subscribe, cancelSubscription };
+  return { pricing, existingSub, loading, cancelSubscription };
 }

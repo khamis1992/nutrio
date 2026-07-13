@@ -23,17 +23,6 @@ const DriverMarker = lazy(() => import("@/components/maps/DriverMarker"));
 const RestaurantMarker = lazy(() => import("@/components/maps/Markers").then(m => ({ default: m.RestaurantMarker })));
 const CustomerMarker = lazy(() => import("@/components/maps/Markers").then(m => ({ default: m.CustomerMarker })));
 const RoutePolyline = lazy(() => import("@/components/maps/RoutePolyline").then(m => ({ default: m.RoutePolyline })));
-const LIVE_COLORS = {
-  text: "#020617",
-  surface: "#F6F8FB",
-  track: "#E5EAF1",
-  progress: "#22C7A1",
-  driver: "#7C83F6",
-  alert: "#FB6B7A",
-  water: "#38BDF8",
-  kitchen: "#F97316",
-};
-
 interface CustomerDeliveryTrackerProps {
   scheduleId: string;
   onBack?: () => void;
@@ -208,21 +197,24 @@ export function CustomerDeliveryTracker({
           },
           (payload) => {
             const loc = payload.new as Record<string, unknown>;
-            if (loc.location) {
+            if (typeof loc.location === "string") {
               // Parse PostGIS point: "SRID=4326;POINT(lng lat)"
               const match = loc.location.match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/);
               if (match) {
+                const recordedAt = typeof loc.recorded_at === "string"
+                  ? loc.recorded_at
+                  : new Date().toISOString();
                 setDriverLocation(prev => ({
                   lat: parseFloat(match[2]),
                   lng: parseFloat(match[1]),
-                  updated_at: loc.recorded_at || new Date().toISOString(),
+                  updated_at: recordedAt,
                   speed_kmh: prev?.speed_kmh,
                   heading: prev?.heading,
                 }));
                 setRouteHistory(prev => [...prev.slice(-200), {
                   lat: parseFloat(match[2]),
                   lng: parseFloat(match[1]),
-                  timestamp: loc.recorded_at,
+                  timestamp: recordedAt,
                 }]);
               }
             }

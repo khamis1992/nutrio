@@ -20,6 +20,40 @@ export interface TopMeal {
   added_at: string;
 }
 
+type TopMealRow = {
+  id: string;
+  meal_id: string;
+  order_count: number;
+  is_auto_added: boolean;
+  last_ordered_at: string | null;
+  added_at: string;
+};
+
+type QueryError = { message: string };
+type QueryResult<T> = { data: T | null; error: QueryError | null };
+
+interface TopMealsSelectQuery extends PromiseLike<QueryResult<TopMealRow[]>> {
+  eq(column: string, value: string): TopMealsSelectQuery;
+  order(column: string, options: { ascending: boolean }): TopMealsSelectQuery;
+}
+
+interface TopMealsDeleteQuery extends PromiseLike<QueryResult<null>> {
+  eq(column: string, value: string): TopMealsDeleteQuery;
+}
+
+type TopMealsTable = {
+  select(columns: string): TopMealsSelectQuery;
+  upsert(
+    values: Record<string, string | number | boolean>,
+    options: { onConflict: string; ignoreDuplicates: boolean },
+  ): PromiseLike<QueryResult<null>>;
+  delete(): TopMealsDeleteQuery;
+};
+
+const getTopMealsTable = () => (supabase as unknown as {
+  from(table: "user_top_meals"): TopMealsTable;
+}).from("user_top_meals");
+
 export function useTopMeals() {
   const { user } = useAuth();
   const [topMeals, setTopMeals] = useState<TopMeal[]>([]);
@@ -35,12 +69,8 @@ export function useTopMeals() {
     try {
       setLoading(true);
 
-      // First, clean up old auto-added meals (older than 3 days with < 5 orders)
-      await supabase.rpc("cleanup_old_top_meals");
-
       // Fetch top meals
-      const { data, error } = await supabase
-        .from("user_top_meals")
+      const { data, error } = await getTopMealsTable()
         .select(`
           id,
           meal_id,
@@ -56,7 +86,7 @@ export function useTopMeals() {
       if (error) throw error;
 
       // Fetch meal details separately
-      const mealIds = (data || []).map((item: Record<string, unknown>) => item.meal_id as string).filter(Boolean);
+      const mealIds = (data ?? []).map((item) => item.meal_id).filter(Boolean);
       
       let mealsData: Record<string, unknown>[] = [];
       let restaurantsData: Record<string, unknown>[] = [];
@@ -87,8 +117,8 @@ export function useTopMeals() {
       }
 
       // Transform the data
-      const transformedMeals: TopMeal[] = (data || [])
-        .map((item: Record<string, unknown>) => {
+      const transformedMeals: TopMeal[] = (data ?? [])
+        .map((item) => {
           const meal = mealsData.find((m: Record<string, unknown>) => m.id === item.meal_id);
           const restaurant = meal ? restaurantsData.find((r: Record<string, unknown>) => r.id === meal.restaurant_id) : null;
           
@@ -104,10 +134,10 @@ export function useTopMeals() {
             restaurant_name: (restaurant?.name as string) || "Unknown Restaurant",
             restaurant_id: meal?.restaurant_id as string,
             diet_tags: [], // Would need separate fetch for diet tags
-            order_count: item.order_count as number,
-            is_auto_added: item.is_auto_added as boolean,
-            last_ordered_at: item.last_ordered_at as string | null,
-            added_at: item.added_at as string,
+            order_count: item.order_count,
+            is_auto_added: item.is_auto_added,
+            last_ordered_at: item.last_ordered_at,
+            added_at: item.added_at,
           };
         })
         .filter((meal: TopMeal) => meal.meal_id); // Filter out any null meals
@@ -126,7 +156,7 @@ export function useTopMeals() {
       if (!user) return false;
 
       try {
-        const { error } = await supabase.from("user_top_meals").upsert(
+        const { error } = await getTopMealsTable().upsert(
           {
             user_id: user.id,
             meal_id: mealId,
@@ -159,8 +189,7 @@ export function useTopMeals() {
       if (!user) return false;
 
       try {
-        const { error } = await supabase
-          .from("user_top_meals")
+        const { error } = await getTopMealsTable()
           .delete()
           .eq("id", topMealId)
           .eq("user_id", user.id);

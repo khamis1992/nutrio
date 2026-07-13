@@ -1,21 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Zap, BadgePercent } from "lucide-react";
-import { BillingIntervalToggle, type BillingInterval } from "@/components/BillingIntervalToggle";
+import { ArrowLeft, Zap } from "lucide-react";
 import { PlanCard, type PlanCardData } from "@/components/subscription/PlanCard";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface PlanPickerModeProps {
   plans: PlanCardData[];
-  billingInterval: BillingInterval;
-  onBillingIntervalChange: (interval: BillingInterval) => void;
-  vipAnnualSavings: number;
 }
 
 export function PlanPickerMode({
   plans,
-  billingInterval,
-  onBillingIntervalChange,
-  vipAnnualSavings,
 }: PlanPickerModeProps) {
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -49,34 +42,11 @@ export function PlanPickerMode({
           <p className="mt-2 text-sm font-medium leading-relaxed text-[#94A3B8]">{t("plan_hero_desc")}</p>
         </div>
 
-        <div className="rounded-[24px] bg-white px-4 py-4 shadow-sm ring-1 ring-[#E5EAF1]">
-          <BillingIntervalToggle
-            value={billingInterval}
-            onChange={onBillingIntervalChange}
-            savingsPercent={17}
-          />
-        </div>
-
-        {billingInterval === "annual" && (
-          <div className="flex items-center gap-3 rounded-2xl bg-[#FFF1F3] px-4 py-3 ring-1 ring-[#FFD3DA]">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#FB6B7A]">
-              <BadgePercent className="h-4 w-4 text-[#FB6B7A]" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-black text-[#020617]">{t("save_17_percent_banner")}</p>
-              <p className="truncate text-xs font-medium text-[#94A3B8]">
-                {t("pay_annual_desc")} {vipAnnualSavings.toLocaleString()} QAR/yr
-              </p>
-            </div>
-          </div>
-        )}
-
         <div className="space-y-3">
           {plans.map((plan) => (
             <PlanCard
               key={plan.id}
               plan={plan}
-              billingInterval={billingInterval}
               variant="picker"
               onSelect={() => navigate("/subscription/plans")}
             />

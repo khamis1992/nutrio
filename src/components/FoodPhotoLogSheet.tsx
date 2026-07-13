@@ -4,7 +4,6 @@ import { Camera, CameraSource, CameraResultType } from "@capacitor/camera";
 import { isNative } from "@/lib/capacitor";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
-import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
@@ -13,7 +12,6 @@ import { logMealItems } from "@/lib/meal-log-service";
 import {
   Camera as CameraIcon,
   GalleryHorizontal,
-  RefreshCw,
   Loader2,
   Check,
   Sparkles,
@@ -21,7 +19,6 @@ import {
   Plus,
   Minus,
   ScanLine,
-  Image as ImageIcon,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -52,7 +49,6 @@ interface FoodPhotoLogSheetProps {
 
 export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPhotoLogSheetProps) {
   const { user } = useAuth();
-  const { t } = useLanguage();
   const { toast: uiToast } = useToast();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);

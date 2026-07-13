@@ -6,9 +6,11 @@ import {
   DollarSign,
   Loader2,
   Save,
+  Send,
   TrendingUp,
   Users,
   Wallet,
+  XCircle,
 } from "lucide-react";
 
 import { AdminLayout } from "@/components/AdminLayout";
@@ -17,6 +19,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
+import {
+  settleCoachEarnings,
+  transitionCoachWithdrawal,
+  type CoachWithdrawalAction,
+} from "@/lib/payouts";
 import { useToast } from "@/hooks/use-toast";
 
 const C = {
@@ -30,7 +37,7 @@ const fadeInUp = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: "spring", stiffness: 260, damping: 24 },
+    transition: { type: "spring" as const, stiffness: 260, damping: 24 },
   },
 };
 
@@ -61,6 +68,18 @@ type PendingPayout = {
   earningIds: string[];
 };
 
+type CoachWithdrawal = {
+  id: string;
+  coach_id: string;
+  coachName: string;
+  amount: number;
+  bank_name: string;
+  iban: string;
+  account_holder: string;
+  status: "pending" | "approved" | "rejected" | "processed";
+  created_at: string;
+};
+
 const toNumber = (value: number | string | null | undefined) => Number(value || 0);
 
 export default function AdminCoachCommission() {
@@ -74,6 +93,9 @@ export default function AdminCoachCommission() {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [monthlyRevenue, setMonthlyRevenue] = useState(0);
   const [pendingPayouts, setPendingPayouts] = useState<PendingPayout[]>([]);
+  const [withdrawals, setWithdrawals] = useState<CoachWithdrawal[]>([]);
+  const [withdrawalReferences, setWithdrawalReferences] = useState<Record<string, string>>({});
+  const [processingWithdrawalId, setProcessingWithdrawalId] = useState<string | null>(null);
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -248,27 +270,75 @@ export default function AdminCoachCommission() {
     }
   }, [minPayout, toast]);
 
+  const fetchWithdrawals = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("coach_withdrawal_requests")
+        .select("id, coach_id, amount, bank_name, iban, account_holder, status, created_at")
+        .in("status", ["pending", "approved"])
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+
+      const coachIds = [...new Set((data || []).map((request) => request.coach_id))];
+      const { data: profiles, error: profilesError } = coachIds.length > 0
+        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", coachIds)
+        : { data: [], error: null };
+      if (profilesError) throw profilesError;
+
+      const nameMap = new Map(
+        (profiles || []).map((profile) => [profile.user_id, profile.full_name || "Coach"]),
+      );
+      setWithdrawals(
+        (data || []).map((request) => ({
+          ...request,
+          amount: Number(request.amount),
+          status: request.status as CoachWithdrawal["status"],
+          coachName: nameMap.get(request.coach_id) || "Coach",
+        })),
+      );
+    } catch (error) {
+      console.error("Error fetching coach withdrawals:", error);
+      toast({
+        title: "Failed",
+        description: "Could not load coach withdrawal requests.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
   useEffect(() => {
     void fetchConfig();
     void fetchCoachStats();
     void fetchPendingPayouts();
-  }, [fetchCoachStats, fetchConfig, fetchPendingPayouts]);
+    void fetchWithdrawals();
+  }, [fetchCoachStats, fetchConfig, fetchPendingPayouts, fetchWithdrawals]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const payload = {
-        id: configId,
         commission_pct: commissionPct,
         min_payout_threshold: minPayout,
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from("platform_commission_config")
-        .upsert(payload, { onConflict: "id" });
+      const result = configId
+        ? await supabase
+            .from("platform_commission_config")
+            .update(payload)
+            .eq("id", configId)
+            .select("id")
+            .single()
+        : await supabase
+            .from("platform_commission_config")
+            .insert(payload)
+            .select("id")
+            .single();
+
+      const { data, error } = result;
 
       if (error) throw error;
+      setConfigId(data.id);
 
       toast({
         title: "Commission updated",
@@ -289,25 +359,49 @@ export default function AdminCoachCommission() {
 
   const markPaid = async (earningIds: string[]) => {
     try {
-      const { error } = await supabase
-        .from("coach_earnings")
-        .update({ status: "settled", settled_at: new Date().toISOString() })
-        .in("id", earningIds);
-
-      if (error) throw error;
+      const result = await settleCoachEarnings(earningIds);
 
       toast({
-        title: "Marked as paid",
-        description: `${earningIds.length} earnings settled.`,
+        title: "Funds released",
+        description: `${result.released_count} earnings are now available for withdrawal.`,
       });
       await Promise.all([fetchPendingPayouts(), fetchCoachStats()]);
     } catch (error) {
-      console.error("Error marking coach earnings as paid:", error);
+      console.error("Error releasing coach earnings:", error);
       toast({
         title: "Failed",
-        description: "Could not mark as paid.",
+        description: "Could not release these earnings.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleWithdrawalAction = async (
+    withdrawal: CoachWithdrawal,
+    action: CoachWithdrawalAction,
+  ) => {
+    setProcessingWithdrawalId(withdrawal.id);
+    try {
+      await transitionCoachWithdrawal(
+        withdrawal.id,
+        action,
+        action === "reject" ? "Rejected by admin" : undefined,
+        action === "process" ? withdrawalReferences[withdrawal.id] : undefined,
+      );
+      toast({
+        title: action === "process" ? "Transfer recorded" : `Withdrawal ${action}d`,
+        description: `${withdrawal.coachName} / ${formatCurrency(withdrawal.amount)}`,
+      });
+      await Promise.all([fetchWithdrawals(), fetchCoachStats()]);
+    } catch (error) {
+      console.error("Error transitioning coach withdrawal:", error);
+      toast({
+        title: "Failed",
+        description: "Could not update this withdrawal request.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingWithdrawalId(null);
     }
   };
 
@@ -554,7 +648,7 @@ export default function AdminCoachCommission() {
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">
                       Settlement queue
                     </p>
-                    <h3 className="text-lg font-black text-[#020617]">Pending coach payouts</h3>
+                    <h3 className="text-lg font-black text-[#020617]">Pending earnings release</h3>
                   </div>
                   <Clock className="h-5 w-5" style={{ color: C.protein }} />
                 </div>
@@ -565,7 +659,7 @@ export default function AdminCoachCommission() {
                       <Check className="h-8 w-8 text-[#22C7A1]" />
                     </div>
                     <p className="text-sm font-semibold text-[#94A3B8]">
-                      No payouts above threshold
+                      No earnings awaiting release
                     </p>
                   </div>
                 ) : (
@@ -593,7 +687,7 @@ export default function AdminCoachCommission() {
                           className="min-h-[44px] rounded-full bg-[#020617] px-4 font-black text-white shadow-none hover:bg-[#020617]/90"
                         >
                           <Check className="mr-2 h-4 w-4" />
-                          Mark Paid
+                          Release Funds
                         </Button>
                       </div>
                     ))}
@@ -603,6 +697,109 @@ export default function AdminCoachCommission() {
             </Card>
           </motion.div>
         </div>
+
+        <motion.div variants={fadeInUp} initial="hidden" animate="visible">
+          <Card className="overflow-hidden rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between border-b border-[#E5EAF1] px-5 py-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">
+                    Bank transfer queue
+                  </p>
+                  <h3 className="text-lg font-black text-[#020617]">Coach withdrawal requests</h3>
+                </div>
+                <Wallet className="h-5 w-5 text-[#22C7A1]" />
+              </div>
+
+              {withdrawals.length === 0 ? (
+                <div className="py-14 text-center">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F6F8FB]">
+                    <Check className="h-8 w-8 text-[#22C7A1]" />
+                  </div>
+                  <p className="text-sm font-semibold text-[#94A3B8]">No withdrawal requests awaiting action</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-[#E5EAF1]">
+                  {withdrawals.map((withdrawal) => {
+                    const busy = processingWithdrawalId === withdrawal.id;
+                    const maskedIban = `${withdrawal.iban.slice(0, 4)}...${withdrawal.iban.slice(-4)}`;
+
+                    return (
+                      <div key={withdrawal.id} className="grid gap-4 px-5 py-4 lg:grid-cols-[1fr_auto] lg:items-center">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-black text-[#020617]">{withdrawal.coachName}</p>
+                            <span className={withdrawal.status === "approved"
+                              ? "rounded-full bg-[#22C7A1]/10 px-2 py-1 text-[10px] font-black uppercase text-[#047857]"
+                              : "rounded-full bg-[#7C83F6]/10 px-2 py-1 text-[10px] font-black uppercase text-[#5B61D6]"}
+                            >
+                              {withdrawal.status}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-lg font-black text-[#020617]">{formatCurrency(withdrawal.amount)}</p>
+                          <p className="mt-1 text-xs font-semibold text-[#64748B]">
+                            {withdrawal.bank_name} / {withdrawal.account_holder} / {maskedIban}
+                          </p>
+                        </div>
+
+                        {withdrawal.status === "pending" ? (
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              disabled={busy}
+                              onClick={() => handleWithdrawalAction(withdrawal, "approve")}
+                              className="min-h-[44px] rounded-full bg-[#020617] px-4 font-black text-white shadow-none hover:bg-[#020617]/90"
+                            >
+                              <Check className="mr-2 h-4 w-4" />
+                              Approve
+                            </Button>
+                            <Button
+                              disabled={busy}
+                              variant="outline"
+                              onClick={() => handleWithdrawalAction(withdrawal, "reject")}
+                              className="min-h-[44px] rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 px-4 font-black text-[#BE123C] shadow-none"
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Reject
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="grid gap-2 sm:grid-cols-[220px_auto_auto]">
+                            <Input
+                              value={withdrawalReferences[withdrawal.id] || ""}
+                              onChange={(event) => setWithdrawalReferences((current) => ({
+                                ...current,
+                                [withdrawal.id]: event.target.value,
+                              }))}
+                              placeholder="Transfer reference"
+                              className="min-h-[44px] rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
+                            />
+                            <Button
+                              disabled={busy || !(withdrawalReferences[withdrawal.id] || "").trim()}
+                              onClick={() => handleWithdrawalAction(withdrawal, "process")}
+                              className="min-h-[44px] rounded-full bg-[#22C7A1] px-4 font-black text-white shadow-none hover:bg-[#1BAA89]"
+                            >
+                              <Send className="mr-2 h-4 w-4" />
+                              Confirm Transfer
+                            </Button>
+                            <Button
+                              disabled={busy}
+                              variant="outline"
+                              onClick={() => handleWithdrawalAction(withdrawal, "reject")}
+                              className="min-h-[44px] rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 px-4 font-black text-[#BE123C] shadow-none"
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </AdminLayout>
   );

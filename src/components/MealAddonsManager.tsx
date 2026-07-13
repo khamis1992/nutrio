@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -64,7 +64,7 @@ interface RestaurantAddon {
 interface MealAddon {
   id: string;
   meal_id: string;
-  restaurant_addon_id: string;
+  restaurant_addon_id: string | null;
   name: string;
   description: string | null;
   price: number;
@@ -192,6 +192,11 @@ export function MealAddonsManager({
           .insert({
             meal_id: mealId,
             restaurant_addon_id: libraryAddon.id,
+            name: libraryAddon.name,
+            description: libraryAddon.description,
+            price: libraryAddon.price,
+            category: libraryAddon.category,
+            is_available: libraryAddon.is_available,
           })
           .select()
           .single();
@@ -529,6 +534,15 @@ export function MealAddonsManager({
                                   onClick={() => openEditDialog(addon)}
                                 >
                                   <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive"
+                                  onClick={() => confirmDelete(addon)}
+                                  aria-label={`Delete ${addon.name}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>

@@ -118,6 +118,9 @@ const roleOptions: Array<UserRole | "all"> = [
 
 const statusOptions: Array<UserStatus | "all"> = ["all", "active", "blocked", "suspended"];
 
+const isUserRole = (value: string): value is UserRole =>
+  roleOptions.includes(value as UserRole);
+
 function AdminStatCard({
   label,
   value,
@@ -213,22 +216,26 @@ const AdminUsers = () => {
       const { data: blockedIPsData } = await supabase.from("blocked_ips").select("*").eq("is_active", true);
 
       const blockedIPsMap = new Map<string, BlockedIP>(
-        (blockedIPsData || []).map((ip: Record<string, unknown>) => [ip.ip_address as string, ip as BlockedIP])
+        (blockedIPsData || []).map((ip) => [String(ip.ip_address || ""), {
+          id: ip.id,
+          ip_address: String(ip.ip_address || ""),
+          is_active: ip.is_active ?? false,
+        }])
       );
       setBlockedIPs(blockedIPsMap);
 
       const rolesMap: Record<string, UserRole[]> = {};
-      roles?.forEach((r: Record<string, unknown>) => {
-        const userId = r.user_id as string;
-        if (userId) {
+      roles?.forEach((r) => {
+        const userId = r.user_id;
+        if (userId && isUserRole(r.role)) {
           if (!rolesMap[userId]) rolesMap[userId] = [];
-          rolesMap[userId].push(r.role as UserRole);
+          rolesMap[userId].push(r.role);
         }
       });
 
       // Add fleet_manager role for users in fleet_managers table
-      fleetManagers?.forEach((fm: Record<string, unknown>) => {
-        const authUserId = fm.auth_user_id as string;
+      fleetManagers?.forEach((fm) => {
+        const authUserId = fm.auth_user_id;
         if (authUserId) {
           if (!rolesMap[authUserId]) rolesMap[authUserId] = [];
           if (!rolesMap[authUserId].includes("fleet_manager")) {
@@ -238,21 +245,21 @@ const AdminUsers = () => {
       });
 
       const ipLogsMap: Record<string, UserIPLog[]> = {};
-      ipLogs?.forEach((log: Record<string, unknown>) => {
-        const userId = log.user_id as string;
-        if (userId) {
+      ipLogs?.forEach((log) => {
+        const userId = log.user_id;
+        if (userId && log.ip_address && log.created_at) {
           if (!ipLogsMap[userId]) ipLogsMap[userId] = [];
           ipLogsMap[userId].push({
-            ip_address: log.ip_address as string,
-            created_at: log.created_at as string,
-            country_code: log.country_code as string | null,
-            country_name: log.country_name as string | null,
-            city: log.city as string | null,
+            ip_address: String(log.ip_address),
+            created_at: log.created_at,
+            country_code: log.country_code,
+            country_name: log.country_name,
+            city: log.city,
           });
         }
       });
 
-      const mergedUsers: UserData[] = (profiles || []).map((profile: Record<string, unknown>) => {
+      const mergedUsers: UserData[] = (profiles || []).map((profile) => {
         const userIPLogs = ipLogsMap[profile.user_id] || [];
         const latestIP = userIPLogs.find(log => log.ip_address && log.ip_address !== "0.0.0.0")?.ip_address || null;
         
@@ -262,7 +269,7 @@ const AdminUsers = () => {
           full_name: profile.full_name,
           email: profile.email || "",
           avatar_url: profile.avatar_url,
-          created_at: profile.created_at,
+          created_at: profile.created_at || new Date(0).toISOString(),
           last_sign_in_at: null,
           roles: rolesMap[profile.user_id] || ["user"],
           status: "active",
@@ -878,15 +885,6 @@ const UserDetailContent = ({
     }
   };
 
-  const getStatusBadge = (status: UserStatus) => {
-    switch (status) {
-      case "active": return "bg-[#22C7A1]/10 text-[#22C7A1] border-[#22C7A1]/20";
-      case "blocked": return "bg-[#FB6B7A]/10 text-[#FB6B7A] border-[#FB6B7A]/20";
-      case "suspended": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
-      default: return "bg-white text-[#94A3B8] border-slate-200";
-    }
-  };
-
   return (
     <>
       <SheetHeader className="border-b border-slate-100 bg-white p-6">
@@ -995,18 +993,6 @@ const OverviewContent = ({
   setIsRolesDialogOpen: (open: boolean) => void;
   toast: ReturnType<typeof useToast>["toast"];
 }) => {
-  const getRoleBadge = (role: UserRole) => {
-    switch (role) {
-      case "admin": return "bg-red-500/10 text-red-600 border-red-500/20";
-      case "fleet_manager": return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20";
-      case "restaurant": return "bg-orange-500/10 text-orange-600 border-orange-500/20";
-      case "driver": return "bg-blue-500/10 text-blue-600 border-blue-500/20";
-      case "gym_owner": return "bg-purple-500/10 text-purple-600 border-purple-500/20";
-      case "staff": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
-      default: return "bg-slate-500/10 text-slate-600 border-slate-500/20";
-    }
-  };
-
   const getStatusBadge = (status: UserStatus) => {
     switch (status) {
       case "active": return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";

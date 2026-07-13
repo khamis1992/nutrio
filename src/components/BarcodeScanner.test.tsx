@@ -51,11 +51,11 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 vi.mock("@zxing/library", () => {
-  const mockDecodeOnceInner = vi.fn().mockResolvedValue({ getText: () => "5901234123457" });
+  const mockDecodeInner = vi.fn().mockResolvedValue({ getText: () => "5901234123457" });
   return {
     BrowserMultiFormatReader: vi.fn().mockImplementation(function () {
       return {
-        decodeOnceFromVideoElement: mockDecodeOnceInner,
+        decodeFromVideoElement: mockDecodeInner,
         decodeFromCanvas: vi.fn().mockResolvedValue({ getText: () => "5901234123457" }),
         reset: vi.fn(),
       };

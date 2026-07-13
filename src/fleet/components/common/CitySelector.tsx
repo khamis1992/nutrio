@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Check, ChevronDown, MapPin } from 'lucide-react';
 import { useCity } from '@/fleet/context/CityContext';
-import { useFleetAuth } from '@/fleet/hooks/useFleetAuth';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -14,7 +13,6 @@ import { cn } from '@/lib/utils';
 export function CitySelector() {
   const [open, setOpen] = useState(false);
   const { availableCities, selectedCities, toggleCity, isLoading, isMultiSelect } = useCity();
-  const { user } = useFleetAuth();
 
   const getDisplayText = () => {
     if (selectedCities.length === 0) {

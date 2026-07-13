@@ -1,15 +1,14 @@
 import { useState, useMemo } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRecoveryCredits, useRecoveryPartners, createRecoveryBooking, type RecoveryPartner, type RecoveryService } from "@/hooks/useRecovery";
+import { useRecoveryCredits, createRecoveryBooking, type RecoveryPartner, type RecoveryService } from "@/hooks/useRecovery";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Star, Zap, CalendarDays, MapPin, Check } from "lucide-react";
+import { Clock, Zap, Check } from "lucide-react";
 
 interface Props {
   partner: RecoveryPartner;
@@ -30,7 +29,7 @@ export function RecoveryBookingDialog({ partner, open, onClose, onBookingComplet
   const { toast } = useToast();
   const { credits, refetch: refetchCredits } = useRecoveryCredits();
   const [selectedService, setSelectedService] = useState<RecoveryService | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [booking, setBooking] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -64,10 +63,8 @@ export function RecoveryBookingDialog({ partner, open, onClose, onBookingComplet
     setBooking(true);
     try {
       const result = await createRecoveryBooking({
-        userId: user.id,
         partnerId: partner.id,
         serviceName: selectedService.name,
-        creditsUsed: selectedService.credits_required,
         bookingDate: selectedDate.toISOString().split("T")[0],
         bookingTime: selectedTime,
       });
@@ -91,7 +88,7 @@ export function RecoveryBookingDialog({ partner, open, onClose, onBookingComplet
   const handleClose = () => {
     setConfirmed(false);
     setSelectedService(null);
-    setSelectedDate(null);
+    setSelectedDate(undefined);
     setSelectedTime(null);
     setQrCode(null);
     onClose();

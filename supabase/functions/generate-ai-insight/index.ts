@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY") ?? "sk-f45b97e058804f438efc2cb4725a2a66";
+const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
 
 const corsHeaders = {
@@ -24,6 +24,16 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    if (!DEEPSEEK_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "AI insight service is not configured" }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const authHeader = req.headers.get("Authorization") ?? "";
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",

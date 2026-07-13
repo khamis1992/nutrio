@@ -9,6 +9,7 @@ import { Wallet, ArrowDownLeft, Clock, CheckCircle, AlertCircle, Loader2 } from 
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { requestDriverPayout } from "@/lib/payouts";
 
 
 interface Payout {
@@ -126,28 +127,13 @@ export default function DriverPayouts() {
     setRequesting(true);
 
     try {
-      const now = new Date();
-      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      await requestDriverPayout(
+        bankDetails.bankName,
+        bankDetails.accountNumber,
+        bankDetails.accountName,
+      );
 
-      const { error } = await supabase.from("driver_payouts").insert({
-        driver_id: driverId,
-        amount: balance,
-        period_start: periodStart.toISOString().split("T")[0],
-        period_end: now.toISOString().split("T")[0],
-        status: "pending",
-        payout_method: "bank_transfer",
-        payout_details: bankDetails,
-      });
-
-      if (error) throw error;
-
-      await supabase
-        .from("drivers")
-        .update({ wallet_balance: 0 })
-        .eq("id", driverId);
-
-      setBalance(0);
-      fetchPayouts();
+      await Promise.all([fetchDriverData(), fetchPayouts()]);
 
       toast({
         title: "Payout requested!",

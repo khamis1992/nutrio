@@ -3,8 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 const DISPATCHABLE_ORDER_STATUSES = ["preparing", "ready_for_pickup"] as const;
 // meal_schedules statuses that are ready for fleet dispatch
 const DISPATCHABLE_SCHEDULE_STATUSES = ["preparing", "ready"] as const;
-const ACTIVE_DELIVERY_JOB_STATUSES = ["assigned", "accepted", "picked_up", "in_transit"] as const;
-const CLOSED_DELIVERY_JOB_STATUSES = ["picked_up", "in_transit", "delivered", "completed", "failed", "cancelled"] as const;
+const ACTIVE_DELIVERY_JOB_STATUSES = ["assigned", "accepted", "picked_up", "in_transit", "on_the_way"] as const;
+const CLOSED_DELIVERY_JOB_STATUSES = ["picked_up", "in_transit", "on_the_way", "delivered", "completed", "failed", "cancelled"] as const;
 
 type RawOrder = {
   id: string;
@@ -33,6 +33,15 @@ type RawMealSchedule = {
   restaurant_id: string | null;
   delivery_fee: number | null;
   delivery_type: string | null;
+};
+
+type DispatchAddress = {
+  user_id: string;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  phone: string | null;
+  is_default: boolean | null;
 };
 
 export interface DispatchOrderRecord {
@@ -149,7 +158,6 @@ export async function getDispatchOrders(): Promise<DispatchOrderRecord[]> {
 
   const orderIds = orders.map((o) => o.id);
   const scheduleIds = schedules.map((s) => s.id);
-  const allJobScheduleIds = [...orderIds, ...scheduleIds];
 
   const [
     { data: restaurantsData, error: restaurantsError },
@@ -185,12 +193,15 @@ export async function getDispatchOrders(): Promise<DispatchOrderRecord[]> {
           .in("user_id", allUserIds)
           .eq("is_default", true)
       : Promise.resolve({ data: [], error: null }),
-    // delivery_jobs.schedule_id can reference either orders.id OR meal_schedules.id
-    allJobScheduleIds.length > 0
+    // Delivery jobs have an explicit source column for each order type.
+    orderIds.length > 0 || scheduleIds.length > 0
       ? supabase
           .from("delivery_jobs")
-          .select("id, schedule_id, status, driver_id")
-          .in("schedule_id", allJobScheduleIds)
+          .select("id, schedule_id, order_id, status, driver_id")
+          .or([
+            orderIds.length > 0 ? `order_id.in.(${orderIds.join(",")})` : null,
+            scheduleIds.length > 0 ? `schedule_id.in.(${scheduleIds.join(",")})` : null,
+          ].filter(Boolean).join(","))
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -216,9 +227,16 @@ export async function getDispatchOrders(): Promise<DispatchOrderRecord[]> {
   const profilesMap = new Map((profilesData || []).map((item) => [item.user_id, item]));
   const mealsMap = new Map((mealsData || []).map((item) => [item.id, item]));
   const branchesMap = new Map((branchesData || []).map((item) => [item.id, item]));
-  const addressesMap = new Map((addressesData || []).map((item: { user_id: string; phone?: string }) => [item.user_id, item]));
-  // A single job can reference either an order or a schedule — keyed by schedule_id either way
-  const jobsMap = new Map((jobsData || []).map((item) => [item.schedule_id, item]));
+  const addressesMap = new Map<string, DispatchAddress>(
+    ((addressesData || []) as DispatchAddress[]).map((item) => [item.user_id, item]),
+  );
+  // Key each job by its one non-null source identifier.
+  const jobsMap = new Map(
+    (jobsData || []).flatMap((item) => {
+      const sourceId = item.order_id ?? item.schedule_id;
+      return sourceId ? [[sourceId, item] as const] : [];
+    })
+  );
   const driversMap = new Map((driversData || []).map((item) => [item.id, item]));
 
   // ── Map orders (one-time purchases) ─────────────────────────────────────────
@@ -445,15 +463,9 @@ export async function assignDispatchOrder(params: {
       jobId = createdJob.id;
     }
 
-    // P2-B: Update meal_schedules.order_status so the partner portal sees the dispatch
-    await supabase
-      .from("meal_schedules")
-      .update({ order_status: "out_for_delivery", updated_at: now })
-      .eq("id", schedule.id);
-
     if (jobId) {
       const action = previousDriverId && previousDriverId !== driverId ? "reassigned" : "assigned";
-      await supabase.from("driver_assignment_history").insert({
+      const { error: historyError } = await supabase.from("driver_assignment_history").insert({
         action,
         driver_id: driverId,
         job_id: jobId,
@@ -461,6 +473,8 @@ export async function assignDispatchOrder(params: {
         reason: reason || "Manual dispatch from fleet portal",
         notes: notes || null,
       });
+
+      if (historyError) throw historyError;
     }
 
     return;
@@ -481,7 +495,7 @@ export async function assignDispatchOrder(params: {
     supabase
       .from("delivery_jobs")
       .select("id, driver_id, status")
-      .eq("schedule_id", orderId)
+      .eq("order_id", orderId)
       .maybeSingle(),
     order.restaurant_branch_id
       ? supabase
@@ -528,7 +542,7 @@ export async function assignDispatchOrder(params: {
     const { data: createdJob, error: createJobError } = await supabase
       .from("delivery_jobs")
       .insert({
-        schedule_id: order.id,
+        order_id: order.id,
         restaurant_id: order.restaurant_id,
         pickup_address: pickupAddress,
         delivery_address: order.delivery_address,
@@ -549,12 +563,7 @@ export async function assignDispatchOrder(params: {
     jobId = createdJob.id;
   }
 
-  await supabase
-    .from("orders")
-    .update({ driver_id: driverId })
-    .eq("id", order.id);
-
-  await supabase
+  const { error: queueError } = await supabase
     .from("delivery_queue")
     .update({
       assigned_driver_id: driverId,
@@ -563,10 +572,12 @@ export async function assignDispatchOrder(params: {
     })
     .eq("order_id", order.id);
 
+  if (queueError) throw queueError;
+
   if (jobId) {
     const action = previousDriverId && previousDriverId !== driverId ? "reassigned" : "assigned";
 
-    await supabase.from("driver_assignment_history").insert({
+    const { error: historyError } = await supabase.from("driver_assignment_history").insert({
       action,
       driver_id: driverId,
       job_id: jobId,
@@ -574,6 +585,8 @@ export async function assignDispatchOrder(params: {
       reason: reason || "Manual dispatch from fleet portal",
       notes: notes || null,
     });
+
+    if (historyError) throw historyError;
   }
 }
 
@@ -677,15 +690,19 @@ export async function getDispatchActivity(limit = 10): Promise<DispatchActivityR
   const history = historyData || [];
   if (history.length === 0) return [];
 
-  const driverIds = Array.from(new Set(history.map((item) => item.driver_id).filter(Boolean)));
-  const jobIds = Array.from(new Set(history.map((item) => item.job_id).filter(Boolean)));
+  const driverIds = Array.from(new Set(
+    history.map((item) => item.driver_id).filter((id): id is string => Boolean(id)),
+  ));
+  const jobIds = Array.from(new Set(
+    history.map((item) => item.job_id).filter((id): id is string => Boolean(id)),
+  ));
 
   const [{ data: driversData, error: driversError }, { data: jobsData, error: jobsError }] = await Promise.all([
     driverIds.length > 0
       ? supabase.from("drivers").select("id, full_name, phone_number").in("id", driverIds)
       : Promise.resolve({ data: [], error: null }),
     jobIds.length > 0
-      ? supabase.from("delivery_jobs").select("id, schedule_id, status").in("id", jobIds)
+      ? supabase.from("delivery_jobs").select("id, schedule_id, order_id, status").in("id", jobIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -707,7 +724,7 @@ export async function getDispatchActivity(limit = 10): Promise<DispatchActivityR
         (item.driver_id ? driversMap.get(item.driver_id)?.full_name : null) ||
         (item.driver_id ? driversMap.get(item.driver_id)?.phone_number : null) ||
         "Driver",
-      orderId: job?.schedule_id || null,
+      orderId: job?.order_id || job?.schedule_id || null,
       jobStatus: (job as { status?: string } | undefined)?.status || null,
     };
   });

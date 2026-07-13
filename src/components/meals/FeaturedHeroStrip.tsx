@@ -30,6 +30,8 @@ const calorieColor = (cal: number): string => {
 };
 
 export function FeaturedHeroStrip({ meals }: FeaturedHeroStripProps) {
+  const { t } = useLanguage();
+
   if (meals.length === 0) return null;
 
   const sorted = [...meals].sort((a, b) => (b.featured_priority ?? 0) - (a.featured_priority ?? 0));

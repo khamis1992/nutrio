@@ -5,7 +5,6 @@ import { ArrowLeft, AlertTriangle, Wallet, TrendingDown, X } from "lucide-react"
 import { format } from "date-fns";
 import type { WinBackOffer } from "@/hooks/useSubscriptionManagement";
 import { useSubscription } from "@/hooks/useSubscription";
-import { formatCurrency } from "@/lib/currency";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Step4FinalProps {

@@ -6,7 +6,7 @@ ADD COLUMN IF NOT EXISTS wallet_reward_amount NUMERIC(10, 2) NOT NULL DEFAULT 0;
 CREATE OR REPLACE FUNCTION public.update_challenge_progress(
   p_challenge_id UUID,
   p_user_id UUID,
-  p_progress INTEGER
+  p_progress INTEGER DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql

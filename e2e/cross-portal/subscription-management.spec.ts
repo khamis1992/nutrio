@@ -29,7 +29,7 @@ import {
   getTextContent,
 } from './utils';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://127.0.0.1:5173/nutrio';
 
 test.describe('Cross-Portal: Subscription Management Workflow', () => {
   let browser: Browser;

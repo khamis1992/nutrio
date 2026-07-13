@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Upload, Car } from "lucide-react";
-import type { VehicleType } from "@/fleet/types";
+import type { VehicleType } from "@/fleet/types/fleet";
 
 interface AddVehicleModalProps {
   isOpen: boolean;
@@ -71,7 +71,7 @@ export function AddVehicleModal({ isOpen, onClose, onSuccess, cityId }: AddVehic
       }
 
       // Create vehicle record
-      const insertData: Record<string, unknown> = {
+      const insertData = {
         type: formData.type,
         make: formData.make || null,
         model: formData.model || null,
@@ -82,11 +82,8 @@ export function AddVehicleModal({ isOpen, onClose, onSuccess, cityId }: AddVehic
         vehicle_photo_url: vehiclePhotoUrl,
         registration_document_url: registrationDocUrl,
         status: 'available',
+        ...(cityId ? { city_id: cityId } : {}),
       };
-      
-      if (cityId) {
-        insertData.city_id = cityId;
-      }
       
       const { error } = await supabase.from('vehicles').insert(insertData);
 

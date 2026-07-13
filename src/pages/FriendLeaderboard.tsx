@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFriendLeaderboard, FriendLeaderboardEntry } from "@/hooks/useFriendLeaderboard";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { fetchLatestNutritionScore } from "@/lib/pending-schema-queries";
 
 type SortMode = "composite" | "streak" | "xp" | "nutrition";
 
@@ -63,14 +64,7 @@ export default function FriendLeaderboard() {
     queryKey: ["my_nutrition_score", user?.id],
     queryFn: async () => {
       if (!user?.id) return 0;
-      const { data } = await supabase
-        .from("daily_performance_snapshots")
-        .select("nutrition_score")
-        .eq("user_id", user.id)
-        .order("snapshot_date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data?.nutrition_score ?? 0;
+      return fetchLatestNutritionScore(user.id);
     },
     enabled: !!user?.id,
   });
@@ -84,7 +78,6 @@ export default function FriendLeaderboard() {
   const sorted = sortEntries(leaderboard, sortMode);
   const myRank = sorted.findIndex((e) => e.friend_user_id === user?.id) + 1;
 
-  const activeTab = SORT_TABS.find((t) => t.key === sortMode)!;
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-20">

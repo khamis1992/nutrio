@@ -201,7 +201,7 @@ const OrderDetail = () => {
             };
             
             if (statusMessages[newStatus]) {
-              toast.success(statusMessages[newStatus]);
+              toast({ title: statusMessages[newStatus] });
             }
           }
           
@@ -320,7 +320,7 @@ const OrderDetail = () => {
         meal_type: data.meal_type,
         is_completed: !!data.is_completed,
         order_status: (data.order_status || "pending") as OrderStatus,
-        created_at: data.created_at,
+        created_at: data.created_at || new Date(0).toISOString(),
         delivery_type: data.delivery_type,
         delivery_fee: data.delivery_fee,
         addons_total: data.addons_total || 0,
@@ -333,7 +333,13 @@ const OrderDetail = () => {
         })),
         meal: mealData ? {
           ...mealData,
-          diet_tags: mealData.meal_diet_tags?.map((mdt: { diet_tags: { name: string } | null }) => mdt.diet_tags).filter(Boolean) || [],
+          calories: mealData.calories ?? 0,
+          protein_g: mealData.protein_g ?? 0,
+          carbs_g: mealData.carbs_g ?? 0,
+          fat_g: mealData.fat_g ?? 0,
+          diet_tags: mealData.meal_diet_tags
+            ?.map((mealTag) => mealTag.diet_tags)
+            .filter((tag): tag is { name: string } => tag !== null) || [],
         } : null,
       };
 
@@ -351,12 +357,15 @@ const OrderDetail = () => {
     
     setUpdating(true);
     try {
-      const { error } = await supabase
-        .from("meal_schedules")
-        .update({ order_status: newStatus })
-        .eq("id", id);
+      const { data, error } = await supabase.rpc("customer_confirm_order_received", {
+        p_source: "meal_schedule",
+        p_order_id: id,
+      });
 
       if (error) throw error;
+      if (!(data as { success?: boolean } | null)?.success) {
+        throw new Error("Receipt confirmation failed.");
+      }
       setOrder((prev) => prev ? { ...prev, order_status: newStatus } : null);
     } catch (error) {
       console.error("Error updating order:", error);
@@ -391,7 +400,9 @@ const OrderDetail = () => {
         throw error;
       }
       
-      if (!data?.success) throw new Error(t("order_cancel_fail"));
+      if (!(data as { success?: boolean } | null)?.success) {
+        throw new Error(t("order_cancel_fail"));
+      }
       setOrder(prev => prev ? { ...prev, order_status: "cancelled" } : null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "";
@@ -426,8 +437,8 @@ const OrderDetail = () => {
   const isCancelled = order.order_status === "cancelled";
   const isCompleted = order.order_status === "completed" || order.order_status === "delivered";
   const canCancel = order.order_status === "pending" || order.order_status === "confirmed";
-  const isOutForDelivery = order.order_status === "out_for_delivery";
   const isDelivered = order.order_status === "delivered";
+  const isOutForDelivery = order.order_status === "out_for_delivery";
   const activeStatusStep = statusSteps[currentStep] || statusSteps[0];
   const ActiveStatusIcon = activeStatusStep.icon;
   const orderNumber = order.id.slice(0, 8).toUpperCase();
@@ -718,21 +729,6 @@ const OrderDetail = () => {
               <X className="h-4 w-4 mr-2" />
             )}
             {t("order_cancel_order")}
-          </Button>
-        )}
-
-        {isOutForDelivery && (
-          <Button 
-            className="h-12 w-full rounded-full bg-[#020617] text-sm font-black text-white shadow-[0_10px_22px_rgba(2,6,23,0.16)] hover:bg-slate-800"
-            onClick={() => updateOrderStatus("delivered")}
-            disabled={updating}
-          >
-            {updating ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <CheckCheck className="h-4 w-4 mr-2" />
-            )}
-            {t("order_received")}
           </Button>
         )}
 

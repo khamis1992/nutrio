@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,7 +19,6 @@ import {
   Star,
   ArrowUp,
   ArrowDown,
-  Minus,
   Zap,
   Link2,
   UserCheck,
@@ -28,8 +27,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -39,10 +36,7 @@ import {
   Bar,
   AreaChart,
   Area,
-  ReferenceLine,
 } from "recharts";
-
-const PLATFORM_FEE = 0.18;
 
 interface PremiumAnalyticsDashboardProps {
   restaurantId: string;
@@ -52,6 +46,8 @@ interface PremiumAnalyticsDashboardProps {
 interface TrendData {
   date: string;
   revenue: number;
+  actualRevenue?: number;
+  projectedRevenue?: number;
   orders: number;
   projected?: boolean;
 }
@@ -187,21 +183,24 @@ export function PremiumAnalyticsDashboard({
     try {
       setLoading(true);
 
-      const { data: restData } = await supabase
+      const { data: restData, error: restaurantError } = await supabase
         .from("restaurants")
-        .select("name")
+        .select("name, commission_rate")
         .eq("id", restaurantId)
         .maybeSingle();
+      if (restaurantError) throw restaurantError;
       if (restData?.name) setRestaurantName(restData.name);
+      const platformFee = Math.min(Math.max(restData?.commission_rate ?? 18, 0), 100) / 100;
 
-      const { data: meals } = await supabase
+      const { data: meals, error: mealsError } = await supabase
         .from("meals")
         .select("id, name, price")
         .eq("restaurant_id", restaurantId);
+      if (mealsError) throw mealsError;
 
       const mealIds = meals?.map((m) => m.id) || [];
       const mealMap = meals?.reduce((acc, m) => {
-        acc[m.id] = { name: m.name, price: m.price };
+        acc[m.id] = { name: m.name, price: m.price ?? 0 };
         return acc;
       }, {} as Record<string, { name: string; price: number }>) || {};
 
@@ -213,11 +212,12 @@ export function PremiumAnalyticsDashboard({
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-      const { data: schedules } = await supabase
+      const { data: schedules, error: schedulesError } = await supabase
         .from("meal_schedules")
         .select("id, scheduled_date, meal_type, meal_id, user_id, created_at")
         .in("meal_id", mealIds)
         .gte("scheduled_date", ninetyDaysAgo.toISOString().split("T")[0]);
+      if (schedulesError) throw schedulesError;
 
       if (!schedules || schedules.length === 0) {
         setLoading(false);
@@ -237,11 +237,12 @@ export function PremiumAnalyticsDashboard({
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split("T")[0];
         const daySchedules = schedules.filter((s) => s.scheduled_date === dateStr);
-        const revenue = daySchedules.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0) * (1 - PLATFORM_FEE), 0);
+        const revenue = daySchedules.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0) * (1 - platformFee), 0);
         historicalData.push({
           date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
           orders: daySchedules.length,
           revenue,
+          actualRevenue: revenue,
         });
       }
 
@@ -258,10 +259,10 @@ export function PremiumAnalyticsDashboard({
         projectedData.push({
           date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
           revenue: 0,
+          projectedRevenue: avgDailyRevenue,
           orders: 0,
           projected: true,
         });
-        // We'll draw forecast as a separate series using avgDailyRevenue
         projectedData[i - 1].revenue = avgDailyRevenue;
       }
       setTrendData([...historicalData, ...projectedData]);
@@ -270,6 +271,7 @@ export function PremiumAnalyticsDashboard({
       const hourCounts: Record<string, number> = {};
       for (let i = 6; i <= 22; i++) hourCounts[`${i}:00`] = 0;
       schedules.forEach((s) => {
+        if (!s.created_at) return;
         const hour = new Date(s.created_at).getHours();
         const key = `${hour}:00`;
         if (hourCounts[key] !== undefined) hourCounts[key]++;
@@ -283,7 +285,7 @@ export function PremiumAnalyticsDashboard({
       schedules.forEach((s) => {
         const day = dayNames[new Date(s.scheduled_date).getDay()];
         dayCounts[day].orders++;
-        dayCounts[day].revenue += (mealMap[s.meal_id]?.price || 0) * (1 - PLATFORM_FEE);
+        dayCounts[day].revenue += (mealMap[s.meal_id]?.price || 0) * (1 - platformFee);
       });
       setDayOfWeekData(dayNames.map((day) => ({ day, orders: dayCounts[day].orders, revenue: dayCounts[day].revenue })));
 
@@ -316,8 +318,8 @@ export function PremiumAnalyticsDashboard({
       const previousSchedules = schedules.filter(
         (s) => s.scheduled_date >= sixtyDaysAgoStr && s.scheduled_date < thirtyDaysAgoStr
       );
-      const recentRevenue = recentSchedules.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0) * (1 - PLATFORM_FEE), 0);
-      const previousRevenue = previousSchedules.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0) * (1 - PLATFORM_FEE), 0);
+      const recentRevenue = recentSchedules.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0) * (1 - platformFee), 0);
+      const previousRevenue = previousSchedules.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0) * (1 - platformFee), 0);
       const recentCustomers = new Set(recentSchedules.map((s) => s.user_id)).size;
       const previousCustomers = new Set(previousSchedules.map((s) => s.user_id)).size;
       setGrowthMetrics({
@@ -351,7 +353,7 @@ export function PremiumAnalyticsDashboard({
       schedules.forEach((s) => {
         if (mealStats[s.meal_id]) {
           mealStats[s.meal_id].orders++;
-          mealStats[s.meal_id].netRevenue += (mealMap[s.meal_id]?.price || 0) * (1 - PLATFORM_FEE);
+          mealStats[s.meal_id].netRevenue += (mealMap[s.meal_id]?.price || 0) * (1 - platformFee);
         }
       });
       const allOrders = Object.values(mealStats).map((m) => m.orders);
@@ -448,8 +450,8 @@ export function PremiumAnalyticsDashboard({
       const thisWeek = schedules.filter((s) => s.scheduled_date >= sevenDaysAgoStr2 && s.scheduled_date <= todayStr);
       const lastWeek = schedules.filter((s) => s.scheduled_date >= fourteenDaysAgoStr2 && s.scheduled_date < sevenDaysAgoStr2);
 
-      const thisRevenue = thisWeek.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0) * (1 - PLATFORM_FEE), 0);
-      const lastRevenue = lastWeek.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0) * (1 - PLATFORM_FEE), 0);
+      const thisRevenue = thisWeek.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0) * (1 - platformFee), 0);
+      const lastRevenue = lastWeek.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0) * (1 - platformFee), 0);
 
       const thisWeekCustomers = new Set(thisWeek.map((s) => s.user_id));
       const lastWeekCustomers = new Set(lastWeek.map((s) => s.user_id));
@@ -883,7 +885,7 @@ export function PremiumAnalyticsDashboard({
   }
 
   const totalChurn = churnData.atRisk + churnData.likelyLost + churnData.lost;
-  const underperformer = menuPerf.find((m) => m.label === "Underperformer");
+  const underperformer = menuPerf.find((m) => m.label === "Needs Attention");
   const topEarner = profitabilityData[0];
 
   const demandColors = {
@@ -1017,15 +1019,15 @@ export function PremiumAnalyticsDashboard({
                           tickFormatter={(v) => `${v}`} />
                         <Tooltip
                           contentStyle={{ backgroundColor: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }}
-                          formatter={(value: number, _: string, props: { payload?: { projected?: boolean } }) => [
+                          formatter={(value: number, name: string) => [
                             formatCurrency(value),
-                            props?.payload?.projected ? "Projected" : "Net Revenue",
+                            name === "projectedRevenue" ? "Projected" : "Net Revenue",
                           ]}
                         />
-                        <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" fill="url(#colorRevenue)"
-                          strokeWidth={2} dot={false}
-                          strokeDasharray={(d: { projected?: boolean }) => d?.projected ? "4 4" : "0"}
-                        />
+                        <Area type="monotone" dataKey="actualRevenue" stroke="hsl(var(--primary))"
+                          fill="url(#colorRevenue)" strokeWidth={2} dot={false} connectNulls={false} />
+                        <Area type="monotone" dataKey="projectedRevenue" stroke="hsl(var(--primary))"
+                          fill="url(#colorForecast)" strokeWidth={2} strokeDasharray="4 4" dot={false} connectNulls={false} />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>

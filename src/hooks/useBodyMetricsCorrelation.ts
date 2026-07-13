@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfWeek, endOfWeek, subWeeks, format, parseISO } from "date-fns";
+import { startOfWeek, endOfWeek, subWeeks, format } from "date-fns";
 
 interface WeeklyDataPoint {
   weekLabel: string;
@@ -11,6 +11,8 @@ interface WeeklyDataPoint {
   avgFat: number;
   muscleMassChange: number | null;
   bodyFatChange: number | null;
+  latestMuscleMass: number | null;
+  latestBodyFat: number | null;
 }
 
 interface CorrelationResult {
@@ -88,17 +90,19 @@ export function useBodyMetricsCorrelation(userId: string | undefined) {
           bodyFatChange: null,
           latestMuscleMass: latestMetric?.muscle_mass_percent ?? null,
           latestBodyFat: latestMetric?.body_fat_percent ?? null,
-        } as WeeklyDataPoint & { latestMuscleMass: number | null; latestBodyFat: number | null };
+        };
       });
 
       for (let i = 0; i < weekData.length - 1; i++) {
-        if (weekData[i].latestMuscleMass != null && weekData[i + 1].latestMuscleMass != null) {
-          (weekData[i] as any).muscleMassChange =
-            weekData[i].latestMuscleMass - weekData[i + 1].latestMuscleMass;
+        const currentWeek = weekData[i];
+        const previousWeek = weekData[i + 1];
+        if (currentWeek.latestMuscleMass != null && previousWeek.latestMuscleMass != null) {
+          currentWeek.muscleMassChange =
+            currentWeek.latestMuscleMass - previousWeek.latestMuscleMass;
         }
-        if (weekData[i].latestBodyFat != null && weekData[i + 1].latestBodyFat != null) {
-          (weekData[i] as any).bodyFatChange =
-            weekData[i].latestBodyFat - weekData[i + 1].latestBodyFat;
+        if (currentWeek.latestBodyFat != null && previousWeek.latestBodyFat != null) {
+          currentWeek.bodyFatChange =
+            currentWeek.latestBodyFat - previousWeek.latestBodyFat;
         }
       }
 
@@ -111,18 +115,20 @@ export function useBodyMetricsCorrelation(userId: string | undefined) {
 
       const median = withProtein.map((w) => w.avgProtein).sort((a, b) => a - b)[Math.floor(withProtein.length / 2)];
 
-      const highWeeks = withProtein.filter((w) => w.avgProtein >= median && (w as any).muscleMassChange != null);
-      const lowWeeks = withProtein.filter((w) => w.avgProtein < median && (w as any).muscleMassChange != null);
+      const highProteinWeeks = withProtein.filter((week) => week.avgProtein >= median);
+      const lowProteinWeeks = withProtein.filter((week) => week.avgProtein < median);
+      const highWeeks = highProteinWeeks.filter((week) => week.muscleMassChange != null);
+      const lowWeeks = lowProteinWeeks.filter((week) => week.muscleMassChange != null);
 
       const highAvgMuscle = highWeeks.length > 0
-        ? highWeeks.reduce((s, w) => s + (w as any).muscleMassChange, 0) / highWeeks.length
+        ? highWeeks.reduce((sum, week) => sum + (week.muscleMassChange ?? 0), 0) / highWeeks.length
         : null;
       const lowAvgMuscle = lowWeeks.length > 0
-        ? lowWeeks.reduce((s, w) => s + (w as any).muscleMassChange, 0) / lowWeeks.length
+        ? lowWeeks.reduce((sum, week) => sum + (week.muscleMassChange ?? 0), 0) / lowWeeks.length
         : null;
 
-      const highAvgProtein = withProtein.filter((w) => w.avgProtein >= median).reduce((s, w) => s + w.avgProtein, 0) / highWeeks.length;
-      const lowAvgProtein = withProtein.filter((w) => w.avgProtein < median).reduce((s, w) => s + w.avgProtein, 0) / (lowWeeks.length || 1);
+      const highAvgProtein = highProteinWeeks.reduce((sum, week) => sum + week.avgProtein, 0) / highProteinWeeks.length;
+      const lowAvgProtein = lowProteinWeeks.reduce((sum, week) => sum + week.avgProtein, 0) / (lowProteinWeeks.length || 1);
 
       let topInsight: string | null = null;
       if (highAvgMuscle != null && lowAvgMuscle != null && highWeeks.length >= 1 && lowWeeks.length >= 1) {

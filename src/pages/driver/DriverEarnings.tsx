@@ -3,17 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wallet, TrendingUp, Calendar, DollarSign, ArrowUpRight, Gift } from "lucide-react";
+import { Wallet, DollarSign, Gift } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 import { useNavigate } from "react-router-dom";
+import { startOfMonth, startOfWeek } from "date-fns";
 
 export default function DriverEarnings() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [driverId, setDriverId] = useState<string | null>(null);
@@ -24,7 +23,13 @@ export default function DriverEarnings() {
     month: { deliveries: 0, earnings: 0 },
     tips: 0,
   });
-  const [recentEarnings, setRecentEarnings] = useState<{ id: string; amount: number; type: string; description: string; created_at: string }[]>([]);
+  const [recentEarnings, setRecentEarnings] = useState<Array<{
+    id: string;
+    driver_earnings: number;
+    delivery_fee: number;
+    tip_amount: number;
+    delivered_at: string;
+  }>>([]);
 
   useEffect(() => {
     if (user) {
@@ -65,16 +70,14 @@ export default function DriverEarnings() {
     try {
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const weekStart = new Date(todayStart);
-      weekStart.setDate(weekStart.getDate() - 7);
-      const monthStart = new Date(todayStart);
-      monthStart.setDate(monthStart.getDate() - 30);
+      const weekStart = startOfWeek(todayStart, { weekStartsOn: 1 });
+      const monthStart = startOfMonth(todayStart);
 
       const { data: deliveries, error } = await supabase
         .from("delivery_jobs")
-        .select("delivery_fee, driver_earnings, delivered_at, created_at")
+        .select("id, delivery_fee, driver_earnings, tip_amount, delivered_at")
         .eq("driver_id", driverId)
-        .in("status", ["completed"])
+        .in("status", ["delivered", "completed"])
         .gte("delivered_at", monthStart.toISOString())
         .order("delivered_at", { ascending: false });
 
@@ -88,10 +91,10 @@ export default function DriverEarnings() {
       );
       const monthDeliveries = deliveries || [];
 
-      const calcEarnings = (list: Record<string, unknown>[]) =>
-        list.reduce((sum, d) => sum + ((d.driver_earnings as number) || 0), 0);
-      const calcTips = (list: Record<string, unknown>[]) =>
-        list.reduce((sum, d) => sum + (((d.driver_earnings as number) || 0) * 0.2), 0); // Estimate 20% as tips
+      const calcEarnings = (list: typeof monthDeliveries) =>
+        list.reduce((sum, delivery) => sum + (delivery.driver_earnings ?? 0), 0);
+      const calcTips = (list: typeof monthDeliveries) =>
+        list.reduce((sum, delivery) => sum + (delivery.tip_amount ?? 0), 0);
 
       setStats({
         today: {
@@ -109,7 +112,13 @@ export default function DriverEarnings() {
         tips: calcTips(monthDeliveries),
       });
 
-      setRecentEarnings((deliveries || []).slice(0, 10));
+      setRecentEarnings((deliveries || []).slice(0, 10).map((delivery) => ({
+        id: delivery.id,
+        driver_earnings: delivery.driver_earnings ?? 0,
+        delivery_fee: delivery.delivery_fee ?? 0,
+        tip_amount: delivery.tip_amount ?? 0,
+        delivered_at: delivery.delivered_at ?? "",
+      })));
     } catch (error) {
       console.error("Error fetching earnings:", error);
     } finally {
@@ -204,10 +213,10 @@ export default function DriverEarnings() {
                     </div>
                     <div>
                       <p className="text-sm font-medium">
-                        QAR {((earning.delivery_fee || 0) + (earning.tip_amount || 0)).toFixed(2)}
+                        QAR {earning.driver_earnings.toFixed(2)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(earning.delivered_at).toLocaleDateString()}
+                        {earning.delivered_at ? new Date(earning.delivered_at).toLocaleDateString() : "Pending"}
                       </p>
                     </div>
                   </div>

@@ -11,7 +11,6 @@ import {
   Gift,
   Target
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -33,11 +32,16 @@ export function BehaviorPredictionWidget() {
   const [dismissed, setDismissed] = useState(false);
 
   const fetchPrediction = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('behavior_predictions')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -45,13 +49,20 @@ export function BehaviorPredictionWidget() {
       if (error) throw error;
       
       // Only show if prediction is from last 7 days
-      if (data) {
+      if (data?.created_at) {
         const predictionDate = new Date(data.created_at);
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         
         if (predictionDate > sevenDaysAgo) {
-          setPrediction(data);
+          setPrediction({
+            id: data.id,
+            churn_risk_score: data.churn_risk_score,
+            boredom_risk_score: data.boredom_risk_score,
+            engagement_score: data.engagement_score,
+            recommended_action: data.recommended_action,
+            created_at: data.created_at,
+          });
         }
       }
     } catch (err) {

@@ -24,14 +24,14 @@ const NutritionGoals = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-extrabold text-[#020617]">{t("nutrition_plan_title")}</h1>
+            <h1 className="truncate text-base font-extrabold text-[#020617]">{isEditGoalRoute ? t("edit_goal") : t("nutrition_plan_title")}</h1>
             <p className="truncate text-xs font-medium text-[#94A3B8]">{t("nutrition_plan_subtitle")}</p>
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-lg px-4 py-4">
-        <section className="mb-4 overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+        {!isEditGoalRoute && <section className="mb-4 overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#F3F4FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">
@@ -64,7 +64,7 @@ const NutritionGoals = () => {
               <p className="mt-1 text-[12px] font-black leading-4 text-[#020617]">{t("goal_impact_meals")}</p>
             </div>
           </div>
-        </section>
+        </section>}
 
         <GoalsManagement autoOpenEditor={isEditGoalRoute} />
       </div>

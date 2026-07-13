@@ -34,7 +34,7 @@ export function useCoachReviews(coachId: string | undefined) {
       return;
     }
     try {
-      const [{ data: reviewsData }, { data: summaryData }] = await Promise.all([
+      const [reviewsResult, summaryResult] = await Promise.all([
         supabase
           .from("coach_reviews")
           .select("id, coach_id, client_id, rating, review_text, created_at")
@@ -46,6 +46,11 @@ export function useCoachReviews(coachId: string | undefined) {
           .eq("coach_id", coachId)
           .maybeSingle(),
       ]);
+      if (reviewsResult.error) throw reviewsResult.error;
+      if (summaryResult.error) throw summaryResult.error;
+
+      const reviewsData = reviewsResult.data;
+      const summaryData = summaryResult.data;
 
       const reviewsArr = reviewsData || [];
       if (reviewsArr.length > 0) {
@@ -54,7 +59,7 @@ export function useCoachReviews(coachId: string | undefined) {
           .from("profiles")
           .select("user_id, full_name, avatar_url")
           .in("user_id", clientIds);
-        const profileMap = new Map((profiles || []).map((p: { user_id: string; full_name: string | null; avatar_url: string | null }) => [p.user_id, p]));
+        const profileMap = new Map((profiles || []).map((profile) => [profile.user_id, profile]));
         setReviews(
           reviewsArr.map((r) => ({
             ...r,
@@ -67,7 +72,17 @@ export function useCoachReviews(coachId: string | undefined) {
       }
 
       if (summaryData) {
-        setSummary(summaryData as CoachRatingSummary);
+        setSummary({
+          average_rating: summaryData.average_rating ?? 0,
+          total_reviews: summaryData.total_reviews ?? 0,
+          five_star: summaryData.five_star ?? 0,
+          four_star: summaryData.four_star ?? 0,
+          three_star: summaryData.three_star ?? 0,
+          two_star: summaryData.two_star ?? 0,
+          one_star: summaryData.one_star ?? 0,
+        });
+      } else {
+        setSummary(null);
       }
     } catch (err) {
       console.error("Error fetching reviews:", err);
@@ -105,7 +120,7 @@ export function useCoachReviews(coachId: string | undefined) {
         setSubmitting(false);
       }
     },
-    [coachId]
+    [coachId, fetchReviews]
   );
 
   useEffect(() => {

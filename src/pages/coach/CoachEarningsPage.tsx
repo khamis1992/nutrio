@@ -1,4 +1,5 @@
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, type Variants } from "framer-motion";
 import { Loader2, DollarSign, Clock, CheckCircle2, TrendingUp, User, Calendar, ArrowUpRight, Download, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoachEarnings } from "@/hooks/useCoachEarnings";
@@ -6,12 +7,12 @@ import { useCoachWithdrawal } from "@/hooks/useCoachWithdrawal";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-const statCard = {
+const statCard: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 24 } },
 };
 
-const stagger = {
+const stagger: Variants = {
   visible: { transition: { staggerChildren: 0.05 } },
 };
 
@@ -297,7 +298,7 @@ export default function CoachEarningsPage() {
                     setIban("");
                     setAccountHolder("");
                     setWithdrawAmount("");
-                    refreshWithdrawals();
+                    await Promise.all([refreshWithdrawals(), refresh()]);
                     refresh();
                   } else {
                     toast({ title: "Failed", description: result.error?.message || "Please try again.", variant: "destructive" });

@@ -14,7 +14,7 @@
 
 ### ✅ 2. Updated Test Credentials
 **Status: COMPLETE**
-- Customer login: `khamis--1992@hotmail.com` / `Khamees1992#`
+- Customer login: `<E2E_ACCOUNT_EMAIL>` / `<E2E_ADMIN_PASSWORD>`
 - Selectors updated to use correct IDs: `input#email`, `input#password`
 
 ### ✅ 3. Fixed UI Selectors
@@ -82,8 +82,8 @@ The login form submits but:
 -- Run in Supabase SQL Editor
 INSERT INTO auth.users (email, encrypted_password, email_confirmed_at)
 VALUES (
-  'khamis--1992@hotmail.com',
-  crypt('Khamees1992#', gen_salt('bf')),
+  '<E2E_ACCOUNT_EMAIL>',
+  crypt('<E2E_ADMIN_PASSWORD>', gen_salt('bf')),
   NOW()
 );
 ```
@@ -102,7 +102,7 @@ export const TEST_USERS = {
 ### Option 3: Manual Testing First
 1. Open browser
 2. Go to `http://localhost:8080/auth`
-3. Try logging in with `khamis--1992@hotmail.com` / `Khamees1992#`
+3. Try logging in with `<E2E_ACCOUNT_EMAIL>` / `<E2E_ADMIN_PASSWORD>`
 4. If it fails, use credentials that work
 
 ### Option 4: Disable IP Check (for local testing)
@@ -153,7 +153,7 @@ e2e/
 # 1. Verify your credentials work manually
 curl -X POST http://localhost:8080/auth/v1/token \
   -H "Content-Type: application/json" \
-  -d '{"email":"khamis--1992@hotmail.com","password":"Khamees1992#"}'
+  -d '{"email":"<E2E_ACCOUNT_EMAIL>","password":"<E2E_ADMIN_PASSWORD>"}'
 
 # 2. Or just open browser and try logging in
 ```

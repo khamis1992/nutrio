@@ -159,7 +159,7 @@ const PersonalInfo = () => {
   }
 
   return (
-    <div className="h-[100dvh] overflow-y-auto overflow-x-hidden bg-[#F6F8FB] pb-32 pt-safe text-[#020617] [-webkit-overflow-scrolling:touch]">
+    <div className="min-h-[100dvh] overflow-x-hidden bg-[#F6F8FB] pb-32 pt-safe text-[#020617]">
       <header className="sticky top-0 z-40 border-b border-[#E2E8F0]/70 bg-[#F6F8FB]/92 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-4">
           <button

@@ -5,7 +5,6 @@ import { Crown, ChevronRight, ChefHat, Calendar, BadgeCheck } from "lucide-react
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { fadeInUp } from "@/lib/animations";
-import { cn } from "@/lib/utils";
 
 interface VIPExclusiveMeal {
   id: string;

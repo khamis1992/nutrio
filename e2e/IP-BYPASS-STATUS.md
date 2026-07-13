@@ -35,8 +35,8 @@ export const checkIPLocation = async (): Promise<IPLocationResponse> => {
 
 ### 2. Test User Created
 **User Details:**
-- **Email:** `khamis--1992@hotmail.com`
-- **Password:** `Khamees1992#`
+- **Email:** `<E2E_ACCOUNT_EMAIL>`
+- **Password:** `<E2E_ADMIN_PASSWORD>`
 - **User ID:** `1b35e3f3-0271-4bd9-a517-1acdce00e4b0`
 - **Status:** Email confirmed ✅
 - **Location:** Supabase auth.users table

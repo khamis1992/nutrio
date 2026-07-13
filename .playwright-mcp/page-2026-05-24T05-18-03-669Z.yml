@@ -13,14 +13,14 @@
             - generic [ref=e98]: Email
             - generic [ref=e99]:
               - img [ref=e101]
-              - textbox "Enter your email" [ref=e104]: eng.aljabor@gmail.com
+              - textbox "Enter your email" [ref=e104]: <E2E_CUSTOMER_EMAIL>
               - button "Clear email" [ref=e105] [cursor=pointer]:
                 - img [ref=e106]
           - generic [ref=e109]:
             - generic [ref=e110]: Password
             - generic [ref=e111]:
               - img [ref=e113]
-              - textbox "Enter your password" [ref=e116]: "123456789"
+              - textbox "Enter your password" [ref=e116]: "<E2E_TEST_PASSWORD>"
               - button "Toggle password visibility" [ref=e117] [cursor=pointer]
           - generic [ref=e120]:
             - generic [ref=e121] [cursor=pointer]:

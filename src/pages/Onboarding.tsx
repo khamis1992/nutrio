@@ -11,7 +11,6 @@ import {
   ArrowLeft,
   Check,
   User,
-  Ruler,
   Activity,
   Loader2,
   Utensils,
@@ -168,7 +167,7 @@ const LoadingAdvancer = ({
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { profile, updateProfile } = useProfile();
+  const { profile, loading: profileLoading, updateProfile } = useProfile();
   const { toast } = useToast();
   const { dietTags, allergyTags, loading: dietTagsLoading } = useDietTags();
   const { t } = useLanguage();
@@ -188,18 +187,29 @@ const Onboarding = () => {
   const [data, setData] = useState<OnboardingData>({
     goal: null,
     gender: null,
-    age: "",
-    height: "",
-    weight: "",
-    targetWeight: "",
+    age: "25",
+    height: "170",
+    weight: "80",
+    targetWeight: "70",
     activityLevel: null,
-    trainingDaysPerWeek: "",
+    trainingDaysPerWeek: "3",
     foodPreferences: [],
     allergies: [],
   });
 
   const totalSteps = 5;
   const progressPercent = Math.round((step / totalSteps) * 100);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    if (!profileLoading && profile?.onboarding_completed) {
+      navigate("/dashboard");
+    }
+  }, [authLoading, navigate, profile?.onboarding_completed, profileLoading, user]);
 
   // Load saved progress from localStorage on mount
   useEffect(() => {
@@ -299,7 +309,7 @@ const Onboarding = () => {
   };
 
   const handleQuickStart = async () => {
-    setData({
+    const quickStartData: OnboardingData = {
       goal: "maintain",
       gender: "male",
       age: "30",
@@ -310,12 +320,9 @@ const Onboarding = () => {
       trainingDaysPerWeek: "3",
       foodPreferences: [],
       allergies: [],
-    });
-    saveDraft({
-      goal: "maintain", gender: "male", age: "30", height: "170", weight: "75",
-      targetWeight: "75", activityLevel: "moderate", trainingDaysPerWeek: "3",
-      foodPreferences: [], allergies: [],
-    }, 1);
+    };
+    setData(quickStartData);
+    saveDraft(quickStartData, 1);
     const age = 30;
     const height = 170;
     const weight = 75;
@@ -333,18 +340,19 @@ const Onboarding = () => {
       fat: macros.fat,
     });
     sessionStorage.setItem("nutrio_onboarding_done", "true");
-    await completeOnboarding();
+    await completeOnboarding(quickStartData);
     setStep(7);
   };
 
-  const completeOnboarding = async () => {
-    const age = parseInt(data.age) || 30;
-    const height = parseInt(data.height) || 170;
-    const weight = parseFloat(data.weight) || 75;
-    const bmr = calculateBMR(data.gender || "male", weight, height, age);
-    const tdee = calculateTDEE(bmr, data.activityLevel || "moderate");
-    const dailyCalories = calculateTargetCalories(tdee, data.goal || "maintain");
-    const macros = calculateMacros(dailyCalories, data.goal || "maintain", data.foodPreferences);
+  const completeOnboarding = async (overrideData?: OnboardingData) => {
+    const onboardingData = overrideData ?? data;
+    const age = parseInt(onboardingData.age) || 30;
+    const height = parseInt(onboardingData.height) || 170;
+    const weight = parseFloat(onboardingData.weight) || 75;
+    const bmr = calculateBMR(onboardingData.gender || "male", weight, height, age);
+    const tdee = calculateTDEE(bmr, onboardingData.activityLevel || "moderate");
+    const dailyCalories = calculateTargetCalories(tdee, onboardingData.goal || "maintain");
+    const macros = calculateMacros(dailyCalories, onboardingData.goal || "maintain", onboardingData.foodPreferences);
     setComputedPlan({
       calories: dailyCalories,
       carbsPct: Math.round((macros.carbs * 4 / dailyCalories) * 100),
@@ -355,18 +363,18 @@ const Onboarding = () => {
       fat: macros.fat,
     });
     clearSavedProgress();
+    if (!user) return;
+    setSaving(true);
     try {
-      if (!user) return;
-      const goalType = data.goal === "lose" ? "weight_loss" : data.goal === "gain" ? "muscle_gain" : "maintenance";
+      const goalType = onboardingData.goal === "lose" ? "weight_loss" : onboardingData.goal === "gain" ? "muscle_gain" : "maintenance";
       const profileResult = await updateProfile({
-        goal: data.goal || "maintain",
-        gender: data.gender || "male",
-        age: parseInt(data.age) || 30,
-        height: parseInt(data.height) || 170,
-        weight: parseFloat(data.weight) || 75,
-        target_weight: parseFloat(data.targetWeight) || 75,
-        activity_level: data.activityLevel || "moderate",
-        training_days_per_week: parseInt(data.trainingDaysPerWeek) || 3,
+        health_goal: onboardingData.goal || "maintain",
+        gender: onboardingData.gender || "male",
+        age: parseInt(onboardingData.age) || 30,
+        height_cm: parseInt(onboardingData.height) || 170,
+        current_weight_kg: parseFloat(onboardingData.weight) || 75,
+        target_weight_kg: parseFloat(onboardingData.targetWeight) || 75,
+        activity_level: onboardingData.activityLevel || "moderate",
         daily_calorie_target: dailyCalories,
         protein_target_g: macros.protein,
         carbs_target_g: macros.carbs,
@@ -385,7 +393,7 @@ const Onboarding = () => {
       const { error: goalsError } = await supabase.from("nutrition_goals").insert({
         user_id: user.id,
         goal_type: goalType,
-        target_weight_kg: parseFloat(data.targetWeight) || null,
+        target_weight_kg: parseFloat(onboardingData.targetWeight) || null,
         daily_calorie_target: dailyCalories,
         protein_target_g: macros.protein,
         carbs_target_g: macros.carbs,
@@ -400,8 +408,10 @@ const Onboarding = () => {
       try {
         await supabase
           .from("profiles")
-          .upsert({ user_id: user?.id, onboarding_completed: true }, { onConflict: "user_id" });
+          .upsert({ user_id: user.id, onboarding_completed: true }, { onConflict: "user_id" });
       } catch { /* last resort */ }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -601,7 +611,6 @@ const Onboarding = () => {
     setStep((s) => Math.max(1, s - 1));
   };
 
-  const convertHeightToCm = (ft: number, inches: number) => Math.round((ft * 30.48 + inches * 2.54));
   const convertCmToFt = (cm: number) => {
     const totalInches = cm / 2.54;
     const ft = Math.floor(totalInches / 12);
@@ -616,8 +625,8 @@ const Onboarding = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-[#F6F8FB]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#22C7A1]" />
+      <div role="status" aria-label="Loading account setup" className="min-h-[100dvh] flex items-center justify-center bg-[#F6F8FB]">
+        <Loader2 aria-hidden="true" className="w-8 h-8 animate-spin text-[#22C7A1]" />
       </div>
     );
   }
@@ -628,7 +637,10 @@ const Onboarding = () => {
       <header className="shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+14px)]">
         <div className="flex items-center justify-between">
           <Logo size="lg" className="!h-14" />
-          <Badge className="rounded-full border border-[#E5EAF1] bg-white px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] text-[#020617] shadow-[0_8px_20px_rgba(2,6,23,0.05)] hover:bg-white">
+          <Badge
+            aria-label={`Step ${step} of ${totalSteps}`}
+            className="rounded-full border border-[#E5EAF1] bg-white px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] text-[#020617] shadow-[0_8px_20px_rgba(2,6,23,0.05)] hover:bg-white"
+          >
             {step}/{totalSteps}
           </Badge>
         </div>
@@ -640,7 +652,14 @@ const Onboarding = () => {
           <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#64748B]">Account setup</span>
           <span className="text-sm font-extrabold text-[#F97316]">{progressPercent}%</span>
         </div>
-        <div className="h-2 rounded-full bg-[#E5EAF1]">
+        <div
+          role="progressbar"
+          aria-label="Account setup progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progressPercent}
+          className="h-2 rounded-full bg-[#E5EAF1]"
+        >
           <div
             className="h-full rounded-full bg-[#22C7A1] transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
@@ -758,6 +777,7 @@ const Onboarding = () => {
                 <div>
                   <AccessibleStepper
                     label={<>How old are <span className="text-[#F97316]">you?</span></>}
+                    ariaLabel="Age"
                     subtitle="We use this to personalise your calorie targets"
                     value={parseInt(data.age) || 25}
                     onChange={(v) => setData((prev) => ({ ...prev, age: v.toString() }))}
@@ -786,6 +806,7 @@ const Onboarding = () => {
                 <div>
                   <AccessibleStepper
                     label={<>What's your <span className="text-[#38BDF8]">height?</span></>}
+                    ariaLabel="Height"
                     subtitle="Used to calculate your daily calorie target"
                     value={heightUnit === "cm" ? (parseInt(data.height) || 170) : convertCmToFt(parseInt(data.height) || 170).ft}
                     onChange={(v) => {
@@ -831,6 +852,7 @@ const Onboarding = () => {
                 <div>
                   <AccessibleStepper
                     label={<>What's your current <span className="text-[#22C7A1]">weight?</span></>}
+                    ariaLabel="Current weight"
                     subtitle="Used to calculate your daily calorie target"
                     value={(() => {
                       const v = parseFloat(data.weight) || 80;
@@ -876,6 +898,7 @@ const Onboarding = () => {
                 <div>
                   <AccessibleStepper
                     label={<>What's your <span className="text-[#FB6B7A]">target weight?</span></>}
+                    ariaLabel="Target weight"
                     subtitle={
                       data.goal === 'lose' ? 'We recommend losing 0.5–1 kg per week' :
                       data.goal === 'gain' ? 'Healthy weight gain takes time and consistency' :
@@ -1134,7 +1157,8 @@ const Onboarding = () => {
       />
 
       {/* Footer Navigation - Native Mobile Style */}
-      <footer className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[430px] border-t border-[#E5EAF1] bg-white/95 px-5 pb-[calc(env(safe-area-inset-bottom)+14px)] pt-4 shadow-[0_-14px_34px_rgba(2,6,23,0.08)] backdrop-blur-xl">
+      {step !== 3 && (
+        <footer className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[430px] border-t border-[#E5EAF1] bg-white/95 px-5 pb-[calc(env(safe-area-inset-bottom)+14px)] pt-4 shadow-[0_-14px_34px_rgba(2,6,23,0.08)] backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3">
           <Button
             variant="outline"
@@ -1190,7 +1214,8 @@ const Onboarding = () => {
             You can always update your preferences in Settings
           </p>
         </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 };

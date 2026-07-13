@@ -1,62 +1,25 @@
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient, findAuthUserByEmail } from "./scripts/supabase-admin.mjs";
+import { requireEnv } from "./scripts/required-env.mjs";
 
-// Configuration
-const SUPABASE_URL = 'https://loepcagitrijlfksawfm.supabase.co';
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvZXBjYWdpdHJpamxma3Nhd2ZtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0OTUwNTU1OCwiZXhwIjoyMDY1MDgxNTU4fQ.Aj8np5SmmjzGjxNA9KkeYQ2iCG35deP49gUoSrSeHEA';
-const USER_EMAIL = 'admin@nutrio.com';
+const supabase = createAdminClient();
+const email = requireEnv("TARGET_USER_EMAIL");
 
 async function assignAdminRole() {
-  try {
-    console.log('👑 Assigning admin role to user...');
-    
-    // Create Supabase client with service role key
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
+  const user = await findAuthUserByEmail(supabase, email);
+  if (!user) throw new Error(`No auth user found for ${email}`);
 
-    // Find user by email
-    console.log(`🔍 Searching for user with email: ${USER_EMAIL}`);
-    
-    const { data: user, error: fetchError } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('email', USER_EMAIL)
-      .single();
+  const { error } = await supabase
+    .from("user_roles")
+    .upsert(
+      { user_id: user.id, role: "admin" },
+      { onConflict: "user_id,role" },
+    );
+  if (error) throw error;
 
-    if (fetchError) {
-      console.error('❌ Error finding user:', fetchError.message);
-      return;
-    }
-
-    if (!user) {
-      console.error('❌ User not found with email:', USER_EMAIL);
-      return;
-    }
-
-    console.log(`✅ Found user: ${user.email} (ID: ${user.id})`);
-
-    // Assign admin role
-    console.log('🔧 Assigning admin role...');
-    
-    const { error: roleError } = await supabase
-      .from('user_roles')
-      .insert({ user_id: user.id, role: 'admin' });
-
-    if (roleError) {
-      console.error('❌ Error assigning admin role:', roleError.message);
-      return;
-    }
-
-    console.log('✅ Admin role assigned successfully!');
-    console.log('🎉 User is now an admin and can access admin features.');
-
-  } catch (error) {
-    console.error('❌ Unexpected error:', error.message);
-  }
+  console.log(`Admin role assigned to ${email}.`);
 }
 
-// Run the function
-assignAdminRole();
+assignAdminRole().catch((error) => {
+  console.error("Unable to assign admin role:", error.message);
+  process.exitCode = 1;
+});

@@ -48,10 +48,14 @@ export function TranslatedMealName({
     <span className={`inline-flex items-center gap-1 ${className}`}>
       {displayName}
       {showIndicator && isFallback && (
-        <AlertCircle className="w-3 h-3 text-muted-foreground" title="English only" />
+        <span title="English only">
+          <AlertCircle className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
+        </span>
       )}
       {showIndicator && translation?.isAutoTranslated && translation.isTranslated && (
-        <Globe className="w-3 h-3 text-muted-foreground" title="Auto-translated" />
+        <span title="Auto-translated">
+          <Globe className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
+        </span>
       )}
     </span>
   );

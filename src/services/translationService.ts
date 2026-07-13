@@ -248,8 +248,8 @@ export async function getTranslationStatus(
   
   return {
     hasTranslation: true,
-    isAutoTranslated: data.is_auto_translated,
-    reviewStatus: data.review_status,
+    isAutoTranslated: data.is_auto_translated ?? false,
+    reviewStatus: data.review_status || "none",
     lastUpdated: data.updated_at,
   };
 }
@@ -273,9 +273,11 @@ export async function getPendingTranslations(
       reviewed_by,
       reviewed_at,
       created_at,
-      updated_at
+      updated_at,
+      meal:meals!inner(restaurant_id)
     `)
     .eq("language_code", "ar")
+    .eq("meal.restaurant_id", restaurantId)
     .in("review_status", ["pending", "needs_review"])
     .order("created_at", { ascending: false });
   
@@ -290,12 +292,15 @@ export async function getPendingTranslations(
     languageCode: t.language_code as LanguageCode,
     name: t.name,
     description: t.description,
-    isAutoTranslated: t.is_auto_translated,
-    reviewStatus: t.review_status,
+    isAutoTranslated: t.is_auto_translated ?? false,
+    reviewStatus: t.review_status === "pending" || t.review_status === "approved" ||
+      t.review_status === "rejected" || t.review_status === "needs_review"
+      ? t.review_status
+      : "none",
     reviewedBy: t.reviewed_by,
     reviewedAt: t.reviewed_at,
-    createdAt: t.created_at,
-    updatedAt: t.updated_at,
+    createdAt: t.created_at || new Date(0).toISOString(),
+    updatedAt: t.updated_at || t.created_at || new Date(0).toISOString(),
   }));
 }
 

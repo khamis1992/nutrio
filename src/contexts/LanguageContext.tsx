@@ -107,7 +107,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     };
 
     Object.entries(values).forEach(([paramKey, paramValue]) => {
-      translation = translation.replaceAll(`{${paramKey}}`, String(paramValue));
+      translation = translation.split(`{${paramKey}}`).join(String(paramValue));
     });
 
     return translation;

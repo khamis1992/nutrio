@@ -15,6 +15,16 @@ export interface GoalProposal {
   updated_at: string;
 }
 
+type GoalProposalRow = Omit<GoalProposal, "status"> & { status: string };
+
+function toGoalProposal(row: GoalProposalRow): GoalProposal {
+  const allowedStatuses: GoalProposal["status"][] = ["proposed", "accepted", "rejected", "completed"];
+  const status = allowedStatuses.includes(row.status as GoalProposal["status"])
+    ? row.status as GoalProposal["status"]
+    : "proposed";
+  return { ...row, status };
+}
+
 export function useGoalProposals(coachId: string | undefined, clientId: string | undefined) {
   const [proposals, setProposals] = useState<GoalProposal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +44,7 @@ export function useGoalProposals(coachId: string | undefined, clientId: string |
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setProposals(data || []);
+      setProposals((data || []).map(toGoalProposal));
     } catch (err) {
       console.error("Error fetching goal proposals:", err);
     } finally {
@@ -65,8 +75,9 @@ export function useGoalProposals(coachId: string | undefined, clientId: string |
           .single();
 
         if (error) throw error;
-        setProposals((prev) => [data, ...prev]);
-        return { success: true, error: null, data };
+        const proposal = toGoalProposal(data);
+        setProposals((prev) => [proposal, ...prev]);
+        return { success: true, error: null, data: proposal };
       } catch (err) {
         console.error("Error proposing goal:", err);
         return { success: false, error: err as Error };
@@ -76,6 +87,8 @@ export function useGoalProposals(coachId: string | undefined, clientId: string |
   );
 
   const acceptGoal = useCallback(async (proposalId: string) => {
+    if (!clientId) return;
+
     try {
       const { error } = await supabase
         .from("goal_proposals")
@@ -91,6 +104,8 @@ export function useGoalProposals(coachId: string | undefined, clientId: string |
   }, [clientId]);
 
   const rejectGoal = useCallback(async (proposalId: string) => {
+    if (!clientId) return;
+
     try {
       const { error } = await supabase
         .from("goal_proposals")
@@ -106,6 +121,8 @@ export function useGoalProposals(coachId: string | undefined, clientId: string |
   }, [clientId]);
 
   const completeGoal = useCallback(async (proposalId: string) => {
+    if (!coachId) return;
+
     try {
       const { error } = await supabase
         .from("goal_proposals")

@@ -4,26 +4,7 @@
  */
 
 import { Page, expect } from '@playwright/test';
-
-// Test user credentials (match actual accounts)
-export const TEST_USERS = {
-  customer: {
-    email: 'eng.aljabor@gmail.com',
-    password: '123456789',
-  },
-  admin: {
-    email: 'khamis-1992@hotmail.com',
-    password: 'Khamees1992#',
-  },
-  partner: {
-    email: 'khamis4everever@gmail.com',
-    password: '123456789',
-  },
-  driver: {
-    email: 'driver@nutriofuel.com',
-    password: '123456789',
-  },
-};
+import { appUrl, getTestUser } from '../config';
 
 // Portal URLs
 export const URLS = {
@@ -55,48 +36,120 @@ export const waitForElement = async (page: Page, selector: string, timeout = 100
 /** Click "Sign In" on the welcome screen if it's shown, then fill credentials */
 const fillLoginForm = async (page: Page, email: string, password: string) => {
   // Customer auth shows a welcome screen first — click "Sign In" to reveal the form
-  const welcomeSignIn = page.locator('button', { hasText: /^sign in$/i }).first();
-  if (await welcomeSignIn.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await welcomeSignIn.click();
-    await page.waitForTimeout(800);
+  const emailInput = page.locator('input#si-email, input[type="email"]').first();
+  for (let step = 0; step < 4; step += 1) {
+    if (await emailInput.isVisible({ timeout: 1000 }).catch(() => false)) break;
+
+    const walkthroughSkip = page.getByRole('button', { name: /^skip$/i }).first();
+    if (await walkthroughSkip.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await walkthroughSkip.click();
+      await page.waitForTimeout(500);
+      continue;
+    }
+
+    const welcomeSignIn = page.getByRole('button', { name: /^sign in$/i }).first();
+    if (await welcomeSignIn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await welcomeSignIn.click();
+      await page.waitForTimeout(500);
+      continue;
+    }
+
+    await page.waitForTimeout(500);
   }
   // Fill the form using actual field IDs
-  await page.fill('input#si-email, input[type="email"]', email);
+  await emailInput.waitFor({ state: 'visible', timeout: 10000 });
+  await emailInput.fill(email);
   await page.fill('input#si-password, input[type="password"]', password);
   await page.click('button[type="submit"]');
 };
 
 // Auth helpers
 export const loginAsCustomer = async (page: Page) => {
-  await page.goto(URLS.auth);
+  const credentials = getTestUser('customer');
+  await page.goto(appUrl(URLS.auth));
   await page.waitForLoadState('networkidle');
-  await fillLoginForm(page, TEST_USERS.customer.email, TEST_USERS.customer.password);
+  await fillLoginForm(page, credentials.email, credentials.password);
   await expect(page).toHaveURL(/.*dashboard.*/, { timeout: 12000 });
 };
 
 export const loginAsAdmin = async (page: Page) => {
-  await page.goto(URLS.auth);
+  const credentials = getTestUser('admin');
+  await page.goto(appUrl(URLS.auth));
   await page.waitForLoadState('networkidle');
-  await fillLoginForm(page, TEST_USERS.admin.email, TEST_USERS.admin.password);
+  await fillLoginForm(page, credentials.email, credentials.password);
   await expect(page).toHaveURL(/.*admin.*/, { timeout: 12000 });
 };
 
 export const loginAsPartner = async (page: Page) => {
-  await page.goto('/partner/auth');
+  const credentials = getTestUser('partner');
+  await page.goto(appUrl('/partner/auth'));
   await page.waitForLoadState('networkidle');
-  await page.fill('input#email, input[type="email"]', TEST_USERS.partner.email);
-  await page.fill('input#password, input[type="password"]', TEST_USERS.partner.password);
+  await page.fill('input#email, input[type="email"]', credentials.email);
+  await page.fill('input#password, input[type="password"]', credentials.password);
   await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/.*partner.*/, { timeout: 12000 });
+  await page.waitForURL(
+    (url) => {
+      const path = url.pathname.replace(/\/+$/, '');
+      return path.endsWith('/partner') ||
+        (path.includes('/partner/') && !path.endsWith('/partner/auth'));
+    },
+    { timeout: 12000 },
+  );
 };
 
 export const loginAsDriver = async (page: Page) => {
-  await page.goto('/driver/auth');
+  const credentials = getTestUser('driver');
+  await page.goto(appUrl('/driver/auth'));
   await page.waitForLoadState('networkidle');
-  await page.fill('input#email, input[type="email"]', TEST_USERS.driver.email);
-  await page.fill('input#password, input[type="password"]', TEST_USERS.driver.password);
+
+  const existingDriverSignIn = page.getByRole('button', {
+    name: /already a driver\?\s*sign in/i,
+  });
+  if (await existingDriverSignIn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await existingDriverSignIn.click();
+  }
+
+  await page.fill('input#email, input[type="email"]', credentials.email);
+  await page.fill('input#password, input[type="password"]', credentials.password);
   await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/.*driver.*/, { timeout: 12000 });
+  await page.waitForURL(
+    (url) => {
+      const path = url.pathname.replace(/\/+$/, '');
+      return path.endsWith('/driver') ||
+        (path.includes('/driver/') && !path.endsWith('/driver/auth'));
+    },
+    { timeout: 12000 },
+  );
+};
+
+export const loginAsFleet = async (page: Page) => {
+  const credentials = getTestUser('fleet');
+  await page.goto(appUrl('/fleet/login'));
+  await page.waitForLoadState('networkidle');
+  await page.fill('input#email, input[type="email"]', credentials.email);
+  await page.fill('input#password, input[type="password"]', credentials.password);
+  await page.click('button[type="submit"]');
+  await page.waitForURL(
+    (url) => {
+      const path = url.pathname.replace(/\/+$/, '');
+      return path.endsWith('/fleet') ||
+        (path.includes('/fleet/') && !path.endsWith('/fleet/login'));
+    },
+    { timeout: 12000 },
+  );
+};
+
+export const loginAsCoach = async (page: Page) => {
+  const credentials = getTestUser('coach');
+  await page.goto(appUrl('/auth'));
+  await page.waitForLoadState('networkidle');
+  await fillLoginForm(page, credentials.email, credentials.password);
+  await page.waitForURL(
+    (url) => !url.pathname.replace(/\/+$/, '').endsWith('/auth'),
+    { timeout: 12000 },
+  );
+  await page.goto(appUrl('/coach'));
+  await expect(page).toHaveURL(/.*\/coach(?:[/?#]|$)/, { timeout: 12000 });
 };
 
 export const logout = async (page: Page) => {
@@ -105,7 +158,7 @@ export const logout = async (page: Page) => {
   if (await userMenu.isVisible().catch(() => false)) {
     await userMenu.click();
   }
-  await page.goto('/auth');
+  await page.goto(appUrl('/auth'));
 };
 
 // Form helpers
@@ -122,7 +175,7 @@ export const clearAndFill = async (page: Page, selector: string, value: string) 
 
 // Navigation helpers
 export const navigateTo = async (page: Page, path: string) => {
-  await page.goto(path);
+  await page.goto(appUrl(path));
   await waitForNetworkIdle(page);
 };
 

@@ -17,10 +17,14 @@ CREATE TABLE IF NOT EXISTS public.nutrition_goal_events (
 
 ALTER TABLE public.nutrition_goal_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own nutrition goal events"
+  ON public.nutrition_goal_events;
 CREATE POLICY "Users can view own nutrition goal events"
   ON public.nutrition_goal_events FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own nutrition goal events"
+  ON public.nutrition_goal_events;
 CREATE POLICY "Users can insert own nutrition goal events"
   ON public.nutrition_goal_events FOR INSERT
   WITH CHECK (auth.uid() = user_id);

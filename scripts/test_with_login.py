@@ -1,3 +1,4 @@
+import os
 import time
 from playwright.sync_api import sync_playwright
 
@@ -13,9 +14,9 @@ def run_tests():
         time.sleep(3)
         
         # Login
-        print("Logging in as eng.aljabor@gmail.com...")
-        page.fill('input[type="email"]', 'eng.aljabor@gmail.com')
-        page.fill('input[type="password"]', '123456789')
+        print("Logging in as <E2E_CUSTOMER_EMAIL>...")
+        page.fill('input[type="email"]', os.environ["E2E_CUSTOMER_EMAIL"])
+        page.fill('input[type="password"]', os.environ["E2E_CUSTOMER_PASSWORD"])
         page.click('button:has-text("Sign In")')
         
         page.wait_for_load_state('networkidle')

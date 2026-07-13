@@ -149,7 +149,7 @@ export function SmartMealPicks() {
   };
   const currentMealType = mealTypeLabels[recommendations.currentMealType] || t("meal_type_default");
 
-  const groups: RecommendationGroup[] = [
+  const groupCandidates: RecommendationGroup[] = [
     {
       id: "for-you",
       title: t("smart_rec_for_you_title"),
@@ -181,7 +181,8 @@ export function SmartMealPicks() {
           ? t("smart_rec_protein_badge", { grams: String(Math.round(meal.protein_g)) })
           : undefined,
     },
-  ].filter((group) => group.meals.length > 0);
+  ];
+  const groups = groupCandidates.filter((group) => group.meals.length > 0);
 
   if (groups.length === 0) return null;
 

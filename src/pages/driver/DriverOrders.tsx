@@ -8,6 +8,7 @@ import { Package, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
 
 interface Delivery {
@@ -25,6 +26,8 @@ interface Delivery {
     name: string;
   } | null;
 }
+
+type DeliveryJobRow = Database["public"]["Tables"]["delivery_jobs"]["Row"];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   assigned: { label: "Assigned", color: "bg-blue-500" },
@@ -148,18 +151,18 @@ export default function DriverOrders() {
         restaurantsMap[r.id] = r;
       });
 
-      const transformDelivery = (d: Record<string, unknown>): Delivery => ({
+      const transformDelivery = (d: DeliveryJobRow): Delivery => ({
         id: d.id,
-        status: d.status === "assigned" ? "claimed" : d.status === "in_transit" ? "on_the_way" : d.status,
+        status: d.status ?? "assigned",
         pickup_address: d.pickup_address || "",
         delivery_address: d.delivery_address || "",
         delivery_fee: d.delivery_fee || 0,
         tip_amount: d.tip_amount || 0,
-        created_at: d.created_at,
+        created_at: d.created_at ?? d.assigned_at ?? "",
         claimed_at: d.assigned_at,
         picked_up_at: d.picked_up_at,
         delivered_at: d.delivered_at,
-        restaurant: d.restaurant_id ? restaurantsMap[d.restaurant_id] || null : null,
+        restaurant: d.restaurant_id ? restaurantsMap[d.restaurant_id] ?? null : null,
       });
 
       setActiveDeliveries((active || []).map(transformDelivery));

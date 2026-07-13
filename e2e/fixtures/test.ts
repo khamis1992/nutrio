@@ -4,7 +4,15 @@
  */
 
 import { test as base, Page, expect } from '@playwright/test';
-import { loginAsCustomer, loginAsAdmin, loginAsPartner, loginAsDriver, logout } from '../utils/helpers';
+import {
+  loginAsAdmin,
+  loginAsCoach,
+  loginAsCustomer,
+  loginAsDriver,
+  loginAsFleet,
+  loginAsPartner,
+  logout,
+} from '../utils/helpers';
 
 // Define test fixtures
 type TestFixtures = {
@@ -12,6 +20,8 @@ type TestFixtures = {
   authenticatedAdminPage: Page;
   authenticatedPartnerPage: Page;
   authenticatedDriverPage: Page;
+  authenticatedFleetPage: Page;
+  authenticatedCoachPage: Page;
 };
 
 // Extend base test with fixtures
@@ -40,6 +50,18 @@ export const test = base.extend<TestFixtures>({
   // Fixture: Authenticated driver page
   authenticatedDriverPage: async ({ page }, use) => {
     await loginAsDriver(page);
+    await use(page);
+    await logout(page);
+  },
+
+  authenticatedFleetPage: async ({ page }, use) => {
+    await loginAsFleet(page);
+    await use(page);
+    await logout(page);
+  },
+
+  authenticatedCoachPage: async ({ page }, use) => {
+    await loginAsCoach(page);
     await use(page);
     await logout(page);
   },

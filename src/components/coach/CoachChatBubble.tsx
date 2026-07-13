@@ -32,9 +32,9 @@ export function CoachChatBubble() {
         carbsConsumed: todayProgress?.carbs ?? 0,
         fatTarget: profile.fat_target_g ?? 65,
         fatConsumed: todayProgress?.fat ?? 0,
-        goal: profile.goal ?? "maintain",
-        weight: profile.weight ?? undefined,
-        targetWeight: profile.target_weight ?? undefined,
+        goal: profile.health_goal ?? "maintain",
+        weight: profile.current_weight_kg ?? undefined,
+        targetWeight: profile.target_weight_kg ?? undefined,
         streakDays: profile.streak_days ?? 0,
       });
     }
@@ -64,9 +64,9 @@ export function CoachChatBubble() {
       carbsConsumed: todayProgress?.carbs ?? 0,
       fatTarget: profile.fat_target_g ?? 65,
       fatConsumed: todayProgress?.fat ?? 0,
-      goal: profile.goal ?? "maintain",
-      weight: profile.weight ?? undefined,
-      targetWeight: profile.target_weight ?? undefined,
+      goal: profile.health_goal ?? "maintain",
+      weight: profile.current_weight_kg ?? undefined,
+      targetWeight: profile.target_weight_kg ?? undefined,
       streakDays: profile.streak_days ?? 0,
     });
     setInput("");
@@ -84,9 +84,9 @@ export function CoachChatBubble() {
       carbsConsumed: todayProgress?.carbs ?? 0,
       fatTarget: profile.fat_target_g ?? 65,
       fatConsumed: todayProgress?.fat ?? 0,
-      goal: profile.goal ?? "maintain",
-      weight: profile.weight ?? undefined,
-      targetWeight: profile.target_weight ?? undefined,
+      goal: profile.health_goal ?? "maintain",
+      weight: profile.current_weight_kg ?? undefined,
+      targetWeight: profile.target_weight_kg ?? undefined,
       streakDays: profile.streak_days ?? 0,
     });
   };

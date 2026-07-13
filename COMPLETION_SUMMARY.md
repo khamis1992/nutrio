@@ -22,7 +22,7 @@
 
 ### 2. ✅ Password Updated
 - **Email:** admin@nutrio.com
-- **Password:** Khamees1992#
+- **Password:** <E2E_ADMIN_PASSWORD>
 - **Role:** Admin (assigned successfully)
 
 ### 3. ✅ Production Readiness Tasks Completed
@@ -125,7 +125,7 @@ If you want to enhance the production setup further:
 
 **Admin Login:**
 - Email: admin@nutrio.com
-- Password: Khamees1992#
+- Password: <E2E_ADMIN_PASSWORD>
 - URL: Your deployment URL + /admin
 
 **Supabase Dashboard:**

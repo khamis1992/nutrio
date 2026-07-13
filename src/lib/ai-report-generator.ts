@@ -1,5 +1,6 @@
 import type { WeeklyReportData } from "./professional-weekly-report-pdf";
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { format, startOfWeek } from "date-fns";
 
 interface AIReportContent {
@@ -14,6 +15,49 @@ interface AIReportContent {
 }
 
 type ReportLocale = "en" | "ar";
+
+type ReportCacheDatabase = {
+  public: {
+    Tables: {
+      ai_report_cache: {
+        Row: {
+          id: string;
+          user_id: string;
+          week_start: string;
+          data_hash: string;
+          content: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          week_start: string;
+          data_hash: string;
+          content: Record<string, unknown>;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          week_start?: string;
+          data_hash?: string;
+          content?: Record<string, unknown>;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
+
+// This table is introduced by a pending migration and is not in the generated
+// database types yet. Keep the cast scoped to the cache instead of untyping the
+// shared Supabase client.
+const reportCacheClient = supabase as unknown as SupabaseClient<ReportCacheDatabase>;
 
 function hashData(data: WeeklyReportData): string {
   const keyFields = {
@@ -87,7 +131,7 @@ class AIReportGenerator {
     dataHash: string
   ): Promise<AIReportContent | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await reportCacheClient
         .from("ai_report_cache")
         .select("content, data_hash")
         .eq("user_id", userId)
@@ -110,7 +154,7 @@ class AIReportGenerator {
     content: AIReportContent
   ): Promise<void> {
     try {
-      await supabase.from("ai_report_cache").upsert(
+      await reportCacheClient.from("ai_report_cache").upsert(
         {
           user_id: userId,
           week_start: weekStart,
@@ -179,14 +223,14 @@ class AIReportGenerator {
     const parsed = this.parseConsolidatedResponse(aiText);
 
     return {
-      summary: this.cleanText(parsed.summary) || this.fallbackSummary(data, locale),
-      weightAnalysis: this.cleanText(parsed.weightAnalysis) || this.fallbackWeightAnalysis(data),
-      weightCommentary: this.cleanText(parsed.weightCommentary) || this.fallbackWeightCommentary(data),
-      metabolicCommentary: this.cleanText(parsed.metabolicCommentary) || this.fallbackMetabolicCommentary(data),
-      macroCommentary: this.cleanText(parsed.macroCommentary) || this.fallbackMacroCommentary(data),
+      summary: this.cleanUnknownText(parsed.summary) || this.fallbackSummary(data, locale),
+      weightAnalysis: this.cleanUnknownText(parsed.weightAnalysis) || this.fallbackWeightAnalysis(data),
+      weightCommentary: this.cleanUnknownText(parsed.weightCommentary) || this.fallbackWeightCommentary(data),
+      metabolicCommentary: this.cleanUnknownText(parsed.metabolicCommentary) || this.fallbackMetabolicCommentary(data),
+      macroCommentary: this.cleanUnknownText(parsed.macroCommentary) || this.fallbackMacroCommentary(data),
       insights: this.parseInsightsArray(parsed.insights) || this.fallbackInsights(data),
       recommendations: this.parseRecommendationsArray(parsed.recommendations) || this.fallbackRecommendations(data, locale),
-      proteinAssessment: this.cleanText(parsed.proteinAssessment) || this.fallbackProteinAssessment(data),
+      proteinAssessment: this.cleanUnknownText(parsed.proteinAssessment) || this.fallbackProteinAssessment(data),
     };
   }
 
@@ -257,6 +301,10 @@ class AIReportGenerator {
       .replace(/[ \t]+/g, " ")
       .replace(/^&+|&+$/g, "")
       .trim();
+  }
+
+  private cleanUnknownText(value: unknown): string {
+    return typeof value === "string" ? this.cleanText(value) : "";
   }
 
   // ─── FALLBACK METHODS ───

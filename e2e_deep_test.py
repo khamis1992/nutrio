@@ -1,3 +1,4 @@
+import os
 """
 Nutrio Fuel E2E Test Suite - Deep Interaction Testing
 """
@@ -6,13 +7,16 @@ import json
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 
-BASE_URL = "http://localhost:4173"
+BASE_URL = os.environ.get(
+    "PLAYWRIGHT_BASE_URL",
+    "http://127.0.0.1:5173/nutrio",
+).rstrip("/")
 ACCOUNTS = {
-    "customer": {"email": "eng.aljabor@gmail.com", "password": "123456789"},
-    "partner": {"email": "khamis4everever@gmail.com", "password": "123456789"},
-    "admin": {"email": "khamis-1992@hotmail.com", "password": "Khamees1992#"},
-    "driver": {"email": "driver@nutriofuel.com", "password": "123456789"},
-    "fleet": {"email": "admin@nutrio.com", "password": "Khamees1992#"},
+    "customer": {"email": os.environ["E2E_CUSTOMER_EMAIL"], "password": os.environ["E2E_CUSTOMER_PASSWORD"]},
+    "partner": {"email": os.environ["E2E_PARTNER_EMAIL"], "password": os.environ["E2E_PARTNER_PASSWORD"]},
+    "admin": {"email": os.environ["E2E_ADMIN_EMAIL"], "password": os.environ["E2E_ADMIN_PASSWORD"]},
+    "driver": {"email": os.environ["E2E_DRIVER_EMAIL"], "password": os.environ["E2E_DRIVER_PASSWORD"]},
+    "fleet": {"email": os.environ["E2E_FLEET_EMAIL"], "password": os.environ["E2E_FLEET_PASSWORD"]},
 }
 
 REPORT = {

@@ -10,17 +10,14 @@ import { calculateDistance, formatDistance } from "@/lib/distance";
 import {
   loadAutoDispatchRules,
   setRoutePlanLock,
-  isRoutePlanLocked,
 } from "@/fleet/services/orderDispatch";
 import {
   Route,
-  MapPin,
   Users,
   Package,
   Zap,
   RotateCcw,
   CheckCircle,
-  Truck,
   Navigation,
   WifiOff,
   AlertTriangle,
@@ -174,21 +171,21 @@ export default function RouteOptimization() {
   const fetchDrivers = async () => {
     const { data, error } = await supabase
       .from("drivers")
-      .select("id, full_name, phone_number, rating, total_deliveries, is_online, is_active, current_lat, current_lng, last_location_update, assigned_vehicle_id, approval_status, wallet_balance, total_earnings")
+      .select("id, user_id, full_name, phone_number, city_id, assigned_zone_ids, rating, total_deliveries, cancellation_rate, is_online, is_active, current_lat, current_lng, last_location_update, approval_status, wallet_balance, total_earnings, created_at")
       .eq("approval_status", "approved")
       .eq("is_active", true)
       .eq("is_online", true);
 
     if (error) { console.error(error); return; }
 
-    const list: Driver[] = (data || []).map((d: { id: string; user_id?: string; phone_number?: string; full_name?: string; current_lat?: number; current_lng?: number; last_location_update?: string; total_deliveries?: number; rating?: number; wallet_balance?: number; total_earnings?: number; assigned_vehicle_id?: string; approval_status?: string; is_active?: boolean; is_online?: boolean; created_at?: string }) => ({
+    const list: Driver[] = (data || []).map((d) => ({
       id: d.id,
       authUserId: d.user_id || "",
       email: "",
       phone: d.phone_number || "",
       fullName: d.full_name || `Driver ${(d.phone_number || "").slice(-4) || d.id.slice(0, 8)}`,
-      cityId: "doha",
-      assignedZoneIds: [],
+      cityId: d.city_id || "",
+      assignedZoneIds: d.assigned_zone_ids || [],
       status: "active" as const,
       isOnline: true,
       currentLatitude: d.current_lat ?? undefined,
@@ -196,10 +193,10 @@ export default function RouteOptimization() {
       locationUpdatedAt: d.last_location_update ?? undefined,
       totalDeliveries: d.total_deliveries || 0,
       rating: d.rating || 5.0,
-      cancellationRate: 0,
+      cancellationRate: d.cancellation_rate || 0,
       currentBalance: d.wallet_balance || 0,
       totalEarnings: d.total_earnings || 0,
-      assignedVehicleId: d.assigned_vehicle_id || undefined,
+      assignedVehicleId: undefined,
       createdAt: d.created_at || new Date().toISOString(),
     }));
 
@@ -211,7 +208,7 @@ export default function RouteOptimization() {
         .from("delivery_jobs")
         .select("driver_id")
         .in("driver_id", list.map((d) => d.id))
-        .in("status", ["assigned", "accepted", "picked_up", "in_transit"]);
+        .in("status", ["assigned", "accepted", "picked_up", "in_transit", "on_the_way"]);
 
       const counts = new Map<string, number>();
       (jobs || []).forEach((j: { driver_id?: string | null }) => {
@@ -235,7 +232,7 @@ export default function RouteOptimization() {
 
     if (error) { console.error(error); return; }
 
-    const list: Delivery[] = (jobs || []).map((j: { id: string; status: string; pickup_address?: string; delivery_address?: string; delivery_lat?: number; delivery_lng?: number; restaurant_id?: string; restaurants?: { name?: string; latitude?: number; longitude?: number } | null }) => {
+    const list: Delivery[] = (jobs || []).map((j) => {
       const restaurant = j.restaurants ?? null;
       return {
         id: j.id,
@@ -326,21 +323,24 @@ export default function RouteOptimization() {
       for (const route of optimizedRoutes) {
         for (const delivery of route.deliveries) {
           // Freshness check — skip if auto-dispatch already grabbed this order
-          const { data: current } = await supabase
+          const { data: current, error: currentError } = await supabase
             .from("delivery_jobs")
             .select("driver_id")
             .eq("id", delivery.id)
             .single();
+
+          if (currentError) throw currentError;
 
           if (current?.driver_id) {
             skipped++;
             continue;
           }
 
-          await supabase
+          const { error: assignmentError } = await supabase
             .from("delivery_jobs")
             .update({ driver_id: route.driverId, status: "assigned" })
             .eq("id", delivery.id);
+          if (assignmentError) throw assignmentError;
           assigned++;
         }
       }

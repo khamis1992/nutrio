@@ -87,7 +87,7 @@ describe("SubscriptionGate", () => {
       renderWithRouter(<SubscriptionGate />);
 
       expect(screen.getByText(/Plans start at/i)).toBeInTheDocument();
-      expect(screen.getByText(/215 QAR\/month/i)).toBeInTheDocument();
+      expect(screen.getByText(/450 QAR\/week/i)).toBeInTheDocument();
       expect(screen.getByText(/Cancel anytime/i)).toBeInTheDocument();
     });
   });
@@ -151,11 +151,7 @@ describe("SubscriptionGate", () => {
 
       renderWithRouter(<SubscriptionGate onDismiss={mockDismiss} showDismiss={false} />);
 
-      const dismissButtons = screen.queryAllByRole("button");
-      const hasDismissButton = dismissButtons.some((btn) => 
-        btn.querySelector("svg")
-      );
-      expect(hasDismissButton).toBe(false);
+      expect(screen.queryByRole("button", { name: /close/i })).not.toBeInTheDocument();
     });
 
     it("does not render dismiss button when onDismiss is not provided", () => {

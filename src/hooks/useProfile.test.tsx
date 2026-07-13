@@ -3,6 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import { useProfile } from "@/hooks/useProfile";
+import { createMockUser } from "@/test/factories";
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: vi.fn(),
@@ -69,7 +70,7 @@ describe("useProfile", () => {
 
   it("fetches and returns profile data", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -92,7 +93,7 @@ describe("useProfile", () => {
 
   it("returns error when fetch fails", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -114,7 +115,7 @@ describe("useProfile", () => {
 
   it("exposes updateProfile function", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: createMockUser(),
       session: null,
       loading: false,
       signUp: vi.fn(),

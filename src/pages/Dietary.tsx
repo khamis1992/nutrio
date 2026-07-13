@@ -123,8 +123,8 @@ const Dietary = () => {
   const selectedAllergyCount = allergyTags.filter((tag) => userDietPreferences.includes(tag.id)).length;
 
   return (
-    <div className="min-h-screen bg-[#F7FAF8] pb-24">
-      <div className="sticky top-0 z-20 bg-[#F7FAF8]/95 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#F6F8FB] pb-24 text-[#020617]">
+      <div className="sticky top-0 z-20 border-b border-[#E5EAF1] bg-white/95 pt-safe backdrop-blur-xl">
         <div className="mx-auto flex h-[78px] max-w-[430px] items-center gap-3 px-4 pt-[env(safe-area-inset-top)]">
           <button
             type="button"

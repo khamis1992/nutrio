@@ -26,6 +26,26 @@ const renderWithRouter = (ui: React.ReactElement) => {
   return render(<MemoryRouter>{ui}</MemoryRouter>);
 };
 
+function mockRoleSources(roles: string[] = []) {
+  (supabase as any).from = vi.fn().mockImplementation((table: string) => {
+    const result = {
+      data: table === "user_roles" ? roles.map((role) => ({ role })) : null,
+      error: null,
+    };
+    const builder: any = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn(),
+      then: (resolve: (value: typeof result) => unknown, reject: (reason: unknown) => unknown) =>
+        Promise.resolve(result).then(resolve, reject),
+    };
+    builder.select.mockReturnValue(builder);
+    builder.eq.mockReturnValue(builder);
+    builder.maybeSingle.mockResolvedValue(result);
+    return builder;
+  });
+}
+
 describe("ProtectedRoute", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -53,8 +73,9 @@ describe("ProtectedRoute", () => {
       expect(hasRequiredRole(["partner"], "restaurant")).toBe(true);
     });
 
-    it("returns true for fleet_manager at driver level", () => {
-      expect(hasRequiredRole(["fleet_manager"], "driver")).toBe(true);
+    it("does not treat unrelated portal roles as equivalent", () => {
+      expect(hasRequiredRole(["fleet_manager"], "driver")).toBe(false);
+      expect(hasRequiredRole(["coach"], "partner")).toBe(false);
     });
 
     it("returns false when roles array is empty", () => {
@@ -94,14 +115,7 @@ describe("ProtectedRoute", () => {
         signOut: vi.fn(),
       });
 
-      (supabase as any).from = vi.fn().mockImplementation(() => ({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue({ data: [{ role: "customer" }], error: null }),
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
-      }));
+      mockRoleSources(["customer"]);
 
       renderWithRouter(
         <ProtectedRoute requiredRole="customer">
@@ -124,14 +138,7 @@ describe("ProtectedRoute", () => {
         signOut: vi.fn(),
       });
 
-      (supabase as any).from = vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
-      });
+      mockRoleSources();
 
       renderWithRouter(
         <ProtectedRoute>
@@ -171,14 +178,7 @@ describe("ProtectedRoute", () => {
         signOut: vi.fn(),
       });
 
-      (supabase as any).from = vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
-      });
+      mockRoleSources();
 
       const { result } = renderHook(() => useHasRole("admin"));
 

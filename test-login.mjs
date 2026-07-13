@@ -1,43 +1,26 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
+import {
+  getSupabaseAnonKey,
+  getSupabaseUrl,
+  requireEnv,
+} from "./scripts/required-env.mjs";
 
-// Configuration
-const SUPABASE_URL = 'https://loepcagitrijlfksawfm.supabase.co';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvZXBjYWdpdHJpamxma3Nhd2ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1MDU1NTgsImV4cCI6MjA2NTA4MTU1OH0.jFMchnyd3pSUmJRusi_3dNqOG_lR3sphsv3Knnefvpk';
-const TEST_EMAIL = 'khamis-1992@hotmail.com';
-const TEST_PASSWORD = 'Khamees1992#';
+const supabase = createClient(getSupabaseUrl(), getSupabaseAnonKey());
+const email = requireEnv("E2E_CUSTOMER_EMAIL");
+const password = requireEnv("E2E_CUSTOMER_PASSWORD");
 
 async function testLogin() {
-  try {
-    console.log('🚀 Testing login process...');
-    
-    // Create Supabase client
-    const supabase = createClient(SUPABASE_URL, ANON_KEY);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (error) throw error;
 
-    // Attempt to sign in
-    console.log(`🔐 Attempting to sign in as: ${TEST_EMAIL}`);
-    
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: TEST_EMAIL,
-      password: TEST_PASSWORD,
-    });
-
-    if (error) {
-      console.error('❌ Login failed:', error.message);
-      return;
-    }
-
-    console.log('✅ Login successful!');
-    console.log('User ID:', data.user.id);
-    console.log('User email:', data.user.email);
-
-    // Sign out
-    await supabase.auth.signOut();
-    console.log('👋 Signed out successfully');
-
-  } catch (error) {
-    console.error('❌ Unexpected error:', error.message);
-  }
+  console.log(`Login succeeded for user ${data.user.id}.`);
+  await supabase.auth.signOut();
 }
 
-// Run the function
-testLogin();
+testLogin().catch((error) => {
+  console.error("Login test failed:", error.message);
+  process.exitCode = 1;
+});

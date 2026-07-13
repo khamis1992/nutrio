@@ -44,6 +44,19 @@ const WALLET_KEY = "wallet";
 const TX_KEY = "wallet-transactions";
 const PACKAGES_KEY = "wallet-packages";
 
+function normalizeWallet(row: Record<string, unknown>): WalletData {
+  return {
+    id: String(row.id),
+    user_id: String(row.user_id),
+    balance: Number(row.balance ?? 0),
+    total_credits: Number(row.total_credits ?? 0),
+    total_debits: Number(row.total_debits ?? 0),
+    is_active: row.is_active !== false,
+    created_at: String(row.created_at ?? ""),
+    updated_at: String(row.updated_at ?? ""),
+  };
+}
+
 async function fetchWallet(userId: string): Promise<WalletData | null> {
   const { data, error } = await supabase
     .from('customer_wallets')
@@ -54,42 +67,56 @@ async function fetchWallet(userId: string): Promise<WalletData | null> {
   if (error) throw error;
 
   if (!data) {
-    const { data: newWallet, error: createError } = await supabase
-      .from('customer_wallets')
-      .insert({ user_id: userId })
-      .select()
-      .single();
+    const { data: newWallet, error: createError } = await supabase.rpc(
+      'get_or_create_customer_wallet' as never,
+    );
 
     if (createError) throw createError;
-    return newWallet;
+    return normalizeWallet(newWallet as unknown as Record<string, unknown>);
   }
 
-  return data;
+  return normalizeWallet(data as unknown as Record<string, unknown>);
 }
 
 async function fetchTransactions(userId: string, signal?: AbortSignal): Promise<WalletTransaction[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('wallet_transactions')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-    .limit(20)
-    .abortSignal(signal ?? null);
+    .limit(20);
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query;
 
   if (error) throw error;
-  return data || [];
+  return (data || []).map((row) => ({
+    ...row,
+    created_at: row.created_at ?? "",
+    type: row.type as WalletTransaction["type"],
+    metadata: row.metadata as Record<string, unknown> | null,
+  }));
 }
 
 async function fetchPackages(signal?: AbortSignal): Promise<TopUpPackage[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('wallet_topup_packages')
     .select('*')
     .eq('is_active', true)
-    .order('display_order', { ascending: true })
-    .abortSignal(signal ?? null);
+    .order('display_order', { ascending: true });
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query;
 
   if (error) throw error;
-  return data || [];
+  return (data || []).map((row) => ({
+    id: row.id,
+    amount: Number(row.amount),
+    bonus_amount: Number(row.bonus_amount ?? 0),
+    bonus_percentage: Number(row.bonus_percentage ?? 0),
+    name: row.name,
+    description: row.description,
+    is_active: row.is_active !== false,
+    display_order: Number(row.display_order ?? 0),
+  }));
 }
 
 export function useWallet() {
@@ -168,39 +195,6 @@ export function useWallet() {
     }
   }, [userId, wallet, topUpPackages]);
 
-  const creditWallet = useCallback(async (
-    amount: number,
-    type: WalletTransaction['type'],
-    referenceType?: string,
-    referenceId?: string,
-    description?: string,
-    metadata?: Record<string, unknown>
-  ) => {
-    if (!userId) return null;
-
-    try {
-      const { data, error } = await supabase.rpc('credit_wallet', {
-        p_user_id: userId,
-        p_amount: amount,
-        p_type: type,
-        p_reference_type: referenceType || null,
-        p_reference_id: referenceId || null,
-        p_description: description || null,
-        p_metadata: metadata || null,
-      });
-
-      if (error) throw error;
-
-      queryClient.invalidateQueries({ queryKey: [WALLET_KEY, userId] });
-      queryClient.invalidateQueries({ queryKey: [TX_KEY, userId] });
-
-      return data;
-    } catch (err: unknown) {
-      console.error('Error crediting wallet:', err);
-      throw err;
-    }
-  }, [userId, queryClient]);
-
   return {
     wallet,
     transactions,
@@ -211,7 +205,6 @@ export function useWallet() {
     fetchWallet: refetchWallet,
     fetchTransactions: refetchTransactions,
     initiateTopUp,
-    creditWallet,
     refresh: () => {
       refetchWallet();
       refetchTransactions();

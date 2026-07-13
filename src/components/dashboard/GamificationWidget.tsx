@@ -17,11 +17,6 @@ interface DBadge {
   xp_reward: number;
 }
 
-interface EarnedBadge {
-  badge_id: string;
-  unlocked_at: string;
-}
-
 export function GamificationDashboardWidget() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -76,7 +71,7 @@ export function GamificationDashboardWidget() {
         if (cancelled) return;
 
         setBadges((allBadges || []) as unknown as DBadge[]);
-        setEarnedIds(new Set((earned || []).map((b: EarnedBadge) => b.badge_id)));
+        setEarnedIds(new Set((earned || []).map((badge) => badge.badge_id)));
       } catch (err) {
         console.error("GamificationDashboardWidget fetch error:", err);
       } finally {

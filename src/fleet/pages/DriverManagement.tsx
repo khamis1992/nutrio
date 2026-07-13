@@ -13,7 +13,6 @@ import {
   Search,
   Star,
   UserCheck,
-  Users,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

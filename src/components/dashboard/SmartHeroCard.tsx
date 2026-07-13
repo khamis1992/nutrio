@@ -10,7 +10,6 @@ import {
   Crown,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useSubscription } from "@/hooks/useSubscription";
 
 interface SmartHeroCardProps {
   hourNow: number;
@@ -27,17 +26,16 @@ interface SmartHeroCardProps {
   deliveryEta: number | null;
   planName: string;
   joinedLabel: string;
-  navigate: (path: string) => void;
   onLogMeal: () => void;
 }
 
 type HeroState = "morning-meals" | "evening-order" | "post-workout" | "delivery" | "default";
 
 function getHeroState(props: SmartHeroCardProps): HeroState {
-  const { hourNow, workoutCount, totalBurned, activeOrdersCount, deliveryEta } = props;
+  const { hourNow, totalBurned, activeOrdersCount, deliveryEta } = props;
 
   if (deliveryEta !== null && deliveryEta > 0) return "delivery";
-  if (totalBurned > 300 && hourNow >= 6 && hourNow < 12) return "post-workout";
+  if (props.workoutCount > 0 && totalBurned > 300 && hourNow >= 6 && hourNow < 12) return "post-workout";
   if (activeOrdersCount > 0) return "default";
   if (hourNow >= 17 && props.calLeft > 0) return "evening-order";
   if (hourNow >= 5 && hourNow < 12) return "morning-meals";
@@ -60,7 +58,6 @@ export function SmartHeroCard(props: SmartHeroCardProps) {
     isUnlimited,
     planName,
     joinedLabel,
-    navigate,
     onLogMeal,
   } = props;
 

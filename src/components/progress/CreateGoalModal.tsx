@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from "@/lib/nutrition-calculator";
-import { goalTypeConfig, type GoalTypeConfig } from "@/components/progress/GoalHeroCard";
+import { goalTypeConfig } from "@/components/progress/GoalHeroCard";
 import {
   Flame,
   Target,

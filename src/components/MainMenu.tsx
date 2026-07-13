@@ -35,7 +35,7 @@ export function MainMenu() {
       title: t("food_and_meals"),
       items: [
         {
-          icon: ({ className }) => (
+          icon: ({ className }: { className?: string }) => (
             <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
@@ -45,7 +45,7 @@ export function MainMenu() {
           to: "/favorites",
         },
         ...(platformSettings.features.meal_scheduling ? [{
-          icon: ({ className }) => (
+          icon: ({ className }: { className?: string }) => (
             <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
               <line x1="16" y1="2" x2="16" y2="6" />
@@ -58,7 +58,7 @@ export function MainMenu() {
           to: "/schedule",
         }] : []),
         {
-          icon: ({ className }) => (
+          icon: ({ className }: { className?: string }) => (
             <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 3h18v18H3zM9 9h6M9 15h6M9 12h6" />
             </svg>
@@ -73,7 +73,7 @@ export function MainMenu() {
       title: t("progress_and_goals"),
       items: [
         {
-          icon: ({ className }) => (
+          icon: ({ className }: { className?: string }) => (
             <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="20" x2="12" y2="10" />
               <line x1="18" y1="20" x2="18" y2="4" />
@@ -146,7 +146,7 @@ export function MainMenu() {
       title: t("earn_rewards"),
       items: [
         {
-          icon: ({ className }) => (
+          icon: ({ className }: { className?: string }) => (
             <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="1" x2="12" y2="23" />
               <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />

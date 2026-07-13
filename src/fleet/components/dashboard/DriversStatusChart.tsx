@@ -9,7 +9,7 @@ export function DriversStatusChart() {
   const { selectedCity } = useCity();
   
   const { drivers, isLoading } = useDrivers({
-    cityId: selectedCity?.id,
+    cityIds: selectedCity ? [selectedCity.id] : undefined,
     limit: 1000, // Get all drivers for stats
   });
 

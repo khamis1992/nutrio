@@ -89,11 +89,19 @@ export const ScheduleSheet = ({
       .select("id, label, address_line1, city, is_default")
       .eq("user_id", userId)
       .order("is_default", { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error fetching delivery addresses:", error);
+          return;
+        }
         if (data && data.length > 0) {
-          setAddresses(data);
+          const normalized = data.map((address) => ({
+            ...address,
+            is_default: address.is_default ?? false,
+          }));
+          setAddresses(normalized);
           if (selectedAddressId === null) {
-            const def = data.find(a => a.is_default) || data[0];
+            const def = normalized.find(a => a.is_default) || normalized[0];
             setSelectedAddressId(def.id);
             setSelectedAddressLabel(`${def.label} \u2013 ${def.address_line1}, ${def.city}`);
           }

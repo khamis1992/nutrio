@@ -55,16 +55,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-
-const C = {
-  text: "#020617",
-  muted: "#94A3B8",
-  panel: "#F6F8FB",
-  water: "#38BDF8",
-  fat: "#FB6B7A",
-  protein: "#7C83F6",
-  progress: "#22C7A1",
-};
+import { getQatarDay } from "@/lib/dateUtils";
 
 // Order status type matching database
 type OrderStatus =
@@ -181,6 +172,7 @@ const STATUS_CONFIG_DETAILED: Record<
 
 interface OrderData {
   id: string;
+  source: "order" | "meal_schedule";
   scheduled_date: string;
   meal_type: string;
   order_status: OrderStatus;
@@ -191,6 +183,7 @@ interface OrderData {
     price: number;
     restaurant: {
       name: string;
+      commission_rate: number;
     };
   };
   profile: {
@@ -208,7 +201,6 @@ interface OrderCardProps {
   isSelected: boolean;
   onSelect: () => void;
   onViewDetails: () => void;
-  onCancel: () => void;
 }
 
 const OrderCard = ({
@@ -216,7 +208,6 @@ const OrderCard = ({
   isSelected,
   onSelect,
   onViewDetails,
-  onCancel,
 }: OrderCardProps) => {
   const statusCfg = STATUS_CONFIG[order.order_status];
   const isFinished =
@@ -239,6 +230,8 @@ const OrderCard = ({
 
   return (
     <div
+      data-testid={`admin-order-${order.id}`}
+      data-order-source={order.source}
       className={cn(
         "relative flex flex-col gap-4 rounded-[28px] border border-[#E2E8F0] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.05)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(2,6,23,0.08)] sm:p-5",
         isSelected && "border-[#22C7A1] ring-2 ring-[#22C7A1]/20"
@@ -355,7 +348,7 @@ const AdminOrders = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getQatarDay();
 
   useEffect(() => {
     fetchOrders();
@@ -370,6 +363,11 @@ const AdminOrders = () => {
         { event: "*", schema: "public", table: "meal_schedules" },
         () => { fetchOrders(); }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => { fetchOrders(); }
+      )
       .subscribe();
 
     return () => {
@@ -381,10 +379,10 @@ const AdminOrders = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const { data: schedulesData, error: schedulesError } = await supabase
-        .from("meal_schedules")
-        .select(
-          `
+      const [schedulesResult, activeSchedulesResult, directOrdersResult] = await Promise.all([
+        supabase
+          .from("meal_schedules")
+          .select(`
           id,
           scheduled_date,
           meal_type,
@@ -393,16 +391,51 @@ const AdminOrders = () => {
           created_at,
           user_id,
           meal_id
-        `
-        )
-        .order("created_at", { ascending: false })
-        .limit(100);
+        `)
+          .order("created_at", { ascending: false })
+          .limit(100),
+        supabase
+          .from("meal_schedules")
+          .select(`
+          id,
+          scheduled_date,
+          meal_type,
+          is_completed,
+          order_status,
+          created_at,
+          user_id,
+          meal_id
+        `)
+          .eq("is_completed", false)
+          .in("order_status", ["confirmed", "preparing", "ready", "out_for_delivery"])
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("orders")
+          .select("id, created_at, status, user_id, meal_id, restaurant_id, total_amount")
+          .order("created_at", { ascending: false })
+          .limit(100),
+      ]);
+
+      const { data: recentSchedules, error: schedulesError } = schedulesResult;
+      const { data: activeSchedules, error: activeSchedulesError } = activeSchedulesResult;
+      const { data: directOrders, error: directOrdersError } = directOrdersResult;
 
       if (schedulesError) throw schedulesError;
+      if (activeSchedulesError) throw activeSchedulesError;
+      if (directOrdersError) throw directOrdersError;
+
+      const activeScheduleIds = new Set((activeSchedules || []).map((schedule) => schedule.id));
+      const schedulesData = [
+        ...(activeSchedules || []),
+        ...(recentSchedules || []).filter((schedule) => !activeScheduleIds.has(schedule.id)),
+      ];
 
       const mealIds = [
         ...new Set(
-          (schedulesData || []).map((o) => o.meal_id).filter(Boolean)
+          [
+            ...(schedulesData || []).map((o) => o.meal_id),
+            ...(directOrders || []).map((o) => o.meal_id),
+          ].filter((mealId): mealId is string => typeof mealId === "string")
         ),
       ];
       let mealsMap: Record<
@@ -422,7 +455,7 @@ const AdminOrders = () => {
               acc[m.id] = {
                 name: m.name,
                 price: m.price || 0,
-                restaurant_id: m.restaurant_id,
+                restaurant_id: m.restaurant_id || "",
               };
               return acc;
             },
@@ -438,30 +471,37 @@ const AdminOrders = () => {
         ...new Set(
           Object.values(mealsMap)
             .map((m) => m.restaurant_id)
+            .concat((directOrders || []).map((o) => o.restaurant_id || ""))
             .filter(Boolean)
         ),
       ];
-      let restaurantsMap: Record<string, { name: string }> = {};
+      let restaurantsMap: Record<string, { name: string; commission_rate: number }> = {};
 
       if (restaurantIds.length > 0) {
         const { data: restaurants } = await supabase
           .from("restaurants")
-          .select("id, name")
+          .select("id, name, commission_rate")
           .in("id", restaurantIds);
 
         if (restaurants) {
           restaurantsMap = restaurants.reduce(
             (acc, r) => {
-              acc[r.id] = { name: r.name };
+              acc[r.id] = {
+                name: r.name,
+                commission_rate: r.commission_rate ?? 18,
+              };
               return acc;
             },
-            {} as Record<string, { name: string }>
+            {} as Record<string, { name: string; commission_rate: number }>
           );
         }
       }
 
       const userIds = [
-        ...new Set((schedulesData || []).map((o) => o.user_id)),
+        ...new Set([
+          ...(schedulesData || []).map((o) => o.user_id),
+          ...(directOrders || []).map((o) => o.user_id).filter(Boolean) as string[],
+        ]),
       ];
       let profilesMap: Record<
         string,
@@ -486,7 +526,7 @@ const AdminOrders = () => {
       }
 
       const ordersWithDetails: OrderData[] = (schedulesData || []).map(
-        (o: { id: string; scheduled_date: string; meal_type: string; is_completed: boolean; order_status: string; created_at: string; user_id: string; meal_id: string | null }) => {
+        (o) => {
           const meal = mealsMap[o.meal_id] || {
             name: "Unknown",
             price: 0,
@@ -494,26 +534,64 @@ const AdminOrders = () => {
           };
           const restaurant = restaurantsMap[meal.restaurant_id] || {
             name: "Unknown",
+            commission_rate: 18,
           };
 
           return {
             id: o.id,
+            source: "meal_schedule",
             scheduled_date: o.scheduled_date,
             meal_type: o.meal_type,
             order_status: (o.order_status || "pending") as OrderStatus,
-            is_completed: o.is_completed || false,
-            created_at: o.created_at,
+            is_completed: o.is_completed ?? false,
+            created_at: o.created_at || new Date(0).toISOString(),
             meal: {
               name: meal.name,
               price: meal.price,
-              restaurant: { name: restaurant.name },
+              restaurant: {
+                name: restaurant.name,
+                commission_rate: restaurant.commission_rate,
+              },
             },
             profile: profilesMap[o.user_id] || null,
           };
         }
       );
 
-      setOrders(ordersWithDetails);
+      const directOrdersWithDetails: OrderData[] = (directOrders || []).map((o) => {
+        const meal = o.meal_id ? mealsMap[o.meal_id] : null;
+        const restaurantId = o.restaurant_id || meal?.restaurant_id || "";
+        const normalizedStatus = o.status === "ready_for_pickup"
+          ? "ready"
+          : o.status === "picked_up"
+            ? "out_for_delivery"
+            : o.status;
+
+        return {
+          id: o.id,
+          source: "order",
+          scheduled_date: getQatarDay(new Date(o.created_at)),
+          meal_type: "order",
+          order_status: normalizedStatus as OrderStatus,
+          is_completed: o.status === "completed" || o.status === "delivered",
+          created_at: o.created_at,
+          meal: {
+            name: meal?.name || "Order",
+            price: o.total_amount || meal?.price || 0,
+            restaurant: {
+              name: restaurantsMap[restaurantId]?.name || "Unknown",
+              commission_rate: restaurantsMap[restaurantId]?.commission_rate ?? 18,
+            },
+          },
+          profile: o.user_id ? profilesMap[o.user_id] || null : null,
+        };
+      });
+
+      setOrders(
+        [...ordersWithDetails, ...directOrdersWithDetails].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        ),
+      );
     } catch (error) {
       console.error("Error fetching orders:", error);
       toast({
@@ -565,7 +643,7 @@ const AdminOrders = () => {
       "Customer",
       "Meal Type",
       "Meal Price (QAR)",
-      "Platform Fee 18% (QAR)",
+      "Platform Fee (QAR)",
       "Restaurant Payout (QAR)",
       "Scheduled Date",
       "Status",
@@ -578,8 +656,8 @@ const AdminOrders = () => {
       o.profile?.full_name || "Customer",
       o.meal_type,
       o.meal.price.toFixed(2),
-      (o.meal.price * 0.18).toFixed(2),
-      (o.meal.price * 0.82).toFixed(2),
+      (o.meal.price * (o.meal.restaurant.commission_rate / 100)).toFixed(2),
+      (o.meal.price * (1 - o.meal.restaurant.commission_rate / 100)).toFixed(2),
       o.scheduled_date,
       STATUS_CONFIG_DETAILED[o.order_status]?.label || o.order_status,
       format(new Date(o.created_at), "yyyy-MM-dd HH:mm"),
@@ -605,8 +683,13 @@ const AdminOrders = () => {
 
   const cancelOrder = async (orderId: string) => {
     try {
-      const { data, error } = await supabase.rpc("admin_cancel_meal_schedule", {
-        p_schedule_id: orderId,
+      const order = orders.find((item) => item.id === orderId);
+      if (!order) throw new Error("Order not found");
+
+      const { data, error } = await supabase.rpc("admin_update_order_status", {
+        p_source: order.source,
+        p_order_id: orderId,
+        p_new_status: "cancelled",
         p_reason: null,
       });
 
@@ -648,8 +731,12 @@ const AdminOrders = () => {
     let successCount = 0;
     for (const id of ids) {
       try {
-        const { data, error } = await supabase.rpc("admin_cancel_meal_schedule", {
-          p_schedule_id: id,
+        const selected = orders.find((order) => order.id === id);
+        if (!selected) continue;
+        const { data, error } = await supabase.rpc("admin_update_order_status", {
+          p_source: selected.source,
+          p_order_id: id,
+          p_new_status: "cancelled",
           p_reason: null,
         });
         const result = data as { success?: boolean } | null;
@@ -675,14 +762,19 @@ const AdminOrders = () => {
     let successCount = 0;
     for (const id of ids) {
       try {
-        const { error } = await supabase
-          .from("meal_schedules")
-          .update({ is_completed: true, completed_at: new Date().toISOString(), order_status: "completed" })
-          .eq("id", id);
+        const selected = orders.find((order) => order.id === id);
+        if (selected?.order_status !== "delivered") continue;
+
+        const { error } = await supabase.rpc("admin_update_order_status", {
+          p_source: selected.source,
+          p_order_id: id,
+          p_new_status: "completed",
+          p_reason: null,
+        });
         if (!error) {
           successCount++;
           setOrders((prev) =>
-            prev.map((o) => o.id === id ? { ...o, is_completed: true, order_status: "completed" as OrderStatus } : o)
+            prev.map((o) => o.id === id ? { ...o, order_status: "completed" as OrderStatus } : o)
           );
         }
       } catch {
@@ -778,8 +870,12 @@ const AdminOrders = () => {
         o.scheduled_date < today
     ).length,
     totalRevenue: orders
-      .filter((o) => o.order_status !== "cancelled")
-      .reduce((sum, o) => sum + o.meal.price * 0.18, 0),
+      .filter((o) => o.order_status === "completed" || o.order_status === "delivered")
+      .reduce(
+        (sum, order) =>
+          sum + order.meal.price * (order.meal.restaurant.commission_rate / 100),
+        0,
+      ),
   };
 
   const openDetail = (order: OrderData) => {
@@ -881,7 +977,7 @@ const AdminOrders = () => {
                     {formatCurrency(stats.totalRevenue)}
                   </p>
                   <p className="text-xs font-bold text-[#94A3B8]">
-                    Platform Fees (18%)
+                    Collected Platform Fees
                   </p>
                 </div>
               </div>
@@ -1108,11 +1204,6 @@ const AdminOrders = () => {
                 isSelected={selectedOrders.has(order.id)}
                 onSelect={() => toggleOrderSelection(order.id)}
                 onViewDetails={() => openDetail(order)}
-                onCancel={() => {
-                  if (confirm("Are you sure you want to cancel this order?")) {
-                    cancelOrder(order.id);
-                  }
-                }}
               />
             ))}
           </div>
@@ -1367,15 +1458,15 @@ const AdminOrders = () => {
                         </span>
                       </div>
                       <div className="flex justify-between text-sm font-bold text-[#FB6B7A]">
-                        <span>Platform Fee (18%)</span>
+                        <span>Platform Fee ({selectedOrder.meal.restaurant.commission_rate}%)</span>
                         <span>
-                          - {formatCurrency(selectedOrder.meal.price * 0.18)}
+                          - {formatCurrency(selectedOrder.meal.price * (selectedOrder.meal.restaurant.commission_rate / 100))}
                         </span>
                       </div>
                       <div className="mt-1 flex justify-between border-t border-[#E2E8F0] pt-2 text-sm font-black">
                         <span>Restaurant Payout</span>
                         <span className="text-[#22C7A1]">
-                          {formatCurrency(selectedOrder.meal.price * 0.82)}
+                          {formatCurrency(selectedOrder.meal.price * (1 - selectedOrder.meal.restaurant.commission_rate / 100))}
                         </span>
                       </div>
                     </CardContent>

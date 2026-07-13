@@ -1,6 +1,6 @@
 import { useLanguage } from "@/contexts/LanguageContext";
 import { motion } from "framer-motion";
-import { Target, Gift, CheckCircle2, Flame } from "lucide-react";
+import { Target, Gift, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Mission } from "@/hooks/useDailyMissions";
 

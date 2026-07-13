@@ -28,7 +28,7 @@ export function useTastePreferences() {
   const userId = user?.id;
 
   const loadProfile = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) return undefined;
     try {
       setLoading(true);
       const p = await getTasteProfile(userId);
@@ -49,13 +49,14 @@ export function useTastePreferences() {
       return p;
     } catch (err) {
       console.error("Failed to recalculate taste profile:", err);
+      return undefined;
     } finally {
       setRecalculating(false);
     }
   }, [userId]);
 
   // Track implicit signal: a meal was ordered
-  const trackOrder = useCallback(async (mealId: string, restaurantId?: string) => {
+  const trackOrder = useCallback(async (_mealId: string, _restaurantId?: string) => {
     // Recalculate profile after order - debounced by caller
     await recalculate();
   }, [recalculate]);

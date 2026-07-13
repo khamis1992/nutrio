@@ -92,7 +92,7 @@ const Favorites = () => {
 
   useEffect(() => {
     if (sessionStorage.getItem("nutrio_onboarding_done") === "true") return;
-    if (profile && !profile.onboarding_completed && !profile.goal) {
+    if (profile && !profile.onboarding_completed) {
       navigate("/onboarding");
     }
   }, [profile, navigate]);
@@ -120,7 +120,9 @@ const Favorites = () => {
 
       if (favError) throw favError;
 
-      const restaurantIds = (favData || []).map((f: { restaurant_id: string }) => f.restaurant_id);
+      const restaurantIds = (favData ?? [])
+        .map((favorite) => favorite.restaurant_id)
+        .filter((restaurantId): restaurantId is string => Boolean(restaurantId));
 
       if (restaurantIds.length === 0) {
         setRestaurants([]);
@@ -140,19 +142,13 @@ const Favorites = () => {
         .in("restaurant_id", restaurantIds);
 
       const mealCounts: Record<string, number> = {};
-      (mealsCountData || []).forEach((meal: { restaurant_id: string }) => {
+      (mealsCountData ?? []).forEach((meal) => {
+        if (!meal.restaurant_id) return;
         mealCounts[meal.restaurant_id] = (mealCounts[meal.restaurant_id] || 0) + 1;
       });
 
       const transformedRestaurants: FavoriteRestaurant[] = (restaurantsData || []).map(
-        (restaurant: {
-          id: string;
-          name: string;
-          description: string | null;
-          logo_url: string | null;
-          rating: number | string;
-          total_orders: number;
-        }) => ({
+        (restaurant) => ({
           id: restaurant.id,
           name: restaurant.name,
           description: restaurant.description,
@@ -204,7 +200,7 @@ const Favorites = () => {
   const savedCount = restaurants.length + topMeals.length;
 
   return (
-    <div className="min-h-screen bg-white pb-24 pt-safe text-slate-950">
+    <div className="min-h-screen bg-[#F6F8FB] pb-24 pt-safe text-[#020617]">
       <header className="sticky top-0 z-40 border-b border-rose-950/5 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-4">
           <button

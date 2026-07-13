@@ -25,8 +25,8 @@ npx playwright install chromium
 Create `.env` file:
 ```env
 BASE_URL=http://localhost:5173/nutrio
-TEST_USER_EMAIL=khamis--1992@hotmail.com
-TEST_USER_PASSWORD=Khamees1992#
+TEST_USER_EMAIL=<E2E_ACCOUNT_EMAIL>
+TEST_USER_PASSWORD=<E2E_ADMIN_PASSWORD>
 ```
 
 ### 3. Run Tests
@@ -156,7 +156,7 @@ export const TEST_USERS = {
     password: 'partner-password',
   },
   driver: {
-    email: 'driver@nutriofuel.com',
+    email: '<E2E_DRIVER_EMAIL>',
     password: 'driver-password',
   },
 };

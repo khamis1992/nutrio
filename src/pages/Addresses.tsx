@@ -6,7 +6,7 @@ import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Circle, useMapEvents, useMap } from "react-leaflet";
 
 // Fix Leaflet's default broken icon URLs when bundled with Vite
-delete (L.Icon.Default.prototype as Record<string, unknown>)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -346,7 +346,21 @@ const Addresses = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setAddresses(data || []);
+      setAddresses((data || []).map((address) => ({
+        id: address.id,
+        user_id: address.user_id,
+        label: address.label,
+        address_line1: address.address_line1,
+        address_line2: address.address_line2,
+        city: address.city,
+        state: address.state,
+        postal_code: address.postal_code ?? "",
+        country: address.country,
+        phone: address.phone,
+        is_default: address.is_default ?? false,
+        delivery_instructions: address.delivery_instructions,
+        created_at: address.created_at,
+      })));
     } catch (error) {
       console.error("Error fetching addresses:", error);
       toast({
@@ -515,7 +529,7 @@ const Addresses = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-[#F6F8FB] text-[#020617]">
         <div className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
           <Skeleton className="h-12 w-full rounded-3xl" />
           <Skeleton className="h-36 w-full rounded-[28px]" />
@@ -526,7 +540,7 @@ const Addresses = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-24 text-slate-950">
+    <div className="min-h-screen bg-[#F6F8FB] pb-24 text-[#020617]">
       <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/90 pt-safe backdrop-blur-xl">
         <div className="container mx-auto max-w-2xl px-4 py-3">
           <div className="flex items-center justify-between gap-3">

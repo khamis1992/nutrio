@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { Search, ArrowLeft, Activity, Flame, Heart, Clock, Loader2, CheckCircle2, Dumbbell, Link, RefreshCw, Trophy, X, Plus } from "lucide-react";
-import { Basketball, SoccerBall, TennisBall, HandFist, PersonSimpleRun, PersonSimpleWalk, PersonSimpleBike, Lightning, Stairs, MusicNotes, Barbell, PersonSimpleTaiChi, Crosshair } from "@phosphor-icons/react";
+import { Basketball, SoccerBall, TennisBall, HandFist, PersonSimpleRun, PersonSimpleWalk, PersonSimpleBike, Lightning, Stairs, MusicNotes, PersonSimpleTaiChi, Crosshair } from "@phosphor-icons/react";
 import { NavChevronRight } from "@/components/ui/nav-chevron";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";

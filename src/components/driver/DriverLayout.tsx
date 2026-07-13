@@ -15,16 +15,19 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { driverGoOnline, driverGoOffline, updateDriverLocation } from "@/integrations/supabase/delivery";
+import type { Database } from "@/integrations/supabase/types";
 
-interface DriverLayoutContext {
-  driver: Record<string, unknown> | null;
+type DriverRow = Database["public"]["Tables"]["drivers"]["Row"];
+
+export interface DriverLayoutContext {
+  driver: DriverRow | null;
   isOnline: boolean;
 }
 
 export function DriverLayout() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [driver, setDriver] = useState<Record<string, unknown> | null>(null);
+  const [driver, setDriver] = useState<DriverRow | null>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
@@ -46,7 +49,7 @@ export function DriverLayout() {
 
   const fetchDriverProfile = async () => {
     if (!user) {
-      navigate("/driver/login");
+      navigate("/driver/auth");
       return;
     }
     
@@ -60,7 +63,7 @@ export function DriverLayout() {
       if (error) {
         if (error.code === "PGRST116") {
           // Driver not found, redirect to registration
-          navigate("/driver/register");
+          navigate("/driver/onboarding");
           return;
         }
         throw error;
@@ -330,7 +333,3 @@ function NavButton({
     </NavLink>
   );
 }
-
-
-
-export type { DriverLayoutContext };

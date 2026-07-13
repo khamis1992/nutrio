@@ -1,45 +1,23 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Clock, HelpCircle, Mail, MapPin, MessageCircle, Phone, Send } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, ChevronRight, Clock, HelpCircle, Mail, MapPin, MessageCircle, Phone, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useContactSettings } from "@/hooks/useContactSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-
-const CONTACT_CHANNELS = [
-  {
-    key: "email",
-    href: "mailto:support@nutrio.me",
-    value: "support@nutrio.me",
-    icon: Mail,
-    color: "#7C83F6",
-    bg: "bg-[#F3F4FF]",
-  },
-  {
-    key: "phone",
-    href: "tel:+97440000000",
-    value: "+974 4000 0000",
-    icon: Phone,
-    color: "#22C7A1",
-    bg: "bg-[#EFFFFA]",
-  },
-  {
-    key: "location",
-    href: "https://maps.google.com/?q=Doha,Qatar",
-    value: "Doha, Qatar",
-    icon: MapPin,
-    color: "#38BDF8",
-    bg: "bg-sky-50",
-  },
-] as const;
 
 const Contact = () => {
   const { toast } = useToast();
   const { t, isRTL } = useLanguage();
+  const { user } = useAuth();
+  const { settings: contactSettings } = useContactSettings();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -47,19 +25,44 @@ const Contact = () => {
     subject: "",
     message: "",
   });
+  const contactChannels = [
+    {
+      key: "email",
+      href: `mailto:${contactSettings.support_email}`,
+      value: contactSettings.support_email,
+      icon: Mail,
+      color: "#7C83F6",
+      bg: "bg-[#F3F4FF]",
+    },
+    {
+      key: "phone",
+      href: `tel:${contactSettings.phone.replace(/[^+\d]/g, "")}`,
+      value: contactSettings.phone,
+      icon: Phone,
+      color: "#22C7A1",
+      bg: "bg-[#EFFFFA]",
+    },
+    {
+      key: "location",
+      href: contactSettings.map_url,
+      value: isRTL ? contactSettings.address_ar : contactSettings.address_en,
+      icon: MapPin,
+      color: "#38BDF8",
+      bg: "bg-sky-50",
+    },
+  ] as const;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    await new Promise((resolve) => setTimeout(resolve, 700));
-
-    toast({
-      title: t("contact_success_title"),
-      description: t("contact_success_message"),
-    });
-
-    setFormData({ name: "", email: "", subject: "", message: "" });
+    const body = [
+      `${t("contact_name")}: ${formData.name}`,
+      `${t("contact_email")}: ${formData.email}`,
+      "",
+      formData.message,
+    ].join("\n");
+    window.location.href = `mailto:${contactSettings.support_email}?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(body)}`;
+    toast({ title: t("contact_email_ready_title"), description: t("contact_email_ready_message") });
     setIsSubmitting(false);
   };
 
@@ -70,13 +73,14 @@ const Contact = () => {
     >
       <div className="mx-auto flex min-h-full w-full max-w-[430px] flex-col px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))]">
         <header className="flex items-center justify-between">
-          <Link
-            to="/auth"
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#020617] shadow-sm ring-1 ring-[#E5EAF1] transition active:scale-95"
-            aria-label="Back"
+            aria-label={t("back")}
           >
             <ArrowLeft className={cn("h-5 w-5", isRTL && "rotate-180")} />
-          </Link>
+          </button>
           <div className="text-center">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#22C7A1]">{t("contact_badge")}</p>
             <h1 className="mt-1 text-[21px] font-black tracking-[-0.03em] text-[#020617]">{t("contact_us")}</h1>
@@ -90,57 +94,75 @@ const Contact = () => {
           </Link>
         </header>
 
-        <section className="mt-5 overflow-hidden rounded-[30px] bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]">
+        <section className="mt-5 overflow-hidden rounded-[26px] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
           <div className="flex items-start gap-3">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
               <MessageCircle className="h-6 w-6" strokeWidth={2.2} />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-[24px] font-black leading-[1.05] tracking-[-0.04em] text-[#020617]">
+              <h2 className="text-[22px] font-black leading-[1.15] text-[#020617]">
                 {t("contact_title_part1")} {t("contact_title_part2")}
               </h2>
               <p className="mt-2 text-[13px] font-bold leading-5 text-[#64748B]">{t("contact_subtitle")}</p>
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-[20px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
-              <Clock className="h-4 w-4 text-[#22C7A1]" />
-              <p className="mt-2 text-[11px] font-black text-[#020617]">{t("contact_hours")}</p>
-            </div>
-            <Link to="/faq" className="rounded-[20px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1] transition active:scale-[0.98]">
-              <HelpCircle className="h-4 w-4 text-[#7C83F6]" />
-              <p className="mt-2 text-[11px] font-black text-[#020617]">{t("contact_faq_title")}</p>
-            </Link>
+          <div className="mt-4 flex items-center gap-2 rounded-2xl bg-[#F6F8FB] px-3 py-2.5 ring-1 ring-[#E5EAF1]">
+            <Clock className="h-4 w-4 shrink-0 text-[#22C7A1]" />
+            <p className="min-w-0 flex-1 text-[11px] font-bold text-[#64748B]">
+              {isRTL ? contactSettings.hours_ar : contactSettings.hours_en}
+            </p>
           </div>
         </section>
 
-        <section className="mt-4 grid gap-2">
-          {CONTACT_CHANNELS.map(({ key, href, value, icon: Icon, color, bg }) => (
+        <section className="mt-4 grid grid-cols-3 gap-2">
+          {contactChannels.map(({ key, href, value, icon: Icon, color, bg }) => (
             <a
               key={key}
               href={href}
               target={key === "location" ? "_blank" : undefined}
               rel={key === "location" ? "noreferrer" : undefined}
-              className="flex min-h-[72px] items-center gap-3 rounded-[24px] bg-white p-3 shadow-[0_10px_28px_rgba(15,23,42,0.05)] ring-1 ring-[#E5EAF1] transition active:scale-[0.99]"
+              aria-label={`${key}: ${value}`}
+              className="flex min-h-[112px] min-w-0 flex-col items-center justify-center rounded-[20px] bg-white p-2 text-center shadow-[0_8px_20px_rgba(15,23,42,0.045)] ring-1 ring-[#E5EAF1] transition active:scale-[0.97]"
             >
-              <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] ring-1 ring-black/5", bg)} style={{ color }}>
+              <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ring-1 ring-black/5", bg)} style={{ color }}>
                 <Icon className="h-5 w-5" strokeWidth={2.2} />
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[12px] font-black text-[#020617]">
+              <span className="mt-2 block w-full min-w-0">
+                <span className="block truncate text-[11px] font-black text-[#020617]">
                   {key === "email" ? t("contact_email_title") : key === "phone" ? t("contact_phone_title") : t("contact_address_title")}
                 </span>
-                <span className="mt-0.5 block truncate text-[12px] font-bold text-[#64748B]">{value}</span>
+                <span className="mt-0.5 block truncate text-[9px] font-bold text-[#94A3B8]">{value}</span>
               </span>
             </a>
           ))}
         </section>
 
-        <section className="mt-4 rounded-[30px] bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]">
+        {user ? (
+          <section className="mt-4 rounded-[26px] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
+            <div className="flex items-start gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F3F4FF] text-[#7C83F6]">
+                <MessageCircle className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-[17px] font-black text-[#020617]">{t("support_center_title")}</h2>
+                <p className="mt-1 text-[12px] font-semibold leading-5 text-[#64748B]">{t("support_subtitle")}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/support")}
+              className="mt-4 flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-[18px] bg-[#020617] px-4 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] active:scale-[0.98]"
+            >
+              {t("submit_a_ticket")}
+              <ChevronRight className="h-4 w-4 rtl:rotate-180" />
+            </button>
+          </section>
+        ) : (
+        <section className="mt-4 rounded-[26px] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
           <div className="mb-4">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">{t("contact_form_title")}</p>
-            <h2 className="mt-1 text-[20px] font-black tracking-[-0.03em] text-[#020617]">{t("contact_subject_placeholder")}</h2>
+            <h2 className="mt-1 text-[19px] font-black text-[#020617]">{t("contact_subject_placeholder")}</h2>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
@@ -210,6 +232,7 @@ const Contact = () => {
             </Button>
           </form>
         </section>
+        )}
       </div>
     </main>
   );

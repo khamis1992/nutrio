@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Flame, Dumbbell, Wheat, Droplets, ArrowRightLeft, Heart, ChevronDown, ChevronUp, UtensilsCrossed, Zap, Search, ChevronLeft } from "lucide-react";
+import { Flame, Dumbbell, Wheat, ArrowRightLeft, Heart, ChevronDown, ChevronUp, UtensilsCrossed, Zap, Search, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";

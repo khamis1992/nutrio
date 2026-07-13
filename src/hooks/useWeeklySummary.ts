@@ -42,7 +42,7 @@ async function fetchWeeklySummary(userId: string): Promise<WeeklySummary> {
   const lastWeekStart = subDays(thisWeekStart, 7);
   const lastWeekEnd = subDays(thisWeekEnd, 7);
 
-  const [{ data: thisWeekData }, { data: lastWeekData }, { data: goals }, { data: streakData }] = await Promise.all([
+  const [thisWeekResult, lastWeekResult, goalsResult, streakResult] = await Promise.all([
     supabase
       .from("progress_logs")
       .select("log_date, calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g, weight_kg")
@@ -68,6 +68,16 @@ async function fetchWeeklySummary(userId: string): Promise<WeeklySummary> {
       .eq("streak_type", "logging")
       .maybeSingle(),
   ]);
+
+  if (thisWeekResult.error) throw thisWeekResult.error;
+  if (lastWeekResult.error) throw lastWeekResult.error;
+  if (goalsResult.error) throw goalsResult.error;
+  if (streakResult.error) throw streakResult.error;
+
+  const thisWeekData = thisWeekResult.data;
+  const lastWeekData = lastWeekResult.data;
+  const goals = goalsResult.data;
+  const streakData = streakResult.data;
 
   const thisWeekLogs = thisWeekData || [];
   const lastWeekLogs = lastWeekData || [];
@@ -124,21 +134,21 @@ async function fetchWeeklySummary(userId: string): Promise<WeeklySummary> {
     macros: {
       protein: {
         consumed: Math.round(avgProtein),
-        target: goals?.protein_target_g || 120,
+        target: goals?.protein_target_g || 0,
         percentage: goals?.protein_target_g
           ? Math.min(100, Math.round((avgProtein / goals.protein_target_g) * 100))
           : 0,
       },
       carbs: {
         consumed: Math.round(avgCarbs),
-        target: goals?.carbs_target_g || 250,
+        target: goals?.carbs_target_g || 0,
         percentage: goals?.carbs_target_g
           ? Math.min(100, Math.round((avgCarbs / goals.carbs_target_g) * 100))
           : 0,
       },
       fat: {
         consumed: Math.round(avgFat),
-        target: goals?.fat_target_g || 65,
+        target: goals?.fat_target_g || 0,
         percentage: goals?.fat_target_g
           ? Math.min(100, Math.round((avgFat / goals.fat_target_g) * 100))
           : 0,
@@ -148,12 +158,12 @@ async function fetchWeeklySummary(userId: string): Promise<WeeklySummary> {
 }
 
 export function useWeeklySummary(userId: string | undefined) {
-  const { data: summary = null, isLoading: loading, refetch } = useQuery({
+  const { data: summary = null, isLoading: loading, error, refetch } = useQuery({
     queryKey: ["weeklySummary", userId],
     queryFn: () => fetchWeeklySummary(userId!),
     enabled: !!userId,
     staleTime: 2 * 60 * 1000,
   });
 
-  return { summary, loading, refresh: refetch };
+  return { summary, loading, error, refresh: refetch };
 }

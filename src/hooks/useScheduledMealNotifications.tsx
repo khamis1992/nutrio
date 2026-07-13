@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
 interface ScheduledMealNotification {
@@ -27,10 +26,9 @@ interface NotificationRow {
 }
 
 export function useScheduledMealNotifications() {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [pendingNotifications, setPendingNotifications] = useState<ScheduledMealNotification[]>([]);
-  const [loading, setLoading] = useState(false);
+  const loading = false;
 
   const fetchPendingNotifications = useCallback(async () => {
     try {

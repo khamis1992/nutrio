@@ -1,711 +1,266 @@
-/**
- * Onboarding Component Tests
- * Tests for the multi-step onboarding flow
- */
-
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
+
 import Onboarding from "@/pages/Onboarding";
 import * as AuthContext from "@/contexts/AuthContext";
 import * as ProfileHook from "@/hooks/useProfile";
 import * as DietTagsHook from "@/hooks/useDietTags";
 import * as ToastHook from "@/hooks/use-toast";
-
-// Mock hooks and contexts
-vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: vi.fn(),
-}));
-
-vi.mock("@/hooks/useProfile", () => ({
-  useProfile: vi.fn(),
-}));
-
-vi.mock("@/hooks/useDietTags", () => ({
-  useDietTags: vi.fn(),
-}));
-
-vi.mock("@/hooks/use-toast", () => ({
-  useToast: vi.fn(),
-}));
-
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-    }),
-  },
-}));
-
-vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual("react-router-dom");
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
+import { createMockUser } from "@/test/factories";
 
 const mockNavigate = vi.fn();
 const mockToast = vi.fn();
+const mockUpdateProfile = vi.fn();
+const mockInsert = vi.fn().mockResolvedValue({ data: null, error: null });
+const mockUpsert = vi.fn().mockResolvedValue({ data: null, error: null });
 
-// Mock localStorage
-const mockLocalStorage = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: vi.fn((key: string) => store[key] || null),
-    setItem: vi.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    removeItem: vi.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: vi.fn(() => {
-      store = {};
-    }),
-  };
-})();
-
-Object.defineProperty(window, "localStorage", {
-  value: mockLocalStorage,
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: vi.fn() }));
+vi.mock("@/hooks/useProfile", () => ({ useProfile: vi.fn() }));
+vi.mock("@/hooks/useDietTags", () => ({ useDietTags: vi.fn() }));
+vi.mock("@/hooks/use-toast", () => ({ useToast: vi.fn() }));
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return { ...actual, useNavigate: () => mockNavigate };
 });
 
-// Test utilities
-const createTestQueryClient = () =>
-  new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        gcTime: 0,
-      },
-    },
-  });
+vi.mock("@/contexts/LanguageContext", () => {
+  const translations: Record<string, string> = {
+    build_muscle: "Build Muscle",
+    build_muscle_desc: "Gain lean muscle mass with proper nutrition",
+    complete: "Complete",
+    extra_active: "Extra Active",
+    female: "Female",
+    lightly_active: "Lightly Active",
+    lose_weight: "Lose Weight",
+    lose_weight_desc: "Reduce body fat while maintaining muscle",
+    maintain: "Maintain Weight",
+    maintain_desc: "Maintain your current weight and improve health",
+    male: "Male",
+    moderately_active: "Moderately Active",
+    onboarding_no_allergies: "No allergies",
+    onboarding_no_preferences: "No preferences",
+    saving: "Saving...",
+    sedentary: "Sedentary",
+    very_active: "Very Active",
+    continue: "Continue",
+  };
+  return {
+    useLanguage: () => ({
+      language: "en",
+      isRTL: false,
+      setLanguage: vi.fn(),
+      t: (key: string) => translations[key] ?? key,
+    }),
+  };
+});
 
-const renderWithProviders = (ui: React.ReactElement) => {
-  const queryClient = createTestQueryClient();
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      insert: mockInsert,
+      upsert: mockUpsert,
+    })),
+  },
+}));
+
+const renderPage = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{ui}</BrowserRouter>
-    </QueryClientProvider>
+      <BrowserRouter>
+        <Onboarding />
+      </BrowserRouter>
+    </QueryClientProvider>,
   );
 };
 
-const setupDefaultMocks = () => {
-  vi.mocked(AuthContext.useAuth).mockReturnValue({
-    user: { id: "test-user-id", email: "test@example.com" },
-    session: null,
-    loading: false,
-    signUp: vi.fn(),
-    signIn: vi.fn(),
-    signOut: vi.fn(),
-  });
-
-  vi.mocked(ProfileHook.useProfile).mockReturnValue({
-    profile: {
-      id: "test-profile-id",
-      user_id: "test-user-id",
-      onboarding_completed: false,
-    } as any,
-    loading: false,
-    error: null,
-    refetch: vi.fn(),
-    updateProfile: vi.fn().mockResolvedValue({ data: null, error: null }),
-  });
-
-  vi.mocked(DietTagsHook.useDietTags).mockReturnValue({
-    dietTags: [
-      { id: "1", name: "Vegetarian", description: null, category: "diet" },
-      { id: "2", name: "Keto", description: null, category: "diet" },
-    ],
-    allergyTags: [
-      { id: "3", name: "Peanuts", description: null, category: "allergy" },
-      { id: "4", name: "Dairy", description: null, category: "allergy" },
-    ],
-    loading: false,
-  });
-
-  vi.mocked(ToastHook.useToast).mockReturnValue({
-    toast: mockToast,
-    dismiss: vi.fn(),
-    toasts: [],
-  });
-
-  mockLocalStorage.clear();
-  mockNavigate.mockClear();
-  mockToast.mockClear();
+const selectGoalAndGender = async () => {
+  await userEvent.click(screen.getByText("Lose Weight"));
+  await userEvent.click(screen.getByTestId("onboarding-continue-btn"));
+  await screen.findByText("Male");
+  await userEvent.click(screen.getByText("Male"));
+  await userEvent.click(screen.getByTestId("onboarding-continue-btn"));
 };
 
-describe("Onboarding Component", () => {
+const completeMetricSteps = async () => {
+  await screen.findByRole("textbox", { name: /how old are you/i });
+  expect(screen.getByRole("textbox", { name: /how old are you/i })).toHaveValue("25");
+  await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  await screen.findByRole("textbox", { name: /what's your height/i });
+  expect(screen.getByRole("textbox", { name: /what's your height/i })).toHaveValue("170");
+  await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  await screen.findByRole("textbox", { name: /what's your current weight/i });
+  expect(screen.getByRole("textbox", { name: /what's your current weight/i })).toHaveValue("80.0");
+  await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  await screen.findByRole("textbox", { name: /what's your target weight/i });
+  expect(screen.getByRole("textbox", { name: /what's your target weight/i })).toHaveValue("70.0");
+  await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+};
+
+describe("Onboarding", () => {
   beforeEach(() => {
-    setupDefaultMocks();
-  });
-
-  afterEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
     vi.clearAllMocks();
-  });
+    mockInsert.mockResolvedValue({ data: null, error: null });
+    mockUpsert.mockResolvedValue({ data: null, error: null });
+    mockUpdateProfile.mockResolvedValue({ data: null, error: null });
 
-  describe("Progress Bar", () => {
-    it("renders progress bar with correct initial percentage", () => {
-      renderWithProviders(<Onboarding />);
-      
-      const progressBar = screen.getByRole("progressbar");
-      expect(progressBar).toBeInTheDocument();
-      
-      // Step 1 of 5 = 20%
-      expect(progressBar).toHaveStyle({ width: "20%" });
+    vi.mocked(AuthContext.useAuth).mockReturnValue({
+      user: createMockUser({ id: "test-user-id" }),
+      session: null,
+      loading: false,
+      signUp: vi.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
     });
-
-    it("updates progress bar percentage when navigating steps", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Step 1: 20%
-      let progressBar = screen.getByRole("progressbar");
-      expect(progressBar).toHaveStyle({ width: "20%" });
-      
-      // Select goal to enable continue
-      const loseWeightCard = screen.getByText("Lose Weight").closest("div[class*='cursor-pointer']") || 
-                             screen.getByText("Lose Weight").closest("button");
-      if (loseWeightCard) {
-        await userEvent.click(loseWeightCard);
-      }
-      
-      // Continue to step 2
-      const continueButton = screen.getByText(/Continue/i);
-      await userEvent.click(continueButton);
-      
-      // Step 2: 40%
-      await waitFor(() => {
-        progressBar = screen.getByRole("progressbar");
-        expect(progressBar).toHaveStyle({ width: "40%" });
-      });
+    vi.mocked(ProfileHook.useProfile).mockReturnValue({
+      profile: { user_id: "test-user-id", onboarding_completed: false } as ProfileHook.Profile,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+      updateProfile: mockUpdateProfile,
     });
-
-    it("displays correct step indicator", () => {
-      renderWithProviders(<Onboarding />);
-      
-      expect(screen.getByText(/Step 1 of 5/i)).toBeInTheDocument();
+    vi.mocked(DietTagsHook.useDietTags).mockReturnValue({
+      dietTags: [
+        { id: "diet-1", name: "Vegetarian", description: null, category: "diet" },
+        { id: "diet-2", name: "Keto", description: null, category: "diet" },
+      ],
+      allergyTags: [
+        { id: "allergy-1", name: "Peanuts", description: null, category: "allergy" },
+      ],
+      loading: false,
+    });
+    vi.mocked(ToastHook.useToast).mockReturnValue({
+      toast: mockToast,
+      dismiss: vi.fn(),
+      success: vi.fn(),
+      error: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+      loading: vi.fn(),
+      promise: vi.fn(),
     });
   });
 
-  describe("Step Navigation", () => {
-    it("navigates from step 1 to step 2 after selecting goal", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Initially on step 1
-      expect(screen.getByText(/What's your.*main goal/i)).toBeInTheDocument();
-      
-      // Select a goal
-      const loseWeightOption = screen.getByText("Lose Weight");
-      await userEvent.click(loseWeightOption);
-      
-      // Click continue
-      const continueButton = screen.getByText(/Continue/i);
-      await userEvent.click(continueButton);
-      
-      // Should be on step 2
-      await waitFor(() => {
-        expect(screen.getByText(/Tell us about.*yourself/i)).toBeInTheDocument();
-      });
-    });
-
-    it("navigates back from step 2 to step 1", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Go to step 2 first
-      const loseWeightOption = screen.getByText("Lose Weight");
-      await userEvent.click(loseWeightOption);
-      const continueButton = screen.getByText(/Continue/i);
-      await userEvent.click(continueButton);
-      
-      await waitFor(() => {
-        expect(screen.getByText(/Tell us about.*yourself/i)).toBeInTheDocument();
-      });
-      
-      // Click back
-      const backButton = screen.getByText(/Back/i);
-      await userEvent.click(backButton);
-      
-      // Should be back on step 1
-      await waitFor(() => {
-        expect(screen.getByText(/What's your.*main goal/i)).toBeInTheDocument();
-      });
-    });
-
-    it("disables continue button until required field is selected", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      const continueButton = screen.getByText(/Continue/i);
-      expect(continueButton).toBeDisabled();
-      
-      // Select a goal
-      const loseWeightOption = screen.getByText("Lose Weight");
-      await userEvent.click(loseWeightOption);
-      
-      // Button should now be enabled
-      expect(continueButton).not.toBeDisabled();
-    });
-
-    it("shows Complete button on final step", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Navigate through all steps
-      // Step 1: Select goal
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      // Step 2: Select gender
-      await waitFor(() => screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      // Step 3: Fill metrics
-      await waitFor(() => screen.getByLabelText(/Age/i));
-      await userEvent.type(screen.getByLabelText(/Age/i), "30");
-      await userEvent.type(screen.getByLabelText(/Height/i), "175");
-      await userEvent.type(screen.getByLabelText(/Current Weight/i), "80");
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      // Step 4: Select activity
-      await waitFor(() => screen.getByText(/Sedentary/i));
-      await userEvent.click(screen.getByText(/Moderately Active/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      // Step 5: Should show Complete button
-      await waitFor(() => {
-        expect(screen.getByText(/Complete/i)).toBeInTheDocument();
-      });
-    });
+  it("renders the first step with accessible progress", () => {
+    renderPage();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "20");
+    expect(screen.getByLabelText("Step 1 of 5")).toBeInTheDocument();
+    expect(screen.getByText("Lose Weight")).toBeInTheDocument();
+    expect(screen.getByText("Build Muscle")).toBeInTheDocument();
+    expect(screen.getByText("Maintain Weight")).toBeInTheDocument();
   });
 
-  describe("Step 1 - Goal Selection", () => {
-    it("renders all three goal options", () => {
-      renderWithProviders(<Onboarding />);
-      
-      expect(screen.getByText("Lose Weight")).toBeInTheDocument();
-      expect(screen.getByText("Build Muscle")).toBeInTheDocument();
-      expect(screen.getByText("Maintain")).toBeInTheDocument();
-    });
-
-    it("selects goal when clicked", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      const loseWeightOption = screen.getByText("Lose Weight");
-      await userEvent.click(loseWeightOption);
-      
-      // Should show checkmark or highlight
-      const parentCard = loseWeightOption.closest("div[class*='border-2']") || 
-                        loseWeightOption.closest("div[class*='cursor-pointer']");
-      expect(parentCard).toBeTruthy();
-    });
+  it("requires a goal before continuing", async () => {
+    renderPage();
+    const continueButton = screen.getByTestId("onboarding-continue-btn");
+    expect(continueButton).toBeDisabled();
+    await userEvent.click(screen.getByText("Lose Weight"));
+    expect(continueButton).toBeEnabled();
   });
 
-  describe("Step 2 - Gender Selection", () => {
-    it("renders gender options", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Navigate to step 2
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      await waitFor(() => {
-        expect(screen.getByText(/Male/i)).toBeInTheDocument();
-        expect(screen.getByText(/Female/i)).toBeInTheDocument();
-      });
-    });
+  it("moves through gender and the four metric substeps", async () => {
+    renderPage();
+    await selectGoalAndGender();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "60");
+    await completeMetricSteps();
+    expect(await screen.findByText("Moderately Active")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "80");
   });
 
-  describe("Step 3 - Body Metrics", () => {
-    it("renders all metric input fields", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Navigate to step 3
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/Age/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/Height/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/Current Weight/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/Target Weight/i)).toBeInTheDocument();
-      });
-    });
-
-    it("accepts numeric input for metrics", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Navigate to step 3
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      await waitFor(() => screen.getByLabelText(/Age/i));
-      
-      const ageInput = screen.getByLabelText(/Age/i) as HTMLInputElement;
-      await userEvent.clear(ageInput);
-      await userEvent.type(ageInput, "30");
-      
-      expect(ageInput.value).toBe("30");
-    });
-
-    it("enables continue when all required fields are filled", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Navigate to step 3
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      await waitFor(() => screen.getByLabelText(/Age/i));
-      
-      const continueButton = screen.getByText(/Continue/i);
-      expect(continueButton).toBeDisabled();
-      
-      // Fill required fields
-      await userEvent.type(screen.getByLabelText(/Age/i), "30");
-      await userEvent.type(screen.getByLabelText(/Height/i), "175");
-      await userEvent.type(screen.getByLabelText(/Current Weight/i), "80");
-      
-      expect(continueButton).not.toBeDisabled();
-    });
+  it("reaches dietary preferences after selecting activity", async () => {
+    renderPage();
+    await selectGoalAndGender();
+    await completeMetricSteps();
+    await userEvent.click(await screen.findByText("Moderately Active"));
+    await userEvent.click(screen.getByTestId("onboarding-continue-btn"));
+    expect(await screen.findByText("Vegetarian")).toBeInTheDocument();
+    expect(screen.getByText("Keto")).toBeInTheDocument();
+    expect(screen.getByText("Peanuts")).toBeInTheDocument();
   });
 
-  describe("Step 4 - Activity Level", () => {
-    it("renders all activity level options", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Navigate to step 4
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByLabelText(/Age/i));
-      await userEvent.type(screen.getByLabelText(/Age/i), "30");
-      await userEvent.type(screen.getByLabelText(/Height/i), "175");
-      await userEvent.type(screen.getByLabelText(/Current Weight/i), "80");
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      await waitFor(() => {
-        expect(screen.getByText(/Sedentary/i)).toBeInTheDocument();
-        expect(screen.getByText(/Lightly Active/i)).toBeInTheDocument();
-        expect(screen.getByText(/Moderately Active/i)).toBeInTheDocument();
-        expect(screen.getByText(/Very Active/i)).toBeInTheDocument();
-        expect(screen.getByText(/Extra Active/i)).toBeInTheDocument();
-      });
-    });
+  it("restores a saved step", async () => {
+    localStorage.setItem("nutrio_onboarding_progress", JSON.stringify({
+      step: 2,
+      data: {
+        goal: "lose",
+        gender: null,
+        age: "25",
+        height: "170",
+        weight: "80",
+        targetWeight: "70",
+        activityLevel: null,
+        trainingDaysPerWeek: "3",
+        foodPreferences: [],
+        allergies: [],
+      },
+    }));
+    renderPage();
+    expect(await screen.findByText("Male")).toBeInTheDocument();
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: "Welcome back!" }));
   });
 
-  describe("Step 5 - Food Preferences", () => {
-    it("renders diet tags and allergy tags", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Navigate through to step 5
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByLabelText(/Age/i));
-      await userEvent.type(screen.getByLabelText(/Age/i), "30");
-      await userEvent.type(screen.getByLabelText(/Height/i), "175");
-      await userEvent.type(screen.getByLabelText(/Current Weight/i), "80");
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Sedentary/i));
-      await userEvent.click(screen.getByText(/Moderately Active/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      await waitFor(() => {
-        expect(screen.getByText(/Dietary Preferences/i)).toBeInTheDocument();
-        expect(screen.getByText(/Vegetarian/i)).toBeInTheDocument();
-        expect(screen.getByText(/Keto/i)).toBeInTheDocument();
-      });
-    });
-
-    it("allows selecting food preferences", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Navigate to step 5
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByLabelText(/Age/i));
-      await userEvent.type(screen.getByLabelText(/Age/i), "30");
-      await userEvent.type(screen.getByLabelText(/Height/i), "175");
-      await userEvent.type(screen.getByLabelText(/Current Weight/i), "80");
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Sedentary/i));
-      await userEvent.click(screen.getByText(/Moderately Active/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      await waitFor(() => screen.getByText(/Vegetarian/i));
-      
-      // Select a preference
-      await userEvent.click(screen.getByText(/Vegetarian/i));
-      
-      // Should show selected badge
-      expect(screen.getByText(/Vegetarian/i)).toBeInTheDocument();
-    });
+  it("saves quick-start values using the current profile schema", async () => {
+    renderPage();
+    await userEvent.click(screen.getByTestId("onboarding-quick-start-btn"));
+    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalled());
+    expect(mockUpdateProfile).toHaveBeenCalledWith(expect.objectContaining({
+      health_goal: "maintain",
+      height_cm: 170,
+      current_weight_kg: 75,
+      target_weight_kg: 75,
+      onboarding_completed: true,
+    }));
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: "test-user-id",
+      goal_type: "maintenance",
+    }));
   });
 
-  describe("LocalStorage Persistence", () => {
-    it("saves progress to localStorage on each step change", async () => {
-      renderWithProviders(<Onboarding />);
-      
-      // Select goal
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      // Check localStorage was called
-      await waitFor(() => {
-        expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
-          "nutrio_onboarding_progress",
-          expect.stringContaining("step")
-        );
-      });
+  it("redirects unauthenticated visitors to auth", async () => {
+    vi.mocked(AuthContext.useAuth).mockReturnValue({
+      user: null,
+      session: null,
+      loading: false,
+      signUp: vi.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
     });
-
-    it("restores progress from localStorage on mount", async () => {
-      // Set saved progress
-      mockLocalStorage.setItem(
-        "nutrio_onboarding_progress",
-        JSON.stringify({
-          step: 3,
-          data: {
-            goal: "lose",
-            gender: "male",
-            age: "30",
-            height: "175",
-            weight: "80",
-            targetWeight: "75",
-            activityLevel: null,
-            trainingDaysPerWeek: "",
-            foodPreferences: [],
-            allergies: [],
-          },
-          timestamp: new Date().toISOString(),
-        })
-      );
-      
-      renderWithProviders(<Onboarding />);
-      
-      await waitFor(() => {
-        expect(screen.getByText(/Welcome back!/i)).toBeInTheDocument();
-      });
-    });
-
-    it("clears localStorage on successful completion", async () => {
-      const mockUpdateProfile = vi.fn().mockResolvedValue({ data: null, error: null });
-      vi.mocked(ProfileHook.useProfile).mockReturnValue({
-        profile: { id: "test", user_id: "test", onboarding_completed: false } as any,
-        loading: false,
-        error: null,
-        refetch: vi.fn(),
-        updateProfile: mockUpdateProfile,
-      });
-      
-      renderWithProviders(<Onboarding />);
-      
-      // Complete all steps quickly
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      // localStorage.setItem would have been called during the process
-      expect(mockLocalStorage.setItem).toHaveBeenCalled();
-    });
+    renderPage();
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/auth"));
   });
 
-  describe("Profile Completion", () => {
-    it("calls updateProfile with correct data on completion", async () => {
-      const mockUpdateProfile = vi.fn().mockResolvedValue({ data: null, error: null });
-      vi.mocked(ProfileHook.useProfile).mockReturnValue({
-        profile: { id: "test", user_id: "test", onboarding_completed: false } as any,
-        loading: false,
-        error: null,
-        refetch: vi.fn(),
-        updateProfile: mockUpdateProfile,
-      });
-      
-      renderWithProviders(<Onboarding />);
-      
-      // Step 1
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      // Step 2
-      await waitFor(() => screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      // Step 3
-      await waitFor(() => screen.getByLabelText(/Age/i));
-      await userEvent.type(screen.getByLabelText(/Age/i), "30");
-      await userEvent.type(screen.getByLabelText(/Height/i), "175");
-      await userEvent.type(screen.getByLabelText(/Current Weight/i), "80");
-      await userEvent.type(screen.getByLabelText(/Target Weight/i), "75");
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      // Step 4
-      await waitFor(() => screen.getByText(/Sedentary/i));
-      await userEvent.click(screen.getByText(/Moderately Active/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      
-      // Step 5 - Complete
-      await waitFor(() => screen.getByText(/Complete/i));
-      await userEvent.click(screen.getByText(/Complete/i));
-      
-      await waitFor(() => {
-        expect(mockUpdateProfile).toHaveBeenCalledWith(
-          expect.objectContaining({
-            gender: "male",
-            age: 30,
-            height_cm: 175,
-            current_weight_kg: 80,
-            target_weight_kg: 75,
-            health_goal: "lose",
-            activity_level: "moderate",
-            onboarding_completed: true,
-          })
-        );
-      });
+  it("redirects users who already completed onboarding", async () => {
+    vi.mocked(ProfileHook.useProfile).mockReturnValue({
+      profile: { user_id: "test-user-id", onboarding_completed: true } as ProfileHook.Profile,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+      updateProfile: mockUpdateProfile,
     });
-
-    it("navigates to dashboard after successful completion", async () => {
-      const mockUpdateProfile = vi.fn().mockResolvedValue({ data: null, error: null });
-      vi.mocked(ProfileHook.useProfile).mockReturnValue({
-        profile: { id: "test", user_id: "test", onboarding_completed: false } as any,
-        loading: false,
-        error: null,
-        refetch: vi.fn(),
-        updateProfile: mockUpdateProfile,
-      });
-      
-      renderWithProviders(<Onboarding />);
-      
-      // Complete all steps
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByLabelText(/Age/i));
-      await userEvent.type(screen.getByLabelText(/Age/i), "30");
-      await userEvent.type(screen.getByLabelText(/Height/i), "175");
-      await userEvent.type(screen.getByLabelText(/Current Weight/i), "80");
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Sedentary/i));
-      await userEvent.click(screen.getByText(/Moderately Active/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Complete/i));
-      await userEvent.click(screen.getByText(/Complete/i));
-      
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
-      });
-    });
+    renderPage();
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
   });
 
-  describe("Error Handling", () => {
-    it("shows error toast when profile update fails", async () => {
-      const mockUpdateProfile = vi.fn().mockResolvedValue({
-        data: null,
-        error: new Error("Update failed"),
-      });
-      vi.mocked(ProfileHook.useProfile).mockReturnValue({
-        profile: { id: "test", user_id: "test", onboarding_completed: false } as any,
-        loading: false,
-        error: null,
-        refetch: vi.fn(),
-        updateProfile: mockUpdateProfile,
-      });
-      
-      renderWithProviders(<Onboarding />);
-      
-      // Complete all steps
-      await userEvent.click(screen.getByText("Lose Weight"));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Male/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByLabelText(/Age/i));
-      await userEvent.type(screen.getByLabelText(/Age/i), "30");
-      await userEvent.type(screen.getByLabelText(/Height/i), "175");
-      await userEvent.type(screen.getByLabelText(/Current Weight/i), "80");
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Sedentary/i));
-      await userEvent.click(screen.getByText(/Moderately Active/i));
-      await userEvent.click(screen.getByText(/Continue/i));
-      await waitFor(() => screen.getByText(/Complete/i));
-      await userEvent.click(screen.getByText(/Complete/i));
-      
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith(
-          expect.objectContaining({
-            variant: "destructive",
-          })
-        );
-      });
+  it("waits for authentication before redirecting", () => {
+    vi.mocked(AuthContext.useAuth).mockReturnValue({
+      user: null,
+      session: null,
+      loading: true,
+      signUp: vi.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
     });
-  });
-
-  describe("Redirect Behavior", () => {
-    it("redirects to auth when user is not authenticated", async () => {
-      vi.mocked(AuthContext.useAuth).mockReturnValue({
-        user: null,
-        session: null,
-        loading: false,
-        signUp: vi.fn(),
-        signIn: vi.fn(),
-        signOut: vi.fn(),
-      });
-      
-      renderWithProviders(<Onboarding />);
-      
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith("/auth");
-      });
-    });
-
-    it("redirects to dashboard when onboarding is already completed", () => {
-      vi.mocked(ProfileHook.useProfile).mockReturnValue({
-        profile: { id: "test", user_id: "test", onboarding_completed: true } as any,
-        loading: false,
-        error: null,
-        refetch: vi.fn(),
-        updateProfile: vi.fn(),
-      });
-      
-      renderWithProviders(<Onboarding />);
-      
-      expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
-    });
-  });
-
-  describe("Loading States", () => {
-    it("shows loading spinner when auth is loading", () => {
-      vi.mocked(AuthContext.useAuth).mockReturnValue({
-        user: null,
-        session: null,
-        loading: true,
-        signUp: vi.fn(),
-        signIn: vi.fn(),
-        signOut: vi.fn(),
-      });
-      
-      renderWithProviders(<Onboarding />);
-      
-      expect(screen.getByRole("status") || screen.queryByTestId("loading")).toBeTruthy();
-    });
+    renderPage();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

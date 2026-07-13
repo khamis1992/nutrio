@@ -59,6 +59,7 @@ export function useCoachNotifications(coachId: string | undefined) {
   }, [coachId]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
+    if (!coachId) return;
     try {
       const { error } = await supabase
         .from("notifications")
@@ -77,6 +78,7 @@ export function useCoachNotifications(coachId: string | undefined) {
   }, [coachId]);
 
   const markAllAsRead = useCallback(async () => {
+    if (!coachId) return;
     try {
       const { error } = await supabase
         .from("notifications")

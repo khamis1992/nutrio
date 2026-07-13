@@ -13,11 +13,16 @@ returns table(
 language sql
 security definer
 stable
+set search_path = public, pg_temp
 as $$
   with friend_ids as (
+    select p_user_id as uid
+    where p_user_id = auth.uid()
+    union
     select case when f.requester_id = p_user_id then f.target_id else f.requester_id end as uid
     from friendships f
-    where f.status = 'accepted'
+    where p_user_id = auth.uid()
+      and f.status = 'accepted'
       and (f.requester_id = p_user_id or f.target_id = p_user_id)
   ),
   latest_nutrition as (
@@ -50,4 +55,5 @@ as $$
   order by composite_score desc;
 $$;
 
-grant execute on function get_friend_leaderboard to authenticated;
+revoke all on function get_friend_leaderboard(uuid) from public, anon;
+grant execute on function get_friend_leaderboard(uuid) to authenticated, service_role;

@@ -46,8 +46,8 @@ export default function Wallet() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6fbf7] pb-24 pt-safe">
-      <div className="sticky top-0 z-20 border-b border-emerald-900/5 bg-[#f6fbf7]/90 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#F6F8FB] pb-24 pt-safe text-[#020617]">
+      <div className="sticky top-0 z-20 border-b border-[#E5EAF1] bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-3 rtl:flex-row-reverse">
           <button
             data-testid="wallet-back-btn"
@@ -100,7 +100,7 @@ export default function Wallet() {
           </div>
         </section>
 
-        <WalletTopUpFlow hideSimulationAlert={!import.meta.env.DEV} />
+        <WalletTopUpFlow />
       </main>
     </div>
   );

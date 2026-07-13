@@ -18,7 +18,7 @@ interface Review {
   comment: string | null;
   partner_response: string | null;
   responded_at: string | null;
-  created_at: string;
+  created_at: string | null;
   meal: { name: string } | null;
   profile: { full_name: string | null } | null;
 }
@@ -32,6 +32,7 @@ const PartnerReviews = () => {
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [responseText, setResponseText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [responsesAvailable, setResponsesAvailable] = useState(true);
 
   useEffect(() => { if (user) fetchReviews(); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -41,22 +42,54 @@ const PartnerReviews = () => {
     try {
       const { data: restaurant } = await supabase.from("restaurants").select("id").eq("owner_id", user.id).maybeSingle();
       if (!restaurant) { navigate("/partner"); return; }
-      const { data } = await supabase.from("reviews").select(`id, user_id, rating, comment, partner_response, responded_at, created_at, meals:meal_id (name)`).eq("restaurant_id", restaurant.id).order("created_at", { ascending: false });
-      const userIds = [...new Set((data || []).map((r) => r.user_id))];
+      const responseQuery = await supabase.from("reviews").select(`id, user_id, rating, comment, partner_response, responded_at, created_at, meals:meal_id (name)`).eq("restaurant_id", restaurant.id).order("created_at", { ascending: false });
+      let data = responseQuery.data;
+      if (responseQuery.error) {
+        const fallback = await supabase.from("reviews").select(`id, user_id, rating, comment, created_at, meals:meal_id (name)`).eq("restaurant_id", restaurant.id).order("created_at", { ascending: false });
+        if (fallback.error) throw fallback.error;
+        data = (fallback.data || []).map((review) => ({
+          ...review,
+          partner_response: null,
+          responded_at: null,
+        }));
+        setResponsesAvailable(false);
+      } else {
+        setResponsesAvailable(true);
+      }
+      const userIds = [...new Set((data || []).map((review) => review.user_id))];
       let profilesMap: Record<string, { full_name: string | null }> = {};
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
-        if (profiles) profilesMap = profiles.reduce((acc, p) => { acc[p.user_id] = { full_name: p.full_name }; return acc; }, {} as Record<string, { full_name: string | null }>);
+        const { data: profiles, error: profilesError } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+        if (profilesError) throw profilesError;
+        if (profiles) profilesMap = profiles.reduce((acc, profile) => { acc[profile.id] = { full_name: profile.full_name }; return acc; }, {} as Record<string, { full_name: string | null }>);
       }
-      setReviews((data || []).map((r: { id: string; meal_id?: string; meals?: { id: string; name: string | null }; rating: number; review_text: string | null; user_id: string; created_at: string } & Record<string, unknown>) => ({ ...r, meal: r.meals, profile: profilesMap[r.user_id] || null })));
+      setReviews((data || []).map((review) => ({
+        id: review.id,
+        user_id: review.user_id,
+        rating: review.rating,
+        comment: review.comment,
+        partner_response: review.partner_response,
+        responded_at: review.responded_at,
+        created_at: review.created_at,
+        meal: review.meals ? { name: review.meals.name } : null,
+        profile: profilesMap[review.user_id] || null,
+      })));
+    } catch (error) {
+      console.error("Error loading partner reviews:", error);
+      toast({ title: "Failed to load reviews", variant: "destructive" });
     } finally { setLoading(false); }
   };
 
   const submitResponse = async (reviewId: string) => {
     if (!responseText.trim()) return;
+    if (!responsesAvailable) {
+      toast({ title: "Review responses are not enabled yet", variant: "destructive" });
+      return;
+    }
     try {
       setSubmitting(true);
-      await supabase.from("reviews").update({ partner_response: responseText, responded_at: new Date().toISOString() }).eq("id", reviewId);
+      const { error } = await supabase.from("reviews").update({ partner_response: responseText, responded_at: new Date().toISOString() }).eq("id", reviewId);
+      if (error) throw error;
       setReviews((prev) => prev.map((r) => r.id === reviewId ? { ...r, partner_response: responseText, responded_at: new Date().toISOString() } : r));
       setRespondingTo(null);
       setResponseText("");
@@ -79,13 +112,13 @@ const PartnerReviews = () => {
           <Card key={review.id}>
             <CardContent className="p-4 space-y-4">
               <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center"><User className="h-5 w-5 text-muted-foreground" /></div><div><p className="font-medium">{review.profile?.full_name || "Customer"}</p><p className="text-xs text-muted-foreground">{new Date(review.created_at).toLocaleDateString()}</p></div></div>
+                <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center"><User className="h-5 w-5 text-muted-foreground" /></div><div><p className="font-medium">{review.profile?.full_name || "Customer"}</p><p className="text-xs text-muted-foreground">{review.created_at ? new Date(review.created_at).toLocaleDateString() : ""}</p></div></div>
                 <div className="flex items-center gap-1">{[1,2,3,4,5].map((star) => <Star key={star} className={`h-4 w-4 ${star <= review.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`} />)}</div>
               </div>
               {review.meal && <Badge variant="secondary" className="text-xs">{review.meal.name}</Badge>}
               {review.comment && <p className="text-sm text-muted-foreground">{review.comment}</p>}
               {review.partner_response && <div className="bg-muted/50 rounded-lg p-3 ml-6 border-l-2 border-primary"><p className="text-xs font-medium text-primary mb-1">Your Response</p><p className="text-sm">{review.partner_response}</p></div>}
-              {!review.partner_response && (respondingTo === review.id ? <div className="space-y-2 ml-6"><Textarea placeholder="Write your response..." value={responseText} onChange={(e) => setResponseText(e.target.value)} rows={3} /><div className="flex gap-2"><Button size="sm" onClick={() => submitResponse(review.id)} disabled={submitting || !responseText.trim()}><Send className="h-4 w-4 mr-1" />{submitting ? "Sending..." : "Send"}</Button><Button size="sm" variant="outline" onClick={() => { setRespondingTo(null); setResponseText(""); }}>Cancel</Button></div></div> : <Button size="sm" variant="outline" onClick={() => setRespondingTo(review.id)}><MessageSquare className="h-4 w-4 mr-1" />Respond</Button>)}
+              {!review.partner_response && responsesAvailable && (respondingTo === review.id ? <div className="space-y-2 ml-6"><Textarea placeholder="Write your response..." value={responseText} onChange={(e) => setResponseText(e.target.value)} rows={3} /><div className="flex gap-2"><Button size="sm" onClick={() => submitResponse(review.id)} disabled={submitting || !responseText.trim()}><Send className="h-4 w-4 mr-1" />{submitting ? "Sending..." : "Send"}</Button><Button size="sm" variant="outline" onClick={() => { setRespondingTo(null); setResponseText(""); }}>Cancel</Button></div></div> : <Button size="sm" variant="outline" onClick={() => setRespondingTo(review.id)}><MessageSquare className="h-4 w-4 mr-1" />Respond</Button>)}
             </CardContent>
           </Card>
         ))}

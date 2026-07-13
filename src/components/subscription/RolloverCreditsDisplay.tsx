@@ -6,12 +6,11 @@ import {
   RotateCcw, 
   Clock, 
   AlertCircle,
-  TrendingUp,
   Info
 } from "lucide-react";
 import { useRolloverCredits, useRolloverExpiryCountdown } from "@/hooks/useRolloverCredits";
 import { cn } from "@/lib/utils";
-import { format, differenceInDays } from "date-fns";
+import { format } from "date-fns";
 
 interface RolloverCreditsDisplayProps {
   subscriptionId: string;
@@ -22,7 +21,6 @@ export function RolloverCreditsDisplay({
   subscriptionId, 
   className 
 }: RolloverCreditsDisplayProps) {
-  const { t } = useLanguage();
   const { data: rolloverInfo, isLoading } = useRolloverCredits(subscriptionId);
 
   // Must call hook unconditionally before any early returns (Rules of Hooks)
@@ -167,6 +165,7 @@ export function RolloverCreditBreakdown({
   orderTotal: number;
   className?: string;
 }) {
+  const { t } = useLanguage();
   const fromRollover = Math.min(rolloverCredits, orderTotal);
   const fromNew = Math.max(0, orderTotal - rolloverCredits);
   const remainingRollover = rolloverCredits - fromRollover;

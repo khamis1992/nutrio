@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, BadgePercent, Gift, Clock, ArrowDown,
+  BadgePercent, Gift, Clock, ArrowDown,
   CheckCircle2, Loader2, Sparkles, HeartHandshake,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ interface RecoveryOfferSheetProps {
   daysSinceExpiry: number;
   subscriptionId: string | undefined;
   isApplying: boolean;
-  onApplyOffer: (offerCode: string) => Promise<void>;
+  onApplyOffer: (offerId: string) => Promise<void>;
   onDismiss: () => Promise<void>;
   onReactivateDirect: () => Promise<void>;
 }
@@ -40,7 +40,7 @@ const OFFER_STYLES: Record<string, { gradient: string; icon: typeof BadgePercent
     accent: "bg-sky-600",
     badgeClass: "bg-sky-100 text-sky-700",
   },
-  downgrade: {
+  downgrade_retention: {
     gradient: "from-violet-50 to-purple-50",
     icon: ArrowDown,
     accent: "bg-violet-600",
@@ -53,7 +53,7 @@ function OfferSummary({ offer }: { offer: RecoveryOffer }) {
     case "discount":
       return (
         <p className="text-sm text-slate-600">
-          <span className="font-extrabold text-emerald-600">{offer.discount_percent}% off</span> for {offer.discount_duration_months} month{offer.discount_duration_months! > 1 ? "s" : ""}
+          <span className="font-extrabold text-emerald-600">{offer.discount_percent}% off</span> when you reactivate
         </p>
       );
     case "bonus_credits":
@@ -68,10 +68,10 @@ function OfferSummary({ offer }: { offer: RecoveryOffer }) {
           <span className="font-extrabold text-sky-600">{offer.free_days} days free</span> — no charge
         </p>
       );
-    case "downgrade":
+    case "downgrade_retention":
       return (
         <p className="text-sm text-slate-600">
-          Restart at <span className="font-extrabold text-violet-600">{offer.target_tier}</span> tier
+          Restart at <span className="font-extrabold text-violet-600">{offer.downgrade_to_tier}</span> tier
         </p>
       );
   }
@@ -90,12 +90,6 @@ export function RecoveryOfferSheet({
 }: RecoveryOfferSheetProps) {
   const [selectedOffer, setSelectedOffer] = useState<string | null>(null);
   const [isDismissing, setIsDismissing] = useState(false);
-
-  const groupedOffers = offers.reduce<Record<string, RecoveryOffer[]>>((acc, o) => {
-    if (!acc[o.offer_type]) acc[o.offer_type] = [];
-    acc[o.offer_type].push(o);
-    return acc;
-  }, {});
 
   const handleApply = async () => {
     if (!selectedOffer || !subscriptionId) return;
@@ -164,13 +158,13 @@ export function RecoveryOfferSheet({
                   {offers.map((offer) => {
                     const style = OFFER_STYLES[offer.offer_type] || OFFER_STYLES.discount;
                     const Icon = style.icon;
-                    const isSelected = selectedOffer === offer.offer_code;
+                    const isSelected = selectedOffer === offer.id;
 
                     return (
                       <motion.button
-                        key={offer.offer_code}
+                        key={offer.id}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => setSelectedOffer(offer.offer_code)}
+                        onClick={() => setSelectedOffer(offer.id)}
                         className={cn(
                           "w-full text-left rounded-2xl border-2 p-4 transition-all",
                           isSelected

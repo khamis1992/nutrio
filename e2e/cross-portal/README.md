@@ -394,7 +394,7 @@ npx playwright test --timeout=60000
 Check test users exist in Supabase:
 ```sql
 SELECT email FROM auth.users 
-WHERE email IN ('admin@nutrio.com', 'partner@nutrio.com', 'driver@nutriofuel.com');
+WHERE email IN ('admin@nutrio.com', 'partner@nutrio.com', '<E2E_DRIVER_EMAIL>');
 ```
 
 ### Portals showing 404

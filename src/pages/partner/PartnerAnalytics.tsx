@@ -527,7 +527,7 @@ const PartnerAnalytics = () => {
                               labelLine={false}
                               fontSize={11}
                             >
-                              {mealTypeDistribution.map((entry, index) => (
+                              {mealTypeDistribution.map((_, index) => (
                                 <Cell
                                   key={`cell-${index}`}
                                   fill={COLORS[index % COLORS.length]}

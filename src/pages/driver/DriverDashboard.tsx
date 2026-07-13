@@ -36,6 +36,14 @@ interface AvailableDelivery {
   } | null;
 }
 
+const asJsonObject = (value: unknown): Record<string, unknown> | null =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+
+const readString = (value: unknown, fallback = "") =>
+  typeof value === "string" ? value : fallback;
+
 export default function DriverDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -48,7 +56,6 @@ export default function DriverDashboard() {
   const [availableDeliveries, setAvailableDeliveries] = useState<AvailableDelivery[]>([]);
   const [activeDelivery, setActiveDelivery] = useState<AvailableDelivery | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
-  const [stats, setStats] = useState({ today: 0, week: 0, balance: 0 });
   const [gpsStatus, setGpsStatus] = useState<BroadcastStatus>("idle");
   const [gpsError, setGpsError] = useState<string | undefined>();
   const [gpsLastUpdate, setGpsLastUpdate] = useState<Date | null>(null);
@@ -82,7 +89,6 @@ export default function DriverDashboard() {
     if (driverId) {
       fetchAvailableDeliveries();
       fetchActiveDelivery();
-      fetchStats();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverId]);
@@ -138,7 +144,7 @@ export default function DriverDashboard() {
       const { data: profile } = await supabase
         .from("driver_profiles")
         .select("id")
-        .eq("driver_id", driver.id)
+        .eq("user_id", user.id)
         .maybeSingle();
       if (profile) setDriverProfileId(profile.id);
     } catch (error) {
@@ -196,11 +202,14 @@ export default function DriverDashboard() {
 
       // Create schedule info map from RPC result
       const scheduleMap: Record<string, { meal_name: string; customer_name: string; customer_phone: string | null }> = {};
-      (mealInfo as { schedule_id: string; meal_name: string; customer_name: string; customer_phone: string | null }[])?.forEach((info) => {
-        scheduleMap[info.schedule_id] = {
-          meal_name: info.meal_name || "Meal",
-          customer_name: info.customer_name || "Customer",
-          customer_phone: info.customer_phone || null,
+      (Array.isArray(mealInfo) ? mealInfo : []).forEach((item) => {
+        const info = asJsonObject(item);
+        const scheduleId = readString(info?.schedule_id);
+        if (!scheduleId) return;
+        scheduleMap[scheduleId] = {
+          meal_name: readString(info?.meal_name, "Meal"),
+          customer_name: readString(info?.customer_name, "Customer"),
+          customer_phone: typeof info?.customer_phone === "string" ? info.customer_phone : null,
         };
       });
 
@@ -234,7 +243,7 @@ export default function DriverDashboard() {
         .from("delivery_jobs")
         .select("*")
         .eq("driver_id", driverId)
-        .in("status", ["claimed", "picked_up", "on_the_way"])
+        .in("status", ["assigned", "accepted", "picked_up", "in_transit"])
         .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
@@ -257,27 +266,22 @@ export default function DriverDashboard() {
         restaurantData = restaurant;
       }
 
-      // Fetch meal schedule and related data
-      let mealScheduleData = null;
-      if (delivery.schedule_id) {
-        // Fetch meal and customer info via RPC function
-        const { data: details } = await supabase.rpc(
-          "get_delivery_details_for_driver",
-          { p_delivery_job_id: delivery.id }
-        );
+      const { data: details, error: detailsError } = await supabase.rpc(
+        "get_delivery_details_for_driver",
+        { p_delivery_job_id: delivery.id }
+      );
+      if (detailsError) throw detailsError;
 
-        if (details && !details.error) {
-          mealScheduleData = {
-            meal_name: details.meal_name || "Meal",
-            customer_name: details.customer_name || "Customer",
-            customer_phone: details.customer_phone || null,
-          };
-        }
-      }
+      const detailObject = asJsonObject(details);
+      const mealScheduleData = detailObject ? {
+        meal_name: readString(detailObject.meal_name, "Meal"),
+        customer_name: readString(detailObject.customer_name, "Customer"),
+        customer_phone: typeof detailObject.customer_phone === "string" ? detailObject.customer_phone : null,
+      } : null;
 
       setActiveDelivery({
         id: delivery.id as string,
-        status: (delivery.status as string) || "claimed",
+        status: (delivery.status as string) || "assigned",
         pickup_address: (delivery.pickup_address as string) || "",
         delivery_address: (delivery.delivery_address as string) || "",
         estimated_distance_km: delivery.estimated_distance_km as number | null,
@@ -293,49 +297,9 @@ export default function DriverDashboard() {
     }
   };
 
-  const fetchStats = async () => {
-    if (!driverId) return;
-
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const weekAgo = new Date(today);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-
-      const { data: driver } = await supabase
-        .from("drivers")
-        .select("wallet_balance")
-        .eq("id", driverId)
-        .single();
-
-      const { count: todayCount } = await supabase
-        .from("delivery_jobs")
-        .select("*", { count: "exact", head: true })
-        .eq("driver_id", driverId)
-        .in("status", ["delivered", "completed"])
-        .gte("delivered_at", today.toISOString());
-
-      const { count: weekCount } = await supabase
-        .from("delivery_jobs")
-        .select("*", { count: "exact", head: true })
-        .eq("driver_id", driverId)
-        .in("status", ["delivered", "completed"])
-        .gte("delivered_at", weekAgo.toISOString());
-
-      setStats({
-        today: todayCount || 0,
-        week: weekCount || 0,
-        balance: driver?.wallet_balance || 0,
-      });
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-    }
-  };
-
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchAvailableDeliveries(), fetchStats()]);
+    await Promise.all([fetchAvailableDeliveries(), fetchActiveDelivery()]);
   };
 
   const handleClaimDelivery = async (deliveryId: string) => {
@@ -353,7 +317,8 @@ export default function DriverDashboard() {
       if (error) throw error;
 
       // Check the result from the atomic function
-      if (!result?.success) {
+      const resultObject = asJsonObject(result);
+      if (resultObject?.success !== true) {
         const errorMessages: Record<string, string> = {
           LOCKED: "This delivery is being processed. Please try again.",
           NOT_FOUND: "Delivery no longer exists.",
@@ -365,7 +330,7 @@ export default function DriverDashboard() {
 
         toast({
           title: "Unable to Claim",
-          description: errorMessages[result?.code] || result?.error || "Failed to claim delivery",
+          description: errorMessages[readString(resultObject?.code)] || readString(resultObject?.error, "Failed to claim delivery"),
           variant: "destructive",
         });
         return;
@@ -390,7 +355,7 @@ export default function DriverDashboard() {
   };
 
   const handleStartShift = useCallback(async () => {
-    if (!driverProfileId) {
+    if (!driverProfileId || !driverId) {
       toast({ title: "Error", description: "Driver profile not found", variant: "destructive" });
       return;
     }
@@ -400,16 +365,25 @@ export default function DriverDashboard() {
       return;
     }
     // Also set driver online
-    await supabase.from("drivers").update({ is_online: true }).eq("id", driverId);
+    const { error } = await supabase.from("drivers").update({ is_online: true }).eq("id", driverId);
+    if (error) {
+      await stopBroadcasting();
+      toast({ title: "Shift Error", description: error.message, variant: "destructive" });
+      return;
+    }
     setIsOnline(true);
     toast({ title: "Shift Started", description: "GPS broadcasting active. You're now online." });
   }, [driverProfileId, driverId, gpsError, toast]);
 
   const handleEndShift = useCallback(async () => {
-    await stopBroadcasting();
     if (driverId) {
-      await supabase.from("drivers").update({ is_online: false }).eq("id", driverId);
+      const { error } = await supabase.from("drivers").update({ is_online: false }).eq("id", driverId);
+      if (error) {
+        toast({ title: "Shift Error", description: error.message, variant: "destructive" });
+        return;
+      }
     }
+    await stopBroadcasting();
     setIsOnline(false);
     toast({ title: "Shift Ended", description: "GPS broadcasting stopped." });
   }, [driverId, toast]);

@@ -5,7 +5,6 @@ import {
   Users, 
   DollarSign, 
   TrendingUp, 
-  Calendar,
   ShoppingBag,
   ChevronDown,
   ChevronUp,

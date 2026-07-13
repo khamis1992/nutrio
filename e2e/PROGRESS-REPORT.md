@@ -33,8 +33,8 @@ We have successfully set up a comprehensive E2E test suite for the Nutrio Fuel a
 - **Test Users Created**:
   - `admin@nutrio.com` (with admin role)
   - `partner@nutrio.com` (with restaurant ownership)
-  - `driver@nutriofuel.com` (with driver record)
-  - `khamis--1992@hotmail.com` (customer)
+  - `<E2E_DRIVER_EMAIL>` (with driver record)
+  - `<E2E_ACCOUNT_EMAIL>` (customer)
 - **Passwords Updated**: All test users have correct passwords
 - **Roles Configured**: Admin, partner, and driver roles properly set up in database
 

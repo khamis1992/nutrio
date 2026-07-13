@@ -78,6 +78,9 @@ function BoostContent() {
   const [activeListing, setActiveListing] = useState<FeaturedListing | null>(
     null,
   );
+  const [pendingListing, setPendingListing] = useState<FeaturedListing | null>(
+    null,
+  );
   const [pastListings, setPastListings] = useState<FeaturedListing[]>([]);
   const [packages, setPackages] = useState<BoostPackage[]>(defaultPackages);
 
@@ -114,6 +117,9 @@ function BoostContent() {
             listing.status === "active" && new Date(listing.ends_at) > now,
         );
         setActiveListing(active || null);
+        setPendingListing(
+          listings?.find((listing) => listing.status === "pending") || null,
+        );
 
         setPastListings(
           listings?.filter(
@@ -179,28 +185,15 @@ function BoostContent() {
     setPurchasing(pkg.type);
 
     try {
-      const startsAt = new Date();
-      const endsAt = new Date();
-      endsAt.setDate(endsAt.getDate() + pkg.duration);
-
-      const { data, error } = await supabase
-        .from("featured_listings")
-        .insert({
-          restaurant_id: restaurantId,
-          package_type: pkg.type,
-          price_paid: pkg.price,
-          starts_at: startsAt.toISOString(),
-          ends_at: endsAt.toISOString(),
-          status: "active",
-          payment_reference: `demo_${Date.now()}`,
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc(
+        "request_featured_listing" as never,
+        { p_package_type: pkg.type } as never,
+      );
 
       if (error) throw error;
 
-      setActiveListing(data);
-      toast.success(`${pkg.name} activated. Your restaurant is now featured.`);
+      setPendingListing(data as unknown as FeaturedListing);
+      toast.success(`${pkg.name} request submitted for payment review.`);
     } catch (err: unknown) {
       console.error("Error purchasing boost:", err);
       toast.error(
@@ -383,6 +376,27 @@ function BoostContent() {
           </section>
         )}
 
+        {pendingListing && !activeListing && (
+          <section className="rounded-[28px] border border-[#F97316]/25 bg-[#FFF7ED] p-5 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#F97316] shadow-sm">
+                <Clock className="h-7 w-7" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-lg font-black text-[#020617]">Payment review pending</p>
+                  <Badge className="rounded-full bg-[#F97316] font-black text-white hover:bg-[#F97316]">
+                    Pending
+                  </Badge>
+                </div>
+                <p className="mt-1 text-sm font-bold text-[#64748B]">
+                  {pendingListing.package_type} boost request - {formatCurrency(pendingListing.price_paid)}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
         <section className="grid gap-4 md:grid-cols-3">
           {packages.map((pkg) => {
             const isPurchasing = purchasing === pkg.type;
@@ -445,7 +459,7 @@ function BoostContent() {
                       : "border border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] hover:bg-white"
                   }`}
                   onClick={() => handlePurchase(pkg)}
-                  disabled={!!activeListing || purchasing !== null}
+                  disabled={!!activeListing || !!pendingListing || purchasing !== null}
                 >
                   {isPurchasing ? (
                     <>
@@ -454,10 +468,12 @@ function BoostContent() {
                     </>
                   ) : activeListing ? (
                     "Already active"
+                  ) : pendingListing ? (
+                    "Review pending"
                   ) : (
                     <>
                       <Zap className="mr-2 h-4 w-4" />
-                      Get {pkg.name}
+                      Request {pkg.name}
                     </>
                   )}
                 </Button>

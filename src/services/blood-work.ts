@@ -131,10 +131,7 @@ export async function uploadBloodReport(file: File, userId: string): Promise<str
     });
   if (error) throw error;
 
-  const { data: urlData } = supabase.storage
-    .from("blood-reports")
-    .getPublicUrl(path);
-  return urlData.publicUrl;
+  return path;
 }
 
 // ─── Delete a blood work record and its markers ────────────────────────

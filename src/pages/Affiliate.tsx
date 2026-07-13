@@ -190,6 +190,7 @@ export default function Affiliate() {
     accountName: "",
     accountNumber: "",
     bankName: "",
+    paypalEmail: "",
   });
   const [processingPayout, setProcessingPayout] = useState(false);
   const [applicationNote, setApplicationNote] = useState("");
@@ -209,7 +210,6 @@ export default function Affiliate() {
     ? Math.min((stats.tier1Referrals / nextTierInfo.minReferrals) * 100, 100)
     : 100;
 
-  const totalNetwork = stats.totalReferrals || network.length;
   const statusLabel = useMemo(() => {
     if (isPending) return t("affiliatePending");
     if (isRejected) return t("affiliateNotApproved");
@@ -810,6 +810,21 @@ export default function Affiliate() {
                 </div>
               ))}
             </>
+          )}
+
+          {payoutMethod === "paypal" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="paypalEmail" className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
+                PayPal email
+              </Label>
+              <Input
+                id="paypalEmail"
+                type="email"
+                value={payoutDetails.paypalEmail}
+                onChange={(event) => setPayoutDetails({ ...payoutDetails, paypalEmail: event.target.value })}
+                className="h-12 rounded-[18px] border-slate-200 bg-slate-50 font-bold focus:border-[#020617]"
+              />
+            </div>
           )}
 
           <div className="grid grid-cols-2 gap-2.5 pt-2">

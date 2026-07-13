@@ -39,7 +39,7 @@ export function HPVariantToggle({
         <div className="min-w-0">
           <p className="truncate text-sm font-black">{t("customization_high_protein")}</p>
           <p className={`truncate text-[10px] font-bold ${enabled ? "text-white/65" : "text-slate-400"}`}>
-            +{proteinIncrease}g {t("protein", "protein")} · +{caloriesIncrease} kcal · +{formatCurrency(priceAdjustment)}
+            +{proteinIncrease}g {t("protein")} · +{caloriesIncrease} kcal · +{formatCurrency(priceAdjustment)}
           </p>
         </div>
       </div>

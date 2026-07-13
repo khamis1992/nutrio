@@ -43,7 +43,17 @@ export function useMealQuality(userId: string | undefined) {
 
       if (todayError) throw todayError;
 
-      setTodayQuality(todayData || []);
+      setTodayQuality((todayData || []).map((entry) => ({
+        id: entry.id,
+        log_date: entry.log_date,
+        meal_quality_score: entry.meal_quality_score ?? 0,
+        protein_present: entry.protein_present ?? false,
+        vegetables_count: entry.vegetables_count ?? 0,
+        whole_grains: entry.whole_grains ?? false,
+        added_sugars: entry.added_sugars ?? false,
+        overall_grade: entry.overall_grade ?? "N/A",
+        notes: entry.notes,
+      })));
 
       // Fetch last 7 days of meal quality
       const sevenDaysAgo = format(subDays(new Date(), 7), "yyyy-MM-dd");
@@ -58,7 +68,7 @@ export function useMealQuality(userId: string | undefined) {
       // Calculate daily averages for the week
       const dailyMap = new Map<string, { scores: number[]; count: number }>();
       
-      (weeklyData || []).forEach((entry: MealQualityEntry) => {
+      (weeklyData || []).forEach((entry) => {
         const date = entry.log_date;
         const current = dailyMap.get(date) || { scores: [], count: 0 };
         current.scores.push(entry.meal_quality_score || 0);
@@ -104,10 +114,10 @@ export function useMealQuality(userId: string | undefined) {
       // Calculate quality score using the database function
       const { data: scoreData, error: scoreError } = await supabase
         .rpc("calculate_meal_quality_score", {
-          p_protein_present: mealData.protein_present,
-          p_vegetables_count: mealData.vegetables_count,
-          p_whole_grains: mealData.whole_grains,
-          p_added_sugars: mealData.added_sugars,
+          protein_present: mealData.protein_present,
+          vegetables_count: mealData.vegetables_count,
+          whole_grains: mealData.whole_grains,
+          added_sugars: mealData.added_sugars,
         });
 
       if (scoreError) throw scoreError;
@@ -117,7 +127,7 @@ export function useMealQuality(userId: string | undefined) {
       // Get grade
       const { data: gradeData, error: gradeError } = await supabase
         .rpc("get_meal_quality_grade", {
-          p_score: score,
+          score,
         });
 
       if (gradeError) throw gradeError;

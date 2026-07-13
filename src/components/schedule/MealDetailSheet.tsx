@@ -95,22 +95,22 @@ const MealDetailSheet = ({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 34, stiffness: 380 }}
-            className="fixed left-0 right-0 z-[70] mx-auto flex max-w-[430px] flex-col overflow-hidden rounded-t-[34px] border-t border-[#E5EAF1] bg-[#F6F8FB] shadow-[0_-24px_70px_rgba(2,6,23,0.24)]"
+            className="fixed left-0 right-0 z-[70] mx-auto flex max-w-[430px] flex-col overflow-hidden rounded-t-[28px] border-t border-[#E5EAF1] bg-white shadow-[0_-24px_70px_rgba(2,6,23,0.24)]"
             style={{
               bottom: "calc(56px + env(safe-area-inset-bottom, 0px))",
               maxHeight: "calc(100dvh - 82px - env(safe-area-inset-bottom, 0px))",
             }}
           >
-            <div className="flex shrink-0 justify-center bg-[#F6F8FB] pb-1 pt-2">
+            <div className="flex shrink-0 justify-center bg-white pb-1 pt-2">
               <div className="h-[5px] w-9 rounded-full bg-[#E5EAF1]" />
             </div>
 
             <div
-              className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-5 pt-2 [-webkit-overflow-scrolling:touch]"
+              className="min-h-0 flex-1 overflow-y-auto px-4 pb-5 pt-2 [-webkit-overflow-scrolling:touch]"
               dir={isRTL ? "rtl" : "ltr"}
             >
-              <section className="overflow-hidden rounded-[30px] border border-[#E5EAF1] bg-white shadow-[0_18px_42px_rgba(2,6,23,0.08)]">
-                <div className="relative h-[210px] overflow-hidden bg-[#E5EAF1]">
+              <section className="overflow-hidden rounded-[22px] bg-[#F6F8FB]">
+                <div className="relative h-[156px] overflow-hidden bg-[#E5EAF1]">
                   {selectedMeal.meal.image_url ? (
                     <motion.img
                       initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.04 }}
@@ -147,7 +147,7 @@ const MealDetailSheet = ({
                         </span>
                       );
                     })()}
-                    <h2 className="line-clamp-2 text-[26px] font-black leading-[1.02] tracking-[-0.03em] text-white">
+                    <h2 className="line-clamp-2 text-[22px] font-black leading-[1.05] text-white">
                       {selectedMeal.meal.name}
                     </h2>
                   </div>
@@ -155,8 +155,8 @@ const MealDetailSheet = ({
               </section>
 
               {/* Nutrition section */}
-              <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_30px_rgba(2,6,23,0.055)]">
-                <div className="mb-3 flex items-center justify-between">
+              <section className="border-b border-[#E5EAF1] py-3.5">
+                <div className="mb-2.5 flex items-center justify-between">
                   <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
                     {isRTL ? "التغذية" : "Nutrition"}
                   </p>
@@ -164,43 +164,43 @@ const MealDetailSheet = ({
                     {selectedMeal.is_completed ? (isRTL ? "تم التسجيل" : "Logged") : (isRTL ? "مجدولة" : "Planned")}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-2.5">
-                  <div className="rounded-[20px] border border-[#FB6B7A]/20 bg-[#FFF4F5] p-3">
-                    <Flame className="mb-2 h-4 w-4 text-[#FB6B7A]" />
-                    <p className="text-[22px] font-black tabular-nums leading-none text-[#020617]">{selectedMeal.meal.calories}</p>
+                <div className="grid grid-cols-3 divide-x divide-[#E5EAF1] rounded-[18px] bg-[#F6F8FB] py-3 ring-1 ring-[#E5EAF1] rtl:divide-x-reverse">
+                  <div className="px-2 text-center">
+                    <Flame className="mx-auto mb-1.5 h-4 w-4 text-[#FB6B7A]" />
+                    <p className="text-[18px] font-black tabular-nums leading-none text-[#020617]">{selectedMeal.meal.calories}</p>
                     <p className="mt-1 text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">kcal</p>
                   </div>
-                  <div className="rounded-[20px] border border-[#7C83F6]/20 bg-[#F3F4FF] p-3">
-                    <Beef className="mb-2 h-4 w-4 text-[#7C83F6]" />
-                    <p className="text-[22px] font-black tabular-nums leading-none text-[#020617]">{selectedMeal.meal.protein_g}g</p>
+                  <div className="px-2 text-center">
+                    <Beef className="mx-auto mb-1.5 h-4 w-4 text-[#7C83F6]" />
+                    <p className="text-[18px] font-black tabular-nums leading-none text-[#020617]">{selectedMeal.meal.protein_g}g</p>
                     <p className="mt-1 text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">{t("protein_label")}</p>
                   </div>
-                  <div className="rounded-[20px] border border-[#22C7A1]/20 bg-[#EFFFFA] p-3">
-                    <Leaf className="mb-2 h-4 w-4 text-[#22C7A1]" />
-                    <p className="text-[22px] font-black tabular-nums leading-none text-[#020617]">{selectedMeal.meal.carbs_g}g</p>
+                  <div className="px-2 text-center">
+                    <Leaf className="mx-auto mb-1.5 h-4 w-4 text-[#22C7A1]" />
+                    <p className="text-[18px] font-black tabular-nums leading-none text-[#020617]">{selectedMeal.meal.carbs_g}g</p>
                     <p className="mt-1 text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">{t("carbs")}</p>
                   </div>
                 </div>
               </section>
 
               {/* Delivery section */}
-              <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_30px_rgba(2,6,23,0.055)]">
+              <section className="border-b border-[#E5EAF1] py-3.5">
                 <p className="mb-3 text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
                   {isRTL ? "التوصيل" : "Delivery"}
                 </p>
-                <div className="flex items-center gap-3 rounded-[22px] bg-[#F6F8FB] p-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#020617] shadow-[0_12px_22px_rgba(2,6,23,0.18)]">
+                <div className="flex items-center gap-3 rounded-[18px] bg-[#F6F8FB] p-2.5 ring-1 ring-[#E5EAF1]">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-[#020617]">
                     <Clock className="h-5 w-5 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[12px] font-bold text-[#94A3B8]">{t("delivery_time_label")}</p>
-                    <p className="truncate text-[18px] font-black text-[#020617]">
+                    <p className="truncate text-[16px] font-black text-[#020617]">
                         {selectedMeal.delivery_time_slot || (isRTL ? "غير مجدول" : "Not scheduled")}
                     </p>
                   </div>
                   <button
                     onClick={() => onTimeSlotOpen(selectedMeal.id)}
-                    className="flex h-11 shrink-0 items-center rounded-full bg-white px-4 text-[13px] font-black text-[#020617] shadow-sm ring-1 ring-[#E5EAF1] transition-all active:scale-95"
+                    className="flex h-10 shrink-0 items-center rounded-full bg-white px-4 text-[12px] font-black text-[#020617] ring-1 ring-[#E5EAF1] active:scale-95"
                   >
                     {isRTL ? "تغيير" : "Change"}
                   </button>
@@ -208,14 +208,14 @@ const MealDetailSheet = ({
               </section>
 
               {/* Actions */}
-              <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-3.5 shadow-[0_12px_30px_rgba(2,6,23,0.055)]">
+              <section className="pt-4">
                 <motion.button
                   initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                   disabled={togglingMealId === selectedMeal.id}
                   onClick={() => { onToggleCompletion(selectedMeal.id, selectedMeal.is_completed); onClose(); }}
-                  className={`flex h-[58px] w-full items-center justify-center gap-2.5 rounded-[24px] text-[16px] font-black transition-all active:scale-[0.98] disabled:opacity-60 ${
+                  className={`flex h-[54px] w-full items-center justify-center gap-2.5 rounded-[18px] text-[15px] font-black transition-all active:scale-[0.98] disabled:opacity-60 ${
                     selectedMeal.is_completed
                       ? "border border-[#DDE5EF] bg-[#F6F8FB] text-[#020617]"
                       : "bg-[#22C7A1] text-white shadow-[0_16px_30px_rgba(34,199,161,0.28)]"
@@ -240,15 +240,15 @@ const MealDetailSheet = ({
                   )}
                 </motion.button>
 
-                <div className="mt-3 grid grid-cols-3 gap-2.5">
+                <div className="mt-3 overflow-hidden rounded-[18px] bg-[#F6F8FB] ring-1 ring-[#E5EAF1] [&>*+*]:border-t [&>*+*]:border-[#E5EAF1]">
                   <motion.button
                     initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.15 }}
                     onClick={() => navigate(`/meals/${selectedMeal.meal.id}`)}
-                    className="flex h-[76px] min-w-0 flex-col items-center justify-center gap-2 rounded-[22px] bg-[#F6F8FB] px-1.5 text-[12px] font-black text-[#020617] ring-1 ring-[#E5EAF1] transition-all active:scale-[0.97]"
+                    className="flex h-[54px] w-full items-center gap-3 px-3 text-[13px] font-black text-[#020617] active:bg-white"
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#22C7A1] shadow-sm">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-white text-[#22C7A1]">
                       <Utensils className="h-4 w-4" />
                     </span>
                     {isRTL ? "التفاصيل" : "Details"}
@@ -258,21 +258,21 @@ const MealDetailSheet = ({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.18 }}
                     onClick={onOpenManualLog}
-                    className="flex h-[76px] min-w-0 flex-col items-center justify-center gap-2 rounded-[22px] bg-[#F6F8FB] px-1.5 text-[12px] font-black text-[#020617] ring-1 ring-[#E5EAF1] transition-all active:scale-[0.97]"
+                    className="flex h-[54px] w-full items-center gap-3 px-3 text-[13px] font-black text-[#020617] active:bg-white"
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#7C83F6] shadow-sm">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-white text-[#7C83F6]">
                       <PencilLine className="h-4 w-4" />
                     </span>
-                    Manual
+                    Log manually
                   </motion.button>
                   <motion.button
                     initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                     onClick={() => { onClose(); onReschedule(); }}
-                    className="flex h-[76px] min-w-0 flex-col items-center justify-center gap-2 rounded-[22px] bg-[#F6F8FB] px-1.5 text-[12px] font-black text-[#020617] ring-1 ring-[#E5EAF1] transition-all active:scale-[0.97]"
+                    className="flex h-[54px] w-full items-center gap-3 px-3 text-[13px] font-black text-[#020617] active:bg-white"
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#38BDF8] shadow-sm">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-white text-[#38BDF8]">
                       <CalendarIcon className="h-4 w-4" />
                     </span>
                     {isRTL ? "إعادة" : "Reschedule"}

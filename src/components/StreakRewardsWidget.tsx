@@ -14,6 +14,16 @@ interface StreakReward {
   is_active: boolean;
 }
 
+const REWARD_TYPES: StreakReward['reward_type'][] = [
+  'bonus_credit',
+  'free_meal',
+  'discount',
+  'badge',
+];
+
+const isRewardType = (value: string): value is StreakReward['reward_type'] =>
+  REWARD_TYPES.includes(value as StreakReward['reward_type']);
+
 export function StreakRewardsWidget() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -30,6 +40,9 @@ export function StreakRewardsWidget() {
   }, [user]);
 
   const fetchStreakData = async () => {
+    const userId = user?.id;
+    if (!userId) return;
+
     try {
       const { data: rewardsData, error: rewardsError } = await supabase
         .from('streak_rewards')
@@ -38,12 +51,23 @@ export function StreakRewardsWidget() {
         .order('streak_days', { ascending: true });
 
       if (rewardsError) throw rewardsError;
-      setRewards(rewardsData || []);
+      setRewards(
+        (rewardsData ?? [])
+          .filter((reward) => isRewardType(reward.reward_type))
+          .map((reward) => ({
+            id: reward.id,
+            streak_days: reward.streak_days,
+            reward_type: reward.reward_type as StreakReward['reward_type'],
+            reward_value: reward.reward_value,
+            reward_description: reward.reward_description,
+            is_active: reward.is_active,
+          })),
+      );
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('streak_days')
-        .eq('user_id', user?.id)
+        .eq('user_id', userId)
         .single();
 
       if (profileError) throw profileError;
@@ -52,7 +76,7 @@ export function StreakRewardsWidget() {
       const { data: claimedData, error: claimedError } = await supabase
         .from('streak_rewards_claimed')
         .select('reward_id')
-        .eq('user_id', user?.id);
+        .eq('user_id', userId);
 
       if (claimedError) throw claimedError;
       setClaimedRewards(claimedData?.map(r => r.reward_id) || []);
@@ -66,32 +90,17 @@ export function StreakRewardsWidget() {
   const claimReward = async (reward: StreakReward) => {
     if (!user?.id) return;
     try {
-      const { error: claimError } = await supabase
-        .from('streak_rewards_claimed')
-        .insert({
-          user_id: user.id,
-          reward_id: reward.id,
-          streak_days: reward.streak_days,
-          reward_type: reward.reward_type,
-          reward_value: reward.reward_value,
-        });
+      const claimStreakReward = supabase.rpc as unknown as (
+        fn: 'claim_streak_reward',
+        args: { p_reward_id: string },
+      ) => Promise<{ data: unknown; error: { message: string } | null }>;
+      const { data, error: claimError } = await claimStreakReward('claim_streak_reward', {
+        p_reward_id: reward.id,
+      });
 
       if (claimError) throw claimError;
-
-      if (reward.reward_type === 'bonus_credit') {
-        const { error: walletError } = await supabase.rpc('credit_wallet', {
-          p_user_id: user.id,
-          p_amount: reward.reward_value,
-          p_type: 'bonus',
-          p_reference_type: 'streak_reward',
-          p_reference_id: reward.id,
-          p_description: `${t('streakRewardTitle')}: ${reward.streak_days} ${t('days')}`,
-        });
-
-        if (walletError) {
-          console.error('Wallet credit error:', walletError);
-        }
-      }
+      const result = data as { success?: boolean } | null;
+      if (!result?.success) throw new Error('Reward claim was not completed');
 
       setClaimedRewards([...claimedRewards, reward.id]);
       toast({

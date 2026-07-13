@@ -1,169 +1,34 @@
-import { test, expect } from '../fixtures/test';
-import { waitForNetworkIdle } from '../utils/helpers';
+import { expect, test } from "../fixtures/test";
+import { appUrl } from "../config";
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
+test.describe("Admin authorization", () => {
+  test("an authenticated admin can open the admin portal", async ({
+    authenticatedAdminPage,
+  }) => {
+    await authenticatedAdminPage.goto(appUrl("/admin"));
 
-test.describe('Admin - Auth', () => {
-
-  test('TC076_Admin_Login', async ({ authenticatedAdminPage }) => {
-    // Priority: High
-    // Feature: Login
-    // Expected: Admin logged in, dashboard displayed...
-    
-    // Navigate to auth page
-    await authenticatedAdminPage.goto(BASE_URL + '/admin/auth');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // Fill login form using actual selectors from Auth.tsx
-    await authenticatedAdminPage.fill('input#email', 'khamis-1992@hotmail.com');
-    await authenticatedAdminPage.fill('input#password', 'Khamees1992#');
-    
-    // Click Sign In button
-    await authenticatedAdminPage.click('button[type="submit"]');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // Verify successful login
-    await expect(page).toHaveURL(/.*dashboard.*/);
-    await expect(authenticatedAdminPage.locator('body')).toContainText('Dashboard');
+    await expect(authenticatedAdminPage).toHaveURL(/\/admin(?:[/?#]|$)/);
+    await expect(authenticatedAdminPage.locator("body")).toBeVisible();
   });
 
-  test('TC077_Admin_Login_-_Invalid', async ({ authenticatedAdminPage }) => {
-    // Priority: High
-    // Feature: Invalid Login
-    // Expected: Access denied, error shown...
-    
-    // Navigate to auth page
-    await authenticatedAdminPage.goto(BASE_URL + '/admin/auth');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // Fill login form using actual selectors from Auth.tsx
-    await authenticatedAdminPage.fill('input#email', 'khamis-1992@hotmail.com');
-    await authenticatedAdminPage.fill('input#password', 'Khamees1992#');
-    
-    // Click Sign In button
-    await authenticatedAdminPage.click('button[type="submit"]');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // Verify successful login
-    await expect(page).toHaveURL(/.*dashboard.*/);
-    await expect(authenticatedAdminPage.locator('body')).toContainText('Dashboard');
+  test("a signed-out user is redirected to customer authentication", async ({
+    page,
+  }) => {
+    await page.goto(appUrl("/admin"));
+
+    await expect(page).toHaveURL(/\/auth(?:[/?#]|$)/);
   });
 
-  test('TC078_Admin_Logout', async ({ authenticatedAdminPage }) => {
-    // Priority: High
-    // Feature: Logout
-    // Expected: Logged out, redirected to login...
-    
-    // Verify logged in
-    await expect(page).toHaveURL(/.*dashboard.*/);
-    
-    // Click logout
-    await authenticatedAdminPage.click('text=Logout');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // Verify logged out
-    await expect(page).toHaveURL(/.*auth.*/);
-  });
+  test("a customer cannot open the admin portal", async ({
+    authenticatedCustomerPage,
+  }) => {
+    await authenticatedCustomerPage.goto(appUrl("/admin"));
 
-  test('TC079_Non-Admin_Access_Denied', async ({ authenticatedAdminPage }) => {
-    // Priority: Critical
-    // Feature: Role Check
-    // Expected: Access denied, redirected to dashboard...
-    
-    // Navigate to auth page
-    await authenticatedAdminPage.goto(BASE_URL + '/admin/auth');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // TODO: Implement specific auth test steps
-    // Verify page loaded
-    await expect(authenticatedAdminPage.locator('body')).toBeVisible();
-  });
-
-  test('TC400_Login_as_Admin', async ({ authenticatedAdminPage }) => {
-    // Priority: Critical
-    // Feature: Admin Login
-    // Expected: Admin logged in, dashboard shown...
-    
-    // Navigate to auth page
-    await authenticatedAdminPage.goto(BASE_URL + '/admin/auth');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // Fill login form using actual selectors from Auth.tsx
-    await authenticatedAdminPage.fill('input#email', 'khamis-1992@hotmail.com');
-    await authenticatedAdminPage.fill('input#password', 'Khamees1992#');
-    
-    // Click Sign In button
-    await authenticatedAdminPage.click('button[type="submit"]');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // Verify successful login
-    await expect(page).toHaveURL(/.*dashboard.*/);
-    await expect(authenticatedAdminPage.locator('body')).toContainText('Dashboard');
-  });
-
-  test('TC401_Login_with_Invalid_Credentials', async ({ authenticatedAdminPage }) => {
-    // Priority: High
-    // Feature: Invalid Admin Login
-    // Expected: Access denied, error shown...
-    
-    // Navigate to auth page
-    await authenticatedAdminPage.goto(BASE_URL + '/admin/auth');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // Fill login form using actual selectors from Auth.tsx
-    await authenticatedAdminPage.fill('input#email', 'khamis-1992@hotmail.com');
-    await authenticatedAdminPage.fill('input#password', 'Khamees1992#');
-    
-    // Click Sign In button
-    await authenticatedAdminPage.click('button[type="submit"]');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // Verify successful login
-    await expect(page).toHaveURL(/.*dashboard.*/);
-    await expect(authenticatedAdminPage.locator('body')).toContainText('Dashboard');
-  });
-
-  test('TC402_Prevent_Non-Admin_Access', async ({ authenticatedAdminPage }) => {
-    // Priority: Critical
-    // Feature: Non-Admin Access Denied
-    // Expected: Redirected to customer dashboard...
-    
-    // Navigate to auth page
-    await authenticatedAdminPage.goto(BASE_URL + '/admin');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // TODO: Implement specific auth test steps
-    // Verify page loaded
-    await expect(authenticatedAdminPage.locator('body')).toBeVisible();
-  });
-
-  test('TC403_Admin_Logout_2', async ({ authenticatedAdminPage }) => {
-    // Priority: High
-    // Feature: Admin Logout
-    // Expected: Logged out, access denied...
-    
-    // Verify logged in
-    await expect(page).toHaveURL(/.*dashboard.*/);
-    
-    // Click logout
-    await authenticatedAdminPage.click('text=Logout');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // Verify logged out
-    await expect(page).toHaveURL(/.*auth.*/);
-  });
-
-  test('TC404_Admin_Session_Timeout', async ({ authenticatedAdminPage }) => {
-    // Priority: Medium
-    // Feature: Session Timeout
-    // Expected: Session expired, login required...
-    
-    // Navigate to auth page
-    await authenticatedAdminPage.goto(BASE_URL + '/admin');
-    await waitForNetworkIdle(authenticatedAdminPage);
-    
-    // TODO: Implement specific auth test steps
-    // Verify page loaded
-    await expect(authenticatedAdminPage.locator('body')).toBeVisible();
+    await expect(authenticatedCustomerPage).not.toHaveURL(
+      /\/admin(?:[/?#]|$)/,
+    );
+    await expect(authenticatedCustomerPage).toHaveURL(
+      /\/(?:dashboard|auth)(?:[/?#]|$)/,
+    );
   });
 });

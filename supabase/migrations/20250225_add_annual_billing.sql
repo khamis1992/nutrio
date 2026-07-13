@@ -16,6 +16,97 @@ ADD COLUMN IF NOT EXISTS annual_discount_percent INTEGER DEFAULT 0;
 ALTER TABLE subscriptions 
 ADD COLUMN IF NOT EXISTS annual_renewal_date DATE;
 
+-- The earliest subscription migration created a legacy plan catalog with
+-- name/meal_credits columns. Normalize that table before using the canonical
+-- tier/billing contract so a clean migration replay succeeds.
+ALTER TABLE subscription_plans
+  ADD COLUMN IF NOT EXISTS tier VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS billing_interval VARCHAR(10) DEFAULT 'monthly',
+  ADD COLUMN IF NOT EXISTS meals_per_month INTEGER,
+  ADD COLUMN IF NOT EXISTS discount_percent INTEGER DEFAULT 0;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'subscription_plans'
+      AND column_name = 'name'
+  ) THEN
+    UPDATE subscription_plans
+    SET tier = COALESCE(tier, LOWER(name)),
+        billing_interval = COALESCE(billing_interval, 'monthly');
+
+    ALTER TABLE subscription_plans
+      ALTER COLUMN name DROP NOT NULL;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'subscription_plans'
+      AND column_name = 'meal_credits'
+  ) THEN
+    UPDATE subscription_plans
+    SET meals_per_month = COALESCE(meals_per_month, meal_credits);
+
+    ALTER TABLE subscription_plans
+      ALTER COLUMN meal_credits DROP NOT NULL;
+  END IF;
+END;
+$$;
+
+ALTER TABLE subscription_plans
+  DROP CONSTRAINT IF EXISTS subscription_plans_price_qar_check;
+
+ALTER TABLE subscription_plans
+  ALTER COLUMN price_qar TYPE NUMERIC(10, 2)
+    USING price_qar::NUMERIC(10, 2);
+
+ALTER TABLE subscription_plans
+  ALTER COLUMN tier SET NOT NULL,
+  ALTER COLUMN billing_interval SET NOT NULL,
+  ALTER COLUMN meals_per_month SET NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscription_plans_tier_check'
+      AND conrelid = 'public.subscription_plans'::REGCLASS
+  ) THEN
+    ALTER TABLE subscription_plans
+      ADD CONSTRAINT subscription_plans_tier_check
+      CHECK (tier IN ('basic', 'standard', 'premium', 'vip'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscription_plans_billing_interval_check'
+      AND conrelid = 'public.subscription_plans'::REGCLASS
+  ) THEN
+    ALTER TABLE subscription_plans
+      ADD CONSTRAINT subscription_plans_billing_interval_check
+      CHECK (billing_interval IN ('monthly', 'annual'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscription_plans_price_qar_check'
+      AND conrelid = 'public.subscription_plans'::REGCLASS
+  ) THEN
+    ALTER TABLE subscription_plans
+      ADD CONSTRAINT subscription_plans_price_qar_check
+      CHECK (price_qar >= 0);
+  END IF;
+END;
+$$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS subscription_plans_tier_interval_unique
+  ON subscription_plans (tier, billing_interval);
+
 -- Create subscription plans reference table if not exists
 CREATE TABLE IF NOT EXISTS subscription_plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -10,26 +10,31 @@ import re
 from pathlib import Path
 
 # Configuration
-file_path = r'C:\Users\khamis\Documents\nutrio-fuel-new\docs\plans\Nutrio-Fuel-E2E-Test-Plan.xlsx'
-output_dir = r'C:\Users\khamis\Documents\nutrio-fuel-new\e2e'
+repo_root = Path(__file__).resolve().parents[1]
+file_path = Path(
+    os.environ.get(
+        "E2E_PLAN_PATH",
+        repo_root / "docs" / "plans" / "Nutrio-Fuel-E2E-Test-Plan.xlsx",
+    )
+)
+output_dir = repo_root / "e2e"
 
-# Test credentials from user
 TEST_USERS = {
     'customer': {
-        'email': 'khamis--1992@hotmail.com',
-        'password': 'Khamees1992#',
+        'email': os.environ["E2E_CUSTOMER_EMAIL"],
+        'password': os.environ["E2E_CUSTOMER_PASSWORD"],
     },
     'admin': {
-        'email': 'khamis--1992@hotmail.com',  # Same user with admin role
-        'password': 'Khamees1992#',
+        'email': os.environ["E2E_ADMIN_EMAIL"],
+        'password': os.environ["E2E_ADMIN_PASSWORD"],
     },
     'partner': {
-        'email': 'partner@nutrio.com',
-        'password': 'Partner123!',
+        'email': os.environ["E2E_PARTNER_EMAIL"],
+        'password': os.environ["E2E_PARTNER_PASSWORD"],
     },
     'driver': {
-        'email': 'driver@nutriofuel.com',
-        'password': 'Driver123!',
+        'email': os.environ["E2E_DRIVER_EMAIL"],
+        'password': os.environ["E2E_DRIVER_PASSWORD"],
     },
 }
 

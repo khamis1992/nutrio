@@ -6,7 +6,6 @@ import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
-import { OneTapReorder } from "@/components/OneTapReorder";
 import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { toast as sonnerToast } from "sonner";
 import {
@@ -21,13 +20,9 @@ import {
   XCircle,
   ChefHat,
   CircleDot,
-  Calendar,
-  Flame,
-  Clock,
   Pencil,
   Trash2,
   RotateCcw,
-  Package,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -63,6 +58,14 @@ interface ScheduledMeal {
 
 const ACTIVE_STATUSES = ["pending", "confirmed", "preparing", "ready", "out_for_delivery"];
 const COMPLETED_STATUSES = ["delivered", "completed"];
+
+function normalizeCustomerOrderStatus(status: string | null): string {
+  if (status === "ready_for_pickup") return "ready";
+  if (["picked_up", "on_the_way", "in_transit"].includes(status || "")) {
+    return "out_for_delivery";
+  }
+  return status || "pending";
+}
 
 const getStatusConfig = (t: (key: string) => string): Record<string, { label: string; icon: React.ElementType; color: string; badgeColor: string }> => ({
   pending:          { label: t("order_status_pending"),       icon: CircleDot,    color: "text-orange-600",  badgeColor: "bg-orange-50 text-orange-700 border-orange-100" },
@@ -120,6 +123,7 @@ export default function DeliveryTracking() {
   const [activeTab, setActiveTab] = useState<TabType>("Active");
   const [refreshing, setRefreshing] = useState(false);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [modifyingSchedule, setModifyingSchedule] = useState<ScheduledMeal | null>(null);
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -163,15 +167,20 @@ export default function DeliveryTracking() {
       ]);
 
       const mealIds = [...new Set((orderItemsData || []).map(oi => oi.meal_id).filter(Boolean) as string[])];
-      const { data: mealsData } = mealIds.length > 0
+      const { data: rawMealsData } = mealIds.length > 0
         ? await supabase.from("meals").select("id, name, image_url, calories, restaurant_id").in("id", mealIds)
         : { data: [] };
+      const mealsData: Meal[] = (rawMealsData || []).map((meal) => ({
+        ...meal,
+        calories: meal.calories ?? 0,
+        restaurant_id: meal.restaurant_id ?? "",
+      }));
 
       const transformed: Order[] = ordersData.map(o => ({
         id: o.id,
         created_at: o.created_at,
         estimated_delivery_time: o.estimated_delivery_time || undefined,
-        status: o.status || "pending",
+        status: normalizeCustomerOrderStatus(o.status),
         total_amount: (o as { total_amount?: number }).total_amount || 0,
         meal_id: o.meal_id,
         notes: o.notes,
@@ -183,7 +192,7 @@ export default function DeliveryTracking() {
             id: oi.id,
             quantity: oi.quantity,
             meal_id: oi.meal_id || "",
-            meal: (mealsData || []).find(m => m.id === oi.meal_id),
+            meal: mealsData.find(m => m.id === oi.meal_id),
           })),
       }));
 
@@ -223,7 +232,12 @@ export default function DeliveryTracking() {
           const { data: restaurants } = restaurantIds.length > 0
             ? await supabase.from("restaurants").select("id, name, logo_url").in("id", restaurantIds)
             : { data: [] };
-          mealsData = meals.map(m => ({ ...m, restaurant: (restaurants || []).find(r => r.id === m.restaurant_id) }));
+          mealsData = meals.map((meal) => ({
+            ...meal,
+            calories: meal.calories ?? 0,
+            restaurant_id: meal.restaurant_id ?? "",
+            restaurant: (restaurants || []).find((restaurant) => restaurant.id === meal.restaurant_id),
+          }));
         }
       }
 
@@ -233,7 +247,7 @@ export default function DeliveryTracking() {
         meal_type: s.meal_type,
         is_completed: s.is_completed || false,
         order_status: s.order_status || "pending",
-        created_at: s.created_at,
+        created_at: s.created_at || new Date(0).toISOString(),
         meal_id: s.meal_id,
         meal: mealsData.find(m => m.id === s.meal_id),
       })));
@@ -252,28 +266,59 @@ export default function DeliveryTracking() {
   // ── Onboarding redirect ─────────────────────────────────────────────────────
   useEffect(() => {
     if (sessionStorage.getItem("nutrio_onboarding_done") === "true") return;
-    if (profile && !profile.onboarding_completed && !profile.goal) navigate("/onboarding");
+    if (profile && !profile.onboarding_completed && !profile.health_goal) navigate("/onboarding");
   }, [profile, navigate]);
 
   // ── Real-time subscription ──────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
-    const channel = supabase
+    const scheduleChannel = supabase
       .channel("customer-meal-schedules-tracking")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "meal_schedules", filter: `user_id=eq.${user.id}` },
-        (payload: { new: Record<string, unknown> }) => {
+        (payload: { new: Record<string, unknown>; old: Record<string, unknown> }) => {
           const newStatus = (payload.new as { order_status: string }).order_status;
+          const oldStatus = (payload.old as { order_status?: string }).order_status;
           const msgs: Record<string, string> = {
             confirmed: "Order confirmed!", preparing: "Your meal is being prepared!",
             ready: "Your meal is ready!", out_for_delivery: "Your order is on the way!",
             delivered: "Order delivered!", cancelled: "Order cancelled.",
           };
-          if (msgs[newStatus]) sonnerToast(msgs[newStatus]);
+          if (newStatus !== oldStatus && msgs[newStatus]) sonnerToast(msgs[newStatus]);
           fetchScheduledMeals();
         })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user, fetchScheduledMeals]);
+
+    const orderChannel = supabase
+      .channel("customer-direct-orders-tracking")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders", filter: `user_id=eq.${user.id}` },
+        (payload: { new: Record<string, unknown>; old: Record<string, unknown> }) => {
+          const newStatus = normalizeCustomerOrderStatus(
+            typeof payload.new.status === "string" ? payload.new.status : null,
+          );
+          const oldStatus = normalizeCustomerOrderStatus(
+            typeof payload.old.status === "string" ? payload.old.status : null,
+          );
+          const messages: Record<string, string> = {
+            confirmed: "Order confirmed!",
+            preparing: "Your meal is being prepared!",
+            ready: "Your meal is ready!",
+            out_for_delivery: "Your order is on the way!",
+            delivered: "Order delivered!",
+            cancelled: "Order cancelled.",
+          };
+          if (newStatus !== oldStatus && messages[newStatus]) sonnerToast(messages[newStatus]);
+          fetchOrders(0);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(scheduleChannel);
+      supabase.removeChannel(orderChannel);
+    };
+  }, [user, fetchOrders, fetchScheduledMeals]);
 
   // ── Pull-to-refresh ─────────────────────────────────────────────────────────
   const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientY);
@@ -305,10 +350,13 @@ export default function DeliveryTracking() {
         if (!(data as { success?: boolean })?.success) throw new Error("Cancellation failed.");
         setScheduledMeals(prev => prev.map(m => m.id === id ? { ...m, order_status: "cancelled" } : m));
       } else {
-        const { error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: id, p_reason: null });
-        if (error) {
-          const { error: rawError } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", id);
-          if (rawError) throw rawError;
+        const { data, error } = await supabase.rpc(
+          "cancel_customer_order" as never,
+          { p_order_id: id, p_reason: "Customer cancellation" } as never,
+        );
+        if (error) throw error;
+        if (!(data as { success?: boolean } | null)?.success) {
+          throw new Error("Cancellation failed.");
         }
         setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "cancelled" } : o));
       }
@@ -317,6 +365,42 @@ export default function DeliveryTracking() {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to cancel.", variant: "destructive" });
     } finally {
       setCancelling(null);
+    }
+  };
+
+  const handleConfirmReceived = async (item: UnifiedOrder) => {
+    setConfirming(item.id);
+    try {
+      const source = item.sourceType === "scheduled" ? "meal_schedule" : "order";
+      const { data, error } = await supabase.rpc("customer_confirm_order_received", {
+        p_source: source,
+        p_order_id: item.id,
+      });
+      if (error) throw error;
+      if (!(data as { success?: boolean } | null)?.success) {
+        throw new Error("Receipt confirmation failed.");
+      }
+
+      if (item.sourceType === "scheduled") {
+        setScheduledMeals((previous) => previous.map((meal) =>
+          meal.id === item.id
+            ? { ...meal, order_status: "completed", is_completed: true }
+            : meal,
+        ));
+      } else {
+        setOrders((previous) => previous.map((order) =>
+          order.id === item.id ? { ...order, status: "completed" } : order,
+        ));
+      }
+      toast({ title: "Delivery confirmed", description: "Thank you for confirming receipt." });
+    } catch (error) {
+      toast({
+        title: "Unable to confirm delivery",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setConfirming(null);
     }
   };
 
@@ -333,7 +417,7 @@ export default function DeliveryTracking() {
       tab: getOrderTabType(o.status),
       canCancel: ["pending", "confirmed"].includes(o.status),
       canModify: false,
-      canReorder: COMPLETED_STATUSES.includes(o.status),
+      canReorder: o.status === "completed",
       canTrack: ACTIVE_STATUSES.includes(o.status),
       sourceType: "order",
       originalOrder: o,
@@ -451,23 +535,31 @@ export default function DeliveryTracking() {
             </button>
           )}
 
+          {item.status === "delivered" && (
+            <button
+              type="button"
+              className="flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
+              onClick={() => handleConfirmReceived(item)}
+              disabled={confirming === item.id}
+            >
+              {confirming === item.id
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <CheckCircle2 className="h-3.5 w-3.5" />}
+              Confirm received
+            </button>
+          )}
+
           {item.canReorder && item.originalOrder && (
-            <OneTapReorder
-              orderId={item.originalOrder.id}
-              items={item.originalOrder.order_items.map(i => ({
-                meal_id: i.meal_id,
-                meal_name: i.meal?.name || "Unknown",
-                quantity: i.quantity,
-                price: 0,
-                image_url: i.meal?.image_url,
-                restaurant_id: item.originalOrder!.restaurant_id || undefined,
-                restaurant_name: item.originalOrder!.restaurant?.name,
-              }))}
-              orderTotal={0}
-              variant="outline"
-              size="default"
+            <button
+              type="button"
+              onClick={() => {
+                const mealId = item.originalOrder?.order_items[0]?.meal_id;
+                navigate(mealId ? `/meals/${mealId}` : "/meals");
+              }}
               className="ml-auto flex h-10 items-center gap-1.5 rounded-full border-emerald-200 bg-white px-4 text-sm font-bold text-emerald-700 hover:bg-emerald-50"
-            />
+            >
+              Choose again <RotateCw className="h-3.5 w-3.5" />
+            </button>
           )}
 
           {/* If completed scheduled meal with no reorder */}

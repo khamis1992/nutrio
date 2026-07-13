@@ -10,7 +10,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-payout-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-milestone-notification]
 verify_jwt = false
@@ -31,16 +31,18 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.log-user-ip]
-verify_jwt = false
+verify_jwt = true
 
 [functions.process-subscription-renewal]
+# Scheduled requests do not carry a Supabase JWT. The function requires the
+# SUBSCRIPTION_RENEWAL_CRON_SECRET header and authenticates admin previews itself.
 verify_jwt = false
 
 [functions.cleanup-expired-rollovers]
 verify_jwt = false
 
 [functions.handle-freeze-request]
-verify_jwt = false
+verify_jwt = true
 
 [functions.nutrition-profile-engine]
 verify_jwt = false
@@ -58,7 +60,19 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.qnas-proxy]
-verify_jwt = false
+verify_jwt = true
 
 [functions.proxy-openrouter]
+verify_jwt = false
+
+[functions.sporthub-webhook]
+verify_jwt = false
+
+[functions.sporthub-oauth-callback]
+verify_jwt = false
+
+# SADAD callbacks and webhooks do not carry a Supabase JWT. The function
+# validates customer JWTs itself for create/status operations and verifies the
+# SADAD checksum for provider-originated requests.
+[functions.sadad-payment]
 verify_jwt = false

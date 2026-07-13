@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Users, Loader2, Check, Clock, X, Gift, TrendingUp, DollarSign } from "lucide-react";
 import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +13,6 @@ export function AffiliateApplicationCard() {
   const {
     application,
     loading,
-    hasApplied,
     isPending,
     isApprovedAffiliate,
     isRejected,

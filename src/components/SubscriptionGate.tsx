@@ -68,6 +68,7 @@ export function SubscriptionGate({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Close"
             className="absolute right-2 top-2"
             onClick={onDismiss}
           >
@@ -94,7 +95,7 @@ export function SubscriptionGate({
           View Plans <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
         <p className="text-xs text-muted-foreground text-center">
-          Plans start at <strong>215 QAR/month</strong> • Cancel anytime
+          Plans start at <strong>450 QAR/week</strong> • Cancel anytime
         </p>
       </CardFooter>
     </Card>

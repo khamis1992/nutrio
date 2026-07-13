@@ -315,7 +315,7 @@ export class ProfessionalWeeklyReportPDF {
 
   /** Draw a decorative leaf dot cluster */
   private leafCluster(x: number, y: number) {
-    const dots = [
+    const dots: Array<[number, number, [number, number, number]]> = [
       [0, 0, C.sageDeep],
       [4, -2, C.sage],
       [7, 1, C.mint],

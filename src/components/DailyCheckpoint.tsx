@@ -7,8 +7,11 @@ import {
   Utensils,
   ChevronRight,
   CheckCircle2,
+  Coffee,
   Moon,
+  Trophy,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 interface DailyCheckpointProps {
   calConsumed: number;
@@ -36,6 +39,20 @@ type Checkpoint =
   | { kind: "evening_wind_down" }
   | { kind: "morning_start" };
 
+interface CheckpointConfig {
+  icon: LucideIcon;
+  iconBg: string;
+  title: string;
+  subtitle: string;
+  action: string;
+  actionIcon: LucideIcon;
+  actionColor: string;
+  gradient: string;
+  border: string;
+  onClick?: () => void;
+  to?: string;
+}
+
 function computeCheckpoint(p: DailyCheckpointProps): Checkpoint {
   const { calConsumed, calBurned, dailyCalories, dailyStreak, proteinRemaining, carbsRemaining, fatRemaining, scheduledMealsCount, hasActiveSubscription, isUnlimited, mealsRemaining, hourNow } = p;
   const hasLogged = calConsumed > 0 || calBurned > 0;
@@ -57,6 +74,9 @@ function computeCheckpoint(p: DailyCheckpointProps): Checkpoint {
     }
     if (carbsRemaining >= carbsRemaining * 0.5 && carbsRemaining > 30) {
       return { kind: "macro_gap", macro: "carbs", remaining: carbsRemaining, target: carbsRemaining + (calConsumed > 0 ? 0 : 0) };
+    }
+    if (fatRemaining > 20) {
+      return { kind: "macro_gap", macro: "fat", remaining: fatRemaining, target: fatRemaining };
     }
     if (scheduledMealsCount === 0 && mealsLeft > 0) {
       return { kind: "on_track", streak: dailyStreak, mealsLeft: 1 };
@@ -85,7 +105,7 @@ function computeCheckpoint(p: DailyCheckpointProps): Checkpoint {
 export function DailyCheckpoint(props: DailyCheckpointProps) {
   const cp = computeCheckpoint(props);
 
-  const config = {
+  const config: Record<Checkpoint["kind"], CheckpointConfig> = {
     first_time: {
       icon: Utensils,
       iconBg: "bg-gradient-to-br from-emerald-400 to-teal-500",
@@ -101,7 +121,7 @@ export function DailyCheckpoint(props: DailyCheckpointProps) {
     streak_risk: {
       icon: Flame,
       iconBg: "bg-gradient-to-br from-amber-400 to-orange-500",
-      title: `${(props as any).mealsNeeded} meal away from a ${(props as any).streak}-day streak`,
+      title: `${cp.kind === "streak_risk" ? cp.mealsNeeded : 1} meal away from a ${cp.kind === "streak_risk" ? cp.streak : props.dailyStreak}-day streak`,
       subtitle: "Don't break it — log now to keep the fire alive",
       action: "Log Meal to Keep Streak" as const,
       actionIcon: Flame,
@@ -113,7 +133,7 @@ export function DailyCheckpoint(props: DailyCheckpointProps) {
     on_track: {
       icon: TrendingUp,
       iconBg: "bg-gradient-to-br from-blue-400 to-indigo-500",
-      title: `${(props as any).streak}-day streak — keep going`,
+      title: `${cp.kind === "on_track" ? cp.streak : props.dailyStreak}-day streak — keep going`,
       subtitle: "You're building momentum. Another meal keeps your streak alive.",
       action: "Log Meal" as const,
       actionIcon: Utensils,
@@ -125,7 +145,7 @@ export function DailyCheckpoint(props: DailyCheckpointProps) {
     macro_gap: {
       icon: Target,
       iconBg: "bg-gradient-to-br from-violet-400 to-purple-500",
-      title: `${(props as any).remaining}g ${(props as any).macro} remaining`,
+      title: `${cp.kind === "macro_gap" ? cp.remaining : 0}g ${cp.kind === "macro_gap" ? cp.macro : "macro"} remaining`,
       subtitle: "Find a meal that fits your macros",
       action: "Browse Meals" as const,
       actionIcon: Utensils,
@@ -138,7 +158,7 @@ export function DailyCheckpoint(props: DailyCheckpointProps) {
     perfect_day: {
       icon: Trophy,
       iconBg: "bg-gradient-to-br from-amber-400 to-yellow-500",
-      title: `Perfect day! ${(props as any).streak}-day streak`,
+      title: `Perfect day! ${cp.kind === "perfect_day" ? cp.streak : props.dailyStreak}-day streak`,
       subtitle: "All targets hit. Tomorrow starts fresh.",
       action: "View Progress" as const,
       actionIcon: TrendingUp,

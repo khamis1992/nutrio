@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import Dashboard from "@/pages/Dashboard";
+import { createMockProfile, createMockUser } from "@/test/factories";
 
 const mockNavigate = vi.fn();
 
@@ -35,10 +35,6 @@ vi.mock("@/hooks/useFavoriteRestaurants", () => ({
   useFavoriteRestaurants: vi.fn(),
 }));
 
-vi.mock("@/hooks/useFeaturedRestaurants", () => ({
-  useFeaturedRestaurants: vi.fn(),
-}));
-
 vi.mock("@/hooks/useNotifications", () => ({
   useNotifications: vi.fn(),
 }));
@@ -49,6 +45,60 @@ vi.mock("@/hooks/useDashboardRolloverCredits", () => ({
 
 vi.mock("@/hooks/useTodayProgress", () => ({
   useTodayProgress: vi.fn(),
+}));
+
+vi.mock("@/hooks/useNutritionGoals", () => ({
+  useNutritionGoals: () => ({ activeGoal: null, loading: false, error: null }),
+}));
+
+vi.mock("@/hooks/useHealthKitIntegration", () => ({
+  useHealthKitIntegration: () => ({
+    platform: null,
+    isAvailable: false,
+    isConnected: false,
+    enabledTypes: [],
+    lastSyncTimestamp: null,
+    isSyncing: false,
+    toggleDataType: vi.fn(),
+    syncData: vi.fn(),
+    formatLastSync: () => "",
+  }),
+}));
+
+vi.mock("@/hooks/useHealthDailyMetrics", () => ({
+  useHealthDailyMetrics: () => ({ metrics: null, rangeMetrics: [] }),
+}));
+
+vi.mock("@/hooks/useHealthTrackingGoals", () => ({
+  useHealthTrackingGoals: () => ({
+    goals: { waterGoalMl: 2500, stepGoal: 10000 },
+    loading: false,
+    error: null,
+  }),
+}));
+
+vi.mock("@/hooks/useWeeklySummary", () => ({
+  useWeeklySummary: () => ({ summary: null, loading: false, error: null }),
+}));
+
+vi.mock("@/hooks/useSmartRecommendations", () => ({
+  useSmartRecommendations: () => ({ recommendations: [], loading: false }),
+}));
+
+vi.mock("@/hooks/useMealRecommendations", () => ({
+  useMealRecommendations: () => ({ candidates: [] }),
+}));
+
+vi.mock("@/hooks/useWeekdayData", () => ({
+  useWeekdayData: () => ({ days: [], loading: false, error: null }),
+}));
+
+vi.mock("@/hooks/useStreak", () => ({
+  useStreak: () => ({ streaks: null, loading: false, error: null }),
+}));
+
+vi.mock("@/hooks/useBodyMeasurements", () => ({
+  useBodyMeasurements: () => ({ measurements: [] }),
 }));
 
 vi.mock("@/hooks/useHasRestaurant", () => ({
@@ -120,6 +170,7 @@ vi.mock("@/lib/dateUtils", () => ({
   WEEK_DAYS_MONDAY: [1, 2, 3, 4, 5, 6, 0],
   isQatarToday: (d: string) => d === "2026-04-15",
   getQatarDate: () => new Date(),
+  formatLocaleDate: () => "Wed, Apr 15",
 }));
 
 vi.mock("@/lib/animations", () => ({
@@ -133,45 +184,39 @@ vi.mock("@/lib/animations", () => ({
   breatheVariants: { breathe: { opacity: [1, 0.85, 1] } },
 }));
 
-vi.mock("framer-motion", () => ({
-  motion: new Proxy(
-    {},
-    {
-      get: () => {
-        return ({ children, ...rest }: any) => {
-          const { variants, initial, animate, exit, whileTap, whileHover, transition, layout, style: _style, ...domProps } = rest;
-          return <div {...domProps}>{children}</div>;
-        };
+vi.mock("framer-motion", async () => {
+  const ReactModule = await vi.importActual<typeof import("react")>("react");
+  const components = new Map<string, React.ComponentType<any>>();
+
+  return {
+    motion: new Proxy({}, {
+      get: (_target, tag: string) => {
+        if (!components.has(tag)) {
+          components.set(tag, ReactModule.forwardRef<HTMLElement, any>(({ children, ...rest }, ref) => {
+            const { variants, initial, animate, exit, whileTap, whileHover, transition, layout, ...domProps } = rest;
+            return ReactModule.createElement(tag, { ...domProps, ref }, children);
+          }));
+        }
+        return components.get(tag);
       },
-    }
-  ),
-  AnimatePresence: ({ children }: any) => <>{children}</>,
-  useScroll: () => ({ scrollY: { get: () => 0 } }),
-  useTransform: () => 0,
-  useReducedMotion: () => false,
-}));
+    }),
+    AnimatePresence: ({ children }: any) => <>{children}</>,
+    useScroll: () => ({ scrollY: { get: () => 0 } }),
+    useTransform: () => 0,
+    useReducedMotion: () => true,
+  };
+});
 
 vi.mock("@/components/DashboardErrorBoundary", () => ({
   DashboardErrorBoundary: ({ children }: any) => <>{children}</>,
 }));
 
-vi.mock("@/components/LogMealDialog", () => ({
-  LogMealDialog: () => <div data-testid="log-meal-dialog" />,
+vi.mock("@/components/LogMealModal", () => ({
+  default: ({ open }: { open: boolean }) => open ? <div data-testid="log-meal-modal" /> : null,
 }));
 
 vi.mock("@/components/ActiveOrderBanner", () => ({
   ActiveOrderBanner: ({ userId }: { userId: string }) => <div data-testid="active-order-banner">Active Orders ({userId})</div>,
-}));
-
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    from: vi.fn(),
-    channel: vi.fn().mockReturnValue({ on: vi.fn().mockReturnThis(), subscribe: vi.fn() }),
-    removeChannel: vi.fn(),
-    realtime: { setAuth: vi.fn() },
-    auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }) },
-    functions: { invoke: vi.fn() },
-  },
 }));
 
 vi.mock("@/components/DailyNutritionCard", () => ({
@@ -199,6 +244,10 @@ vi.mock("@/components/RoleIndicator", () => ({
   RoleIndicator: () => <div data-testid="role-indicator" />,
 }));
 
+vi.mock("@/pages/ProgressRedesigned", () => ({
+  default: () => <div data-testid="progress-redesigned" />,
+}));
+
 vi.mock("@/assets/flam.png", () => ({
   default: "flam-avatar.png",
 }));
@@ -208,12 +257,10 @@ import { useProfile } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAdaptiveGoals } from "@/hooks/useAdaptiveGoals";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
-import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useDashboardRolloverCredits } from "@/hooks/useDashboardRolloverCredits";
 import { useTodayProgress } from "@/hooks/useTodayProgress";
 import { useHasRestaurant } from "@/hooks/useHasRestaurant";
-import { getQatarNow } from "@/lib/dateUtils";
 
 const createQueryClient = () =>
   new QueryClient({
@@ -231,9 +278,9 @@ const renderDashboard = () => {
   );
 };
 
-const mockUser = { id: "user-1", email: "test@example.com" };
+const mockUser = createMockUser();
 
-const defaultProfile = {
+const defaultProfile = createMockProfile({
   id: "p1",
   user_id: "user-1",
   full_name: "John Doe",
@@ -259,7 +306,7 @@ const defaultProfile = {
   streak_days: 3,
   created_at: "2026-01-01",
   updated_at: "2026-04-15",
-};
+});
 
 const defaultSubscription = {
   id: "sub-1",
@@ -290,7 +337,7 @@ const setupMocks = (overrides: Record<string, any> = {}) => {
   });
 
   vi.mocked(useProfile).mockReturnValue({
-    profile: overrides.profile ?? defaultProfile,
+    profile: Object.prototype.hasOwnProperty.call(overrides, "profile") ? overrides.profile : defaultProfile,
     loading: overrides.profileLoading ?? false,
     error: overrides.profileError ?? null,
     refetch: vi.fn(),
@@ -298,9 +345,11 @@ const setupMocks = (overrides: Record<string, any> = {}) => {
   });
 
   vi.mocked(useSubscription).mockReturnValue({
-    subscription: overrides.subscription ?? defaultSubscription,
+    subscription: Object.prototype.hasOwnProperty.call(overrides, "subscription") ? overrides.subscription : defaultSubscription,
     loading: false,
+    error: null,
     hasActiveSubscription: overrides.hasActiveSubscription ?? true,
+    isExpired: false,
     isPaused: false,
     remainingMeals: overrides.remainingMeals ?? 15,
     totalMeals: 30,
@@ -314,6 +363,7 @@ const setupMocks = (overrides: Record<string, any> = {}) => {
     hasSnacks: false,
     isUnlimited: overrides.isUnlimited ?? false,
     isVip: overrides.isVip ?? false,
+    tier: overrides.isVip ? "vip" : "standard",
     canOrderMeal: true,
     incrementMealUsage: vi.fn(),
     incrementSnackUsage: vi.fn(),
@@ -349,16 +399,9 @@ const setupMocks = (overrides: Record<string, any> = {}) => {
     isFavorite: vi.fn().mockReturnValue(false),
   });
 
-  vi.mocked(useFeaturedRestaurants).mockReturnValue({
-    featuredRestaurants: overrides.featuredRestaurants ?? [],
-    loading: overrides.restaurantsLoading ?? false,
-    isFeatured: vi.fn().mockReturnValue(false),
-    featuredIds: new Set<string>(),
-  });
-
   vi.mocked(useNotifications).mockReturnValue({
     unreadCount: overrides.unreadCount ?? 0,
-    setUnreadCount: vi.fn(),
+    loading: false,
   });
 
   vi.mocked(useDashboardRolloverCredits).mockReturnValue({
@@ -368,8 +411,7 @@ const setupMocks = (overrides: Record<string, any> = {}) => {
   });
 
   vi.mocked(useTodayProgress).mockReturnValue({
-    todayProgress: { calories: 800, protein: 60, carbs: 120, fat: 30 },
-    setTodayProgress: vi.fn(),
+    todayProgress: { calories: 800, protein: 60, carbs: 120, fat: 30, fiber: 0, mealsLogged: 2 },
     error: null,
     loading: false,
   });
@@ -397,25 +439,13 @@ describe("Dashboard Page", () => {
       expect(screen.getByText("Good morning")).toBeInTheDocument();
     });
 
-    it("renders afternoon greeting between 12pm-6pm", () => {
-      vi.mocked(useProfile).mockReturnValue({
-        ...vi.mocked(useProfile)(),
-        profile: defaultProfile,
-        loading: false,
-        error: null,
-        refetch: vi.fn(),
-        updateProfile: vi.fn(),
-      });
-      renderDashboard();
-      expect(screen.getByText(/Good (morning|afternoon|evening)/)).toBeInTheDocument();
-    });
   });
 
-  describe("Subscription Card (compact pill in header)", () => {
-    it("displays meal count pill when active subscription exists", () => {
+  describe("Daily score card", () => {
+    it("displays the real meal balance when an active subscription exists", () => {
       setupMocks({ hasActiveSubscription: true, subscription: defaultSubscription });
       renderDashboard();
-      expect(screen.getByText("15")).toBeInTheDocument();
+      expect(screen.getByText("15 meals_left")).toBeInTheDocument();
     });
 
     it("shows unlimited symbol when isUnlimited is true", () => {
@@ -424,195 +454,61 @@ describe("Dashboard Page", () => {
       expect(screen.getByText("∞")).toBeInTheDocument();
     });
 
-    it("shows all meals used warning when remaining = 0", () => {
-      setupMocks({
-        hasActiveSubscription: true,
-        remainingMeals: 0,
-        subscription: defaultSubscription,
-      });
-      renderDashboard();
-      expect(screen.getByText("All meals used")).toBeInTheDocument();
-    });
+  });
 
-    it("does not render subscription pill when no active subscription", () => {
-      setupMocks({ hasActiveSubscription: false, subscription: null });
+  describe("Quick actions", () => {
+    it("opens log meal dialog on click", () => {
       renderDashboard();
-      expect(screen.queryByText("meals left")).not.toBeInTheDocument();
+      const btn = screen.getByTestId("dashboard-fab-log");
+      fireEvent.click(btn);
+      expect(screen.getByTestId("log-meal-modal")).toBeInTheDocument();
     });
   });
 
-  describe("Log Meal Button", () => {
-    it("shows log meal button", () => {
+  describe("Dashboard actions", () => {
+    it("navigates to meals from the order action", () => {
       renderDashboard();
-      expect(screen.getByText("Log Meal")).toBeInTheDocument();
-    });
-
-    it("opens log meal dialog on click", async () => {
-      const user = userEvent.setup();
-      renderDashboard();
-      const btn = screen.getByText("Log Meal");
-      await user.click(btn);
+      expect(screen.getByTestId("dashboard-fab-log")).toBeInTheDocument();
+      expect(screen.getByTestId("dashboard-fab-coaches")).toBeInTheDocument();
+      expect(screen.getByTestId("dashboard-fab-community")).toBeInTheDocument();
+      expect(screen.getByTestId("dashboard-nutrition-card")).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId("dashboard-fab-order"));
+      expect(mockNavigate).toHaveBeenCalledWith("/meals");
     });
   });
 
-  describe("Featured Restaurants", () => {
-    it("shows restaurant carousel when restaurants exist", () => {
-      setupMocks({
-        featuredRestaurants: [
-          {
-            id: "r1",
-            name: "Healthy Bites",
-            description: "Fresh meals",
-            logo_url: null,
-            rating: 4.5,
-            total_orders: 120,
-            meal_count: 8,
-            featured_listing_id: "fl1",
-            package_type: "premium",
-            ends_at: "2026-05-01",
-          },
-        ],
-      });
-      renderDashboard();
-      expect(screen.getByText("Healthy Bites")).toBeInTheDocument();
-    });
-
-    it("shows empty state when no featured restaurants", () => {
-      setupMocks({ featuredRestaurants: [], restaurantsLoading: false });
-      renderDashboard();
-      expect(screen.getByText("No featured restaurants")).toBeInTheDocument();
-    });
-
-    it("shows loading shimmer when restaurants are loading", () => {
-      setupMocks({ restaurantsLoading: true });
-      renderDashboard();
+  describe("Daily metrics", () => {
+    it("exposes the calorie metric as an accessible action", () => {
+      const { container } = renderDashboard();
+      expect(screen.getByRole("button", { name: /^Cal:/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^Water:/ })).toBeInTheDocument();
+      expect(container.querySelector('section[aria-label="Daily score"]')).toBeInTheDocument();
     });
   });
 
-  describe("Streak Widget (inline in nutrition card)", () => {
-    it("shows streak with correct day count", () => {
+  describe("Dashboard tabs", () => {
+    it("renders all dashboard tabs", () => {
       renderDashboard();
-      expect(screen.getByText(/3 day streak/)).toBeInTheDocument();
-    });
-
-    it("shows multi-week streak when streak >= 2 * weekTarget", () => {
-      setupMocks({ profile: { ...defaultProfile, streak_days: 16 } });
-      renderDashboard();
-      expect(screen.getByText(/day streak/)).toBeInTheDocument();
-    });
-
-    it("shows current week completion fraction", () => {
-      renderDashboard();
-      expect(screen.getByTestId("streak-inline")).toBeInTheDocument();
-    });
-  });
-
-  describe("Quick Actions are removed (replaced by bottom tab bar)", () => {
-    it("does not render quick action links", () => {
-      renderDashboard();
-      expect(screen.queryByText("Tracker")).not.toBeInTheDocument();
-      expect(screen.queryByText("Favorites")).not.toBeInTheDocument();
-      expect(screen.queryByText("Progress")).not.toBeInTheDocument();
-    });
-  });
-
-  describe("Onboarding Redirect", () => {
-    it("redirects to /onboarding when onboarding_completed is false", async () => {
-      setupMocks({ profile: { ...defaultProfile, onboarding_completed: false } });
-      renderDashboard();
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith("/onboarding");
-      });
-    });
-
-    it("does not redirect when onboarding_completed is true", () => {
-      renderDashboard();
-      expect(mockNavigate).not.toHaveBeenCalledWith("/onboarding");
-    });
-
-    it("does not redirect during profile loading", () => {
-      setupMocks({ profileLoading: true });
-      renderDashboard();
-      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(screen.getByTestId("dashboard-tab-today")).toBeInTheDocument();
+      expect(screen.getByTestId("dashboard-tab-nutrition")).toBeInTheDocument();
+      expect(screen.getByTestId("dashboard-tab-activity")).toBeInTheDocument();
+      expect(screen.getByTestId("dashboard-tab-progress")).toBeInTheDocument();
     });
   });
 
   describe("Profile Error Handling", () => {
-    it("renders dashboard even when profile has error", () => {
+    it("renders a recoverable error state when profile loading fails", () => {
       setupMocks({ profileError: new Error("Network error"), profile: null });
       renderDashboard();
-      expect(screen.getByText("Log Meal")).toBeInTheDocument();
-    });
-  });
-
-  describe("Null Subscription", () => {
-    it("handles null subscription without crashing", () => {
-      setupMocks({ subscription: null, hasActiveSubscription: false });
-      renderDashboard();
-      expect(screen.getByText("Log Meal")).toBeInTheDocument();
-    });
-  });
-
-  describe("Empty Notifications", () => {
-    it("renders notification bell with no unread count", () => {
-      setupMocks({ unreadCount: 0 });
-      renderDashboard();
-      const bell = screen.getByLabelText("Notifications");
-      expect(bell).toBeInTheDocument();
-    });
-
-    it("renders notification unread count badge when > 0", () => {
-      setupMocks({ unreadCount: 5 });
-      renderDashboard();
-      const badges = screen.getAllByText("5");
-      expect(badges.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe("AI Widgets", () => {
-    it("shows AI suggestions unavailable message when edge function is not available", () => {
-      vi.mocked(useAdaptiveGoals).mockReturnValue({
-        ...vi.mocked(useAdaptiveGoals)(),
-        edgeFunctionAvailable: false,
-      });
-      renderDashboard();
-      expect(screen.getByText("AI suggestions temporarily unavailable")).toBeInTheDocument();
-    });
-  });
-
-  describe("Evening Greeting", () => {
-    it("renders evening greeting at 6pm+", () => {
-      const eveningNow = new Date();
-      eveningNow.setHours(19, 0, 0, 0);
-      vi.mocked(getQatarNow).mockReturnValue(eveningNow);
-      renderDashboard();
-      expect(screen.getByText("Good evening")).toBeInTheDocument();
-    });
-  });
-
-  describe("Subscription CTA", () => {
-    it("shows CTA when no active subscription", () => {
-      setupMocks({ hasActiveSubscription: false, subscription: null });
-      renderDashboard();
+      expect(screen.getByText("retry_button")).toBeInTheDocument();
     });
   });
 
   describe("Notification Badge Overflow", () => {
-    it("shows 99+ when unread count exceeds 99", () => {
+    it("shows a compact 9+ badge when unread count exceeds 9", () => {
       setupMocks({ unreadCount: 150 });
       renderDashboard();
-      expect(screen.getByText("99+")).toBeInTheDocument();
-    });
-  });
-
-  describe("canOrderMeal when meals exhausted", () => {
-    it("canOrderMeal returns false when no meals remaining and not unlimited", () => {
-      setupMocks({
-        hasActiveSubscription: true,
-        remainingMeals: 0,
-        subscription: defaultSubscription,
-      });
-      renderDashboard();
+      expect(screen.getByText("9+")).toBeInTheDocument();
     });
   });
 
@@ -624,7 +520,7 @@ describe("Dashboard Page", () => {
         rolloverCredits: 2,
       });
       renderDashboard();
-      expect(screen.getByText("15")).toBeInTheDocument();
+      expect(screen.getByText("15 meals_left")).toBeInTheDocument();
     });
   });
 });

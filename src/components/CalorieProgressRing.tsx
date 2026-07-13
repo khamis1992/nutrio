@@ -8,6 +8,7 @@ interface CalorieProgressRingProps {
 }
 
 const CalorieProgressRing = ({ consumed, target }: CalorieProgressRingProps) => {
+  const { t } = useLanguage();
   const totalSegments = 40;
   const progress = Math.min(consumed / target, 1);
   const filledSegments = Math.round(progress * totalSegments);

@@ -54,6 +54,7 @@ interface FeaturedListing {
   starts_at: string;
   ends_at: string;
   status: string;
+  payment_reference: string | null;
   created_at: string;
 }
 
@@ -136,6 +137,7 @@ export default function AdminFeatured() {
           starts_at,
           ends_at,
           status,
+          payment_reference,
           created_at,
           restaurants (name)
         `)
@@ -143,7 +145,7 @@ export default function AdminFeatured() {
 
       if (listingsError) throw listingsError;
 
-      const formattedListings: FeaturedListing[] = (listingsData || []).map((l: { id: string; restaurant_id: string; package_type: string; price_paid: number; starts_at: string; ends_at: string; status: string; created_at: string; restaurants?: { name: string } | null }) => ({
+      const formattedListings: FeaturedListing[] = (listingsData || []).map((l: { id: string; restaurant_id: string; package_type: string; price_paid: number; starts_at: string; ends_at: string; status: string; payment_reference: string | null; created_at: string; restaurants?: { name: string } | null }) => ({
         id: l.id,
         restaurant_id: l.restaurant_id,
         restaurant_name: l.restaurants?.name || "Unknown",
@@ -152,6 +154,7 @@ export default function AdminFeatured() {
         starts_at: l.starts_at,
         ends_at: l.ends_at,
         status: l.status,
+        payment_reference: l.payment_reference,
         created_at: l.created_at,
       }));
 
@@ -165,11 +168,16 @@ export default function AdminFeatured() {
         (l) => l.status === "active" && new Date(l.ends_at) > now
       ).length;
       
-      const totalRevenue = formattedListings.reduce((sum, l) => sum + l.price_paid, 0);
+      const paidListings = formattedListings.filter(
+        (listing) =>
+          Boolean(listing.payment_reference) &&
+          ["active", "expired"].includes(listing.status),
+      );
+      const totalRevenue = paidListings.reduce((sum, listing) => sum + listing.price_paid, 0);
       
-      const thisMonthRevenue = formattedListings
-        .filter((l) => new Date(l.created_at) >= monthStart)
-        .reduce((sum, l) => sum + l.price_paid, 0);
+      const thisMonthRevenue = paidListings
+        .filter((listing) => new Date(listing.created_at) >= monthStart)
+        .reduce((sum, listing) => sum + listing.price_paid, 0);
 
       setStats({
         totalRevenue,

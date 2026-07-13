@@ -51,6 +51,7 @@ interface MealApproval {
   restaurant: {
     id: string;
     name: string;
+    commission_rate: number;
   } | null;
 }
 
@@ -94,23 +95,27 @@ const AdminMealApprovals = () => {
       if (error) throw error;
 
       const restaurantIds = [
-        ...new Set((mealsData || []).map((m) => m.restaurant_id).filter(Boolean)),
+        ...new Set((mealsData || []).map((m) => m.restaurant_id).filter((id): id is string => Boolean(id))),
       ];
-      let restaurantsMap: Record<string, { id: string; name: string }> = {};
+      let restaurantsMap: Record<string, { id: string; name: string; commission_rate: number }> = {};
 
       if (restaurantIds.length > 0) {
         const { data: restaurants } = await supabase
           .from("restaurants")
-          .select("id, name")
+          .select("id, name, commission_rate")
           .in("id", restaurantIds);
 
         if (restaurants) {
           restaurantsMap = restaurants.reduce(
             (acc, r) => {
-              acc[r.id] = { id: r.id, name: r.name };
+              acc[r.id] = {
+                id: r.id,
+                name: r.name,
+                commission_rate: r.commission_rate ?? 18,
+              };
               return acc;
             },
-            {} as Record<string, { id: string; name: string }>
+            {} as Record<string, { id: string; name: string; commission_rate: number }>
           );
         }
       }
@@ -340,8 +345,9 @@ const AdminMealApprovals = () => {
           ) : (
             <div className="grid gap-3 2xl:grid-cols-2">
               {filteredMeals.map((meal) => {
-                const platformFee = meal.price * 0.18;
-                const payout = meal.price * 0.82;
+                const commissionRate = meal.restaurant?.commission_rate ?? 18;
+                const platformFee = meal.price * (commissionRate / 100);
+                const payout = meal.price - platformFee;
                 return (
                   <article
                     key={meal.id}
@@ -489,12 +495,12 @@ const AdminMealApprovals = () => {
                       <span className="font-black text-[#22C7A1]">{formatCurrency(selectedMeal.price)}</span>
                     </div>
                     <div className="flex justify-between text-sm text-[#FB6B7A]">
-                      <span>Platform Fee (18%)</span>
-                      <span>- {formatCurrency(selectedMeal.price * 0.18)}</span>
+                      <span>Platform Fee ({selectedMeal.restaurant?.commission_rate ?? 18}%)</span>
+                      <span>- {formatCurrency(selectedMeal.price * ((selectedMeal.restaurant?.commission_rate ?? 18) / 100))}</span>
                     </div>
                     <div className="flex justify-between border-t border-[#020617]/10 pt-2 text-sm font-black">
                       <span>Restaurant Payout</span>
-                      <span className="text-[#7C83F6]">{formatCurrency(selectedMeal.price * 0.82)}</span>
+                      <span className="text-[#7C83F6]">{formatCurrency(selectedMeal.price * (1 - (selectedMeal.restaurant?.commission_rate ?? 18) / 100))}</span>
                     </div>
                   </CardContent>
                 </Card>

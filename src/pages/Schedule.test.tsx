@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import React from "react";
@@ -118,12 +117,13 @@ describe("Schedule", () => {
 
   it("renders the page title", () => {
     render(<Schedule />, { wrapper: createWrapper() });
-    expect(document.body.textContent).toContain("My Schedule");
+    expect(document.body.textContent).toContain("Meal schedule");
   });
 
-  it("renders week progress stats", () => {
+  it("renders the daily schedule summary", () => {
     render(<Schedule />, { wrapper: createWrapper() });
-    expect(document.body.textContent).toContain("Weekly Progress");
+    expect(document.body.textContent).toContain("planned");
+    expect(document.body.textContent).toContain("kcal");
   });
 
   it("renders meal credits badge", () => {
@@ -143,22 +143,22 @@ describe("Schedule", () => {
     expect(document.body.textContent).toContain(today.getDate().toString());
   });
 
-  it("navigates back on back button click", async () => {
+  it("navigates back on back button click", () => {
     render(<Schedule />, { wrapper: createWrapper() });
     const backButton = screen.getAllByRole("button")[0];
-    if (backButton) {
-      await userEvent.click(backButton);
-    }
+    fireEvent.click(backButton);
+    expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
   });
 
-  it("renders week progress and navigation elements", () => {
+  it("renders week navigation elements", () => {
     render(<Schedule />, { wrapper: createWrapper() });
-    expect(document.body.textContent).toContain("Weekly Progress");
+    expect(screen.getByRole("button", { name: "Previous week" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Next week" })).toBeTruthy();
   });
 
-  it("renders empty state slots", () => {
+  it("renders the seven day picker", () => {
     render(<Schedule />, { wrapper: createWrapper() });
-    const emptySlots = document.querySelectorAll("[class*='rounded-2xl']");
-    expect(emptySlots.length).toBeGreaterThan(0);
+    const weekNavigationButtons = screen.getAllByRole("button");
+    expect(weekNavigationButtons.length).toBeGreaterThanOrEqual(10);
   });
 });

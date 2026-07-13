@@ -22,7 +22,7 @@ WHERE cc.is_active = true;
 CREATE OR REPLACE FUNCTION public.update_challenge_progress(
   p_challenge_id UUID,
   p_user_id UUID,
-  p_progress INTEGER
+  p_progress INTEGER DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql

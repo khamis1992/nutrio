@@ -16,6 +16,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 vi.mock("@/lib/ipCheck", () => ({
   checkIPLocation: vi.fn().mockResolvedValue({ allowed: true, blocked: false }),
+  logUserIP: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/components/ProtectedRoute", () => ({
@@ -48,7 +49,10 @@ describe("AuthContext", () => {
     });
     (supabase.auth.getSession as any).mockResolvedValue({ data: { session: null } });
     (supabase.auth.onAuthStateChange as any).mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
-    (supabase.auth.signUp as any).mockResolvedValue({ error: null });
+    (supabase.auth.signUp as any).mockResolvedValue({
+      data: { user: null, session: null },
+      error: null,
+    });
     (supabase.auth.signInWithPassword as any).mockResolvedValue({ error: null });
     (supabase.auth.signOut as any).mockResolvedValue({ error: null });
   });
@@ -130,7 +134,7 @@ describe("AuthContext", () => {
     expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
   });
 
-  it("signIn proceeds when IP check fails (fail-open)", async () => {
+  it("signIn fails closed when IP verification throws", async () => {
     (checkIPLocation as any).mockRejectedValue(new Error("Network error"));
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper });
@@ -140,8 +144,8 @@ describe("AuthContext", () => {
       return result.current.signIn("test@example.com", "password123");
     });
 
-    expect(supabase.auth.signInWithPassword).toHaveBeenCalled();
-    expect(res.error).toBeNull();
+    expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
+    expect(res.error).toBeInstanceOf(Error);
   });
 
   it("signOut clears role cache and calls supabase signOut", async () => {

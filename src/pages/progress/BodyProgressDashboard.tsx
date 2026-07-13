@@ -3,9 +3,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   LineChart, 
   Line, 
@@ -25,18 +24,15 @@ import {
   Ruler, 
   Percent,
   Calendar,
-  ChevronRight,
-  Info,
   Award,
   Clock,
   Snowflake,
-  RotateCcw,
-  AlertCircle
+  RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, subWeeks, startOfWeek, isSameWeek } from "date-fns";
+import { format, subWeeks } from "date-fns";
 import { WeeklyMetricsForm } from "@/components/body-progress/WeeklyMetricsForm";
 import { FreezeSubscriptionModal } from "@/components/body-progress/FreezeSubscriptionModal";
 import { RolloverCreditsDisplay } from "@/components/body-progress/RolloverCreditsDisplay";
@@ -106,15 +102,19 @@ export default function BodyProgressDashboard() {
       // Fetch subscription data with freeze info
       const { data: subData } = await supabase
         .from("subscriptions")
-        .select("id, rollover_credits, freeze_days_used, billing_cycle_start, billing_cycle_end")
+        .select("id, rollover_credits, freeze_days_used, month_start_date, next_renewal_date, end_date")
         .eq("user_id", user.id)
         .eq("status", "active")
         .single();
 
       if (subData) {
         setSubscription({
-          ...subData,
-          freeze_days_remaining: Math.max(0, 7 - (subData.freeze_days_used || 0))
+          id: subData.id,
+          rollover_credits: subData.rollover_credits ?? 0,
+          freeze_days_used: subData.freeze_days_used ?? 0,
+          freeze_days_remaining: Math.max(0, 7 - (subData.freeze_days_used ?? 0)),
+          billing_cycle_start: subData.month_start_date ?? new Date().toISOString(),
+          billing_cycle_end: subData.next_renewal_date ?? subData.end_date ?? new Date().toISOString(),
         });
       }
 
@@ -146,18 +146,31 @@ export default function BodyProgressDashboard() {
         .limit(1)
         .single();
 
-      setHealthScore(scoreData || null);
+      setHealthScore(scoreData ? {
+        id: scoreData.id,
+        overall_score: scoreData.overall_score,
+        macro_adherence_score: scoreData.macro_adherence_score ?? 0,
+        meal_consistency_score: scoreData.meal_consistency_score ?? 0,
+        weight_logging_score: scoreData.weight_logging_score ?? 0,
+        protein_accuracy_score: scoreData.protein_accuracy_score ?? 0,
+        calculated_at: scoreData.calculated_at ?? new Date().toISOString(),
+      } : null);
 
       // Fetch rollover credits
       const { data: rolloverData } = await supabase
         .from("subscription_rollovers")
         .select("*")
         .eq("user_id", user.id)
-        .eq("consumed", false)
-        .gte("expires_at", new Date().toISOString())
+        .eq("status", "active")
+        .gte("expiry_date", new Date().toISOString().slice(0, 10))
         .order("created_at", { ascending: true });
 
-      setRollovers(rolloverData || []);
+      setRollovers((rolloverData || []).map((rollover) => ({
+        id: rollover.id,
+        rollover_credits: rollover.rollover_credits,
+        expires_at: rollover.expiry_date,
+        consumed: rollover.status !== "active",
+      })));
 
       // Fetch freeze history
       const { data: freezeData } = await supabase
@@ -167,7 +180,13 @@ export default function BodyProgressDashboard() {
         .order("created_at", { ascending: false })
         .limit(5);
 
-      setFreezes(freezeData || []);
+      setFreezes((freezeData || []).map((freeze) => ({
+        id: freeze.id,
+        freeze_start_date: freeze.freeze_start_date,
+        freeze_end_date: freeze.freeze_end_date,
+        status: freeze.status,
+        days_count: freeze.freeze_days,
+      })));
     } catch (error) {
       console.error("Error fetching body progress data:", error);
       toast.error("Failed to load progress data");

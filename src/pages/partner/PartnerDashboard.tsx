@@ -31,6 +31,7 @@ import { PartnerLayout } from "@/components/PartnerLayout";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 import { formatCurrency } from "@/lib/currency";
 import { PartnerBranchOrders } from "@/components/partner/PartnerBranchOrders";
+import { getQatarDay } from "@/lib/dateUtils";
 interface Restaurant {
   id: string;
   name: string;
@@ -49,7 +50,7 @@ interface ScheduledMeal {
   meal_type: string;
   is_completed: boolean;
   order_status: string;
-  created_at: string;
+  created_at: string | null;
   meal: {
     name: string;
   };
@@ -113,6 +114,16 @@ const PartnerDashboard = () => {
           }
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `restaurant_id=eq.${restaurant.id}`,
+        },
+        () => fetchPartnerData(),
+      )
       .subscribe();
 
     return () => {
@@ -142,7 +153,16 @@ const PartnerDashboard = () => {
         return;
       }
 
-      setRestaurant(restaurantData);
+      setRestaurant({
+        id: restaurantData.id,
+        name: restaurantData.name,
+        logo_url: restaurantData.logo_url,
+        rating: restaurantData.rating || 0,
+        total_orders: restaurantData.total_orders || 0,
+        is_active: restaurantData.is_active ?? false,
+        payout_rate: restaurantData.payout_rate || 0,
+        commission_rate: restaurantData.commission_rate || 0,
+      });
 
       // Net payout = gross rate adjusted by platform commission.
       const grossRate = restaurantData.payout_rate || 0;
@@ -152,32 +172,17 @@ const PartnerDashboard = () => {
       // Fetch meals count (price removed - meals are subscription-based)
       const { data: mealsData, count: mealsCount } = await supabase
         .from("meals")
-        .select("id", { count: "exact" })
+        .select("id, name", { count: "exact" })
         .eq("restaurant_id", restaurantData.id);
 
       const mealIds = mealsData?.map((m) => m.id) || [];
+      const mealNames = new Map((mealsData || []).map((meal) => [meal.id, meal.name]));
 
-      if (mealIds.length === 0) {
-        setStats({
-          totalMeals: 0,
-          activeOrders: 0,
-          todayOrders: 0,
-          urgentOrders: 0,
-          totalRevenue: 0,
-          weeklyRevenue: 0,
-          lastWeekRevenue: 0,
-          weeklyOrders: 0,
-        });
-        setRecentSchedules([]);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch scheduled meals for this restaurant's meals
-      const { data: schedulesData, error: schedulesError } = await supabase
-        .from("meal_schedules")
-        .select(
-          `
+      const [schedulesResult, directOrdersResult] = await Promise.all([
+        mealIds.length > 0
+          ? supabase
+              .from("meal_schedules")
+              .select(`
           id,
           scheduled_date,
           delivery_time_slot,
@@ -185,36 +190,33 @@ const PartnerDashboard = () => {
           is_completed,
           order_status,
           created_at,
-          meals:meal_id (
+          meals:meals!meal_schedules_meal_id_fkey (
             name
           )
-        `,
-        )
-        .in("meal_id", mealIds)
-        .neq("order_status", "cancelled")
-        .order("scheduled_date", { ascending: true })
-        .limit(10);
+        `)
+              .in("meal_id", mealIds)
+              .neq("order_status", "cancelled")
+              .eq("is_completed", false)
+              .gte("scheduled_date", getQatarDay())
+              .order("scheduled_date", { ascending: true })
+              .limit(10)
+          : Promise.resolve({ data: [], error: null }),
+        supabase
+          .from("orders")
+          .select("id, created_at, status, restaurant_payout, meal_id")
+          .eq("restaurant_id", restaurantData.id)
+          .neq("status", "cancelled")
+          .order("created_at", { ascending: false }),
+      ]);
+
+      const { data: schedulesData, error: schedulesError } = schedulesResult;
+      const { data: directOrders, error: directOrdersError } = directOrdersResult;
 
       if (schedulesError) throw schedulesError;
+      if (directOrdersError) throw directOrdersError;
 
       const transformedSchedules: ScheduledMeal[] = (schedulesData || []).map(
-        (s: {
-          id: string;
-          scheduled_date: string;
-          delivery_time_slot: string | null;
-          meal_type: string;
-          is_completed: boolean;
-          order_status: string;
-          created_at: string;
-          meals: {
-            id: string;
-            name: string | null;
-            calories: number | null;
-            image_url: string | null;
-          } | null;
-          user_id: string;
-          profiles: { full_name: string | null } | null;
-        }) => ({
+        (s) => ({
           id: s.id,
           scheduled_date: s.scheduled_date,
           delivery_time_slot: s.delivery_time_slot || null,
@@ -222,23 +224,53 @@ const PartnerDashboard = () => {
           is_completed: s.is_completed || false,
           order_status: s.order_status || "pending",
           created_at: s.created_at,
-          meal: s.meals,
+          meal: { name: s.meals?.name || "Meal" },
         }),
       );
 
-      setRecentSchedules(transformedSchedules);
+      const transformedDirectOrders: ScheduledMeal[] = (directOrders || [])
+        .filter((order) =>
+          ["pending", "confirmed", "preparing", "ready_for_pickup", "out_for_delivery"].includes(
+            order.status || "",
+          ),
+        )
+        .slice(0, 10)
+        .map((order) => ({
+          id: order.id,
+          scheduled_date: getQatarDay(new Date(order.created_at)),
+          delivery_time_slot: null,
+          meal_type: "order",
+          is_completed: order.status === "completed" || order.status === "delivered",
+          order_status: order.status === "ready_for_pickup" ? "ready" : order.status,
+          created_at: order.created_at,
+          meal: order.meal_id
+            ? { name: mealNames.get(order.meal_id) || "Order" }
+            : { name: "Order" },
+        }));
+
+      setRecentSchedules(
+        [...transformedSchedules, ...transformedDirectOrders]
+          .sort(
+            (a, b) =>
+              new Date(b.created_at || b.scheduled_date).getTime() -
+              new Date(a.created_at || a.scheduled_date).getTime(),
+          )
+          .slice(0, 10),
+      );
 
       // Fetch all schedules for stats (not limited)
       // Include order_status to determine urgent orders
-      const { data: allSchedules } = await supabase
-        .from("meal_schedules")
-        .select("id, scheduled_date, is_completed, meal_id, order_status")
-        .in("meal_id", mealIds)
-        .neq("order_status", "cancelled");
+      const { data: allSchedules } = mealIds.length > 0
+        ? await supabase
+            .from("meal_schedules")
+            .select("id, scheduled_date, is_completed, meal_id, order_status")
+            .in("meal_id", mealIds)
+            .neq("order_status", "cancelled")
+        : { data: [] };
 
       // Calculate stats
       const today = new Date();
-      const todayStr = today.toISOString().split("T")[0];
+      const todayStr = getQatarDay(today);
 
       // Calculate week boundaries (Monday to Sunday)
       const dayOfWeek = today.getDay();
@@ -254,6 +286,15 @@ const PartnerDashboard = () => {
       lastSunday.setDate(thisMonday.getDate() - 1);
       const lastSundayStr = lastSunday.toISOString().split("T")[0];
 
+      const directOrderDay = (order: { created_at: string }) =>
+        getQatarDay(new Date(order.created_at));
+      const directTodayOrders = (directOrders || []).filter(
+        (order) => directOrderDay(order) === todayStr,
+      );
+      const directUrgentOrders = directTodayOrders.filter(
+        (order) => order.status === "pending" || order.status === "confirmed",
+      );
+
       // Count active orders for today to match what PartnerOrders shows.
       // Note: only today's pending/confirmed orders so restaurant can plan prep
       const activeOrders =
@@ -262,11 +303,11 @@ const PartnerDashboard = () => {
             !s.is_completed &&
             s.scheduled_date === todayStr &&
             (s.order_status === "pending" || s.order_status === "confirmed"),
-        ).length || 0;
+        ).length + directUrgentOrders.length || 0;
       // Today's orders for the dashboard stat.
       const todayOrders =
         (allSchedules || []).filter((s) => s.scheduled_date === todayStr)
-          .length || 0;
+          .length + directTodayOrders.length || 0;
       // Urgent orders: today's pending/confirmed orders that need immediate attention
       const urgentOrders =
         (allSchedules || []).filter(
@@ -274,10 +315,14 @@ const PartnerDashboard = () => {
             !s.is_completed &&
             s.scheduled_date === todayStr &&
             (s.order_status === "pending" || s.order_status === "confirmed"),
-        ).length || 0;
+        ).length + directUrgentOrders.length || 0;
 
       // Revenue calculation: prepared meals multiplied by payout rate.
-      const totalRevenue = (allSchedules?.length || 0) * payoutRate;
+      const directRevenue = (directOrders || []).reduce(
+        (sum, order) => sum + (order.restaurant_payout || 0),
+        0,
+      );
+      const totalRevenue = (allSchedules?.length || 0) * payoutRate + directRevenue;
 
       // This week's revenue and orders
       const thisWeekSchedules =
@@ -286,7 +331,15 @@ const PartnerDashboard = () => {
             s.scheduled_date >= thisMondayStr && s.scheduled_date <= todayStr,
         ) || [];
       const weeklyRevenue = thisWeekSchedules.length * payoutRate;
-      const weeklyOrders = thisWeekSchedules.length;
+      const thisWeekDirectOrders = (directOrders || []).filter((order) => {
+        const day = directOrderDay(order);
+        return day >= thisMondayStr && day <= todayStr;
+      });
+      const weeklyRevenueWithDirect = weeklyRevenue + thisWeekDirectOrders.reduce(
+        (sum, order) => sum + (order.restaurant_payout || 0),
+        0,
+      );
+      const weeklyOrders = thisWeekSchedules.length + thisWeekDirectOrders.length;
 
       // Last week's revenue
       const lastWeekSchedules =
@@ -296,6 +349,12 @@ const PartnerDashboard = () => {
             s.scheduled_date <= lastSundayStr,
         ) || [];
       const lastWeekRevenue = lastWeekSchedules.length * payoutRate;
+      const lastWeekDirectRevenue = (directOrders || [])
+        .filter((order) => {
+          const day = directOrderDay(order);
+          return day >= lastMondayStr && day <= lastSundayStr;
+        })
+        .reduce((sum, order) => sum + (order.restaurant_payout || 0), 0);
 
       setStats({
         totalMeals: mealsCount || 0,
@@ -303,15 +362,18 @@ const PartnerDashboard = () => {
         todayOrders,
         urgentOrders,
         totalRevenue,
-        weeklyRevenue,
-        lastWeekRevenue,
+        weeklyRevenue: weeklyRevenueWithDirect,
+        lastWeekRevenue: lastWeekRevenue + lastWeekDirectRevenue,
         weeklyOrders,
       });
     } catch (error) {
-      console.error("Error fetching partner data:", error);
+      const message = error instanceof Error
+        ? error.message
+        : (error as { message?: string } | null)?.message || "Failed to load dashboard data";
+      console.error("Error fetching partner data:", message, error);
       toast({
         title: "Error",
-        description: "Failed to load dashboard data",
+        description: message,
         variant: "destructive",
       });
     } finally {

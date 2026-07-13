@@ -81,9 +81,11 @@ export default function AdminRetentionAnalytics() {
     setIsLoading(true);
     try {
       // Fetch rollover stats
-      const { data: rolloverData } = await supabase
+      const { data: rolloverData, error: rolloverError } = await supabase
         .from("subscription_rollovers")
-        .select("rollover_credits, consumed");
+        .select("rollover_credits, status");
+
+      if (rolloverError) throw rolloverError;
 
       const totalRollovers = rolloverData?.length || 0;
       const totalCredits = rolloverData?.reduce((sum, r) => sum + r.rollover_credits, 0) || 0;
@@ -407,7 +409,7 @@ export default function AdminRetentionAnalytics() {
                             paddingAngle={5}
                             dataKey="value"
                           >
-                            {healthScoreDistribution.map((entry, index) => (
+              {healthScoreDistribution.map((_entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>

@@ -7,6 +7,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 interface ForgotPasswordScreenProps {
   forgotEmail: string;
   forgotLoading: boolean;
+  forgotSent: boolean;
   forgotError: string;
   onEmailChange: (value: string) => void;
   onErrorClear: () => void;
@@ -17,6 +18,7 @@ interface ForgotPasswordScreenProps {
 export const ForgotPasswordScreen = ({
   forgotEmail,
   forgotLoading,
+  forgotSent,
   forgotError,
   onEmailChange,
   onErrorClear,
@@ -24,6 +26,38 @@ export const ForgotPasswordScreen = ({
   onSubmit,
 }: ForgotPasswordScreenProps) => {
   const { t } = useLanguage();
+
+  if (forgotSent) {
+    return (
+      <div
+        className="fixed inset-0 flex flex-col bg-[#F6F8FB] px-6 text-[#020617]"
+        style={{ maxWidth: 430, margin: "0 auto" }}
+      >
+        <div className="flex flex-1 flex-col items-center justify-center text-center">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#22C7A1]/10">
+            <Mail className="h-9 w-9 text-[#0AAE87]" />
+          </div>
+          <h1 className="mb-3 text-[24px] font-extrabold">
+            {t("reset_email_sent_title")}
+          </h1>
+          <p className="max-w-sm text-sm font-semibold leading-relaxed text-[#64748B]">
+            {t("reset_email_sent_desc")}
+          </p>
+        </div>
+        <div style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
+          <Button
+            type="button"
+            data-testid="forgot-sent-back-btn"
+            size="lg"
+            className="w-full rounded-2xl bg-[#020617] font-bold text-white hover:bg-[#111827]"
+            onClick={onBack}
+          >
+            {t("reset_sign_in")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

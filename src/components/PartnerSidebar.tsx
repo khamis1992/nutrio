@@ -4,6 +4,7 @@ import {
   BarChart3,
   Bell,
   LogOut,
+  MessageSquare,
   Package,
   Rocket,
   Settings,
@@ -35,6 +36,7 @@ const navItems = [
   { icon: BarChart3, label: "Analytics", to: "/partner/analytics" },
   { icon: Wallet, label: "Payouts", to: "/partner/payouts" },
   { icon: TrendingUp, label: "Earnings", to: "/partner/earnings" },
+  { icon: MessageSquare, label: "Reviews", to: "/partner/reviews" },
   { icon: Bell, label: "Notifications", to: "/partner/notifications" },
   { icon: User, label: "Profile", to: "/partner/profile" },
   { icon: Settings, label: "Settings", to: "/partner/settings" },
@@ -49,6 +51,7 @@ const partnerRoutePreloaders: Record<string, () => Promise<unknown>> = {
   "/partner/analytics": () => import("@/pages/partner/PartnerAnalytics"),
   "/partner/payouts": () => import("@/pages/partner/PartnerPayouts"),
   "/partner/earnings": () => import("@/pages/partner/PartnerEarningsDashboard"),
+  "/partner/reviews": () => import("@/pages/partner/PartnerReviews"),
   "/partner/notifications": () =>
     import("@/pages/partner/PartnerNotifications"),
   "/partner/profile": () => import("@/pages/partner/PartnerProfile"),

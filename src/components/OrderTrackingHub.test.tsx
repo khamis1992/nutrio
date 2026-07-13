@@ -10,10 +10,16 @@ import { BrowserRouter } from "react-router-dom";
 import { OrderTrackingHub } from "./OrderTrackingHub";
 import * as AuthContext from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
+import { createMockUser } from "@/test/factories";
 
 // Mock Auth Context
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: vi.fn(),
+}));
+
+vi.mock("@/hooks/useRealtimeTable", () => ({
+  useRealtimeTable: vi.fn(),
 }));
 
 // Mock Supabase client
@@ -75,7 +81,7 @@ describe("OrderTrackingHub", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(AuthContext.useAuth).mockReturnValue({
-      user: { id: "test-user-id", email: "test@example.com" },
+      user: createMockUser({ id: "test-user-id" }),
       session: null,
       loading: false,
       signUp: vi.fn(),
@@ -409,11 +415,18 @@ describe("OrderTrackingHub", () => {
     });
 
     it("shows spinning animation while refreshing", async () => {
+      let finishRefresh!: (value: { data: never[]; error: null }) => void;
+      const pendingRefresh = new Promise<{ data: never[]; error: null }>((resolve) => {
+        finishRefresh = resolve;
+      });
+      const mockOrder = vi.fn()
+        .mockResolvedValueOnce({ data: [], error: null })
+        .mockReturnValueOnce(pendingRefresh);
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         in: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        order: mockOrder,
       } as any);
 
       renderWithRouter(<OrderTrackingHub />);
@@ -426,17 +439,14 @@ describe("OrderTrackingHub", () => {
       // Check for spin animation class
       const refreshIcon = refreshButton.querySelector("svg");
       expect(refreshIcon?.classList.contains("animate-spin")).toBe(true);
+
+      finishRefresh({ data: [], error: null });
+      await waitFor(() => expect(refreshIcon?.classList.contains("animate-spin")).toBe(false));
     });
   });
 
   describe("Real-time Updates", () => {
-    it("subscribes to real-time updates on mount", async () => {
-      const mockSubscribe = vi.fn().mockReturnValue({ unsubscribe: vi.fn() });
-      vi.mocked(supabase.channel).mockReturnValue({
-        on: vi.fn().mockReturnThis(),
-        subscribe: mockSubscribe,
-      } as any);
-
+    it("subscribes to meal schedule updates for the current user", async () => {
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -447,18 +457,27 @@ describe("OrderTrackingHub", () => {
       renderWithRouter(<OrderTrackingHub />);
 
       await waitFor(() => {
-        expect(supabase.channel).toHaveBeenCalledWith("order-updates");
+        expect(useRealtimeTable).toHaveBeenCalledWith(
+          "meal_schedules",
+          expect.objectContaining({
+            event: "UPDATE",
+            filter: "user_id=eq.test-user-id",
+            enabled: true,
+            onChange: expect.any(Function),
+          })
+        );
       });
     });
 
-    it("unsubscribes from real-time updates on unmount", async () => {
-      const mockChannel = {
-        on: vi.fn().mockReturnThis(),
-        subscribe: vi.fn().mockReturnThis(),
-      };
-      vi.mocked(supabase.channel).mockReturnValue(mockChannel as any);
-      vi.mocked(supabase.removeChannel).mockImplementation(vi.fn());
-
+    it("keeps realtime disabled when there is no authenticated user", async () => {
+      vi.mocked(AuthContext.useAuth).mockReturnValue({
+        user: null,
+        session: null,
+        loading: false,
+        signUp: vi.fn(),
+        signIn: vi.fn(),
+        signOut: vi.fn(),
+      });
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -466,13 +485,12 @@ describe("OrderTrackingHub", () => {
         order: vi.fn().mockResolvedValue({ data: [], error: null }),
       } as any);
 
-      const { unmount } = renderWithRouter(<OrderTrackingHub />);
+      renderWithRouter(<OrderTrackingHub />);
 
-      await waitFor(() => screen.getByText(/No Active Orders/i));
-
-      unmount();
-
-      expect(supabase.removeChannel).toHaveBeenCalledWith(mockChannel);
+      expect(useRealtimeTable).toHaveBeenCalledWith(
+        "meal_schedules",
+        expect.objectContaining({ enabled: false })
+      );
     });
   });
 

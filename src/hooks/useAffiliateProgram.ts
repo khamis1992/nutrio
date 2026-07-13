@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { requestAffiliatePayout as requestAffiliatePayoutAtomic } from "@/lib/payouts";
 
 interface AffiliateSettings {
   enabled: boolean;
@@ -156,8 +157,6 @@ export function useAffiliateProgram() {
 
       // Calculate stats
       const pendingCommissions = commissionsData?.filter(c => c.status === "pending") || [];
-      const approvedCommissions = commissionsData?.filter(c => c.status === "approved") || [];
-      
       const pendingBalance = pendingCommissions.reduce((sum, c) => sum + Number(c.commission_amount), 0);
       const availableBalance = Number(profileData?.affiliate_balance || 0);
 
@@ -187,7 +186,14 @@ export function useAffiliateProgram() {
       });
 
       setCommissions(commissionsData || []);
-      setPayouts(payoutsData || []);
+      setPayouts((payoutsData ?? []).map((payout) => ({
+        id: payout.id,
+        amount: Number(payout.amount),
+        status: payout.status,
+        payout_method: payout.payout_method ?? "unspecified",
+        requested_at: payout.requested_at,
+        processed_at: payout.processed_at,
+      })));
       setNetwork(networkMembers);
 
     } catch (err) {
@@ -201,7 +207,7 @@ export function useAffiliateProgram() {
     if (!user) return { success: false, error: "Not authenticated" };
 
     if (amount < settings.min_payout_threshold) {
-      return { success: false, error: `Minimum payout is $${settings.min_payout_threshold}` };
+      return { success: false, error: `Minimum payout is QAR ${settings.min_payout_threshold}` };
     }
 
     if (amount > stats.availableBalance) {
@@ -209,23 +215,9 @@ export function useAffiliateProgram() {
     }
 
     try {
-      const { error } = await supabase.from("affiliate_payouts").insert({
-        user_id: user.id,
-        amount,
-        payout_method: payoutMethod,
-        payout_details: payoutDetails,
-      });
-
-      if (error) throw error;
-
-      // Deduct from balance
-      await supabase
-        .from("profiles")
-        .update({ affiliate_balance: stats.availableBalance - amount })
-        .eq("user_id", user.id);
-
+      const data = await requestAffiliatePayoutAtomic(amount, payoutMethod, payoutDetails);
       await fetchAffiliateData();
-      return { success: true };
+      return { success: true, data };
     } catch (err: unknown) {
       return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
     }
