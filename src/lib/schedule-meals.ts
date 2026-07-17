@@ -42,6 +42,36 @@ export interface QueuedScheduleMealsResult {
   requestBatchId: string;
 }
 
+const SCHEDULE_MEALS_ERROR_CODES = [
+  "AUTHENTICATION_REQUIRED",
+  "SUBSCRIPTION_NOT_FOUND",
+  "SCHEDULE_DATE_INVALID",
+  "MEAL_NOT_AVAILABLE",
+  "DELIVERY_ADDRESS_NOT_FOUND",
+  "MEAL_QUOTA_EXHAUSTED",
+  "SNACK_QUOTA_EXHAUSTED",
+] as const;
+
+export type ScheduleMealsErrorCode = (typeof SCHEDULE_MEALS_ERROR_CODES)[number];
+
+/** Extracts the database error identifier from Error and PostgREST error objects. */
+export function getScheduleMealsErrorCode(error: unknown): ScheduleMealsErrorCode | null {
+  const messages: string[] = [];
+
+  if (error instanceof Error) messages.push(error.message);
+  if (typeof error === "string") messages.push(error);
+
+  if (error && typeof error === "object") {
+    const postgrestError = error as Record<string, unknown>;
+    for (const field of ["message", "details", "hint", "code"] as const) {
+      if (typeof postgrestError[field] === "string") messages.push(postgrestError[field]);
+    }
+  }
+
+  const combinedMessage = messages.join(" ").toUpperCase();
+  return SCHEDULE_MEALS_ERROR_CODES.find((code) => combinedMessage.includes(code)) ?? null;
+}
+
 interface QueuedSchedulePayload {
   userId: string;
   subscriptionId: string;

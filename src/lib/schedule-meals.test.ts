@@ -5,7 +5,11 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 import { supabase } from "@/integrations/supabase/client";
-import { scheduleMealsAtomic, scheduleMealsResilient } from "@/lib/schedule-meals";
+import {
+  getScheduleMealsErrorCode,
+  scheduleMealsAtomic,
+  scheduleMealsResilient,
+} from "@/lib/schedule-meals";
 import { readOfflineMutations } from "@/lib/offline-mutation-queue";
 
 const rpc = vi.mocked(supabase.rpc);
@@ -68,6 +72,20 @@ describe("scheduleMealsAtomic", () => {
       scheduled_date: "2026-07-13",
       meal_type: "lunch",
     }], "00000000-0000-4000-8000-000000000002")).rejects.toThrow("MEAL_QUOTA_EXHAUSTED");
+  });
+
+  it("extracts subscription errors returned as a PostgREST object", () => {
+    expect(getScheduleMealsErrorCode({
+      code: "P0001",
+      details: null,
+      hint: null,
+      message: "SUBSCRIPTION_NOT_FOUND",
+    })).toBe("SUBSCRIPTION_NOT_FOUND");
+  });
+
+  it("extracts scheduling errors returned as Error instances", () => {
+    expect(getScheduleMealsErrorCode(new Error("MEAL_QUOTA_EXHAUSTED")))
+      .toBe("MEAL_QUOTA_EXHAUSTED");
   });
 
   it("rejects a malformed successful response", async () => {
