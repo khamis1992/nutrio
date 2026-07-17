@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
+import { useContextualNudges } from "@/hooks/useContextualNudges";
 import { useSmartGoalAdjustmentNotifications } from "@/hooks/useSmartGoalAdjustmentNotifications";
 
 const HIDDEN_NAV_PATHS = [
@@ -24,6 +25,7 @@ const HIDDEN_NAV_PATHS = [
   "/settings",
   "/affiliate",
   "/coach-programs",
+  "/ai-coach",
 ];
 
 // Keep content clear of the native-style bottom tab bar.
@@ -31,6 +33,7 @@ const DOCK_RESERVED_HEIGHT = "calc(74px + env(safe-area-inset-bottom, 0px))";
 
 export const CustomerLayout = () => {
   const location = useLocation();
+  useContextualNudges();
   useSmartGoalAdjustmentNotifications();
   const shouldHideNav = HIDDEN_NAV_PATHS.some(path =>
     location.pathname === path || location.pathname.startsWith(path + "/")

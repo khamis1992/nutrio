@@ -409,6 +409,26 @@ export const pushNotifications = {
 
 export const localNotifications = {
   /**
+   * Request permission for local notifications
+   */
+  requestPermissions: async () => {
+    if (isNative) {
+      return await LocalNotifications.requestPermissions();
+    }
+    return { display: 'denied' } as const;
+  },
+
+  /**
+   * Check current local notification permission status
+   */
+  checkPermissions: async () => {
+    if (isNative) {
+      return await LocalNotifications.checkPermissions();
+    }
+    return { display: 'denied' } as const;
+  },
+
+  /**
    * Schedule a local notification
    */
   schedule: async (notifications: Array<Pick<LocalNotificationSchema, "title" | "body" | "id"> & { scheduleAt?: Date }>) => {
