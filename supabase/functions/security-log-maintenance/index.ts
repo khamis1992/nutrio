@@ -298,11 +298,7 @@ serve(async (req) => {
         resourceId: anchor.anchor_hash,
         metadata: { anchor_date: anchorDate },
       });
-      return jsonResponse(req, {
-        anchor,
-        external_receipt: false,
-        warning: "external_anchor_sink_not_configured",
-      }, 202);
+      throw new HttpError(503, "security_anchor_sink_not_configured");
     }
 
     const sink = validateExternalSink(sinkValue);
@@ -370,13 +366,17 @@ serve(async (req) => {
     const responseRequestId = response.headers.get("x-request-id")?.slice(0, 200) || null;
 
     const { data: receiptId, error: receiptError } = await service.rpc(
-      "record_security_anchor_receipt_v2",
+      "record_security_anchor_receipt_v3",
       {
+        p_protocol: acknowledgement.protocol,
         p_anchor_hash: anchor.anchor_hash,
+        p_previous_anchor_hash: acknowledgement.previous_anchor_hash,
         p_provider: sink.hostname,
         p_external_reference: acknowledgement.external_reference,
         p_payload_sha256: payloadHash,
-        p_acknowledged_at: acknowledgement.acknowledged_at,
+        // Preserve the exact signed timestamp text. Normalizing it before the
+        // RPC would change the canonical HMAC payload.
+        p_acknowledged_at_text: acknowledgement.acknowledged_at,
         p_acknowledgement_key_id: acknowledgement.key_id,
         p_acknowledgement_nonce: acknowledgement.nonce,
         p_receipt_signature: acknowledgement.signature,

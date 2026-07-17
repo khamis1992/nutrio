@@ -14,6 +14,8 @@ export type PreparedEvidencePackage = {
   event_count: number;
   total_count: number;
   truncated: boolean;
+  has_more?: boolean;
+  next_before_sequence?: number | string | null;
   integrity?: {
     valid?: boolean;
     [key: string]: unknown;
@@ -73,6 +75,10 @@ export async function verifyPreparedEvidencePackage(
     (candidate.format === "csv" &&
       candidate.media_type === "text/csv;charset=utf-8" &&
       candidate.filename?.toLowerCase().endsWith(".csv"));
+  const cursorBased = typeof candidate.has_more === "boolean";
+  const nextSequence = candidate.next_before_sequence == null
+    ? null
+    : Number(candidate.next_before_sequence);
   if (
     typeof candidate.content !== "string" ||
     typeof candidate.sha256 !== "string" ||
@@ -91,7 +97,14 @@ export async function verifyPreparedEvidencePackage(
     !Number.isSafeInteger(totalCount) ||
     totalCount < eventCount ||
     typeof candidate.truncated !== "boolean" ||
-    candidate.truncated !== (totalCount > eventCount) ||
+    (
+      cursorBased
+        ? candidate.truncated !== candidate.has_more ||
+          (candidate.has_more
+            ? !Number.isSafeInteger(nextSequence) || Number(nextSequence) < 1
+            : nextSequence !== null)
+        : candidate.truncated !== (totalCount > eventCount)
+    ) ||
     !candidate.integrity ||
     typeof candidate.integrity !== "object" ||
     Array.isArray(candidate.integrity) ||
@@ -120,6 +133,8 @@ export async function verifyPreparedEvidencePackage(
     event_count: eventCount,
     total_count: totalCount,
     truncated: candidate.truncated,
+    has_more: cursorBased ? candidate.has_more : undefined,
+    next_before_sequence: cursorBased ? nextSequence : undefined,
   } as PreparedEvidencePackage;
 }
 

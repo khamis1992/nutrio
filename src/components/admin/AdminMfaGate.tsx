@@ -46,6 +46,14 @@ type RpcResponse = {
 type MfaErrorDetails = {
   code?: string;
   status?: number;
+  message?: string;
+};
+
+type PrivilegedPortal = "admin" | "fleet";
+
+type PrivilegedMfaGateProps = {
+  children: ReactNode;
+  portal: PrivilegedPortal;
 };
 
 const ARABIC_INDIC_DIGITS = "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669";
@@ -78,15 +86,23 @@ function getQrCodeSource(qrCode: string): string {
 function getMfaErrorDetails(error: unknown): MfaErrorDetails {
   if (!error || typeof error !== "object") return {};
 
-  const candidate = error as { code?: unknown; status?: unknown };
+  const candidate = error as {
+    code?: unknown;
+    status?: unknown;
+    message?: unknown;
+  };
   return {
     code: typeof candidate.code === "string" ? candidate.code : undefined,
     status: typeof candidate.status === "number" ? candidate.status : undefined,
+    message:
+      typeof candidate.message === "string"
+        ? candidate.message.toLowerCase()
+        : undefined,
   };
 }
 
 function getMfaErrorMessage(error: unknown): string {
-  const { code } = getMfaErrorDetails(error);
+  const { code, status, message } = getMfaErrorDetails(error);
 
   switch (code) {
     case "mfa_verification_failed":
@@ -106,7 +122,19 @@ function getMfaErrorMessage(error: unknown): string {
     case "session_expired":
     case "refresh_token_not_found":
       return "Your sign-in session expired. Sign out, sign in again, then enter a fresh code.";
+    case "mfa_session_not_elevated":
+      return "The code was accepted, but the protected session could not be activated. Refresh the page and enter the newest code again.";
     default:
+      if (
+        status === 422 ||
+        message?.includes("invalid totp") ||
+        message?.includes("verification code")
+      ) {
+        return "This code does not match the selected authenticator. Use the newest code and make sure automatic date and time is enabled on your phone.";
+      }
+      if (status === 429) {
+        return "Too many verification attempts were made. Wait one minute, then use a new code.";
+      }
       return "We could not verify this code. Refresh your authenticators and try the newest code again.";
   }
 }
@@ -124,19 +152,22 @@ function getFactorLabel(factor: VerifiedTotpFactor, index: number): string {
   return `${name} - linked ${date}`;
 }
 
-async function recordMfaVerification(): Promise<void> {
+async function recordMfaVerification(portal: PrivilegedPortal): Promise<void> {
   const invoke = supabase.rpc as unknown as (
     functionName: string,
   ) => PromiseLike<RpcResponse>;
-  const { error } = await invoke("admin_record_mfa_verification");
+  const functionName = portal === "admin"
+    ? "admin_record_mfa_verification"
+    : "fleet_record_mfa_verification";
+  const { error } = await invoke(functionName);
   if (error) {
     // The new AAL2 session remains valid even if the optional evidence write
     // is temporarily unavailable. Do not force the administrator into a loop.
-    console.warn("Could not record the admin MFA verification event", error.message);
+    console.warn("Could not record the privileged MFA verification event", error.message);
   }
 }
 
-export function AdminMfaGate({ children }: { children: ReactNode }) {
+function PrivilegedMfaGate({ children, portal }: PrivilegedMfaGateProps) {
   const { signOut } = useAuth();
   const [stage, setStage] = useState<GateStage>("loading");
   const [factorId, setFactorId] = useState<string | null>(null);
@@ -145,6 +176,8 @@ export function AdminMfaGate({ children }: { children: ReactNode }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isFleetPortal = portal === "fleet";
+  const portalLabel = isFleetPortal ? "fleet operations" : "administration";
 
   const loadTotpFactors = useCallback(async () => {
     const { data: factors, error: factorsError } =
@@ -233,7 +266,9 @@ export function AdminMfaGate({ children }: { children: ReactNode }) {
 
       const { data, error: enrollError } = await supabase.auth.mfa.enroll({
         factorType: "totp",
-        friendlyName: "Nutrio Admin Authenticator",
+        friendlyName: isFleetPortal
+          ? "Nutrio Fleet Authenticator"
+          : "Nutrio Admin Authenticator",
         issuer: "Nutrio",
       });
       if (enrollError) throw enrollError;
@@ -295,23 +330,34 @@ export function AdminMfaGate({ children }: { children: ReactNode }) {
         }
       }
 
-      const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({
+      const { data: verification, error: verifyError } =
+        await supabase.auth.mfa.challengeAndVerify({
         factorId,
         code,
       });
       if (verifyError) throw verifyError;
 
+      // challengeAndVerify returns the newly elevated access token. Check that
+      // exact token instead of immediately rereading storage, which can still
+      // expose the previous AAL1 session while auth subscribers are updating.
       const { data: assurance, error: assuranceError } =
-        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel(
+          verification.access_token,
+        );
       if (assuranceError || assurance.currentLevel !== "aal2") {
-        throw assuranceError ?? new Error("AAL2 was not established");
+        throw assuranceError ?? Object.assign(
+          new Error("AAL2 was not established for the verified session"),
+          { code: "mfa_session_not_elevated" },
+        );
       }
 
-      await recordMfaVerification();
+      await recordMfaVerification(portal);
       setCode("");
       setEnrollment(null);
       setStage("verified");
-      toast.success("Administrator identity verified");
+      toast.success(isFleetPortal
+        ? "Fleet operator identity verified"
+        : "Administrator identity verified");
     } catch (verificationError) {
       const details = getMfaErrorDetails(verificationError);
       console.warn("Admin MFA verification failed", details);
@@ -351,14 +397,15 @@ export function AdminMfaGate({ children }: { children: ReactNode }) {
               <ShieldCheck className="h-6 w-6" aria-hidden="true" />
             </div>
             <p className="mb-1 text-xs font-bold uppercase text-[#0EA884]">
-              Protected administration
+              Protected {portalLabel}
             </p>
             <h1 className="text-2xl font-bold text-[#020617]">
               Verify it is really you
             </h1>
             <p className="mt-2 text-sm leading-6 text-[#64748B]">
-              Admin data and actions require a second factor. Password access alone
-              cannot unlock this portal.
+              {isFleetPortal
+                ? "Fleet dispatch, driver data, and payouts require a second factor. Password access alone cannot unlock elevated fleet access."
+                : "Admin data and actions require a second factor. Password access alone cannot unlock this portal."}
             </p>
           </header>
 
@@ -374,7 +421,7 @@ export function AdminMfaGate({ children }: { children: ReactNode }) {
               <div className="space-y-4">
                 <p className="text-sm leading-6 text-[#64748B]">
                   Nutrio could not load the security factors for this session. No
-                  administrator access has been granted.
+                  privileged access has been granted.
                 </p>
                 <Button
                   type="button"
@@ -565,7 +612,7 @@ export function AdminMfaGate({ children }: { children: ReactNode }) {
           <footer className="flex items-center justify-between border-t border-[#E2E8F0] bg-[#F8FAFC] px-6 py-4 sm:px-8">
             <div className="flex items-center gap-2 text-xs font-medium text-[#64748B]">
               <ShieldCheck className="h-4 w-4 text-[#22C7A1]" />
-              Every verification is auditable
+              Every privileged verification is auditable
             </div>
             <Button
               type="button"
@@ -581,4 +628,12 @@ export function AdminMfaGate({ children }: { children: ReactNode }) {
       </div>
     </main>
   );
+}
+
+export function AdminMfaGate({ children }: { children: ReactNode }) {
+  return <PrivilegedMfaGate portal="admin">{children}</PrivilegedMfaGate>;
+}
+
+export function FleetMfaGate({ children }: { children: ReactNode }) {
+  return <PrivilegedMfaGate portal="fleet">{children}</PrivilegedMfaGate>;
 }

@@ -74,6 +74,41 @@ describe("security incident evidence packages", () => {
     })).resolves.toMatchObject({ sha256, truncated: false });
   });
 
+  it("accepts cursor-based evidence pages only with a valid continuation", async () => {
+    const content = "{\n  \"page\": 1\n}\n";
+    const sha256 = await sha256Hex(content);
+    const base = {
+      content,
+      sha256,
+      byte_length: new TextEncoder().encode(content).byteLength,
+      filename: "nutrio-security-evidence-seq-20-to-11.json",
+      media_type: "application/json;charset=utf-8",
+      format: "json",
+      event_count: 10,
+      total_count: 20,
+      integrity: { valid: true },
+    } as const;
+
+    await expect(verifyPreparedEvidencePackage({
+      ...base,
+      truncated: true,
+      has_more: true,
+      next_before_sequence: 11,
+    })).resolves.toMatchObject({ has_more: true, next_before_sequence: 11 });
+    await expect(verifyPreparedEvidencePackage({
+      ...base,
+      truncated: true,
+      has_more: true,
+      next_before_sequence: null,
+    })).rejects.toThrow("metadata");
+    await expect(verifyPreparedEvidencePackage({
+      ...base,
+      truncated: false,
+      has_more: false,
+      next_before_sequence: null,
+    })).resolves.toMatchObject({ has_more: false });
+  });
+
   it("rejects altered bytes, unsafe filenames, and hidden truncation metadata", async () => {
     const content = "evidence\n";
     const sha256 = await sha256Hex(content);

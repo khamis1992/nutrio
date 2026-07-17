@@ -48,7 +48,6 @@ export function CreateFleetManagerDialog({
 
   // Form state
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState<FleetManagerRole>("fleet_manager");
@@ -66,7 +65,7 @@ export function CreateFleetManagerDialog({
     e.preventDefault();
 
     // Validation
-    if (!email || !password || !fullName) {
+    if (!email || !fullName) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
@@ -84,83 +83,37 @@ export function CreateFleetManagerDialog({
       return;
     }
 
-    if (password.length < 8) {
-      toast({
-        title: "Validation Error",
-        description: "Password must be at least 8 characters",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      // Step 1: Create auth user
-      const { data: authData, error: authError } =
-        await supabase.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: {
+      const { data, error } = await supabase.functions.invoke(
+        "create-fleet-manager",
+        {
+          body: {
+            email,
             full_name: fullName,
-            role: role === "super_admin" ? "admin" : "fleet_manager",
+            phone: phone || null,
+            role,
+            country: role === "super_admin" ? null : country,
           },
-        });
+        },
+      );
 
-      if (authError) {
-        if (authError.message.includes("already registered")) {
-          throw new Error("A user with this email already exists");
-        }
-        throw authError;
-      }
-
-      if (!authData.user) {
-        throw new Error("Failed to create user");
-      }
-
-      const authUserId = authData.user.id;
-
-      // Step 2: Create fleet manager record
-      const { error: fleetError } = await supabase
-        .from("fleet_managers")
-        .insert({
-          auth_user_id: authUserId,
-          email,
-          full_name: fullName,
-          phone: phone || null,
-          role,
-          country: role === "super_admin" ? null : country,
-          is_active: true,
-        });
-
-      if (fleetError) {
-        // Rollback: delete auth user if fleet manager creation fails
-        await supabase.auth.admin.deleteUser(authUserId);
-        throw fleetError;
-      }
-
-      // Step 3: Add to user_roles table for RBAC
-      // Both fleet_manager and super_admin get "admin" role in user_roles
-      // The specific fleet role is tracked in the fleet_managers table
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: authUserId,
-        role: "admin",
-      });
-
-      if (roleError) {
-        console.error("Error adding user role:", roleError);
-        // Non-critical error, don't rollback
+      if (error || data?.success !== true) {
+        throw new Error(
+          typeof data?.error === "string"
+            ? data.error.replaceAll("_", " ")
+            : "Failed to send fleet manager invitation",
+        );
       }
 
       toast({
-        title: "Success",
-        description: `${role === "super_admin" ? "Super Admin" : "Fleet Manager"} created successfully`,
+        title: "Invitation sent",
+        description: `${role === "super_admin" ? "Super Admin" : "Fleet Manager"} can now set a password securely from the email invitation.`,
       });
 
       // Reset form
       setEmail("");
-      setPassword("");
       setFullName("");
       setPhone("");
       setRole("fleet_manager");
@@ -184,16 +137,6 @@ export function CreateFleetManagerDialog({
     }
   };
 
-  const generatePassword = () => {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-    let result = "";
-    for (let i = 0; i < 12; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setPassword(result);
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -214,8 +157,8 @@ export function CreateFleetManagerDialog({
             Create Fleet Manager Account
           </DialogTitle>
           <DialogDescription className="font-semibold text-[#94A3B8]">
-            Create a new fleet manager or super admin account with access to the
-            Fleet Management Portal.
+            Send a secure invitation for Fleet Management Portal access. The
+            recipient creates their own password from the email link.
           </DialogDescription>
         </DialogHeader>
 
@@ -313,36 +256,6 @@ export function CreateFleetManagerDialog({
                 required
                 className="h-11 rounded-2xl border-[#E5EAF1] bg-white font-bold text-[#020617]"
               />
-            </div>
-
-            {/* Password */}
-            <div className="space-y-2">
-              <Label htmlFor="password" className="font-black text-[#020617]">
-                Password <span className="text-[#FB6B7A]">*</span>
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="password"
-                  type="text"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min 8 characters"
-                  required
-                  minLength={8}
-                  className="h-11 rounded-2xl border-[#E5EAF1] bg-white font-bold text-[#020617]"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={generatePassword}
-                  className="h-11 shrink-0 rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617]"
-                >
-                  Generate
-                </Button>
-              </div>
-              <p className="text-xs font-semibold text-[#94A3B8]">
-                Password must be at least 8 characters long
-              </p>
             </div>
 
             {/* Country Selection (only for fleet_manager role) */}

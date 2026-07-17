@@ -39,6 +39,7 @@ import {
 import {
   buildAdminSubscriptionWalletArgs,
   ensureActiveSubscriptionEndDate,
+  getEditableSubscriptionStatus,
   normalizeSubscriptionPlan,
   normalizeSubscriptionStatus,
   normalizeSubscriptionTier,
@@ -179,10 +180,14 @@ export function UserSubscriptionManager({
 
   const handleEditClick = () => {
     if (subscription) {
-      setSelectedPlan(
-        normalizeSubscriptionPlan(subscription.plan || subscription.plan_type),
+      const editStatus = getEditableSubscriptionStatus(subscription.status);
+      const editPlan = normalizeSubscriptionPlan(
+        subscription.plan || subscription.plan_type,
       );
-      setSelectedStatus(normalizeSubscriptionStatus(subscription.status));
+      setSelectedPlan(
+        editPlan,
+      );
+      setSelectedStatus(editStatus);
       setSelectedTier(normalizeSubscriptionTier(subscription.tier));
       setMealsPerWeek((subscription.meals_per_week || 5).toString());
       setMealsPerMonth((subscription.meals_per_month || 20).toString());
@@ -190,7 +195,13 @@ export function UserSubscriptionManager({
       setMealsUsedWeek((subscription.meals_used_this_week || 0).toString());
       setPrice((subscription.price || 99).toString());
       setEndDate(
-        subscription.end_date ? subscription.end_date.split("T")[0] : "",
+        ensureActiveSubscriptionEndDate({
+          status: editStatus,
+          plan: editPlan,
+          endDate: subscription.end_date
+            ? subscription.end_date.split("T")[0]
+            : "",
+        }) || "",
       );
     } else {
       setSelectedPlan("weekly");
@@ -248,15 +259,29 @@ export function UserSubscriptionManager({
     return fallback;
   };
 
-  const applyPlanDefaults = (plan: string, tier: string) => {
+  const applyPlanDefaults = (
+    plan: string,
+    tier: string,
+    { reactivateInactive = false }: { reactivateInactive?: boolean } = {},
+  ) => {
     const defaults = getPlanDefaults(plan, tier);
+    const currentStatus = normalizeSubscriptionStatus(selectedStatus);
+    const nextStatus =
+      reactivateInactive &&
+      (currentStatus === "expired" || currentStatus === "pending")
+        ? "active"
+        : currentStatus;
+
     setMealsPerWeek(defaults.mealsPerWeek.toString());
     setMealsPerMonth(defaults.mealsPerMonth.toString());
     setPrice(defaults.price.toString());
-    if (normalizeSubscriptionStatus(selectedStatus) === "active") {
+    if (nextStatus !== currentStatus) {
+      setSelectedStatus(nextStatus);
+    }
+    if (nextStatus === "active") {
       setEndDate(
         ensureActiveSubscriptionEndDate({
-          status: "active",
+          status: nextStatus,
           plan,
           endDate,
         }) || "",
@@ -267,13 +292,13 @@ export function UserSubscriptionManager({
   const handlePlanChange = (value: string) => {
     const nextPlan = normalizeSubscriptionPlan(value);
     setSelectedPlan(nextPlan);
-    applyPlanDefaults(nextPlan, selectedTier);
+    applyPlanDefaults(nextPlan, selectedTier, { reactivateInactive: true });
   };
 
   const handleTierChange = (value: string) => {
     const nextTier = normalizeSubscriptionTier(value);
     setSelectedTier(nextTier);
-    applyPlanDefaults(selectedPlan, nextTier);
+    applyPlanDefaults(selectedPlan, nextTier, { reactivateInactive: true });
   };
 
   const handleStatusChange = (value: string) => {
@@ -577,6 +602,8 @@ export function UserSubscriptionManager({
   const walletDelta = Number(
     (formWalletBalance - currentWalletBalance).toFixed(2),
   );
+  const isInactiveEditStatus =
+    normalizeSubscriptionStatus(selectedStatus) !== "active";
 
   if (loading) {
     return (
@@ -859,6 +886,17 @@ export function UserSubscriptionManager({
                 Customer ordering and meal credits are usable only when the
                 subscription is Active.
               </p>
+              {isInactiveEditStatus ? (
+                <div className="rounded-[18px] border border-[#F59E0B]/20 bg-[#FFFBEB] px-4 py-3 text-xs font-bold leading-relaxed text-[#92400E]">
+                  This customer will still see the subscription as expired
+                  until Status is changed to Active.
+                </div>
+              ) : (
+                <div className="rounded-[18px] border border-[#22C7A1]/15 bg-[#22C7A1]/10 px-4 py-3 text-xs font-bold leading-relaxed text-[#047857]">
+                  This subscription will appear as active in the customer app
+                  after saving.
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

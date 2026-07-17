@@ -36,6 +36,13 @@ export const normalizeSubscriptionStatus = (
     : "active";
 };
 
+export const getEditableSubscriptionStatus = (
+  value: string | null | undefined,
+): SubscriptionStatus => {
+  const status = normalizeSubscriptionStatus(value);
+  return status === "expired" ? "active" : status;
+};
+
 export interface SubscriptionSaveOverrides {
   plan?: string;
   status?: SubscriptionStatus;

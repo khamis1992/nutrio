@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AdminMfaGate } from "@/components/admin/AdminMfaGate";
+import { AdminMfaGate, FleetMfaGate } from "@/components/admin/AdminMfaGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -74,7 +74,10 @@ describe("AdminMfaGate", () => {
         data: { currentLevel: "aal2", nextLevel: "aal2", currentAuthenticationMethods: [] },
         error: null,
       });
-    vi.mocked(mfa.challengeAndVerify).mockResolvedValue({ data: {} as never, error: null });
+    vi.mocked(mfa.challengeAndVerify).mockResolvedValue({
+      data: { access_token: "verified-aal2-token" } as never,
+      error: null,
+    });
     vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as never);
     mockFactors();
   });
@@ -114,7 +117,6 @@ describe("AdminMfaGate", () => {
         name: "AuthApiError",
         message: "Invalid TOTP code",
         status: 422,
-        code: "mfa_verification_failed",
       } as never,
     });
 
@@ -134,6 +136,37 @@ describe("AdminMfaGate", () => {
       await screen.findByText(/does not match the selected authenticator/i),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/automatic date and time/i)).toHaveLength(2);
+  });
+
+  it("checks AAL2 against the session returned by MFA verification", async () => {
+    vi.mocked(mfa.getAuthenticatorAssuranceLevel).mockReset();
+    vi.mocked(mfa.getAuthenticatorAssuranceLevel).mockImplementation(
+      async (accessToken?: string) => ({
+        data: {
+          currentLevel: accessToken === "verified-aal2-token" ? "aal2" : "aal1",
+          nextLevel: "aal2",
+          currentAuthenticationMethods: [],
+        },
+        error: null,
+      }),
+    );
+
+    render(
+      <AdminMfaGate>
+        <div>Admin portal</div>
+      </AdminMfaGate>,
+    );
+
+    await screen.findByRole("combobox", { name: /choose authenticator/i });
+    fireEvent.change(screen.getByLabelText(/six-digit code/i), {
+      target: { value: "123456" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /verify and continue/i }));
+
+    expect(await screen.findByText("Admin portal")).toBeInTheDocument();
+    expect(mfa.getAuthenticatorAssuranceLevel).toHaveBeenLastCalledWith(
+      "verified-aal2-token",
+    );
   });
 
   it("distinguishes a rate limit from a wrong authenticator code", async () => {
@@ -160,5 +193,22 @@ describe("AdminMfaGate", () => {
     fireEvent.click(screen.getByRole("button", { name: /verify and continue/i }));
 
     expect(await screen.findByText(/too many verification attempts/i)).toBeInTheDocument();
+  });
+
+  it("records fleet super-admin verification with the fleet audit RPC", async () => {
+    render(
+      <FleetMfaGate>
+        <div>Fleet portal</div>
+      </FleetMfaGate>,
+    );
+
+    expect(await screen.findByText(/protected fleet operations/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/six-digit code/i), {
+      target: { value: "123456" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /verify and continue/i }));
+
+    expect(await screen.findByText("Fleet portal")).toBeInTheDocument();
+    expect(supabase.rpc).toHaveBeenCalledWith("fleet_record_mfa_verification");
   });
 });

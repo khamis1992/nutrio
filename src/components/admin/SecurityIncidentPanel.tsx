@@ -8,6 +8,8 @@ import {
   FileWarning,
   Link2,
   Loader2,
+  LockKeyhole,
+  PackageCheck,
   Plus,
   RefreshCw,
   ShieldAlert,
@@ -79,6 +81,10 @@ type SecurityIncident = {
   version: number;
   created_at: string;
   updated_at: string;
+  sealed_at?: string | null;
+  sealed_by?: string | null;
+  seal_hash?: string | null;
+  seal_version?: number | null;
   evidence_count: number | string;
   timeline_count: number | string;
 };
@@ -121,6 +127,22 @@ type IncidentDetail = {
     event_snapshot_matches?: boolean;
     event_hash_matches?: boolean;
   }>;
+  custody?: Array<{
+    id: string;
+    custody_sequence: number | string;
+    action: "export_prepared" | "transferred";
+    package_sha256: string;
+    byte_length: number | string | null;
+    filename: string | null;
+    recipient_type: string | null;
+    external_reference: string | null;
+    actor_user_id: string;
+    created_at: string;
+    previous_hash: string;
+    custody_hash: string;
+    hash_matches?: boolean;
+    previous_hash_matches?: boolean;
+  }>;
   integrity?: {
     valid: boolean;
     timeline_valid: boolean;
@@ -132,6 +154,9 @@ type IncidentDetail = {
     evidence_count: number | string;
     expected_evidence_count: number | string;
     evidence_invalid_count: number | string;
+    custody_valid?: boolean;
+    custody_invalid_count?: number | string;
+    seal_valid?: boolean;
   };
 };
 
@@ -200,6 +225,10 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
   const [linkEventId, setLinkEventId] = useState("");
   const [linkNote, setLinkNote] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [sealing, setSealing] = useState(false);
+  const [transferring, setTransferring] = useState(false);
+  const [recipientType, setRecipientType] = useState("authority");
+  const [transferReference, setTransferReference] = useState("");
 
   const loadIncidents = useCallback(async (quiet = false) => {
     quiet ? setRefreshing(true) : setLoading(true);
@@ -380,6 +409,56 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
       toast.error("Evidence package could not be exported");
     } finally {
       setExporting(false);
+    }
+  };
+
+  const sealIncident = async () => {
+    if (!detail) return;
+    setSealing(true);
+    try {
+      await callRpc("admin_seal_security_incident", {
+        p_incident_id: detail.incident.id,
+        p_expected_version: detail.incident.version,
+      });
+      toast.success("Incident sealed. Its final state can no longer be changed.");
+      await Promise.all([loadDetail(detail.incident.id), loadIncidents(true)]);
+    } catch (error) {
+      console.error("Failed to seal incident", error);
+      toast.error(error instanceof Error ? error.message : "Incident could not be sealed");
+    } finally {
+      setSealing(false);
+    }
+  };
+
+  const recordEvidenceTransfer = async () => {
+    if (!detail) return;
+    const latestPackage = [...(detail.custody || [])]
+      .reverse()
+      .find((entry) => entry.action === "export_prepared");
+    if (!latestPackage) {
+      toast.error("Export an evidence package before recording a handoff");
+      return;
+    }
+    if (transferReference.trim().length < 3) {
+      toast.error("Add the receiving authority, archive, or provider reference");
+      return;
+    }
+    setTransferring(true);
+    try {
+      await callRpc("admin_record_incident_evidence_transfer", {
+        p_incident_id: detail.incident.id,
+        p_package_sha256: latestPackage.package_sha256,
+        p_recipient_type: recipientType,
+        p_external_reference: transferReference.trim(),
+      });
+      setTransferReference("");
+      toast.success("Evidence handoff added to the custody chain");
+      await loadDetail(detail.incident.id);
+    } catch (error) {
+      console.error("Failed to record evidence transfer", error);
+      toast.error(error instanceof Error ? error.message : "Evidence handoff could not be recorded");
+    } finally {
+      setTransferring(false);
     }
   };
 
@@ -581,6 +660,11 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
                     <span className="font-mono text-[10px] font-black text-[#64748B]">{detail.incident.case_number}</span>
                     <Badge variant="outline" className={severityClass[detail.incident.severity]}>{detail.incident.severity}</Badge>
                     <Badge variant="outline">{statusLabel[detail.incident.status]}</Badge>
+                    {detail.incident.sealed_at && (
+                      <Badge className="border-[#22C7A1]/25 bg-[#EAFBF6] text-[#0B8F70]">
+                        <LockKeyhole className="mr-1 h-3 w-3" /> Sealed
+                      </Badge>
+                    )}
                   </div>
                   <SheetTitle className="mt-2 text-xl font-black text-[#020617]">{detail.incident.title}</SheetTitle>
                   <SheetDescription className="mt-1 leading-5">{detail.incident.summary}</SheetDescription>
@@ -597,7 +681,35 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
                     {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                     Export evidence
                   </Button>
+                  {detail.incident.status === "closed" && !detail.incident.sealed_at && (
+                    <Button
+                      variant="outline"
+                      onClick={() => void sealIncident()}
+                      disabled={sealing || detail.evidence.length === 0 || detail.integrity?.valid !== true}
+                      className="min-h-11 rounded-[14px] border-[#22C7A1]/35 font-black text-[#0B8F70]"
+                    >
+                      {sealing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LockKeyhole className="mr-2 h-4 w-4" />}
+                      Seal final case
+                    </Button>
+                  )}
                 </div>
+
+                {detail.incident.sealed_at && (
+                  <div className="rounded-[16px] border border-[#22C7A1]/25 bg-[#EAFBF6] p-4">
+                    <div className="flex items-start gap-3">
+                      <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-[#0B8F70]" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-[#020617]">Final case state is sealed</p>
+                        <p className="mt-1 text-xs font-semibold leading-5 text-[#64748B]">
+                          No status, evidence, assignment, or timeline changes are allowed. New exports and their external handoffs remain append-only custody records.
+                        </p>
+                        <p className="mt-2 break-all font-mono text-[9px] text-[#0B8F70]">
+                          {detail.incident.seal_hash}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div
                   className={cn(
@@ -620,7 +732,7 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
                     </p>
                     <p className="mt-1 text-xs font-semibold leading-5 opacity-80">
                       {detail.integrity?.valid === true
-                        ? "Every timeline hash, predecessor, evidence link, event seal, stored count, and manifest matches."
+                        ? "Every timeline, evidence, custody, and final case seal recomputes successfully."
                         : "One or more timeline or evidence values failed recomputation. Preserve provider records and investigate before relying on this case package."}
                     </p>
                   </div>
@@ -631,7 +743,7 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
                   <div className="grid gap-3 p-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Status</Label>
-                      <Select value={nextStatus} onValueChange={(value) => setNextStatus(value as IncidentStatus)}>
+                      <Select disabled={Boolean(detail.incident.sealed_at)} value={nextStatus} onValueChange={(value) => setNextStatus(value as IncidentStatus)}>
                         <SelectTrigger className="min-h-11 rounded-[14px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Object.entries(statusLabel).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
@@ -640,7 +752,7 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
                     </div>
                     <div className="space-y-2">
                       <Label>Severity</Label>
-                      <Select value={nextSeverity} onValueChange={(value) => setNextSeverity(value as IncidentSeverity)}>
+                      <Select disabled={Boolean(detail.incident.sealed_at)} value={nextSeverity} onValueChange={(value) => setNextSeverity(value as IncidentSeverity)}>
                         <SelectTrigger className="min-h-11 rounded-[14px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="low">Low</SelectItem>
@@ -657,6 +769,7 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
                         value={externalReference}
                         onChange={(event) => setExternalReference(event.target.value.slice(0, 300))}
                         placeholder="NCSA/Q-CERT ticket or provider case number"
+                        disabled={Boolean(detail.incident.sealed_at)}
                         className="min-h-11 rounded-[14px]"
                       />
                     </div>
@@ -667,12 +780,13 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
                         value={investigationNote}
                         onChange={(event) => setInvestigationNote(event.target.value.slice(0, 10000))}
                         placeholder="Record findings, containment steps, decisions, and handoffs."
+                        disabled={Boolean(detail.incident.sealed_at)}
                         className="min-h-24 rounded-[14px]"
                       />
                     </div>
                     <Button
                       onClick={() => void updateIncident()}
-                      disabled={updating}
+                      disabled={updating || Boolean(detail.incident.sealed_at)}
                       className="min-h-11 rounded-[14px] bg-[#22C7A1] font-black text-[#020617] sm:col-span-2"
                     >
                       {updating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -684,7 +798,7 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
                 <AdminPanel>
                   <AdminPanelHeader title="Linked evidence" eyebrow={`${detail.evidence.length} sealed events`} />
                   <div className="space-y-3 p-4">
-                    <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                    {!detail.incident.sealed_at && <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                       <Input
                         value={linkEventId}
                         onChange={(event) => setLinkEventId(event.target.value.trim())}
@@ -700,7 +814,7 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
                       <Button variant="outline" onClick={() => void linkEvidence()} disabled={updating} className="min-h-11 rounded-[14px]">
                         <Link2 className="mr-2 h-4 w-4" /> Link
                       </Button>
-                    </div>
+                    </div>}
 
                     {detail.evidence.length === 0 ? (
                       <p className="rounded-[14px] bg-[#F6F8FB] p-4 text-xs font-semibold text-[#64748B]">No events linked yet.</p>
@@ -742,7 +856,7 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
                 </AdminPanel>
 
                 <AdminPanel>
-                  <AdminPanelHeader title="Custody timeline" eyebrow="Append-only hash chain" />
+                  <AdminPanelHeader title="Case timeline" eyebrow="Append-only hash chain" />
                   <div className="space-y-0 px-4 pb-4">
                     {detail.timeline.map((entry, index) => (
                       <div key={entry.id} className="relative flex gap-3 border-l border-[#DCE3EC] py-3 pl-5 first:pt-1 last:pb-1">
@@ -772,6 +886,74 @@ export function SecurityIncidentPanel({ seedEvent }: { seedEvent?: IncidentSeedE
                         </div>
                       </div>
                     ))}
+                  </div>
+                </AdminPanel>
+
+                <AdminPanel>
+                  <AdminPanelHeader
+                    title="Evidence custody"
+                    eyebrow={`${detail.custody?.length || 0} immutable records`}
+                    description="Exports and external handoffs are chained independently from the sealed case."
+                  />
+                  <div className="space-y-3 p-4">
+                    {(detail.custody || []).length === 0 ? (
+                      <p className="rounded-[14px] bg-[#F6F8FB] p-4 text-xs font-semibold text-[#64748B]">
+                        Export the first evidence package to begin its custody chain.
+                      </p>
+                    ) : (detail.custody || []).map((entry) => (
+                      <div key={entry.id} className="rounded-[14px] border border-[#E5EAF1] p-3">
+                        <div className="flex items-start gap-3">
+                          {entry.hash_matches === true && entry.previous_hash_matches === true ? (
+                            <PackageCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#22C7A1]" />
+                          ) : (
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#FB6B7A]" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-xs font-black text-[#020617]">
+                                {entry.action === "export_prepared" ? "Evidence package prepared" : `Transferred to ${entry.recipient_type?.replace(/_/g, " ")}`}
+                              </p>
+                              <span className="text-[9px] font-bold text-[#94A3B8]">
+                                {format(new Date(entry.created_at), "MMM d, HH:mm:ss")}
+                              </span>
+                            </div>
+                            {entry.filename && <p className="mt-1 text-[10px] font-bold text-[#64748B]">{entry.filename} - {String(entry.byte_length)} bytes</p>}
+                            {entry.external_reference && <p className="mt-1 text-[10px] font-bold text-[#64748B]">Reference: {entry.external_reference}</p>}
+                            <p className="mt-2 break-all font-mono text-[9px] text-[#94A3B8]">SHA-256 {entry.package_sha256}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {(detail.custody || []).some((entry) => entry.action === "export_prepared") && (
+                      <div className="grid gap-2 border-t border-[#E5EAF1] pt-3 sm:grid-cols-[180px_1fr_auto]">
+                        <Select value={recipientType} onValueChange={setRecipientType}>
+                          <SelectTrigger className="min-h-11 rounded-[14px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="authority">Authority</SelectItem>
+                            <SelectItem value="external_archive">External archive</SelectItem>
+                            <SelectItem value="provider">Provider</SelectItem>
+                            <SelectItem value="legal_counsel">Legal counsel</SelectItem>
+                            <SelectItem value="internal_security">Internal security</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          value={transferReference}
+                          onChange={(event) => setTransferReference(event.target.value.slice(0, 300))}
+                          placeholder="Receipt, case, or archive object reference"
+                          className="min-h-11 rounded-[14px]"
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={() => void recordEvidenceTransfer()}
+                          disabled={transferring}
+                          className="min-h-11 rounded-[14px] font-black"
+                        >
+                          {transferring && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Record handoff
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </AdminPanel>
 

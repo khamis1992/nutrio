@@ -157,6 +157,7 @@ type SecurityPostureCheck = {
 
 type SecurityPosture = {
   generated_at: string;
+  release_version?: string;
   status: "healthy" | "review" | "action_required";
   failure_count: NumericValue;
   warning_count: NumericValue;
@@ -349,7 +350,9 @@ function SecurityPosturePanel({ posture }: { posture: SecurityPosture | null }) 
       <AdminPanelHeader
         eyebrow="Live control validation"
         title="Security posture"
-        description={`Checked ${formatTimestamp(posture.generated_at)}`}
+        description={`Checked ${formatTimestamp(posture.generated_at)}${
+          posture.release_version ? ` · Controls ${posture.release_version}` : ""
+        }`}
         actions={
           <span className={cn("inline-flex rounded-full border px-3 py-1.5 text-xs font-black", overall.className)}>
             {overall.label}
@@ -520,24 +523,60 @@ export default function AdminSecurityCenter() {
         to: exportedAt.toISOString(),
       };
 
-      const response = await callAdminRpc<unknown>("admin_prepare_security_export", {
-        p_format: formatType,
-        p_filters: filters,
-        p_limit: 5000,
-      });
-      const prepared = await verifyPreparedEvidencePackage(response);
-      downloadBlob(prepared.content, prepared.media_type, prepared.filename);
-      downloadBlob(
-        formatSha256Checksum(prepared.sha256, prepared.filename),
-        "text/plain;charset=utf-8",
-        `${prepared.filename}.sha256`,
-      );
+      if (formatType === "json") {
+        let beforeSequence: number | null = null;
+        let pages = 0;
+        let exportedEvents = 0;
+        let totalEvents = 0;
+        do {
+          const response = await callAdminRpc<unknown>(
+            "admin_prepare_security_export_page",
+            {
+              p_filters: filters,
+              p_limit: 1500,
+              p_before_sequence: beforeSequence,
+            },
+          );
+          const prepared = await verifyPreparedEvidencePackage(response);
+          downloadBlob(prepared.content, prepared.media_type, prepared.filename);
+          downloadBlob(
+            formatSha256Checksum(prepared.sha256, prepared.filename),
+            "text/plain;charset=utf-8",
+            `${prepared.filename}.sha256`,
+          );
+          pages += 1;
+          exportedEvents += prepared.event_count;
+          totalEvents = prepared.total_count;
+          beforeSequence = prepared.has_more
+            ? Number(prepared.next_before_sequence)
+            : null;
+          if (pages >= 100 && beforeSequence !== null) {
+            throw new Error("The export exceeds 100 evidence parts. Use a narrower date range.");
+          }
+        } while (beforeSequence !== null);
 
-      toast.success(
-        prepared.truncated
-          ? `${prepared.event_count.toLocaleString()} of ${prepared.total_count.toLocaleString()} matching events exported. Narrow the filters for a complete package.`
-          : `${prepared.event_count.toLocaleString()} security events exported with a verified checksum`,
-      );
+        toast.success(
+          `${exportedEvents.toLocaleString()} of ${totalEvents.toLocaleString()} events exported in ${pages} verified ${pages === 1 ? "part" : "parts"}`,
+        );
+      } else {
+        const response = await callAdminRpc<unknown>("admin_prepare_security_export", {
+          p_format: formatType,
+          p_filters: filters,
+          p_limit: 5000,
+        });
+        const prepared = await verifyPreparedEvidencePackage(response);
+        downloadBlob(prepared.content, prepared.media_type, prepared.filename);
+        downloadBlob(
+          formatSha256Checksum(prepared.sha256, prepared.filename),
+          "text/plain;charset=utf-8",
+          `${prepared.filename}.sha256`,
+        );
+        toast.success(
+          prepared.truncated
+            ? `${prepared.event_count.toLocaleString()} of ${prepared.total_count.toLocaleString()} matching rows exported to CSV. Use JSON for a complete anchored export.`
+            : `${prepared.event_count.toLocaleString()} security events exported with a verified checksum`,
+        );
+      }
       void loadSecurityData(true);
     } catch (exportError) {
       console.error("Failed to export security evidence:", exportError);

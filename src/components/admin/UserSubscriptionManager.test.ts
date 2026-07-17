@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAdminSubscriptionWalletArgs,
   ensureActiveSubscriptionEndDate,
+  getEditableSubscriptionStatus,
   getNextSubscriptionEndDate,
   normalizeSubscriptionPlan,
   normalizeSubscriptionStatus,
@@ -87,6 +88,12 @@ describe("UserSubscriptionManager save payload", () => {
     expect(normalizeSubscriptionPlan("Monthly")).toBe("monthly");
     expect(normalizeSubscriptionTier("Standard")).toBe("standard");
     expect(normalizeSubscriptionStatus("Expired")).toBe("expired");
+  });
+
+  it("opens expired subscriptions ready to reactivate from the admin editor", () => {
+    expect(getEditableSubscriptionStatus("expired")).toBe("active");
+    expect(getEditableSubscriptionStatus("pending")).toBe("pending");
+    expect(getEditableSubscriptionStatus("cancelled")).toBe("cancelled");
   });
 
   it("renews stale end dates when saving an active subscription", () => {
