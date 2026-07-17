@@ -3,8 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 const DISPATCHABLE_ORDER_STATUSES = ["preparing", "ready_for_pickup"] as const;
 // meal_schedules statuses that are ready for fleet dispatch
 const DISPATCHABLE_SCHEDULE_STATUSES = ["preparing", "ready"] as const;
-const ACTIVE_DELIVERY_JOB_STATUSES = ["assigned", "accepted", "picked_up", "in_transit", "on_the_way"] as const;
-const CLOSED_DELIVERY_JOB_STATUSES = ["picked_up", "in_transit", "on_the_way", "delivered", "completed", "failed", "cancelled"] as const;
 
 type RawOrder = {
   id: string;
@@ -42,6 +40,54 @@ type DispatchAddress = {
   city: string;
   phone: string | null;
   is_default: boolean | null;
+};
+
+type FleetDispatchCustomerProjection = {
+  user_id: string;
+  full_name: string | null;
+};
+
+type FleetDispatchDriverProjection = {
+  id: string;
+  full_name: string | null;
+  phone_number: string | null;
+  rating: number | null;
+  total_deliveries: number | null;
+  is_online: boolean;
+  is_active: boolean;
+  current_lat: number | null;
+  current_lng: number | null;
+  last_location_update: string | null;
+  approval_status: string;
+  vehicle_plate: string | null;
+  active_jobs: unknown;
+};
+
+type UntypedRpcResult<T> = {
+  data: T | null;
+  error: { message: string } | null;
+};
+
+const callRpc = <T,>(name: string, args: Record<string, unknown>) =>
+  (supabase as unknown as {
+    rpc: (functionName: string, parameters: Record<string, unknown>) => Promise<UntypedRpcResult<T>>;
+  }).rpc(name, args);
+
+const parseActiveJobs = (value: unknown): DispatchDriverActiveJob[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object") return [];
+    const job = candidate as Record<string, unknown>;
+    if (typeof job.id !== "string" || typeof job.status !== "string") return [];
+    return [{
+      id: job.id,
+      status: job.status,
+      deliveryLat: typeof job.delivery_lat === "number" ? job.delivery_lat : null,
+      deliveryLng: typeof job.delivery_lng === "number" ? job.delivery_lng : null,
+      deliveryAddress: typeof job.delivery_address === "string" ? job.delivery_address : null,
+    }];
+  });
 };
 
 export interface DispatchOrderRecord {
@@ -174,7 +220,10 @@ export async function getDispatchOrders(): Promise<DispatchOrderRecord[]> {
           .in("id", allRestaurantIds)
       : Promise.resolve({ data: [], error: null }),
     allUserIds.length > 0
-      ? supabase.from("profiles").select("user_id, full_name").in("user_id", allUserIds)
+      ? callRpc<FleetDispatchCustomerProjection[]>(
+          "get_fleet_dispatch_customers",
+          { p_user_ids: allUserIds },
+        )
       : Promise.resolve({ data: [], error: null }),
     allMealIds.length > 0
       ? supabase.from("meals").select("id, name").in("id", allMealIds)
@@ -217,7 +266,10 @@ export async function getDispatchOrders(): Promise<DispatchOrderRecord[]> {
     new Set((jobsData || []).map((job) => job.driver_id).filter(Boolean) as string[])
   );
   const { data: driversData, error: driversError } = driverIds.length > 0
-    ? await supabase.from("drivers").select("id, full_name, phone_number").in("id", driverIds)
+    ? await callRpc<FleetDispatchDriverProjection[]>(
+        "get_fleet_dispatch_drivers",
+        { p_driver_ids: driverIds },
+      )
     : { data: [], error: null };
 
   if (driversError) throw driversError;
@@ -329,52 +381,14 @@ export async function getDispatchOrders(): Promise<DispatchOrderRecord[]> {
 }
 
 export async function getDispatchDrivers(): Promise<DispatchDriverRecord[]> {
-  const { data: driversData, error: driversError } = await supabase
-    .from("drivers")
-    .select("id, full_name, phone_number, rating, total_deliveries, is_online, is_active, current_lat, current_lng, last_location_update, approval_status")
-    .eq("is_active", true)
-    .order("is_online", { ascending: false });
+  const { data, error } = await callRpc<FleetDispatchDriverProjection[]>(
+    "get_fleet_dispatch_drivers",
+    { p_driver_ids: null },
+  );
 
-  if (driversError) throw driversError;
+  if (error) throw error;
 
-  const drivers = driversData || [];
-  if (drivers.length === 0) return [];
-
-  const driverIds = drivers.map((driver) => driver.id);
-
-  const [{ data: activeJobsData, error: activeJobsError }, { data: vehiclesData }] = await Promise.all([
-    supabase
-      .from("delivery_jobs")
-      .select("id, driver_id, status, delivery_lat, delivery_lng, delivery_address")
-      .in("driver_id", driverIds)
-      .in("status", [...ACTIVE_DELIVERY_JOB_STATUSES]),
-    supabase
-      .from("vehicles")
-      .select("assigned_driver_id, plate_number")
-      .in("assigned_driver_id", driverIds),
-  ]);
-
-  if (activeJobsError) throw activeJobsError;
-
-  const jobsByDriver = new Map<string, DispatchDriverActiveJob[]>();
-  (activeJobsData || []).forEach((job) => {
-    if (!job.driver_id) return;
-    if (!jobsByDriver.has(job.driver_id)) jobsByDriver.set(job.driver_id, []);
-    jobsByDriver.get(job.driver_id)?.push({
-      id: job.id,
-      status: job.status || "assigned",
-      deliveryLat: job.delivery_lat,
-      deliveryLng: job.delivery_lng,
-      deliveryAddress: job.delivery_address,
-    });
-  });
-
-  const plateByDriver = new Map<string, string>();
-  (vehiclesData || []).forEach((v: { assigned_driver_id?: string | null; plate_number?: string | null }) => {
-    if (v.assigned_driver_id && v.plate_number) plateByDriver.set(v.assigned_driver_id, v.plate_number);
-  });
-
-  return drivers.map((driver) => ({
+  return (data || []).filter((driver) => driver.is_active).map((driver) => ({
     id: driver.id,
     fullName: driver.full_name || `Driver ${driver.phone_number?.slice(-4) || driver.id.slice(0, 8)}`,
     phone: driver.phone_number,
@@ -385,8 +399,8 @@ export async function getDispatchDrivers(): Promise<DispatchDriverRecord[]> {
     currentLat: driver.current_lat,
     currentLng: driver.current_lng,
     locationUpdatedAt: driver.last_location_update,
-    activeJobs: jobsByDriver.get(driver.id) || [],
-    vehiclePlate: plateByDriver.get(driver.id) || null,
+    activeJobs: parseActiveJobs(driver.active_jobs),
+    vehiclePlate: driver.vehicle_plate,
   }));
 }
 
@@ -399,194 +413,25 @@ export async function assignDispatchOrder(params: {
   /** "order" (default) or "meal_schedule" */
   source?: "order" | "meal_schedule";
 }): Promise<void> {
-  const { orderId, driverId, managerId, reason, notes, source = "order" } = params;
+  const { orderId, driverId, reason, notes, source = "order" } = params;
+  const { data, error } = await callRpc<Record<string, unknown>>(
+    "assign_fleet_delivery_job",
+    {
+      p_source_type: source,
+      p_source_id: orderId,
+      p_driver_id: driverId,
+      p_reason: reason || null,
+      p_notes: notes || null,
+    },
+  );
 
-  const now = new Date().toISOString();
-
-  if (source === "meal_schedule") {
-    // ── Branch: meal_schedule-sourced dispatch ──────────────────────────────
-    const [scheduleResult, jobResult] = await Promise.all([
-      supabase
-        .from("meal_schedules")
-        .select("id, restaurant_id, user_id, delivery_fee")
-        .eq("id", orderId)
-        .single(),
-      supabase
-        .from("delivery_jobs")
-        .select("id, driver_id, status")
-        .eq("schedule_id", orderId)
-        .maybeSingle(),
-    ]);
-
-    if (scheduleResult.error) throw scheduleResult.error;
-    if (jobResult.error) throw jobResult.error;
-
-    const schedule = scheduleResult.data;
-    const currentJob = jobResult.data;
-    const currentStatus = currentJob?.status || null;
-
-    if (currentStatus && [...CLOSED_DELIVERY_JOB_STATUSES].includes(currentStatus as (typeof CLOSED_DELIVERY_JOB_STATUSES)[number])) {
-      throw new Error("This order can no longer be reassigned from the fleet portal.");
-    }
-
-    // Fetch pickup address from restaurant
-    const { data: restaurantData } = schedule.restaurant_id
-      ? await supabase.from("restaurants").select("address").eq("id", schedule.restaurant_id).maybeSingle()
-      : { data: null };
-
-    let jobId = currentJob?.id || null;
-    const previousDriverId = currentJob?.driver_id || null;
-
-    if (jobId) {
-      const { error } = await supabase
-        .from("delivery_jobs")
-        .update({ driver_id: driverId, status: "assigned", assigned_at: now })
-        .eq("id", jobId);
-      if (error) throw error;
-    } else {
-      const { data: createdJob, error } = await supabase
-        .from("delivery_jobs")
-        .insert({
-          // Correct FK: use meal_schedule.id so delivery_jobs properly links to meal_schedules
-          schedule_id: schedule.id,
-          restaurant_id: schedule.restaurant_id,
-          pickup_address: restaurantData?.address || null,
-          delivery_fee: schedule.delivery_fee,
-          driver_earnings: schedule.delivery_fee,
-          driver_id: driverId,
-          status: "assigned",
-          assigned_at: now,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      jobId = createdJob.id;
-    }
-
-    if (jobId) {
-      const action = previousDriverId && previousDriverId !== driverId ? "reassigned" : "assigned";
-      const { error: historyError } = await supabase.from("driver_assignment_history").insert({
-        action,
-        driver_id: driverId,
-        job_id: jobId,
-        performed_by: managerId || null,
-        reason: reason || "Manual dispatch from fleet portal",
-        notes: notes || null,
-      });
-
-      if (historyError) throw historyError;
-    }
-
-    return;
-  }
-
-  // ── Branch: orders table (original one-time purchase flow) ─────────────────
-  const { data: orderData, error: orderError } = await supabase
-    .from("orders")
-    .select("*")
-    .eq("id", orderId)
-    .single();
-
-  if (orderError) throw orderError;
-
-  const order = orderData as RawOrder;
-
-  const [jobResult, branchResult, restaurantResult] = await Promise.all([
-    supabase
-      .from("delivery_jobs")
-      .select("id, driver_id, status")
-      .eq("order_id", orderId)
-      .maybeSingle(),
-    order.restaurant_branch_id
-      ? supabase
-          .from("restaurant_branches")
-          .select("address")
-          .eq("id", order.restaurant_branch_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-    order.restaurant_id
-      ? supabase
-          .from("restaurants")
-          .select("address")
-          .eq("id", order.restaurant_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-  ]);
-
-  if (jobResult.error) throw jobResult.error;
-  if (branchResult.error) throw branchResult.error;
-  if (restaurantResult.error) throw restaurantResult.error;
-
-  const pickupAddress = branchResult.data?.address || restaurantResult.data?.address || null;
-
-  let jobId = jobResult.data?.id || null;
-  const previousDriverId = jobResult.data?.driver_id || null;
-  const currentStatus = jobResult.data?.status || null;
-
-  if (currentStatus && [...CLOSED_DELIVERY_JOB_STATUSES].includes(currentStatus as (typeof CLOSED_DELIVERY_JOB_STATUSES)[number])) {
-    throw new Error("This order can no longer be reassigned from the fleet portal.");
-  }
-
-  if (jobId) {
-    const { error: updateJobError } = await supabase
-      .from("delivery_jobs")
-      .update({
-        driver_id: driverId,
-        status: "assigned",
-        assigned_at: now,
-      })
-      .eq("id", jobId);
-
-    if (updateJobError) throw updateJobError;
-  } else {
-    const { data: createdJob, error: createJobError } = await supabase
-      .from("delivery_jobs")
-      .insert({
-        order_id: order.id,
-        restaurant_id: order.restaurant_id,
-        pickup_address: pickupAddress,
-        delivery_address: order.delivery_address,
-        delivery_lat: order.delivery_lat,
-        delivery_lng: order.delivery_lng,
-        delivery_fee: order.delivery_fee,
-        tip_amount: order.tip_amount,
-        driver_earnings: order.delivery_fee,
-        driver_id: driverId,
-        status: "assigned",
-        assigned_at: now,
-      })
-      .select("id")
-      .single();
-
-    if (createJobError) throw createJobError;
-
-    jobId = createdJob.id;
-  }
-
-  const { error: queueError } = await supabase
-    .from("delivery_queue")
-    .update({
-      assigned_driver_id: driverId,
-      assigned_at: now,
-      manual_assignment_notes: reason || "Assigned from fleet portal",
-    })
-    .eq("order_id", order.id);
-
-  if (queueError) throw queueError;
-
-  if (jobId) {
-    const action = previousDriverId && previousDriverId !== driverId ? "reassigned" : "assigned";
-
-    const { error: historyError } = await supabase.from("driver_assignment_history").insert({
-      action,
-      driver_id: driverId,
-      job_id: jobId,
-      performed_by: managerId || null,
-      reason: reason || "Manual dispatch from fleet portal",
-      notes: notes || null,
-    });
-
-    if (historyError) throw historyError;
+  if (error) throw error;
+  if (!data || data.success !== true) {
+    throw new Error(
+      typeof data?.error === "string"
+        ? data.error
+        : "The delivery could not be assigned.",
+    );
   }
 }
 
@@ -699,7 +544,9 @@ export async function getDispatchActivity(limit = 10): Promise<DispatchActivityR
 
   const [{ data: driversData, error: driversError }, { data: jobsData, error: jobsError }] = await Promise.all([
     driverIds.length > 0
-      ? supabase.from("drivers").select("id, full_name, phone_number").in("id", driverIds)
+      ? callRpc<FleetDispatchDriverProjection[]>("get_fleet_dispatch_drivers", {
+          p_driver_ids: driverIds,
+        })
       : Promise.resolve({ data: [], error: null }),
     jobIds.length > 0
       ? supabase.from("delivery_jobs").select("id, schedule_id, order_id, status").in("id", jobIds)

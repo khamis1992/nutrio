@@ -8,11 +8,12 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff, Loader2, Truck, ArrowLeft } from "lucide-react";
 import { z } from "zod";
+import type { User } from "@supabase/supabase-js";
 import { ForgotPasswordDialog } from "@/components/ForgotPasswordDialog";
 
 const signUpSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   fullName: z.string().min(2, "Name must be at least 2 characters"),
   phone: z.string().min(10, "Please enter a valid phone number"),
 });
@@ -21,6 +22,46 @@ const signInSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
 });
+
+type DriverRecord = {
+  id: string;
+  approval_status: "pending" | "approved" | "rejected" | null;
+};
+
+type RegisterDriverResponse = {
+  success?: boolean;
+  error?: string;
+  driver?: DriverRecord;
+};
+
+async function findDriver(userId: string): Promise<DriverRecord | null> {
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("id, approval_status")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function ensureDriverApplication(user: User): Promise<DriverRecord | null> {
+  const existing = await findDriver(user.id);
+  if (existing) return existing;
+  if (user.user_metadata?.account_type !== "driver") return null;
+
+  const { data, error } = await supabase.functions.invoke("register-driver", {
+    body: {
+      full_name: user.user_metadata.full_name,
+      phone: user.user_metadata.phone,
+    },
+  });
+  const response = data as RegisterDriverResponse | null;
+  if (error || response?.success !== true || !response.driver) {
+    const code = response?.error?.replace(/_/g, " ");
+    throw new Error(code || "Could not create the driver application");
+  }
+  return response.driver;
+}
 
 export default function DriverAuth() {
   const [isLogin, setIsLogin] = useState(false);
@@ -41,11 +82,7 @@ export default function DriverAuth() {
     const checkDriverSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: driver } = await supabase
-          .from("drivers")
-          .select("id, approval_status")
-          .eq("user_id", session.user.id)
-          .maybeSingle();
+        const driver = await ensureDriverApplication(session.user);
 
         if (driver) {
           if (driver.approval_status === "pending") {
@@ -56,7 +93,9 @@ export default function DriverAuth() {
         }
       }
     };
-    checkDriverSession();
+    void checkDriverSession().catch((error) => {
+      console.error("Driver session initialization failed:", error);
+    });
   }, [navigate]);
 
   const validateForm = () => {
@@ -98,11 +137,7 @@ export default function DriverAuth() {
 
         if (error) throw error;
 
-        const { data: driver } = await supabase
-          .from("drivers")
-          .select("id, approval_status")
-          .eq("user_id", data.user.id)
-          .maybeSingle();
+        const driver = await ensureDriverApplication(data.user);
 
         if (!driver) {
           await supabase.auth.signOut();
@@ -120,13 +155,20 @@ export default function DriverAuth() {
           navigate("/driver");
         }
       } else {
+        const configuredAppUrl = import.meta.env.VITE_APP_URL?.replace(/\/$/, "");
+        const webAppUrl = new URL(import.meta.env.BASE_URL, window.location.origin)
+          .toString()
+          .replace(/\/$/, "");
+        const appUrl = configuredAppUrl || webAppUrl;
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/driver`,
+            emailRedirectTo: `${appUrl}/driver/auth?verified=1`,
             data: {
               full_name: formData.fullName,
+              phone: formData.phone,
+              account_type: "driver",
             },
           },
         });
@@ -134,46 +176,22 @@ export default function DriverAuth() {
         if (authError) throw authError;
         if (!authData.user) throw new Error("Failed to create account");
 
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({
-            user_id: authData.user.id,
-            full_name: formData.fullName,
+        if (authData.session) {
+          await ensureDriverApplication(authData.user);
+          toast({
+            title: "Driver application created",
+            description: "Complete your vehicle information to continue.",
           });
-
-        if (profileError && !profileError.message.includes("duplicate")) {
-          console.error("Profile creation error:", profileError);
+          navigate("/driver/onboarding");
+        } else {
+          toast({
+            title: "Check your email",
+            description:
+              "Confirm your email, then sign in to create the driver application.",
+          });
+          setIsLogin(true);
+          setFormData((current) => ({ ...current, password: "" }));
         }
-
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({
-            user_id: authData.user.id,
-            role: "driver",
-          });
-
-        if (roleError) {
-          console.error("Role creation error:", roleError);
-        }
-
-        const { error: driverError } = await supabase
-          .from("drivers")
-          .insert({
-            user_id: authData.user.id,
-            vehicle_type: "bike",
-            approval_status: "pending",
-            is_online: false,
-            total_deliveries: 0,
-            wallet_balance: 0,
-          });
-
-        if (driverError) throw driverError;
-
-        toast({
-          title: "Driver account created!",
-          description: "Please complete your vehicle information to get started.",
-        });
-        navigate("/driver/onboarding");
       }
     } catch (error) {
       console.error("Auth error:", error);

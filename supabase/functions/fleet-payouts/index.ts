@@ -10,11 +10,11 @@ import {
   getCorsHeaders,
   getSupabasePublishableKey,
   getServiceClient,
-  hasAdminAssurance,
   HttpError,
   jsonResponse,
   readJsonBody,
   recordSecurityEvent,
+  requireMfaAssurance,
   type SecurityPrincipal,
 } from "../_shared/security.ts";
 
@@ -172,7 +172,8 @@ async function loadFleetManager(authUserId: string, managerId?: string | null) {
 async function authenticateStandardActor(req: Request, token: string): Promise<FleetActor> {
   const principal = await authenticateRequest(req);
   const manager = await loadFleetManager(principal.user.id);
-  if (hasAdminAssurance(principal)) {
+  if (principal.isAdmin) {
+    await requireMfaAssurance(req, principal, "manage_fleet_payouts");
     return {
       principal,
       managerId: manager?.id || null,
@@ -185,6 +186,7 @@ async function authenticateStandardActor(req: Request, token: string): Promise<F
   if (!manager || !FLEET_ROLES.has(String(manager.role))) {
     throw new HttpError(403, "fleet_operator_required");
   }
+  await requireMfaAssurance(req, principal, "manage_fleet_payouts");
   return {
     principal,
     managerId: manager.id,

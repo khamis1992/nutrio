@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,16 @@ const asRpcResult = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : null;
+
+type UntypedRpcResult = {
+  data: unknown;
+  error: { message: string } | null;
+};
+
+const callRpc = (name: string, args: Record<string, unknown>) =>
+  (supabase as unknown as {
+    rpc: (functionName: string, parameters: Record<string, unknown>) => Promise<UntypedRpcResult>;
+  }).rpc(name, args);
 
 interface PartnerDeliveryHandoffProps {
   scheduleId: string;
@@ -79,93 +89,130 @@ export function PartnerDeliveryHandoff({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const qrContainerRef = useRef<HTMLDivElement>(null);
+  const initializedCapabilityJobRef = useRef<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [verificationCode, setVerificationCode] = useState<string | null>(null);
+  const [verificationExpiresAt, setVerificationExpiresAt] = useState<string | null>(null);
   const [showOverrideDialog, setShowOverrideDialog] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
   const [overriding, setOverriding] = useState(false);
 
-  useEffect(() => {
-    const fetchDeliveryJob = async () => {
-      try {
-        // Fetch delivery job without embedded driver (PostgREST FK issue)
-        const { data: jobData, error: jobError } = await supabase
-          .from("delivery_jobs")
-          .select("*")
-          .eq(source === "order" ? "order_id" : "schedule_id", scheduleId)
-          .single();
+  const fetchDeliveryJob = useCallback(async () => {
+    try {
+      const { data: jobData, error: jobError } = await supabase
+        .from("delivery_jobs")
+        .select("id, status, schedule_id, order_id, driver_id, assigned_at, picked_up_at, delivered_at, delivery_fee, created_at, verification_expires_at")
+        .eq(source === "order" ? "order_id" : "schedule_id", scheduleId)
+        .single();
 
-        // PGRST116 = no rows found (no delivery job yet)
-        if (jobError && jobError.code !== "PGRST116") {
-          console.error("Error fetching delivery job:", jobError);
-          setDeliveryJob(null);
-          return;
-        }
-        
-        // If no job data, just return (delivery job doesn't exist yet)
-        if (!jobData) {
-          setDeliveryJob(null);
-          return;
-        }
-        
-        // If job has a driver, fetch driver separately
-        let driverData = null;
-        if (jobData?.driver_id) {
-          const { data: driver, error: driverError } = await supabase
-            .from("drivers")
-            .select("id, phone_number, vehicle_type, rating, current_lat, current_lng")
-            .eq("id", jobData.driver_id)
-            .maybeSingle();
-          
-          if (!driverError && driver) {
-            driverData = driver;
-          }
-        }
-        
-        setDeliveryJob({
-          ...jobData,
-          driver: driverData
-        } as unknown as DeliveryJob);
-      } catch (err) {
-        console.error("Error fetching delivery job:", err);
+      if (jobError && jobError.code !== "PGRST116") {
+        console.error("Error fetching delivery job:", jobError);
         setDeliveryJob(null);
-      } finally {
-        setLoading(false);
+        return;
+      }
+
+      setDeliveryJob(jobData
+        ? { ...jobData, driver: null } as unknown as DeliveryJob
+        : null);
+    } catch (err) {
+      console.error("Error fetching delivery job:", err);
+      setDeliveryJob(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [scheduleId, source]);
+
+  useEffect(() => {
+    setLoading(true);
+    void fetchDeliveryJob();
+
+    const pollId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void fetchDeliveryJob();
+      }
+    }, 15_000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void fetchDeliveryJob();
       }
     };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
 
-    fetchDeliveryJob();
-
-    // Subscribe to real-time updates
-    const subscription = supabase
-      .channel(`delivery-${scheduleId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "delivery_jobs",
-          filter: `${source === "order" ? "order_id" : "schedule_id"}=eq.${scheduleId}`
-        },
-        (payload) => {
-          setDeliveryJob(payload.new as unknown as DeliveryJob);
-        }
-      )
-      .subscribe();
-
-  return () => {
-      subscription.unsubscribe();
+    return () => {
+      window.clearInterval(pollId);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, [scheduleId, source]);
+  }, [fetchDeliveryJob]);
+
+  const applyCapability = useCallback((result: Record<string, unknown>) => {
+    const nextCode = typeof result.verification_code === "string"
+      ? result.verification_code
+      : null;
+    const nextQrNonce = typeof result.qr_nonce === "string"
+      ? result.qr_nonce
+      : null;
+    const nextExpiry = typeof result.expires_at === "string"
+      ? result.expires_at
+      : null;
+
+    if (!nextCode || !nextQrNonce || !nextExpiry) {
+      throw new Error("The pickup capability response was incomplete");
+    }
+
+    setVerificationCode(nextCode);
+    setQrCode(nextQrNonce);
+    setVerificationExpiresAt(nextExpiry);
+    setDeliveryJob((current) => current
+      ? { ...current, verification_expires_at: nextExpiry }
+      : current);
+  }, []);
+
+  useEffect(() => {
+    if (!deliveryJob || !user) return;
+    if (!["pending", "assigned", "accepted"].includes(deliveryJob.status)) {
+      initializedCapabilityJobRef.current = null;
+      setVerificationCode(null);
+      setVerificationExpiresAt(null);
+      setQrCode(null);
+      return;
+    }
+    if (initializedCapabilityJobRef.current === deliveryJob.id) return;
+
+    initializedCapabilityJobRef.current = deliveryJob.id;
+    setRefreshing(true);
+    void callRpc("initialize_delivery_verification", {
+      p_delivery_job_id: deliveryJob.id,
+      p_partner_user_id: user.id,
+    }).then(({ data, error }) => {
+      if (error) throw error;
+      const result = asRpcResult(data);
+      if (result?.success !== true) {
+        throw new Error(
+          typeof result?.error === "string"
+            ? result.error
+            : "Failed to initialize pickup capability",
+        );
+      }
+      applyCapability(result);
+    }).catch((error: unknown) => {
+      initializedCapabilityJobRef.current = null;
+      console.error("Error initializing pickup capability:", error);
+      toast({
+        title: "Pickup verification unavailable",
+        description: error instanceof Error ? error.message : "Please try refreshing the code",
+        variant: "destructive",
+      });
+    }).finally(() => {
+      setRefreshing(false);
+    });
+  }, [applyCapability, deliveryJob, toast, user]);
 
   const handleRefreshCode = async () => {
     if (!deliveryJob || !user) return;
 
     setRefreshing(true);
     try {
-      // Notify driver BEFORE refreshing - they need to know the old code is invalid
-      await notifyDriverOfCodeChange();
-
-      const { data, error } = await supabase.rpc("refresh_verification_code", {
+      const { data, error } = await callRpc("refresh_verification_code", {
         p_delivery_job_id: deliveryJob.id,
         p_partner_user_id: user.id,
       });
@@ -175,24 +222,11 @@ export function PartnerDeliveryHandoff({
       const result = asRpcResult(data);
 
       if (result?.success === true) {
-        const verificationCode = typeof result.verification_code === "string"
-          ? result.verification_code
-          : "updated";
+        applyCapability(result);
         toast({
           title: "Code Refreshed",
-          description: `New code: ${verificationCode}. Driver has been notified.`,
+          description: "A new one-time pickup code and QR capability are ready.",
         });
-        
-        // Refresh the delivery job data
-        const { data: jobData } = await supabase
-          .from("delivery_jobs")
-          .select("*")
-          .eq("id", deliveryJob.id)
-          .single();
-
-        if (jobData) {
-          setDeliveryJob(jobData as unknown as DeliveryJob);
-        }
       } else {
         toast({
           title: "Error",
@@ -213,13 +247,13 @@ export function PartnerDeliveryHandoff({
   };
 
   const isCodeExpired = () => {
-    if (!deliveryJob?.verification_expires_at) return false;
-    return new Date(deliveryJob.verification_expires_at) < new Date();
+    if (!verificationExpiresAt) return false;
+    return new Date(verificationExpiresAt) < new Date();
   };
 
   const isCodeExpiringSoon = () => {
-    if (!deliveryJob?.verification_expires_at) return false;
-    const expiryDate = new Date(deliveryJob.verification_expires_at);
+    if (!verificationExpiresAt) return false;
+    const expiryDate = new Date(verificationExpiresAt);
     const now = new Date();
     const fiveMinutes = 5 * 60 * 1000;
     return expiryDate.getTime() - now.getTime() < fiveMinutes;
@@ -247,18 +281,10 @@ export function PartnerDeliveryHandoff({
         });
         setShowOverrideDialog(false);
         setOverrideReason("");
-        
-        // Refresh the delivery job
-        const { data: jobData } = await supabase
-          .from("delivery_jobs")
-          .select("*")
-          .eq("id", deliveryJob.id)
-          .single();
-
-        if (jobData) {
-          setDeliveryJob(jobData as unknown as DeliveryJob);
-        }
-        
+        setVerificationCode(null);
+        setVerificationExpiresAt(null);
+        setQrCode(null);
+        await fetchDeliveryJob();
         onHandoverConfirmed?.();
       } else {
         toast({
@@ -279,44 +305,8 @@ export function PartnerDeliveryHandoff({
     }
   };
 
-  const notifyDriverOfCodeChange = async () => {
-    if (!deliveryJob?.driver_id) return;
-    
-    try {
-      const { data: driver } = await supabase
-        .from("drivers")
-        .select("user_id")
-        .eq("id", deliveryJob.driver_id)
-        .single();
-      
-      if (driver?.user_id) {
-        await supabase.from("notifications").insert({
-          user_id: driver.user_id,
-          title: "Verification Code Changed",
-          message: "The restaurant has refreshed the pickup verification code. Please get the new code.",
-          type: "delivery_update",
-          data: { delivery_job_id: deliveryJob.id }
-        });
-      }
-    } catch (err) {
-      console.warn("Could not notify driver of code change:", err);
-    }
-  };
-
-  // Set QR code value when delivery job is loaded
-  // Uses the delivery job ID directly — the generate_pickup_qr_code RPC
-  // requires pgcrypto (digest function) which is not enabled on this instance.
-  useEffect(() => {
-    if (!deliveryJob || deliveryJob.status === "picked_up" || deliveryJob.status === "delivered") {
-      setQrCode(null);
-      return;
-    }
-    setQrCode(deliveryJob.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deliveryJob?.id, deliveryJob?.status]);
-
   const handlePrintQR = () => {
-    if (!deliveryJob) return;
+    if (!deliveryJob || !qrCode) return;
     const sourceQr = qrContainerRef.current?.querySelector("svg");
     if (!sourceQr) return;
 
@@ -429,16 +419,22 @@ export function PartnerDeliveryHandoff({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* QR Code Section - Show until picked up */}
-        {!['picked_up', 'delivered'].includes(deliveryJob.status) && (
+        {['pending', 'assigned', 'accepted'].includes(deliveryJob.status) && (
           <div className="text-center space-y-3 p-4 bg-muted/50 rounded-lg">
-            <div ref={qrContainerRef} className="inline-block p-4 bg-white rounded-lg shadow-sm">
-              <QRCodeSVG 
-                value={qrCode || deliveryJob.id} 
-                size={200}
-                level="H"
-                includeMargin={true}
-              />
-            </div>
+            {qrCode ? (
+              <div ref={qrContainerRef} className="inline-block p-4 bg-white rounded-lg shadow-sm">
+                <QRCodeSVG
+                  value={qrCode}
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+            ) : (
+              <div className="flex h-[232px] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            )}
             <div>
               <p className="font-medium text-sm">Order #{scheduleId.slice(0, 8)}</p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -447,15 +443,15 @@ export function PartnerDeliveryHandoff({
             </div>
             
             {/* 6-Digit Verification Code */}
-            {deliveryJob.pickup_verification_code && (
+            {verificationCode && (
               <div className="bg-primary/10 p-3 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-1">Or tell driver this code:</p>
                 <p className="text-2xl font-bold tracking-widest text-primary">
-                  {deliveryJob.pickup_verification_code}
+                  {verificationCode}
                 </p>
-                {deliveryJob.verification_expires_at && (
+                {verificationExpiresAt && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Expires at {format(new Date(deliveryJob.verification_expires_at), "h:mm a")}
+                    Expires at {format(new Date(verificationExpiresAt), "h:mm a")}
                   </p>
                 )}
               </div>
@@ -463,14 +459,15 @@ export function PartnerDeliveryHandoff({
             
             <div className="flex gap-2 justify-center flex-wrap">
               <Button 
-                variant="outline" 
+                variant="outline"
                 size="sm"
                 onClick={handlePrintQR}
+                disabled={!qrCode}
               >
                 <Printer className="w-4 h-4 mr-2" />
                 Print QR Code
               </Button>
-              {(isCodeExpired() || isCodeExpiringSoon() || !deliveryJob.pickup_verification_code) && (
+              {(isCodeExpired() || isCodeExpiringSoon() || !verificationCode || !qrCode) && (
                 <Button 
                   variant="outline" 
                   size="sm"

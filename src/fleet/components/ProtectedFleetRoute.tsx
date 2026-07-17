@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { ReactNode, useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { FleetMfaGate } from "@/components/admin/AdminMfaGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -148,9 +149,13 @@ export function ProtectedFleetRoute({ children }: ProtectedFleetRouteProps) {
   }
 
   // Render children or outlet
+  const content = children || <Outlet />;
+
   return (
     <FleetContext.Provider value={{ fleetManager }}>
-      {children || <Outlet />}
+      {fleetManager?.role === "super_admin" ? (
+        <FleetMfaGate>{content}</FleetMfaGate>
+      ) : content}
     </FleetContext.Provider>
   );
 }

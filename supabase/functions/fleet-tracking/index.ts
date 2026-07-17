@@ -8,11 +8,11 @@ import {
   getClientIp,
   getCorsHeaders,
   getServiceClient,
-  hasAdminAssurance,
   HttpError,
   jsonResponse,
   readJsonBody,
   recordSecurityEvent,
+  requireMfaAssurance,
   type SecurityPrincipal,
 } from "../_shared/security.ts";
 
@@ -118,7 +118,8 @@ async function authenticateFleetActor(req: Request): Promise<FleetActor> {
     .maybeSingle();
   if (error) throw new HttpError(503, "authorization_unavailable");
 
-  if (hasAdminAssurance(principal)) {
+  if (principal.isAdmin) {
+    await requireMfaAssurance(req, principal, "manage_fleet_tracking");
     return {
       principal,
       managerId: manager?.id || principal.user.id,
@@ -130,6 +131,7 @@ async function authenticateFleetActor(req: Request): Promise<FleetActor> {
   if (!manager || !FLEET_ROLES.has(String(manager.role))) {
     throw new HttpError(403, "fleet_operator_required");
   }
+  await requireMfaAssurance(req, principal, "manage_fleet_tracking");
 
   return {
     principal,

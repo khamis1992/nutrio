@@ -14,7 +14,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MapPin, Phone, Store, Package, CheckCircle, Navigation, ArrowLeft, ScanLine, Loader2, AlertTriangle } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DriverQRScanner } from "@/components/driver/DriverQRScanner";
@@ -31,6 +30,7 @@ interface DeliveryDetails {
   estimated_distance_km: number | null;
   delivery_fee: number;
   tip_amount: number;
+  driver_earnings: number;
   delivery_notes: string | null;
   delivery_photo_url: string | null;
   restaurant: {
@@ -59,6 +59,22 @@ const readString = (value: unknown, fallback = "") =>
 const readNumber = (value: unknown, fallback = 0) =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
+const readNullableString = (value: unknown) =>
+  typeof value === "string" ? value : null;
+
+const readNullableNumber = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
+type UntypedRpcResult<T> = {
+  data: T | null;
+  error: { message: string } | null;
+};
+
+const callRpc = <T,>(name: string, args: Record<string, unknown>) =>
+  (supabase as unknown as {
+    rpc: (functionName: string, parameters: Record<string, unknown>) => Promise<UntypedRpcResult<T>>;
+  }).rpc(name, args);
+
 // Map frontend display statuses to database statuses
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   assigned: { label: "Claimed", color: "bg-blue-500" },
@@ -76,88 +92,40 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 export default function DriverOrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [delivery, setDelivery] = useState<DeliveryDetails | null>(null);
-  const [driverId, setDriverId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string } | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  // Fetch driver ID on mount
   useEffect(() => {
-    const fetchDriverId = async () => {
-      if (!user) return;
-      
-      try {
-        const { data: driver, error } = await supabase
-          .from("drivers")
-          .select("id")
-          .eq("user_id", user.id)
-          .single();
-        
-        if (error) throw error;
-        setDriverId(driver.id);
-      } catch (error) {
-        console.error("Error fetching driver ID:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load driver information",
-          variant: "destructive",
-        });
-      }
-    };
-    
-    fetchDriverId();
-  }, [user, toast]);
-
-  useEffect(() => {
-    if (id && driverId) {
+    if (id) {
       fetchDelivery();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, driverId]);
+  }, [id]);
 
   const fetchDelivery = async () => {
-    if (!id || !user) return;
+    if (!id) return;
 
     try {
-      // Fetch delivery job without embedded queries
-      const { data: deliveryData, error } = await supabase
-        .from("delivery_jobs")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error) throw error;
-
-      if (!deliveryData) {
-        setDelivery(null);
-        return;
-      }
-
-      // Fetch restaurant separately
-      let restaurantData = null;
-      if (deliveryData.restaurant_id) {
-        const { data: restaurant } = await supabase
-          .from("restaurants")
-          .select("name, address, phone")
-          .eq("id", deliveryData.restaurant_id)
-          .single();
-        restaurantData = restaurant;
-      }
-
-      const { data: details, error: detailsError } = await supabase.rpc(
+      const { data: details, error: detailsError } = await callRpc<unknown>(
         "get_delivery_details_for_driver",
-        { p_delivery_job_id: deliveryData.id }
+        { p_delivery_job_id: id }
       );
       if (detailsError) throw detailsError;
 
       const detailObject = asJsonObject(details);
+      if (!detailObject) {
+        setDelivery(null);
+        return;
+      }
+
+      const restaurantObject = asJsonObject(detailObject.restaurant);
       const mealScheduleData = detailObject ? {
         meal_name: readString(detailObject.meal_name, "Meal"),
         calories: readNumber(detailObject.meal_calories),
@@ -168,23 +136,28 @@ export default function DriverOrderDetail() {
       } : null;
 
       setDelivery({
-        id: deliveryData.id,
-        schedule_id: deliveryData.schedule_id,
-        order_id: deliveryData.order_id,
-        status: deliveryData.status || "pending",
-        pickup_address: deliveryData.pickup_address || "",
-        delivery_address: deliveryData.delivery_address || "",
-        delivery_lat: deliveryData.delivery_lat,
-        delivery_lng: deliveryData.delivery_lng,
-        estimated_distance_km: deliveryData.estimated_distance_km,
-        delivery_fee: deliveryData.delivery_fee || 0,
-        tip_amount: deliveryData.tip_amount || 0,
-        delivery_notes: deliveryData.delivery_notes,
-        delivery_photo_url: deliveryData.delivery_photo_url,
-        restaurant: restaurantData,
+        id: readString(detailObject.id, id),
+        schedule_id: readNullableString(detailObject.schedule_id),
+        order_id: readNullableString(detailObject.order_id),
+        status: readString(detailObject.status, "pending"),
+        pickup_address: readString(detailObject.pickup_address),
+        delivery_address: readString(detailObject.delivery_address),
+        delivery_lat: readNullableNumber(detailObject.delivery_lat),
+        delivery_lng: readNullableNumber(detailObject.delivery_lng),
+        estimated_distance_km: readNullableNumber(detailObject.estimated_distance_km),
+        delivery_fee: readNumber(detailObject.delivery_fee),
+        tip_amount: readNumber(detailObject.tip_amount),
+        driver_earnings: readNumber(detailObject.driver_earnings),
+        delivery_notes: readNullableString(detailObject.delivery_notes),
+        delivery_photo_url: readNullableString(detailObject.delivery_photo_url),
+        restaurant: restaurantObject ? {
+          name: readString(restaurantObject.name, "Restaurant"),
+          address: readNullableString(restaurantObject.address),
+          phone: readNullableString(restaurantObject.phone),
+        } : null,
         meal_schedule: mealScheduleData,
       });
-      setNotes(deliveryData.delivery_notes || "");
+      setNotes(readString(detailObject.delivery_notes));
     } catch (error) {
       console.error("Error fetching delivery:", error);
       toast({
@@ -203,21 +176,21 @@ export default function DriverOrderDetail() {
     setUpdating(true);
 
     try {
-      const updateData: Record<string, string | null> = { status: newStatus };
-
-      if (newStatus === "picked_up") {
-        updateData.picked_up_at = new Date().toISOString();
-      } else if (newStatus === "delivered") {
-        updateData.delivered_at = new Date().toISOString();
-        updateData.delivery_notes = notes;
-      }
-
-      const { error } = await supabase
-        .from("delivery_jobs")
-        .update(updateData)
-        .eq("id", delivery.id);
+      const { data, error } = await callRpc<Record<string, unknown>>(
+        "transition_delivery_job",
+        {
+          p_delivery_job_id: delivery.id,
+          p_new_status: newStatus,
+          p_delivery_notes: newStatus === "delivered" ? notes : null,
+          p_failure_reason: null,
+        },
+      );
 
       if (error) throw error;
+      const result = asJsonObject(data);
+      if (result?.success !== true) {
+        throw new Error(readString(result?.error, "Failed to update delivery status"));
+      }
 
       toast({
         title: "Status updated!",
@@ -252,33 +225,20 @@ export default function DriverOrderDetail() {
   };
 
   const handleQRScan = async (qrData: string) => {
-    if (!delivery || !id || !driverId) return;
+    if (!delivery || !id) return;
     
     setUpdating(true);
     setScanResult(null);
     
     try {
-      // Check if input is a 6-digit verification code or a QR code
-      const isVerificationCode = /^\d{6}$/.test(qrData);
-      
-      let result;
-      if (isVerificationCode) {
-        // Use verification code RPC for 6-digit codes
-        const { data, error } = await supabase.rpc("verify_pickup_by_code", {
-          p_verification_code: qrData,
-          p_driver_id: driverId,
-        });
-        result = { data, error };
-      } else {
-        // Use QR code RPC for other data (QR codes)
-        const { data, error } = await supabase.rpc("verify_pickup_by_qr", {
-          p_delivery_id: id,
-          p_qr_code: qrData,
-          p_driver_id: driverId,
-        });
-        result = { data, error };
-      }
-      
+      const result = await callRpc<Record<string, unknown>>(
+        "complete_delivery_pickup",
+        {
+          p_delivery_job_id: id,
+          p_capability: qrData.trim(),
+        },
+      );
+
       if (result.error) throw result.error;
       
       const resultObject = asJsonObject(result.data);
@@ -330,7 +290,7 @@ export default function DriverOrderDetail() {
     );
   }
 
-  const totalEarnings = delivery.delivery_fee + delivery.tip_amount;
+  const totalEarnings = delivery.driver_earnings || delivery.delivery_fee + delivery.tip_amount;
   const statusConfig = STATUS_CONFIG[delivery.status] || { label: delivery.status, color: "bg-gray-500" };
 
   return (

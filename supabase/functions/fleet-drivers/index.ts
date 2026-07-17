@@ -8,13 +8,18 @@ import {
   getClientIp,
   getCorsHeaders,
   getServiceClient,
-  hasAdminAssurance,
   HttpError,
   jsonResponse,
   readJsonBody,
   recordSecurityEvent,
+  requireMfaAssurance,
   type SecurityPrincipal,
 } from "../_shared/security.ts";
+import {
+  assertSignupProvisioningGrantConsumed,
+  clearSignupProvisioningMetadata,
+  issueSignupProvisioningGrant,
+} from "../_shared/signupProvisioning.ts";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -144,7 +149,8 @@ async function authenticateFleetActor(req: Request): Promise<FleetActor> {
     .maybeSingle();
   if (error) throw new HttpError(503, "authorization_unavailable");
 
-  if (hasAdminAssurance(principal)) {
+  if (principal.isAdmin) {
+    await requireMfaAssurance(req, principal, "manage_fleet_drivers");
     return {
       principal,
       managerId: manager?.id || null,
@@ -156,6 +162,7 @@ async function authenticateFleetActor(req: Request): Promise<FleetActor> {
   if (!manager || !FLEET_ROLES.has(String(manager.role))) {
     throw new HttpError(403, "fleet_operator_required");
   }
+  await requireMfaAssurance(req, principal, "manage_fleet_drivers");
   return {
     principal,
     managerId: manager.id,
@@ -378,12 +385,34 @@ async function handleCreateDriver(req: Request, actor: FleetActor): Promise<Resp
   await validateZones(cityId, zoneIds);
 
   const service = getServiceClient();
+  const provisioningGrant = await issueSignupProvisioningGrant(service, {
+    email,
+    kind: "fleet_driver_invitation",
+    createdBy: actor.authUserId,
+  });
   const { data: authData, error: authError } = await service.auth.admin.inviteUserByEmail(email, {
-    data: { full_name: fullName, role: "driver" },
+    data: {
+      full_name: fullName,
+      nutrio_provisioning_token: provisioningGrant.token,
+      nutrio_provisioning_kind: provisioningGrant.kind,
+    },
   });
   if (authError || !authData.user) {
     console.error("Driver invite failed:", authError?.message || "missing user");
     throw new HttpError(authError?.status === 422 ? 409 : 400, "driver_invite_failed");
+  }
+
+  try {
+    await assertSignupProvisioningGrantConsumed(service, provisioningGrant.tokenHash);
+    await clearSignupProvisioningMetadata(
+      service,
+      authData.user.id,
+      authData.user.user_metadata,
+    );
+  } catch (error) {
+    const { error: cleanupError } = await service.auth.admin.deleteUser(authData.user.id);
+    if (cleanupError) console.error("Driver auth rollback failed:", cleanupError.message);
+    throw error;
   }
 
   const { data: driver, error: driverError } = await service

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, Suspense, lazy } from "react";
+import { useEffect, useState, Suspense, lazy } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Truck,
@@ -38,8 +38,6 @@ interface DeliveryJob {
   assigned_at: string | null;
   picked_up_at: string | null;
   delivered_at: string | null;
-  delivery_fee: number;
-  driver_earnings: number;
   created_at: string;
   driver: DeliveryDriver | null;
 }
@@ -48,7 +46,6 @@ interface DeliveryDriver {
   id: string;
   full_name: string | null;
   phone_number: string | null;
-  email: string | null;
   vehicle_type: string | null;
   vehicle_make: string | null;
   vehicle_model: string | null;
@@ -73,6 +70,21 @@ interface LocationPoint {
   timestamp?: string;
   speed?: number;
 }
+
+interface CustomerTrackingProjection {
+  delivery_job: DeliveryJob | null;
+  latest_location: DriverLocation | null;
+}
+
+type UntypedRpcResult<T> = {
+  data: T | null;
+  error: { message: string } | null;
+};
+
+const callRpc = <T,>(name: string, args: Record<string, unknown>) =>
+  (supabase as unknown as {
+    rpc: (functionName: string, parameters: Record<string, unknown>) => Promise<UntypedRpcResult<T>>;
+  }).rpc(name, args);
 
 const safeFormat = (dateStr: string | null | undefined, fmt: string, fallback = ""): string => {
   if (!dateStr) return fallback;
@@ -116,206 +128,62 @@ export function CustomerDeliveryTracker({
   const [routeHistory, setRouteHistory] = useState<LocationPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const locationChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
-    fetchDeliveryJob();
+    setRouteHistory([]);
+    void fetchDeliveryJob();
 
-    // Subscribe to delivery job updates
-    const jobChannel = supabase
-      .channel(`customer-delivery-${scheduleId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "delivery_jobs",
-          filter: `schedule_id=eq.${scheduleId}`,
-        },
-        (payload) => {
-          setDeliveryJob(payload.new as unknown as DeliveryJob);
-        }
-      )
-      .subscribe();
+    const interval = window.setInterval(() => {
+      void fetchDeliveryJob();
+    }, 15000);
 
     return () => {
-      jobChannel.unsubscribe();
-      if (locationChannelRef.current) {
-        locationChannelRef.current.unsubscribe();
-      }
+      window.clearInterval(interval);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleId]);
 
-  // Subscribe to driver location updates when driver is assigned
-  useEffect(() => {
-    if (deliveryJob?.driver_id && deliveryJob.status !== "delivered") {
-      // Fetch initial location from drivers table (current_lat/current_lng)
-      fetchDriverLocation(deliveryJob.driver_id);
-
-      // Subscribe to real-time location updates via drivers table
-      locationChannelRef.current = supabase
-        .channel(`driver-location-${deliveryJob.driver_id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "drivers",
-            filter: `id=eq.${deliveryJob.driver_id}`,
-          },
-          (payload) => {
-            const driver = payload.new as {
-              current_lat: number | null;
-              current_lng: number | null;
-            };
-            if (driver.current_lat != null && driver.current_lng != null) {
-              const now = new Date().toISOString();
-              setDriverLocation(prev => ({
-                lat: driver.current_lat!,
-                lng: driver.current_lng!,
-                updated_at: now,
-                speed_kmh: prev?.speed_kmh,
-                heading: prev?.heading,
-              }));
-              setRouteHistory(prev => [...prev, {
-                lat: driver.current_lat!,
-                lng: driver.current_lng!,
-                timestamp: now,
-              }]);
-            }
-          }
-        )
-        // Also subscribe to driver_locations table for high-frequency updates
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "driver_locations",
-            filter: `driver_id=eq.${deliveryJob.driver_id}`,
-          },
-          (payload) => {
-            const loc = payload.new as Record<string, unknown>;
-            if (typeof loc.location === "string") {
-              // Parse PostGIS point: "SRID=4326;POINT(lng lat)"
-              const match = loc.location.match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/);
-              if (match) {
-                const recordedAt = typeof loc.recorded_at === "string"
-                  ? loc.recorded_at
-                  : new Date().toISOString();
-                setDriverLocation(prev => ({
-                  lat: parseFloat(match[2]),
-                  lng: parseFloat(match[1]),
-                  updated_at: recordedAt,
-                  speed_kmh: prev?.speed_kmh,
-                  heading: prev?.heading,
-                }));
-                setRouteHistory(prev => [...prev.slice(-200), {
-                  lat: parseFloat(match[2]),
-                  lng: parseFloat(match[1]),
-                  timestamp: recordedAt,
-                }]);
-              }
-            }
-          }
-        )
-        .subscribe();
-
-      // Poll for location updates every 15 seconds as fallback
-      const interval = setInterval(() => {
-        fetchDriverLocation(deliveryJob.driver_id!);
-      }, 15000);
-
-      return () => {
-        clearInterval(interval);
-        if (locationChannelRef.current) {
-          locationChannelRef.current.unsubscribe();
-          locationChannelRef.current = null;
-        }
-      };
-    }
-    return undefined;
-  }, [deliveryJob?.driver_id, deliveryJob?.status]);
-
   const fetchDeliveryJob = async () => {
     try {
-      // Fetch delivery job without embedded driver (PostgREST FK issue)
-      const { data: jobData, error: jobError } = await supabase
-        .from("delivery_jobs")
-        .select("*")
-        .eq("schedule_id", scheduleId)
-        .single();
+      const { data, error } = await callRpc<CustomerTrackingProjection>(
+        "get_customer_delivery_tracking",
+        { p_source_id: scheduleId },
+      );
 
-      // PGRST116 = no rows found (no delivery job yet)
-      if (jobError && jobError.code !== "PGRST116") {
-        console.error("Error fetching delivery job:", jobError);
-        setDeliveryJob(null);
-        return;
+      if (error) throw error;
+
+      const job = data?.delivery_job ?? null;
+      const latestLocation = data?.latest_location ?? null;
+      setDeliveryJob(job);
+      setDriverLocation(latestLocation);
+
+      if (latestLocation) {
+        setRouteHistory((previous) => {
+          const lastPoint = previous[previous.length - 1];
+          if (lastPoint?.timestamp === latestLocation.updated_at) return previous;
+          return [...previous.slice(-199), {
+            lat: latestLocation.lat,
+            lng: latestLocation.lng,
+            timestamp: latestLocation.updated_at,
+            speed: latestLocation.speed_kmh,
+          }];
+        });
+      } else if (!job || ["delivered", "completed", "failed", "cancelled"].includes(job.status)) {
+        setRouteHistory([]);
       }
-      
-      // If no job data, just return (delivery job doesn't exist yet)
-      if (!jobData) {
-        setDeliveryJob(null);
-        return;
-      }
-      
-      // If job has a driver, fetch driver separately
-      let driverData = null;
-      if (jobData?.driver_id) {
-        const { data: driver, error: driverError } = await supabase
-          .from("drivers")
-          .select("id, full_name, phone_number, email, vehicle_type, vehicle_make, vehicle_model, license_plate, rating, total_deliveries, current_lat, current_lng")
-          .eq("id", jobData.driver_id)
-          .single();
-        
-        if (!driverError && driver) {
-          driverData = driver;
-        }
-      }
-      
-      setDeliveryJob({
-        ...jobData,
-        driver: driverData
-      } as unknown as DeliveryJob);
     } catch (err) {
       console.error("Error fetching delivery job:", err);
       setDeliveryJob(null);
+      setDriverLocation(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const fetchDriverLocation = async (driverId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("drivers")
-        .select("current_lat, current_lng")
-        .eq("id", driverId)
-        .single();
-
-      if (error && error.code !== "PGRST116") throw error;
-      if (data && data.current_lat != null && data.current_lng != null) {
-        setDriverLocation(prev => ({
-          lat: data.current_lat!,
-          lng: data.current_lng!,
-          updated_at: new Date().toISOString(),
-          speed_kmh: prev?.speed_kmh,
-          heading: prev?.heading,
-        }));
-      }
-    } catch (err) {
-      console.error("Error fetching driver location:", err);
-    }
-  };
-
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchDeliveryJob();
-    if (deliveryJob?.driver_id) {
-      fetchDriverLocation(deliveryJob.driver_id);
-    }
+    void fetchDeliveryJob();
   };
 
   const getStatusStep = (status: string | null) => {
@@ -754,13 +622,9 @@ export function CustomerDeliveryTracker({
               </div>
 
               {/* Call button — phone preferred, email as fallback, hidden if neither */}
-              {(deliveryJob.driver.phone_number || deliveryJob.driver.email) && (
+              {deliveryJob.driver.phone_number && (
                 <a
-                  href={
-                    deliveryJob.driver.phone_number
-                      ? `tel:${deliveryJob.driver.phone_number}`
-                      : `mailto:${deliveryJob.driver.email}`
-                  }
+                  href={`tel:${deliveryJob.driver.phone_number}`}
                   className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#020617] shadow-[0_12px_24px_rgba(2,6,23,0.18)] transition-transform active:scale-95"
                 >
                   <Phone className="h-5 w-5 text-white" />

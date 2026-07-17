@@ -4,10 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { calculateDistance, formatDistance } from "@/lib/distance";
 import {
+  assignDispatchOrder,
+  getDispatchDrivers,
+  getDispatchOrders,
   loadAutoDispatchRules,
   setRoutePlanLock,
 } from "@/fleet/services/orderDispatch";
@@ -29,6 +31,8 @@ import type { Driver } from "@/fleet/types";
 
 interface Delivery {
   id: string;
+  source: "order" | "meal_schedule";
+  sourceId: string;
   pickupAddress: string;
   deliveryAddress: string;
   priority: "high" | "normal" | "low";
@@ -46,7 +50,7 @@ interface AssignedRoute {
   totalDistanceKm: number | null;
 }
 
-const MAX_JOBS_PER_DRIVER = 3;
+const MAX_JOBS_PER_DRIVER = 1;
 
 // ─── Geo-aware nearest-driver algorithm ─────────────────────────────────────
 
@@ -165,87 +169,73 @@ export default function RouteOptimization() {
   }, []);
 
   const fetchAll = async () => {
-    await Promise.all([fetchDrivers(), fetchPendingDeliveries()]);
-  };
-
-  const fetchDrivers = async () => {
-    const { data, error } = await supabase
-      .from("drivers")
-      .select("id, user_id, full_name, phone_number, city_id, assigned_zone_ids, rating, total_deliveries, cancellation_rate, is_online, is_active, current_lat, current_lng, last_location_update, approval_status, wallet_balance, total_earnings, created_at")
-      .eq("approval_status", "approved")
-      .eq("is_active", true)
-      .eq("is_online", true);
-
-    if (error) { console.error(error); return; }
-
-    const list: Driver[] = (data || []).map((d) => ({
-      id: d.id,
-      authUserId: d.user_id || "",
-      email: "",
-      phone: d.phone_number || "",
-      fullName: d.full_name || `Driver ${(d.phone_number || "").slice(-4) || d.id.slice(0, 8)}`,
-      cityId: d.city_id || "",
-      assignedZoneIds: d.assigned_zone_ids || [],
-      status: "active" as const,
-      isOnline: true,
-      currentLatitude: d.current_lat ?? undefined,
-      currentLongitude: d.current_lng ?? undefined,
-      locationUpdatedAt: d.last_location_update ?? undefined,
-      totalDeliveries: d.total_deliveries || 0,
-      rating: d.rating || 5.0,
-      cancellationRate: d.cancellation_rate || 0,
-      currentBalance: d.wallet_balance || 0,
-      totalEarnings: d.total_earnings || 0,
-      assignedVehicleId: undefined,
-      createdAt: d.created_at || new Date().toISOString(),
-    }));
-
-    setDrivers(list);
-
-    // Fetch active job counts
-    if (list.length > 0) {
-      const { data: jobs } = await supabase
-        .from("delivery_jobs")
-        .select("driver_id")
-        .in("driver_id", list.map((d) => d.id))
-        .in("status", ["assigned", "accepted", "picked_up", "in_transit", "on_the_way"]);
-
-      const counts = new Map<string, number>();
-      (jobs || []).forEach((j: { driver_id?: string | null }) => {
-        if (j.driver_id) counts.set(j.driver_id, (counts.get(j.driver_id) || 0) + 1);
+    try {
+      await Promise.all([fetchDrivers(), fetchPendingDeliveries()]);
+    } catch (error) {
+      console.error("Failed to load route optimization data:", error);
+      toast({
+        title: "Unable to load dispatch data",
+        description: "Verify step-up authentication and try again.",
+        variant: "destructive",
       });
-      setActiveJobCount(counts);
     }
   };
 
+  const fetchDrivers = async () => {
+    const projectedDrivers = await getDispatchDrivers();
+    const availableDrivers = projectedDrivers.filter((driver) =>
+      driver.isActive && driver.isOnline,
+    );
+    const list: Driver[] = availableDrivers.map((driver) => ({
+      id: driver.id,
+      authUserId: "",
+      email: "",
+      phone: driver.phone || "",
+      fullName: driver.fullName,
+      cityId: "",
+      assignedZoneIds: [],
+      status: "active" as const,
+      isOnline: driver.isOnline,
+      currentLatitude: driver.currentLat ?? undefined,
+      currentLongitude: driver.currentLng ?? undefined,
+      locationUpdatedAt: driver.locationUpdatedAt ?? undefined,
+      totalDeliveries: driver.totalDeliveries || 0,
+      rating: driver.rating || 5.0,
+      cancellationRate: 0,
+      currentBalance: 0,
+      totalEarnings: 0,
+      assignedVehicleId: undefined,
+      vehiclePlate: driver.vehiclePlate || undefined,
+      createdAt: new Date().toISOString(),
+    }));
+
+    setDrivers(list);
+    setActiveJobCount(new Map(
+      availableDrivers.map((driver) => [driver.id, driver.activeJobs.length]),
+    ));
+  };
+
   const fetchPendingDeliveries = async () => {
-    const { data: jobs, error } = await supabase
-      .from("delivery_jobs")
-      .select(`
-        id, status, pickup_address, delivery_address, delivery_lat, delivery_lng,
-        restaurant_id,
-        restaurants ( name, latitude, longitude )
-      `)
-      .in("status", ["pending", "confirmed", "preparing"])
-      .is("driver_id", null)
-      .limit(30);
-
-    if (error) { console.error(error); return; }
-
-    const list: Delivery[] = (jobs || []).map((j) => {
-      const restaurant = j.restaurants ?? null;
-      return {
-        id: j.id,
-        pickupAddress: j.pickup_address || restaurant?.name || "Restaurant",
-        deliveryAddress: j.delivery_address || "Customer location",
-        priority: j.status === "preparing" ? "high" : "normal",
-        pickupLat: restaurant?.latitude ?? null,
-        pickupLng: restaurant?.longitude ?? null,
-        deliveryLat: j.delivery_lat ?? null,
-        deliveryLng: j.delivery_lng ?? null,
-        restaurantName: restaurant?.name ?? null,
-      };
-    });
+    const dispatchOrders = await getDispatchOrders();
+    const list: Delivery[] = dispatchOrders
+      .filter((order) =>
+        !order.assignedDriverId
+        && (!order.assignmentStatus || order.assignmentStatus === "pending"),
+      )
+      .slice(0, 30)
+      .map((order) => ({
+        id: `${order.source}:${order.id}`,
+        source: order.source,
+        sourceId: order.id,
+        pickupAddress: order.pickupAddress || order.restaurantName || "Restaurant",
+        deliveryAddress: order.deliveryAddress || "Customer location",
+        priority: order.status === "preparing" ? "high" : "normal",
+        pickupLat: order.pickupLat,
+        pickupLng: order.pickupLng,
+        deliveryLat: order.deliveryLat,
+        deliveryLng: order.deliveryLng,
+        restaurantName: order.restaurantName,
+      }));
 
     setPendingDeliveries(list);
   };
@@ -322,26 +312,25 @@ export default function RouteOptimization() {
 
       for (const route of optimizedRoutes) {
         for (const delivery of route.deliveries) {
-          // Freshness check — skip if auto-dispatch already grabbed this order
-          const { data: current, error: currentError } = await supabase
-            .from("delivery_jobs")
-            .select("driver_id")
-            .eq("id", delivery.id)
-            .single();
-
-          if (currentError) throw currentError;
-
-          if (current?.driver_id) {
+          try {
+            await assignDispatchOrder({
+              orderId: delivery.sourceId,
+              source: delivery.source,
+              driverId: route.driverId,
+              reason: "Route optimization assignment",
+            });
+            assigned++;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            const isAssignmentRace = [
+              "DELIVERY_CAN_NO_LONGER_BE_ASSIGNED",
+              "DRIVER_BUSY",
+              "DISPATCH_ORDER_NOT_AVAILABLE",
+              "DISPATCH_SCHEDULE_NOT_AVAILABLE",
+            ].some((code) => message.includes(code));
+            if (!isAssignmentRace) throw error;
             skipped++;
-            continue;
           }
-
-          const { error: assignmentError } = await supabase
-            .from("delivery_jobs")
-            .update({ driver_id: route.driverId, status: "assigned" })
-            .eq("id", delivery.id);
-          if (assignmentError) throw assignmentError;
-          assigned++;
         }
       }
 
