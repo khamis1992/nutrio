@@ -33,6 +33,15 @@ interface ProgressData {
   target_weight: number;
 }
 
+interface WeeklyCheckInInput {
+  energy_rating: number;
+  hunger_rating: number;
+  recovery_rating: number;
+  plan_adherence_rating: number;
+  weight_kg: number | null;
+  notes: string | null;
+}
+
 interface AdjustmentRecommendation {
   new_calories: number;
   new_protein: number;
@@ -61,7 +70,10 @@ const calculateBMR = (gender: string, weight: number, height: number, age: numbe
 };
 
 // Smart adjustment algorithm
-async function analyzeProgress(data: ProgressData): Promise<AdjustmentRecommendation> {
+async function analyzeProgress(
+  data: ProgressData,
+  checkIn: WeeklyCheckInInput | null = null,
+): Promise<AdjustmentRecommendation> {
   const { 
     body_measurements, 
     adherence_rate, 
@@ -235,7 +247,75 @@ async function analyzeProgress(data: ProgressData): Promise<AdjustmentRecommenda
     };
   }
   
+  if (checkIn) {
+    const lowReadiness = checkIn.energy_rating <= 2 || checkIn.recovery_rating <= 2;
+    const highHunger = checkIn.hunger_rating >= 4;
+    const lowPlanAdherence = checkIn.plan_adherence_rating <= 2;
+
+    if (lowPlanAdherence) {
+      recommendation = {
+        new_calories: current_calories,
+        new_protein: current_protein,
+        new_carbs: current_carbs,
+        new_fat: current_fat,
+        reason: "Your check-in shows the plan was difficult to follow this week. Keep the current targets while we collect a more consistent week of data.",
+        confidence: Math.min(recommendation.confidence, 0.62),
+        plateau_detected: false,
+        suggested_action: "Focus on logging and following the current plan before changing your targets.",
+      };
+    } else if ((lowReadiness || highHunger) && recommendation.new_calories < current_calories) {
+      recommendation = {
+        new_calories: current_calories,
+        new_protein: current_protein,
+        new_carbs: current_carbs,
+        new_fat: current_fat,
+        reason: "Your energy, recovery, or hunger check-in suggests that lowering calories this week would be premature. Your current targets are recommended for another week.",
+        confidence: Math.min(recommendation.confidence, 0.72),
+        plateau_detected: recommendation.plateau_detected,
+        suggested_action: "Prioritize recovery and consistent meal logging, then review again next week.",
+      };
+    }
+  }
+
   return recommendation;
+}
+
+function sanitizeWeeklyCheckIn(value: unknown): WeeklyCheckInInput | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "object") throw new HttpError(400, "invalid_weekly_check_in");
+  const input = value as Record<string, unknown>;
+  const rating = (key: string) => {
+    const parsed = Number(input[key]);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 5) {
+      throw new HttpError(400, "invalid_weekly_check_in_rating");
+    }
+    return parsed;
+  };
+  const weight = input.weight_kg === undefined || input.weight_kg === null || input.weight_kg === ""
+    ? null
+    : Number(input.weight_kg);
+  if (weight !== null && (!Number.isFinite(weight) || weight < 25 || weight > 350)) {
+    throw new HttpError(400, "invalid_weekly_check_in_weight");
+  }
+  const notes = input.notes === undefined || input.notes === null
+    ? null
+    : String(input.notes).trim().slice(0, 500) || null;
+
+  return {
+    energy_rating: rating("energy_rating"),
+    hunger_rating: rating("hunger_rating"),
+    recovery_rating: rating("recovery_rating"),
+    plan_adherence_rating: rating("plan_adherence_rating"),
+    weight_kg: weight,
+    notes,
+  };
+}
+
+function normalizeGoal(value: unknown): "lose" | "gain" | "maintain" {
+  const goal = String(value || "maintain").toLowerCase();
+  if (["lose", "lose_weight", "weight_loss"].includes(goal)) return "lose";
+  if (["gain", "gain_weight", "muscle_gain"].includes(goal)) return "gain";
+  return "maintain";
 }
 
 // Predict weight 4 weeks in the future
@@ -334,6 +414,60 @@ async function storeWeeklyAdherence(
   }, { onConflict: 'user_id,week_start' });
 }
 
+function getSundayWeekStart(): string {
+  const now = new Date();
+  now.setUTCDate(now.getUTCDate() - now.getUTCDay());
+  return now.toISOString().split("T")[0];
+}
+
+async function persistWeeklyCheckIn(
+  supabase: any,
+  userId: string,
+  checkIn: WeeklyCheckInInput,
+  current: ProgressData,
+  recommendation: AdjustmentRecommendation,
+  adjustmentId: string | null,
+  daysLogged: number,
+  weightChange: number | null,
+) {
+  const { data, error } = await supabase
+    .from("weekly_ai_check_ins")
+    .upsert({
+      user_id: userId,
+      week_start: getSundayWeekStart(),
+      ...checkIn,
+      status: "reviewed",
+      adjustment_id: adjustmentId,
+      current_targets: {
+        calories: current.current_calories,
+        protein: current.current_protein,
+        carbs: current.current_carbs,
+        fat: current.current_fat,
+      },
+      proposed_targets: {
+        calories: recommendation.new_calories,
+        protein: recommendation.new_protein,
+        carbs: recommendation.new_carbs,
+        fat: recommendation.new_fat,
+      },
+      review_summary: recommendation.reason,
+      confidence: recommendation.confidence,
+      days_logged: daysLogged,
+      adherence_rate: current.adherence_rate,
+      weight_change_kg: weightChange,
+      updated_at: new Date().toISOString(),
+      resolved_at: null,
+    }, { onConflict: "user_id,week_start" })
+    .select("id, status, week_start, adjustment_id, current_targets, proposed_targets, review_summary, confidence, days_logged, adherence_rate, weight_change_kg")
+    .single();
+
+  if (error) {
+    console.error("Weekly AI check-in persistence failed", { code: error.code });
+    throw new HttpError(503, "weekly_check_in_persistence_failed");
+  }
+  return data;
+}
+
 serve(async (req) => {
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
@@ -367,6 +501,7 @@ serve(async (req) => {
       user_id?: string;
       dry_run?: boolean;
     }>(req, 8 * 1024);
+    const check_in: unknown = undefined;
 
     if (!user_id || !UUID_PATTERN.test(user_id)) {
       throw new HttpError(400, "valid_user_id_required");
@@ -385,6 +520,24 @@ serve(async (req) => {
     }
 
     const supabase = getServiceClient();
+    const weeklyCheckIn = sanitizeWeeklyCheckIn(check_in);
+
+    if (weeklyCheckIn) {
+      const { data: resolvedCheckIn } = await supabase
+        .from("weekly_ai_check_ins")
+        .select("id, status, week_start, adjustment_id, current_targets, proposed_targets, review_summary, confidence, days_logged, adherence_rate, weight_change_kg")
+        .eq("user_id", user_id)
+        .eq("week_start", getSundayWeekStart())
+        .in("status", ["applied", "dismissed"])
+        .maybeSingle();
+      if (resolvedCheckIn) {
+        return jsonResponse(req, {
+          message: "This week's check-in has already been resolved.",
+          check_in: resolvedCheckIn,
+          already_resolved: true,
+        });
+      }
+    }
 
     // Check if user has adaptive goals enabled
     const { data: settings } = await supabase
@@ -410,6 +563,22 @@ serve(async (req) => {
     if (profileError || !profile) {
       throw new HttpError(404, "profile_not_found");
     }
+
+    const { data: activeGoal } = await supabase
+      .from("nutrition_goals")
+      .select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g, goal_type, target_weight_kg")
+      .eq("user_id", user_id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const currentCalories = activeGoal?.daily_calorie_target ?? profile.daily_calorie_target ?? 2000;
+    const currentProtein = activeGoal?.protein_target_g ?? profile.protein_target_g ?? 150;
+    const currentCarbs = activeGoal?.carbs_target_g ?? profile.carbs_target_g ?? 200;
+    const currentFat = activeGoal?.fat_target_g ?? profile.fat_target_g ?? 65;
+    const goalType = normalizeGoal(activeGoal?.goal_type ?? profile.health_goal);
+    const targetWeight = activeGoal?.target_weight_kg ?? profile.target_weight_kg ?? profile.current_weight_kg ?? 70;
 
     // Fetch canonical body measurements (last 12 weeks)
     const { data: bodyMeasurements } = await supabase
@@ -437,7 +606,7 @@ serve(async (req) => {
     // Calculate adherence rate
     const { data: adherenceData } = await supabase
       .from("weekly_adherence")
-      .select("adherence_rate")
+      .select("adherence_rate, days_logged")
       .eq("user_id", user_id)
       .order("week_start", { ascending: false })
       .limit(4);
@@ -445,33 +614,40 @@ serve(async (req) => {
     const avgAdherence = adherenceData && adherenceData.length > 0
       ? adherenceData.reduce((sum: number, row: any) => sum + (row.adherence_rate || 0), 0) / adherenceData.length
       : 0;
+    const currentWeekDaysLogged = Number(adherenceData?.[0]?.days_logged || 0);
 
     const progressData: ProgressData = {
       body_measurements: bodyMeasurements?.map((w: any) => ({ date: w.log_date, weight: w.weight_kg })) ?? [],
-      calorie_logs: calorieLogs?.map((c: any) => ({ date: c.log_date, calories: c.calories_consumed, target: profile.daily_calorie_target })) ?? [],
+      calorie_logs: calorieLogs?.map((c: any) => ({ date: c.log_date, calories: c.calories_consumed, target: currentCalories })) ?? [],
       adherence_rate: avgAdherence,
       weeks_logged: Math.floor((bodyMeasurements?.length || 0) / 7),
-      current_calories: profile.daily_calorie_target ?? 2000,
-      current_protein: profile.protein_target_g ?? 150,
-      current_carbs: profile.carbs_target_g ?? 200,
-      current_fat: profile.fat_target_g ?? 65,
-      goal: profile.health_goal ?? 'maintain',
+      current_calories: currentCalories,
+      current_protein: currentProtein,
+      current_carbs: currentCarbs,
+      current_fat: currentFat,
+      goal: goalType,
       current_weight: profile.current_weight_kg ?? 70,
-      target_weight: profile.target_weight_kg ?? 70
+      target_weight: targetWeight,
     };
 
     // Generate recommendation
-    const recommendation = await analyzeProgress(progressData);
+    const recommendation = await analyzeProgress(progressData, weeklyCheckIn);
     
     // Generate predictions
     const predictions = await predictFutureWeight(
       progressData.body_measurements,
-      profile.daily_calorie_target ?? 2000,
+      currentCalories,
       recommendation.new_calories,
-      profile.health_goal ?? 'maintain'
+      goalType,
     );
 
-    if (!dry_run && (recommendation.new_calories !== profile.daily_calorie_target || recommendation.plateau_detected)) {
+    if (!dry_run && (
+      recommendation.new_calories !== currentCalories ||
+      recommendation.new_protein !== currentProtein ||
+      recommendation.new_carbs !== currentCarbs ||
+      recommendation.new_fat !== currentFat ||
+      recommendation.plateau_detected
+    )) {
       const adjustmentDate = new Date().toISOString().split("T")[0];
       const weightChange = progressData.body_measurements.length >= 2
         ? progressData.body_measurements[progressData.body_measurements.length - 1].weight -
@@ -482,12 +658,12 @@ serve(async (req) => {
         {
           p_user_id: user_id,
           p_adjustment_date: adjustmentDate,
-          p_previous_calories: profile.daily_calorie_target ?? 2000,
+          p_previous_calories: currentCalories,
           p_new_calories: recommendation.new_calories,
           p_previous_macros: {
-            protein: profile.protein_target_g,
-            carbs: profile.carbs_target_g,
-            fat: profile.fat_target_g,
+            protein: currentProtein,
+            carbs: currentCarbs,
+            fat: currentFat,
           },
           p_new_macros: {
             protein: recommendation.new_protein,
@@ -524,10 +700,17 @@ serve(async (req) => {
         : null;
 
       if (duplicate) {
+        const savedCheckIn = weeklyCheckIn
+          ? await persistWeeklyCheckIn(
+            supabase, user_id, weeklyCheckIn, progressData, recommendation,
+            adjustmentId, currentWeekDaysLogged, weightChange,
+          )
+          : null;
         return jsonResponse(req, {
           recommendation,
           predictions: [],
           adjustment_id: adjustmentId,
+          check_in: savedCheckIn,
           duplicate: true,
           should_notify: false,
           message: "Recommendation already saved for today.",
@@ -547,20 +730,39 @@ serve(async (req) => {
         metadata: { adjustment_created: true },
       });
 
+      const savedCheckIn = weeklyCheckIn
+        ? await persistWeeklyCheckIn(
+          supabase, user_id, weeklyCheckIn, progressData, recommendation,
+          adjustmentId, currentWeekDaysLogged, weightChange,
+        )
+        : null;
+
       return jsonResponse(req, {
         recommendation,
         predictions,
         adjustment_id: adjustmentId,
+        check_in: savedCheckIn,
         duplicate: false,
         should_notify: recommendation.plateau_detected || recommendation.confidence > 0.8,
         message: "Analysis complete. Recommendation saved.",
       });
     }
 
+    const noChangeCheckIn = weeklyCheckIn && !dry_run
+      ? await persistWeeklyCheckIn(
+        supabase, user_id, weeklyCheckIn, progressData, recommendation,
+        null, currentWeekDaysLogged,
+        progressData.body_measurements.length >= 2
+          ? progressData.body_measurements[progressData.body_measurements.length - 1].weight - progressData.body_measurements[0].weight
+          : null,
+      )
+      : null;
+
     // Dry run or no change needed
     return jsonResponse(req, {
       recommendation,
       predictions,
+      check_in: noChangeCheckIn,
       should_notify: false,
       message: dry_run
         ? "Analysis complete (dry run - no changes saved)"

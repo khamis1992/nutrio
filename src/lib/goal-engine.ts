@@ -10,10 +10,18 @@ export interface GoalProfileInput {
   activityLevel?: GoalActivityLevel | null;
 }
 
+export interface MedicalNutritionContext {
+  hasRecentBloodWork?: boolean;
+  abnormalMarkerCount?: number;
+  flaggedCategories?: string[];
+  flaggedMarkers?: string[];
+}
+
 export interface GoalPlanInput extends GoalProfileInput {
   goalType: NutritionGoalType;
   targetWeightKg?: number | null;
   targetDate?: string | null;
+  medicalContext?: MedicalNutritionContext | null;
 }
 
 export interface GoalPlan {
@@ -29,6 +37,8 @@ export interface GoalPlan {
   targetDate: string | null;
   safetyNote: string | null;
   summary: string;
+  medicalContextApplied: boolean;
+  medicalContextSummary: string | null;
 }
 
 const ACTIVITY_MULTIPLIERS: Record<GoalActivityLevel, number> = {
@@ -54,30 +64,63 @@ export function calculateGoalPlan(input: GoalPlanInput): GoalPlan {
   const age = input.age && input.age > 0 ? input.age : 30;
   const activityLevel = input.activityLevel || "moderate";
   const gender = input.gender === "female" ? "female" : "male";
+  const medicalContext = input.medicalContext;
+  const flaggedCategories = new Set(
+    (medicalContext?.flaggedCategories || []).map((category) => category.toLowerCase()),
+  );
+  const hasMedicalFlags = Boolean(
+    medicalContext?.hasRecentBloodWork &&
+      (medicalContext.abnormalMarkerCount || flaggedCategories.size),
+  );
 
   const bmr = gender === "female"
     ? 10 * weight + 6.25 * height - 5 * age - 161
     : 10 * weight + 6.25 * height - 5 * age + 5;
   const tdee = bmr * ACTIVITY_MULTIPLIERS[activityLevel];
 
-  const calorieDelta = goalType === "weight_loss"
+  let calorieDelta = goalType === "weight_loss"
     ? -450
     : goalType === "muscle_gain"
       ? 250
       : goalType === "maintenance"
         ? 0
         : -100;
+  const safetyNotes: string[] = [];
+
+  if (hasMedicalFlags && goalType === "weight_loss" && calorieDelta < -350) {
+    calorieDelta = -350;
+    safetyNotes.push("Calorie deficit was moderated because a recent health report has flagged markers.");
+  }
+
+  if (
+    hasMedicalFlags &&
+    goalType === "muscle_gain" &&
+    (flaggedCategories.has("kidney") || flaggedCategories.has("liver") || flaggedCategories.has("metabolic"))
+  ) {
+    calorieDelta = Math.min(calorieDelta, 150);
+    safetyNotes.push("Calorie surplus was kept conservative because of recent health-report context.");
+  }
 
   const minCalories = gender === "female" ? 1200 : 1500;
   const maxCalories = 4200;
   const dailyCalorieTarget = roundTo(clamp(tdee + calorieDelta, minCalories, maxCalories), 50);
 
-  const proteinMultiplier = goalType === "muscle_gain" ? 2.0 : goalType === "weight_loss" ? 1.8 : 1.5;
+  let proteinMultiplier = goalType === "muscle_gain" ? 2.0 : goalType === "weight_loss" ? 1.8 : 1.5;
+  if (hasMedicalFlags && flaggedCategories.has("kidney")) {
+    proteinMultiplier = Math.min(proteinMultiplier, 1.5);
+    safetyNotes.push("Protein target was capped conservatively due to kidney-related markers.");
+  }
   const proteinTargetG = roundTo(clamp(weight * proteinMultiplier, 70, 240), 5);
   const fatTargetG = roundTo(clamp((dailyCalorieTarget * (goalType === "muscle_gain" ? 0.25 : 0.28)) / 9, 35, 120), 5);
   const caloriesAfterProteinFat = Math.max(0, dailyCalorieTarget - proteinTargetG * 4 - fatTargetG * 9);
   const carbsTargetG = roundTo(clamp(caloriesAfterProteinFat / 4, 80, 450), 5);
-  const fiberTargetG = goalType === "weight_loss" ? 35 : 30;
+  let fiberTargetG = goalType === "weight_loss" ? 35 : 30;
+  if (
+    hasMedicalFlags &&
+    (flaggedCategories.has("lipid") || flaggedCategories.has("metabolic") || flaggedCategories.has("inflammation"))
+  ) {
+    fiberTargetG = Math.max(fiberTargetG, 38);
+  }
 
   const targetWeight = input.targetWeightKg ?? null;
   const currentWeight = input.currentWeightKg ?? null;
@@ -88,17 +131,25 @@ export function calculateGoalPlan(input: GoalPlanInput): GoalPlan {
     ? new Date(Date.now() + estimatedWeeks * 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     : null;
 
-  const safetyNote = tdee + calorieDelta < minCalories
-    ? "Calories were raised to the safe minimum for this profile."
-    : null;
+  if (tdee + calorieDelta < minCalories) {
+    safetyNotes.unshift("Calories were raised to the safe minimum for this profile.");
+  }
 
-  const summary = goalType === "weight_loss"
+  const baseSummary = goalType === "weight_loss"
     ? "Designed for steady fat loss while protecting protein intake."
     : goalType === "muscle_gain"
       ? "Designed for a controlled calorie surplus and higher protein."
       : goalType === "maintenance"
         ? "Designed to keep weight stable while improving consistency."
         : "Designed for balanced nutrition and habit quality.";
+  const medicalContextSummary = hasMedicalFlags
+    ? `Adjusted with ${medicalContext?.abnormalMarkerCount || flaggedCategories.size} flagged marker${(medicalContext?.abnormalMarkerCount || flaggedCategories.size) === 1 ? "" : "s"} from the latest health report.`
+    : medicalContext?.hasRecentBloodWork
+      ? "Latest health report available; no abnormal markers were used to modify targets."
+      : null;
+  const summary = medicalContextSummary
+    ? `${baseSummary} ${medicalContextSummary}`
+    : baseSummary;
 
   return {
     goalType,
@@ -111,8 +162,10 @@ export function calculateGoalPlan(input: GoalPlanInput): GoalPlan {
     fiberTargetG,
     weeklyPaceKg,
     targetDate: input.targetDate || estimatedTargetDate,
-    safetyNote,
+    safetyNote: safetyNotes.length ? safetyNotes.join(" ") : null,
     summary,
+    medicalContextApplied: hasMedicalFlags,
+    medicalContextSummary,
   };
 }
 

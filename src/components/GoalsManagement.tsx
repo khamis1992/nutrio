@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Target, Plus, Check, Flame, Droplet, Wheat as WheatIcon, Leaf, Activity, TrendingUp } from "lucide-react";
+import { Target, Plus, Check, Flame, Droplet, Wheat as WheatIcon, Leaf, Activity, TrendingUp, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -23,6 +23,8 @@ import { format } from "date-fns";
 import { activityLevelLabels, goalLabels } from "@/lib/nutrition-calculator";
 import { calculateGoalPlan, type NutritionGoalType } from "@/lib/goal-engine";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getLatestAbnormalMarkers, hasBloodWork } from "@/services/blood-work";
+import type { BloodMarker } from "@/lib/blood-markers";
 
 type Goal = "lose" | "gain" | "maintain";
 type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
@@ -211,6 +213,8 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
   const [height, setHeight] = useState("");
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
   const [healthGoal, setHealthGoal] = useState<Goal | null>(null);
+  const [hasRecentBloodWork, setHasRecentBloodWork] = useState(false);
+  const [healthMarkers, setHealthMarkers] = useState<BloodMarker[]>([]);
   const [formData, setFormData] = useState<GoalFormData>({
     goal_type: "general_health",
     target_weight_kg: "",
@@ -222,6 +226,46 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
     fiber_target_g: 30,
   });
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadHealthContext() {
+      if (!user?.id) {
+        setHasRecentBloodWork(false);
+        setHealthMarkers([]);
+        return;
+      }
+
+      try {
+        const [hasRecent, abnormalMarkers] = await Promise.all([
+          hasBloodWork(user.id),
+          getLatestAbnormalMarkers(user.id),
+        ]);
+        if (cancelled) return;
+        setHasRecentBloodWork(hasRecent);
+        setHealthMarkers(abnormalMarkers);
+      } catch (error) {
+        console.error("Failed to load health context for goal engine:", error);
+        if (!cancelled) {
+          setHasRecentBloodWork(false);
+          setHealthMarkers([]);
+        }
+      }
+    }
+
+    void loadHealthContext();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const healthContext = useMemo(() => ({
+    hasRecentBloodWork,
+    abnormalMarkerCount: healthMarkers.length,
+    flaggedCategories: [...new Set(healthMarkers.map((marker) => marker.category))],
+    flaggedMarkers: healthMarkers.slice(0, 5).map((marker) => marker.marker_name),
+  }), [hasRecentBloodWork, healthMarkers]);
+
   const goalPlan = useMemo(() => calculateGoalPlan({
     goalType: formData.goal_type as NutritionGoalType,
     targetWeightKg: formData.target_weight_kg ? parseFloat(formData.target_weight_kg) : null,
@@ -231,7 +275,8 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
     age: profile?.age ?? null,
     gender: profile?.gender,
     activityLevel: activityLevel || profile?.activity_level,
-  }), [activityLevel, currentWeight, formData.goal_type, formData.target_date, formData.target_weight_kg, height, profile]);
+    medicalContext: healthContext,
+  }), [activityLevel, currentWeight, formData.goal_type, formData.target_date, formData.target_weight_kg, healthContext, height, profile]);
 
   const goalImpactItems = [
     t("goal_impact_meals"),
@@ -315,7 +360,7 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
         fat_target_g: formData.fat_target_g,
         fiber_target_g: formData.fiber_target_g,
         is_active: true,
-        calculation_source: "goal_engine",
+        calculation_source: goalPlan.medicalContextApplied ? "goal_engine_medical_context" : "goal_engine",
         reason: goalPlan.summary,
         activity_level_snapshot: activityLevel || profile?.activity_level || null,
       };
@@ -841,6 +886,44 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
                 {goalPlan.safetyNote && (
                   <div className="mt-3 rounded-[18px] bg-[#FFF1F3] px-3 py-2 text-xs font-bold leading-5 text-[#FB6B7A] ring-1 ring-[#FB6B7A]/15">
                     {goalPlan.safetyNote}
+                  </div>
+                )}
+
+                {hasRecentBloodWork && (
+                  <div className="mt-3 rounded-[20px] border border-[#D7F8EC] bg-white/90 p-3 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
+                        <ShieldCheck className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">
+                          {t("health_context_used")}
+                        </p>
+                        <h4 className="mt-1 text-[14px] font-black leading-tight text-[#020617]">
+                          {goalPlan.medicalContextApplied
+                            ? t("medical_aware_targets")
+                            : t("health_report_clear")}
+                        </h4>
+                        <p className="mt-1 text-[11px] font-bold leading-5 text-[#64748B]">
+                          {goalPlan.medicalContextSummary || t("health_report_clear_desc")}
+                        </p>
+                        {healthMarkers.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {healthMarkers.slice(0, 4).map((marker) => (
+                              <span
+                                key={`${marker.record_id}-${marker.marker_name}`}
+                                className="rounded-full bg-[#F6F8FB] px-2.5 py-1 text-[10px] font-black text-[#020617] ring-1 ring-[#E5EAF1]"
+                              >
+                                {marker.marker_name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <p className="mt-3 rounded-[15px] bg-[#F8FAFC] px-3 py-2 text-[10px] font-bold leading-4 text-[#64748B]">
+                      {t("medical_context_disclaimer")}
+                    </p>
                   </div>
                 )}
               </div>
