@@ -20,6 +20,8 @@ type ChallengeRow = {
   xp_reward: number | null;
   reward_points: number | null;
   wallet_reward_amount: number | null;
+  participation_mode: "individual" | "team";
+  team_size: number;
   participant_count: number | null;
   start_date: string;
   end_date: string;
@@ -36,6 +38,8 @@ type ChallengeForm = {
   xp_reward: number;
   reward_points: number;
   wallet_reward_amount: number;
+  participation_mode: "individual" | "team";
+  team_size: number;
   start_date: string;
   end_date: string;
   is_active: boolean;
@@ -43,7 +47,7 @@ type ChallengeForm = {
 
 type ChallengeTemplate = Omit<
   ChallengeForm,
-  "start_date" | "end_date" | "is_active"
+  "start_date" | "end_date" | "is_active" | "participation_mode" | "team_size"
 > & {
   label: string;
   durationDays: number;
@@ -66,6 +70,8 @@ const defaultForm: ChallengeForm = {
   xp_reward: 100,
   reward_points: 100,
   wallet_reward_amount: 0,
+  participation_mode: "individual",
+  team_size: 5,
   start_date: today,
   end_date: nextMonth,
   is_active: true,
@@ -218,13 +224,15 @@ export default function AdminCommunityChallenges() {
       const withWalletReward = await supabase
         .from("community_challenges")
         .select(
-          "id,title,description,challenge_type,category,difficulty_level,target_value,xp_reward,reward_points,wallet_reward_amount,participant_count,start_date,end_date,is_active",
+          "id,title,description,challenge_type,category,difficulty_level,target_value,xp_reward,reward_points,wallet_reward_amount,participation_mode,team_size,participant_count,start_date,end_date,is_active",
         )
         .order("created_at", { ascending: false });
 
       if (
         withWalletReward.error &&
-        withWalletReward.error.message.includes("wallet_reward_amount")
+        (withWalletReward.error.message.includes("wallet_reward_amount") ||
+          withWalletReward.error.message.includes("participation_mode") ||
+          withWalletReward.error.message.includes("team_size"))
       ) {
         const fallback = await supabase
           .from("community_challenges")
@@ -243,6 +251,8 @@ export default function AdminCommunityChallenges() {
           ).map((challenge) => ({
             ...challenge,
             wallet_reward_amount: 0,
+            participation_mode: "individual" as const,
+            team_size: 5,
           })),
         );
         return;
@@ -369,6 +379,8 @@ export default function AdminCommunityChallenges() {
       xp_reward: template.xp_reward,
       reward_points: template.reward_points,
       wallet_reward_amount: template.wallet_reward_amount,
+      participation_mode: "individual",
+      team_size: 5,
       start_date: today,
       end_date: dateAfterDays(template.durationDays),
       is_active: true,
@@ -391,6 +403,8 @@ export default function AdminCommunityChallenges() {
         xp_reward: 25,
         reward_points: 25,
         wallet_reward_amount: 5,
+        participation_mode: "individual" as const,
+        team_size: 5,
         participant_count: 0,
         start_date: today,
         end_date: tomorrow,
@@ -563,6 +577,53 @@ export default function AdminCommunityChallenges() {
                   }))
                 }
               />
+
+              <div className="rounded-[22px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                  Participation
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["individual", "team"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() =>
+                        setForm((current) => ({
+                          ...current,
+                          participation_mode: mode,
+                        }))
+                      }
+                      className={`h-11 rounded-[15px] text-xs font-black capitalize transition ${
+                        form.participation_mode === mode
+                          ? "bg-[#020617] text-white shadow-sm"
+                          : "bg-white text-[#64748B] ring-1 ring-[#E5EAF1]"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+                {form.participation_mode === "team" && (
+                  <label className="mt-3 block rounded-[16px] bg-white px-3 py-2 ring-1 ring-[#E5EAF1]">
+                    <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#7C83F6]">
+                      Maximum members per team
+                    </span>
+                    <input
+                      className="mt-1 h-7 w-full border-0 bg-transparent text-sm font-black text-[#020617] outline-none"
+                      type="number"
+                      min="2"
+                      max="20"
+                      value={form.team_size}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          team_size: Math.min(20, Math.max(2, Number(event.target.value) || 2)),
+                        }))
+                      }
+                    />
+                  </label>
+                )}
+              </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <select
@@ -769,6 +830,11 @@ export default function AdminCommunityChallenges() {
                             className={`rounded-full px-2.5 py-1 text-[10px] font-black ${challenge.is_active ? "bg-[#22C7A1]/10 text-[#22C7A1]" : "bg-white text-[#94A3B8]"}`}
                           >
                             {challenge.is_active ? "Active" : "Paused"}
+                          </span>
+                          <span className="rounded-full bg-[#7C83F6]/10 px-2.5 py-1 text-[10px] font-black capitalize text-[#7C83F6]">
+                            {challenge.participation_mode === "team"
+                              ? `Team · ${challenge.team_size}`
+                              : "Individual"}
                           </span>
                         </div>
                         <p className="mt-1 line-clamp-2 text-xs font-semibold text-[#94A3B8]">

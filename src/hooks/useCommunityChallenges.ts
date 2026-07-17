@@ -15,6 +15,8 @@ export interface CommunityChallenge {
   reward_points: number;
   xp_reward: number;
   wallet_reward_amount?: number;
+  participation_mode: "individual" | "team";
+  team_size: number;
   participant_count: number;
   start_date: string;
   end_date: string;
@@ -41,6 +43,8 @@ type ChallengeRow = {
   reward_points: number | null;
   xp_reward: number | null;
   wallet_reward_amount?: number | null;
+  participation_mode?: "individual" | "team" | null;
+  team_size?: number | null;
   participant_count: number | null;
   start_date: string;
   end_date: string;
@@ -81,6 +85,8 @@ function buildCommunityTestChallenge(userId: string, loggedMealsToday: number): 
     reward_points: 25,
     xp_reward: 25,
     wallet_reward_amount: 5,
+    participation_mode: "individual",
+    team_size: 5,
     participant_count: 0,
     start_date: today,
     end_date: getQatarDay(tomorrowDate),
@@ -147,7 +153,11 @@ async function buildTestChallengeList(userId: string) {
 export async function fetchActiveChallengesFromTable(userId: string): Promise<CommunityChallenge[]> {
   const today = getQatarDay();
   const challengeSelect =
+    "id,title,description,challenge_type,difficulty_level,category,target_value,reward_points,xp_reward,wallet_reward_amount,participation_mode,team_size,participant_count,start_date,end_date";
+  const challengeSelectWithoutTeams =
     "id,title,description,challenge_type,difficulty_level,category,target_value,reward_points,xp_reward,wallet_reward_amount,participant_count,start_date,end_date";
+  const challengeSelectWithoutWallet =
+    "id,title,description,challenge_type,difficulty_level,category,target_value,reward_points,xp_reward,participation_mode,team_size,participant_count,start_date,end_date";
   const legacyChallengeSelect =
     "id,title,description,challenge_type,difficulty_level,category,target_value,reward_points,xp_reward,participant_count,start_date,end_date";
 
@@ -164,26 +174,47 @@ export async function fetchActiveChallengesFromTable(userId: string): Promise<Co
     return request.order("start_date", { ascending: false }) as unknown as Promise<ChallengeQueryResult>;
   };
 
-  let { data, error } = await query(challengeSelect, true);
+  const runCompatibleQuery = async (includeDateWindow: boolean) => {
+    const candidates = [
+      { columns: challengeSelect, wallet: true, teams: true },
+      { columns: challengeSelectWithoutTeams, wallet: true, teams: false },
+      { columns: challengeSelectWithoutWallet, wallet: false, teams: true },
+      { columns: legacyChallengeSelect, wallet: false, teams: false },
+    ];
 
-  if (error && error.message.includes("wallet_reward_amount")) {
-    const fallback = await query(legacyChallengeSelect, true);
-    data = fallback.data?.map((row) => ({ ...row, wallet_reward_amount: 0 })) ?? null;
-    error = fallback.error;
-  }
+    let lastResult: ChallengeQueryResult = { data: null, error: null };
+    for (const candidate of candidates) {
+      lastResult = await query(candidate.columns, includeDateWindow);
+      if (!lastResult.error) {
+        lastResult.data = lastResult.data?.map((row) => ({
+          ...row,
+          wallet_reward_amount: candidate.wallet ? row.wallet_reward_amount : 0,
+          participation_mode: candidate.teams
+            ? row.participation_mode ?? "individual"
+            : "individual",
+          team_size: candidate.teams ? row.team_size ?? 5 : 5,
+        })) ?? null;
+        return lastResult;
+      }
+
+      const isSchemaMismatch =
+        lastResult.error.message.includes("participation_mode") ||
+        lastResult.error.message.includes("team_size") ||
+        lastResult.error.message.includes("wallet_reward_amount");
+      if (!isSchemaMismatch) return lastResult;
+    }
+
+    return lastResult;
+  };
+
+  let { data, error } = await runCompatibleQuery(true);
 
   if (error) throw error;
 
   if ((data?.length ?? 0) === 0) {
-    const enabledFallback = await query(challengeSelect, false);
+    const enabledFallback = await runCompatibleQuery(false);
     data = enabledFallback.data;
     error = enabledFallback.error;
-
-    if (error && error.message.includes("wallet_reward_amount")) {
-      const legacyEnabledFallback = await query(legacyChallengeSelect, false);
-      data = legacyEnabledFallback.data?.map((row) => ({ ...row, wallet_reward_amount: 0 })) ?? null;
-      error = legacyEnabledFallback.error;
-    }
 
     if (error) throw error;
   }
@@ -221,6 +252,8 @@ export async function fetchActiveChallengesFromTable(userId: string): Promise<Co
       reward_points: Number(challenge.reward_points || 0),
       xp_reward: Number(challenge.xp_reward || 0),
       wallet_reward_amount: Number(challenge.wallet_reward_amount || 0),
+      participation_mode: challenge.participation_mode ?? "individual",
+      team_size: Number(challenge.team_size || 5),
       participant_count: Number(challenge.participant_count || 0),
       start_date: challenge.start_date,
       end_date: challenge.end_date,

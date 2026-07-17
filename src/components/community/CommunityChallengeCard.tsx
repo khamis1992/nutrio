@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 
+import { ChallengeTeamSection } from "@/components/community/ChallengeTeamSection";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCommunityChallenges } from "@/hooks/useCommunityChallenges";
 import { supabase } from "@/integrations/supabase/client";
@@ -361,7 +362,16 @@ export function CommunityChallengeCard() {
             </div>
           )}
 
-          <div className="relative mt-3 rounded-[24px] bg-white p-4 ring-1 ring-[#E5EAF1]">
+          {challenge.participation_mode === "team" && (
+            <ChallengeTeamSection
+              challengeId={challenge.id}
+              isJoined={challenge.is_joined}
+              targetValue={challenge.target_value}
+            />
+          )}
+
+          {challenge.participation_mode !== "team" && (
+            <div className="relative mt-3 rounded-[24px] bg-white p-4 ring-1 ring-[#E5EAF1]">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#64748B]">
                 {t("community_top_3")}
@@ -446,7 +456,8 @@ export function CommunityChallengeCard() {
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          )}
 
           <div className="relative mt-4">
             <motion.button
