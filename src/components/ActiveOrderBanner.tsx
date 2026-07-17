@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
+import type { EtaPrediction } from "@/lib/delivery-eta";
 
 type OrderStatus =
   | "pending"
@@ -85,6 +86,20 @@ interface Restaurant {
   id: string;
   name: string;
 }
+
+interface CustomerTrackingProjection {
+  eta_prediction?: EtaPrediction | null;
+}
+
+type UntypedRpcResult<T> = {
+  data: T | null;
+  error: { message: string } | null;
+};
+
+const callRpc = <T,>(name: string, args: Record<string, unknown>) =>
+  (supabase as unknown as {
+    rpc: (functionName: string, parameters: Record<string, unknown>) => Promise<UntypedRpcResult<T>>;
+  }).rpc(name, args);
 
 const FoodEmoji = () => (
   <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-orange-100 to-emerald-100 text-xs mr-2">
@@ -249,19 +264,24 @@ export function ActiveOrderBanner({ userId, compact = false }: ActiveOrderBanner
         .map(o => o.id);
 
       if (outForDeliveryIds.length > 0) {
-        const { data: jobs } = await supabase
-          .from("delivery_jobs")
-          .select("schedule_id, picked_up_at, estimated_distance_km")
-          .in("schedule_id", outForDeliveryIds);
-
-        if (jobs) {
-          for (const job of jobs) {
-            const order = uniqueOrders.find(o => o.id === job.schedule_id);
-            if (order && job.picked_up_at && job.estimated_distance_km) {
-              const totalMinutes = (job.estimated_distance_km / 30) * 60;
-              const elapsedMinutes = (Date.now() - new Date(job.picked_up_at).getTime()) / 60000;
-              order.eta_minutes = Math.round(Math.max(1, totalMinutes - elapsedMinutes));
+        const trackingResults = await Promise.all(
+          outForDeliveryIds.map(async (scheduleId) => {
+            const { data, error } = await callRpc<CustomerTrackingProjection>(
+              "get_customer_delivery_tracking",
+              { p_source_id: scheduleId },
+            );
+            if (error) {
+              console.error("Error loading delivery ETA:", error);
+              return { scheduleId, eta: null };
             }
+            return { scheduleId, eta: data?.eta_prediction ?? null };
+          }),
+        );
+
+        for (const result of trackingResults) {
+          const order = uniqueOrders.find(o => o.id === result.scheduleId);
+          if (order && result.eta?.minutes) {
+            order.eta_minutes = result.eta.minutes;
           }
         }
       }

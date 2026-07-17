@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Briefcase, Check, Clock, Calendar, ChevronLeft, ChevronRight, Home, MapPin, Plus } from "lucide-react";
+import { Briefcase, Check, Clock, Calendar, ChevronLeft, ChevronRight, Home, Loader2, MapPin, Plus, ReceiptText, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,13 +7,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { formatLocaleDate } from "@/lib/dateUtils";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { quoteDeliveryFee, type DeliveryFeeQuote } from "@/lib/delivery-pricing";
+
+export interface DeliveryScheduleResult {
+  date: Date;
+  time: string;
+  deliveryAddressId: string | null;
+  deliveryAddressLabel: string;
+  deliveryFeeQuote: DeliveryFeeQuote | null;
+}
 
 interface DeliverySchedulerProps {
   initialDate?: Date | string | null;
   timeSlots?: string[];
   timeZone?: string;
   requireAddress?: boolean;
-  onSchedule: (result: { date: Date; time: string; deliveryAddressId: string | null; deliveryAddressLabel: string }) => void;
+  onSchedule: (result: DeliveryScheduleResult) => void;
   onCancel?: () => void;
 }
 
@@ -30,6 +39,13 @@ const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
+
+const toLocalDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export const DeliveryScheduler = ({
   initialDate,
@@ -59,6 +75,9 @@ export const DeliveryScheduler = ({
   const [addresses, setAddresses] = useState<DeliveryAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [addressesLoading, setAddressesLoading] = useState(false);
+  const [deliveryFeeQuote, setDeliveryFeeQuote] = useState<DeliveryFeeQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -106,6 +125,42 @@ export const DeliveryScheduler = ({
     };
   }, [user]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      if (!requireAddress || !selectedTime || !selectedAddressId) {
+        setDeliveryFeeQuote(null);
+        setQuoteError(null);
+        setQuoteLoading(false);
+        return;
+      }
+
+      setQuoteLoading(true);
+      setQuoteError(null);
+      try {
+        const nextQuote = await quoteDeliveryFee({
+          scheduledDate: toLocalDateKey(selectedDate),
+          timeSlot: selectedTime,
+          deliveryAddressId: selectedAddressId,
+        });
+        if (!cancelled) setDeliveryFeeQuote(nextQuote);
+      } catch (error) {
+        console.error("Error quoting delivery fee:", error);
+        if (!cancelled) {
+          setDeliveryFeeQuote(null);
+          setQuoteError("We couldn't confirm the delivery fee. Try another time or retry.");
+        }
+      } finally {
+        if (!cancelled) setQuoteLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [requireAddress, selectedAddressId, selectedDate, selectedTime]);
+
   // Build 7-day week starting from today + weekOffset*7
   const weekStart = new Date(today);
   weekStart.setDate(today.getDate() + weekOffset * 7);
@@ -125,11 +180,19 @@ export const DeliveryScheduler = ({
       ? `${selectedAddress.label} - ${selectedAddress.address_line1}, ${selectedAddress.city}`
       : "";
 
-    onSchedule({ date: selectedDate, time: selectedTime, deliveryAddressId: selectedAddressId, deliveryAddressLabel: addressLabel });
+    onSchedule({
+      date: selectedDate,
+      time: selectedTime,
+      deliveryAddressId: selectedAddressId,
+      deliveryAddressLabel: addressLabel,
+      deliveryFeeQuote,
+    });
   };
 
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
-  const canConfirm = Boolean(selectedTime) && (!requireAddress || Boolean(selectedAddressId));
+  const canConfirm = Boolean(selectedTime)
+    && (!requireAddress || (Boolean(selectedAddressId) && Boolean(deliveryFeeQuote)))
+    && !quoteLoading;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[#F8FAFC]">
@@ -312,6 +375,68 @@ export const DeliveryScheduler = ({
                 Add delivery address
               </button>
             )}
+          </section>
+        )}
+
+        {requireAddress && selectedTime && selectedAddressId && (
+          <section className="rounded-[22px] border border-slate-100 bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.07)]">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] bg-sky-50 text-sky-500">
+                {deliveryFeeQuote?.surgeFee ? (
+                  <TrendingUp className="h-5 w-5" strokeWidth={2.4} />
+                ) : (
+                  <ReceiptText className="h-5 w-5" strokeWidth={2.4} />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[13px] font-black text-slate-950">Delivery fee</p>
+                    <p className="mt-1 text-[12px] font-semibold leading-snug text-slate-500">
+                      {quoteLoading
+                        ? "Checking this delivery window..."
+                        : quoteError || deliveryFeeQuote?.message || "Select your delivery details"}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    {quoteLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
+                    ) : deliveryFeeQuote ? (
+                      <>
+                        <p className="text-[16px] font-black text-slate-950">
+                          {deliveryFeeQuote.totalFee === 0 ? "Free" : `${deliveryFeeQuote.totalFee.toFixed(2)} QAR`}
+                        </p>
+                        {deliveryFeeQuote.surgeFee > 0 && (
+                          <p className="mt-0.5 text-[10px] font-black text-orange-600">
+                            +{deliveryFeeQuote.surgeFee.toFixed(2)} surge
+                          </p>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+
+                {deliveryFeeQuote && deliveryFeeQuote.surgeFee > 0 && (
+                  <div className="mt-3 flex items-center justify-between rounded-[14px] bg-orange-50 px-3 py-2 text-[11px] font-bold text-orange-800">
+                    <span>Base {deliveryFeeQuote.baseFee.toFixed(2)} QAR</span>
+                    <span>{deliveryFeeQuote.ruleName || "Dynamic pricing"}</span>
+                  </div>
+                )}
+
+                {quoteError && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTime(null);
+                      window.setTimeout(() => setSelectedTime(selectedTime), 0);
+                    }}
+                    className="mt-3 min-h-11 rounded-[14px] bg-slate-950 px-4 text-[12px] font-black text-white"
+                  >
+                    Retry fee
+                  </button>
+                )}
+              </div>
+            </div>
           </section>
         )}
       </div>

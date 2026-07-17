@@ -14,11 +14,15 @@ import {
   ShoppingCart,
   Wallet,
   ArrowRight,
+  Loader2,
+  ReceiptText,
+  TrendingUp,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { hapticFeedback } from "@/lib/capacitor";
 import { formatCurrency } from "@/lib/currency";
 import { MEAL_TYPES, generateDateOptions } from "./scheduleUtils";
+import { quoteDeliveryFee, type DeliveryFeeQuote } from "@/lib/delivery-pricing";
 
 interface ScheduleSheetProps {
   isOpen: boolean;
@@ -29,7 +33,7 @@ interface ScheduleSheetProps {
   setSelectedMealType: (type: string) => void;
   selectedTimeSlot: string | null;
   setSelectedTimeSlot: (slot: string | null) => void;
-  onSchedule: () => void;
+  onSchedule: (deliveryQuoteId?: string | null) => void;
   loading: boolean;
   hasActiveSubscription: boolean;
   remainingMeals: number;
@@ -45,6 +49,11 @@ interface ScheduleSheetProps {
   addonsTotal: number;
   walletBalance: number;
   hasAddons: boolean;
+  menuOfferings?: Array<{
+    meal_type: "breakfast" | "lunch" | "dinner" | "snack";
+    price: number;
+    is_available: boolean;
+  }>;
 }
 
 const TIME_SLOTS = [
@@ -78,9 +87,14 @@ export const ScheduleSheet = ({
   addonsTotal,
   walletBalance,
   hasAddons,
+  menuOfferings = [],
 }: ScheduleSheetProps) => {
   const [addonsOpen, setAddonsOpen] = useState(false);
   const [addresses, setAddresses] = useState<{ id: string; label: string; address_line1: string; city: string; is_default: boolean }[]>([]);
+  const [deliveryFeeQuote, setDeliveryFeeQuote] = useState<DeliveryFeeQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [quoteRefreshNonce, setQuoteRefreshNonce] = useState(0);
 
   useEffect(() => {
     if (!isOpen || !userId) return;
@@ -108,6 +122,46 @@ export const ScheduleSheet = ({
         }
       });
   }, [isOpen, userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      if (!isOpen || !selectedDate || !selectedTimeSlot || !selectedAddressId) {
+        setDeliveryFeeQuote(null);
+        setQuoteError(null);
+        setQuoteLoading(false);
+        return;
+      }
+
+      setQuoteLoading(true);
+      setQuoteError(null);
+      try {
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+        const day = String(selectedDate.getDate()).padStart(2, "0");
+        const nextQuote = await quoteDeliveryFee({
+          scheduledDate: `${year}-${month}-${day}`,
+          timeSlot: selectedTimeSlot,
+          deliveryAddressId: selectedAddressId,
+          orderTotal: addonsTotal,
+        });
+        if (!cancelled) setDeliveryFeeQuote(nextQuote);
+      } catch (error) {
+        console.error("Error quoting delivery fee:", error);
+        if (!cancelled) {
+          setDeliveryFeeQuote(null);
+          setQuoteError("Delivery fee could not be confirmed. Please retry.");
+        }
+      } finally {
+        if (!cancelled) setQuoteLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [addonsTotal, isOpen, quoteRefreshNonce, selectedAddressId, selectedDate, selectedTimeSlot]);
 
   const dateOptions = generateDateOptions();
   const selectedType = MEAL_TYPES.find(t => t.id === selectedMealType);
@@ -210,13 +264,25 @@ export const ScheduleSheet = ({
               {MEAL_TYPES.map((type) => {
                 const Icon = type.icon;
                 const isSelected = selectedMealType === type.id;
+                const offering = menuOfferings.find(
+                  (item) => item.meal_type === type.id,
+                );
+                const isUnavailable =
+                  menuOfferings.length > 0 && !offering?.is_available;
                 return (
                   <motion.button
                     key={type.id}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => { setSelectedMealType(type.id); hapticFeedback.buttonPress(); }}
+                    disabled={isUnavailable}
+                    onClick={() => {
+                      if (isUnavailable) return;
+                      setSelectedMealType(type.id);
+                      hapticFeedback.buttonPress();
+                    }}
                     className={`flex items-center gap-2.5 rounded-[18px] border p-3 text-left transition-all ${
-                      isSelected
+                      isUnavailable
+                        ? "cursor-not-allowed border-[#E5EAF1] bg-[#F6F8FB] text-[#94A3B8] opacity-55"
+                        : isSelected
                         ? "border-[#020617] bg-[#F8FAFC] text-[#020617]"
                         : "border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]"
                     }`}
@@ -230,7 +296,13 @@ export const ScheduleSheet = ({
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-black leading-tight">{type.label}</p>
-                      <p className="text-[10px] font-bold leading-tight text-[#94A3B8]">{type.time}</p>
+                      <p className="text-[10px] font-bold leading-tight text-[#94A3B8]">
+                        {isUnavailable
+                          ? "Not offered"
+                          : offering
+                            ? `${type.time} / ${formatCurrency(offering.price)}`
+                            : type.time}
+                      </p>
                     </div>
                     {isSelected && <Check className="ml-auto h-4 w-4 shrink-0 text-[#22C7A1]" />}
                   </motion.button>
@@ -307,6 +379,48 @@ export const ScheduleSheet = ({
                     </motion.button>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {selectedDate && selectedTimeSlot && selectedAddressId && (
+            <div className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.04)]">
+              <div className="flex items-start gap-3">
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] ${deliveryFeeQuote?.surgeFee ? "bg-[#FFF4ED] text-[#FB6B7A]" : "bg-[#EAF8FF] text-[#38BDF8]"}`}>
+                  {deliveryFeeQuote?.surgeFee ? <TrendingUp className="h-5 w-5" /> : <ReceiptText className="h-5 w-5" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-[#020617]">Delivery fee</p>
+                      <p className="mt-1 text-xs font-semibold leading-5 text-[#64748B]">
+                        {quoteLoading ? "Checking this delivery window..." : quoteError || deliveryFeeQuote?.message}
+                      </p>
+                      {quoteError && (
+                        <button
+                          type="button"
+                          onClick={() => setQuoteRefreshNonce((value) => value + 1)}
+                          className="mt-2 min-h-9 rounded-full bg-[#020617] px-3 text-[11px] font-black text-white"
+                        >
+                          Retry fee
+                        </button>
+                      )}
+                    </div>
+                    {quoteLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-[#38BDF8]" />
+                    ) : deliveryFeeQuote ? (
+                      <p className="shrink-0 text-base font-black text-[#020617]">
+                        {deliveryFeeQuote.totalFee === 0 ? "Free" : formatCurrency(deliveryFeeQuote.totalFee)}
+                      </p>
+                    ) : null}
+                  </div>
+                  {deliveryFeeQuote && deliveryFeeQuote.surgeFee > 0 && (
+                    <div className="mt-3 flex justify-between rounded-[14px] bg-[#FFF4ED] px-3 py-2 text-[11px] font-black text-[#C2415D]">
+                      <span>Base {formatCurrency(deliveryFeeQuote.baseFee)}</span>
+                      <span>+{formatCurrency(deliveryFeeQuote.surgeFee)}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -392,10 +506,10 @@ export const ScheduleSheet = ({
           )}
           <motion.button
             whileTap={{ scale: loading ? 1 : 0.97 }}
-            onClick={onSchedule}
-            disabled={loading || !selectedDate}
+            onClick={() => onSchedule(deliveryFeeQuote?.quoteId)}
+            disabled={loading || quoteLoading || !selectedDate || !selectedTimeSlot || !selectedAddressId || !deliveryFeeQuote}
             className={`h-13 flex w-full items-center justify-center gap-2 rounded-[18px] text-base font-black transition-all ${
-              !selectedDate
+              !selectedDate || !selectedTimeSlot || !selectedAddressId || !deliveryFeeQuote
                 ? "cursor-not-allowed bg-[#E2E8F0] text-[#94A3B8]"
                 : "bg-[#020617] text-white shadow-[0_16px_32px_rgba(2,6,23,0.24)] active:shadow-none"
             }`}
@@ -410,11 +524,18 @@ export const ScheduleSheet = ({
                 </motion.div>
                 Scheduling...
               </>
-            ) : !selectedDate ? (
+            ) : !selectedDate || !selectedTimeSlot || !selectedAddressId ? (
               <>
                 <CalendarIcon className="w-5 h-5" />
-                Pick a date to continue
+                Select date, time, and address
               </>
+            ) : quoteLoading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Confirming delivery fee
+              </>
+            ) : !deliveryFeeQuote ? (
+              <>Delivery fee required</>
             ) : addonsTotal > 0 ? (
               <>
                 Confirm \u00b7 {formatCurrency(addonsTotal)}

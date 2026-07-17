@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { formatEtaMinutes, predictEtaFromGps, type EtaPrediction } from "@/lib/delivery-eta";
 
 // Lazy load map components to avoid SSR issues
 const MapContainer = lazy(() => import("@/components/maps/MapContainer"));
@@ -74,6 +75,7 @@ interface LocationPoint {
 interface CustomerTrackingProjection {
   delivery_job: DeliveryJob | null;
   latest_location: DriverLocation | null;
+  eta_prediction?: EtaPrediction | null;
 }
 
 type UntypedRpcResult<T> = {
@@ -92,30 +94,6 @@ const safeFormat = (dateStr: string | null | undefined, fmt: string, fallback = 
   return isNaN(d.getTime()) ? fallback : format(d, fmt);
 };
 
-const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-};
-
-const getEtaMinutes = (
-  driverLat: number,
-  driverLng: number,
-  customerLat: number,
-  customerLng: number,
-  speedKmh?: number
-): number => {
-  const distKm = haversineKm(driverLat, driverLng, customerLat, customerLng);
-  const speed = speedKmh && speedKmh > 2 ? speedKmh : 25;
-  return Math.max(1, Math.round((distKm / speed) * 60));
-};
-
 export function CustomerDeliveryTracker({
   scheduleId,
   onBack,
@@ -125,6 +103,7 @@ export function CustomerDeliveryTracker({
   const { t } = useLanguage();
   const [deliveryJob, setDeliveryJob] = useState<DeliveryJob | null>(null);
   const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null);
+  const [serverEtaPrediction, setServerEtaPrediction] = useState<EtaPrediction | null>(null);
   const [routeHistory, setRouteHistory] = useState<LocationPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -156,6 +135,7 @@ export function CustomerDeliveryTracker({
       const latestLocation = data?.latest_location ?? null;
       setDeliveryJob(job);
       setDriverLocation(latestLocation);
+      setServerEtaPrediction(data?.eta_prediction ?? null);
 
       if (latestLocation) {
         setRouteHistory((previous) => {
@@ -175,6 +155,7 @@ export function CustomerDeliveryTracker({
       console.error("Error fetching delivery job:", err);
       setDeliveryJob(null);
       setDriverLocation(null);
+      setServerEtaPrediction(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -211,29 +192,14 @@ export function CustomerDeliveryTracker({
     return order.indexOf(normalize(status) ?? "");
   };
 
-  // Calculate ETA
-  const calculateETA = () => {
-    if (!driverLocation || !customerLocation) return null;
-    
-    // Haversine distance
-    const R = 6371; // Earth's radius in km
-    const dLat = (customerLocation.lat - driverLocation.lat) * Math.PI / 180;
-    const dLon = (customerLocation.lng - driverLocation.lng) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(driverLocation.lat * Math.PI / 180) * Math.cos(customerLocation.lat * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const distance = R * c;
-    
-    // Estimate time based on average speed (30 km/h in city)
-    const speed = driverLocation.speed_kmh || 30;
-    const timeHours = distance / speed;
-    const timeMinutes = Math.round(timeHours * 60);
-    
-    if (timeMinutes < 1) return t("tracking_eta_less_than_1");
-    if (timeMinutes === 1) return t("tracking_eta_1_min");
-    return t("tracking_eta_mins").replace("{n}", String(timeMinutes));
-  };
+  const localEtaPrediction = driverLocation && customerLocation
+    ? predictEtaFromGps(driverLocation, customerLocation)
+    : null;
+  const etaPrediction = serverEtaPrediction ?? localEtaPrediction;
+  const eta = etaPrediction
+    ? t("tracking_eta_mins").replace("{n}", String(etaPrediction.minutes))
+    : null;
+  const etaShort = etaPrediction ? formatEtaMinutes(etaPrediction.minutes) : null;
 
   // Calculate map center
   const getMapCenter = () => {
@@ -414,7 +380,6 @@ export function CustomerDeliveryTracker({
   const currentStep = getStatusStep(deliveryJob.status);
   const statusIndex = Math.max(0, getStatusIndex(deliveryJob.status));
   const showMap = driverLocation && ["accepted", "picked_up", "in_transit"].includes(deliveryJob.status ?? "");
-  const eta = calculateETA();
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-y-auto bg-[#F6F8FB] [-webkit-overflow-scrolling:touch]">
@@ -447,6 +412,11 @@ export function CustomerDeliveryTracker({
             <div className="rounded-2xl bg-[#EFF9FF] p-3 ring-1 ring-[#38BDF8]/20">
               <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">{t("tracking_eta")}</p>
               <p className="mt-1 text-[20px] font-black text-[#38BDF8]">{eta ?? "--"}</p>
+              {etaPrediction && (
+                <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                  {etaPrediction.confidence === "live" ? "Live GPS" : "GPS delayed"}
+                </p>
+              )}
             </div>
             <div className="rounded-2xl bg-[#F3F4FF] p-3 ring-1 ring-[#7C83F6]/20">
               <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">{t("tracking_updated").split("{time}")[0] || "Updated"}</p>
@@ -516,7 +486,7 @@ export function CustomerDeliveryTracker({
               {eta && (
                 <div className="flex items-center gap-1.5 rounded-full bg-[#EFF9FF] px-3 py-1 text-xs font-extrabold text-[#38BDF8] ring-1 ring-[#38BDF8]/20">
                   <Navigation className="h-3 w-3" />
-                  {t("tracking_eta").replace("{eta}", eta)}
+                  {etaShort}
                 </div>
               )}
             </div>
@@ -533,7 +503,7 @@ export function CustomerDeliveryTracker({
                     heading={driverLocation.heading}
                     speed={driverLocation.speed_kmh}
                     driverName="Driver"
-                    eta={eta || undefined}
+                    eta={etaShort || undefined}
                   />
                 )}
                 {restaurantLocation && ["accepted", "picked_up"].includes(deliveryJob.status ?? "") && (
@@ -587,17 +557,11 @@ export function CustomerDeliveryTracker({
                   {deliveryJob.driver.full_name || t("tracking_your_driver")}
                 </p>
                 {/* ETA */}
-                {driverLocation && customerLocation && deliveryJob.status === "picked_up" && (
+                {etaPrediction && deliveryJob.status === "picked_up" && (
                   <div className="flex items-center gap-1 mt-1">
                     <Clock className="h-3.5 w-3.5 text-[#38BDF8]" />
                     <span className="text-sm font-extrabold text-[#38BDF8]">
-                      ~{getEtaMinutes(
-                        driverLocation.lat,
-                        driverLocation.lng,
-                        customerLocation.lat,
-                        customerLocation.lng,
-                        driverLocation.speed_kmh
-                      )} min away
+                      ~{etaShort} away
                     </span>
                   </div>
                 )}

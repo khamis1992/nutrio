@@ -5,6 +5,10 @@ import {
   AdminPanel,
   AdminWorkbenchHeader,
 } from "@/components/admin/AdminPrimitives";
+import {
+  DeliverySurgeSettings,
+  type DeliveryFeeAdminSettings,
+} from "@/components/admin/DeliverySurgeSettings";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -120,6 +124,7 @@ const settingsSections = [
   { id: "commission-settings", label: "Rates" },
   { id: "boost-settings", label: "Boost" },
   { id: "feature-settings", label: "Features" },
+  { id: "delivery-pricing-settings", label: "Delivery pricing" },
   { id: "driver-settings", label: "Drivers" },
   { id: "analytics-settings", label: "Analytics" },
   { id: "affiliate-settings", label: "Affiliate" },
@@ -206,6 +211,16 @@ export default function AdminSettings() {
       peak_hour_bonus: 0,
     });
 
+  const [deliveryFeeSettings, setDeliveryFeeSettings] =
+    useState<DeliveryFeeAdminSettings>({
+      standard: 3.99,
+      express: 6.99,
+      free_threshold: 50,
+      enabled: true,
+      surge_enabled: false,
+      max_surcharge: 25,
+    });
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -246,6 +261,16 @@ export default function AdminSettings() {
               value as unknown as DriverEarningsSettings,
             );
             break;
+          case "delivery_fees":
+            setDeliveryFeeSettings({
+              standard: Number(value.standard) || 0,
+              express: Number(value.express) || 0,
+              free_threshold: Number(value.free_threshold) || 0,
+              enabled: value.enabled === true,
+              surge_enabled: value.surge_enabled === true,
+              max_surcharge: Number(value.max_surcharge) || 0,
+            });
+            break;
           case "contact_settings":
             setContactSettings({
               ...DEFAULT_CONTACT_SETTINGS,
@@ -273,6 +298,7 @@ export default function AdminSettings() {
         { key: "premium_analytics_prices", value: premiumAnalyticsPrices },
         { key: "affiliate_settings", value: affiliateSettings },
         { key: "driver_settings", value: driverEarningsSettings },
+        { key: "delivery_fees", value: deliveryFeeSettings },
       ];
 
       for (const update of updates) {
@@ -761,6 +787,28 @@ export default function AdminSettings() {
                   }
                 />
               </div>
+            </div>
+          </AdminPanel>
+
+          {/* Dynamic delivery pricing */}
+          <AdminPanel
+            id="delivery-pricing-settings"
+            className="scroll-mt-32 rounded-[24px] md:col-span-2"
+          >
+            <div className={cardHeaderClass}>
+              <h3 className="flex items-center gap-2 text-lg font-black text-[#020617]">
+                <Zap className="h-5 w-5 text-[#38BDF8]" />
+                Delivery pricing
+              </h3>
+              <p className="mt-1 font-medium text-[#94A3B8]">
+                Set transparent base fees and controlled demand-based pricing rules.
+              </p>
+            </div>
+            <div className="p-5">
+              <DeliverySurgeSettings
+                settings={deliveryFeeSettings}
+                onSettingsChange={setDeliveryFeeSettings}
+              />
             </div>
           </AdminPanel>
 

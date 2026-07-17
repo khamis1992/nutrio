@@ -17,6 +17,7 @@ export interface ScheduleMealInput {
   meal_type: "breakfast" | "lunch" | "dinner" | "snack";
   delivery_address_id?: string | null;
   delivery_time_slot?: string | null;
+  delivery_quote_id?: string | null;
   customization_data?: Record<string, unknown>;
   restaurant_note?: string | null;
   addons?: ScheduleMealAddonInput[];
@@ -47,6 +48,7 @@ const SCHEDULE_MEALS_ERROR_CODES = [
   "SUBSCRIPTION_NOT_FOUND",
   "SCHEDULE_DATE_INVALID",
   "MEAL_NOT_AVAILABLE",
+  "MEAL_NOT_OFFERED_FOR_PERIOD",
   "DELIVERY_ADDRESS_NOT_FOUND",
   "MEAL_QUOTA_EXHAUSTED",
   "SNACK_QUOTA_EXHAUSTED",
@@ -84,11 +86,18 @@ export async function scheduleMealsAtomic(
   items: ScheduleMealInput[],
   requestBatchId: string = crypto.randomUUID(),
 ): Promise<ScheduleMealsResult> {
+  const rpcItems = items.map(({ delivery_quote_id, customization_data, ...item }) => ({
+    ...item,
+    customization_data: delivery_quote_id
+      ? { ...(customization_data || {}), _delivery_quote_id: delivery_quote_id }
+      : customization_data,
+  }));
+
   const { data, error } = await supabase.rpc(
     "schedule_meals_atomic" as never,
     {
       p_subscription_id: subscriptionId,
-      p_items: items,
+      p_items: rpcItems,
       p_request_batch_id: requestBatchId,
     } as never,
   );
