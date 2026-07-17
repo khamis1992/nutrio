@@ -14,6 +14,54 @@ import {
   requirePost,
 } from "../_shared/security.ts";
 
+const MAX_ADAPTIVE_RESPONSE_BYTES = 64 * 1024;
+
+async function readAdaptiveResult(response: Response): Promise<{
+  adjustment_id?: string;
+  duplicate?: boolean;
+  recommendation?: { plateau_detected?: boolean };
+}> {
+  if (!response.body) throw new HttpError(502, "adaptive_goal_response_missing");
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > MAX_ADAPTIVE_RESPONSE_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        throw new HttpError(502, "adaptive_goal_response_too_large");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("invalid_shape");
+    }
+    return parsed as {
+      adjustment_id?: string;
+      duplicate?: boolean;
+      recommendation?: { plateau_detected?: boolean };
+    };
+  } catch {
+    throw new HttpError(502, "adaptive_goal_response_invalid");
+  }
+}
+
 serve(async (req) => {
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
@@ -59,6 +107,7 @@ serve(async (req) => {
       skipped: 0,
       errors: 0,
       adjustments_created: 0,
+      duplicates: 0,
       plateaus_detected: 0,
     };
 
@@ -102,16 +151,19 @@ serve(async (req) => {
             "x-internal-secret": internalSecret,
           },
           body: JSON.stringify({ user_id: user.user_id }),
+          signal: AbortSignal.timeout(30_000),
         });
 
         if (!response.ok) {
           throw new Error(`Adaptive goal request failed with ${response.status}`);
         }
 
-        const result = (await response.json()) as {
-          adjustment_id?: string;
-          recommendation?: { plateau_detected?: boolean };
-        };
+        const result = await readAdaptiveResult(response);
+        if (result.duplicate) {
+          results.duplicates += 1;
+          results.skipped += 1;
+          continue;
+        }
         results.processed += 1;
         if (result.adjustment_id) results.adjustments_created += 1;
         if (result.recommendation?.plateau_detected) {
@@ -120,7 +172,9 @@ serve(async (req) => {
 
         await new Promise((resolve) => setTimeout(resolve, 100));
       } catch (userError) {
-        console.error("Adaptive goal user processing failed:", userError);
+        console.error("Adaptive goal user processing failed", {
+          code: userError instanceof Error ? userError.name : "internal_error",
+        });
         results.errors += 1;
       }
     }
@@ -144,7 +198,9 @@ serve(async (req) => {
       message: `Processed ${results.processed} users and created ${results.adjustments_created} adjustments`,
     });
   } catch (error) {
-    console.error("Adaptive goals batch failed:", error);
+    console.error("Adaptive goals batch failed", {
+      code: error instanceof HttpError ? error.code : "internal_error",
+    });
     return errorResponse(req, error);
   }
 });

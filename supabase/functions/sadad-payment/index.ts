@@ -9,6 +9,7 @@ import {
   getSupabasePublishableKey,
   HttpError,
   readJsonBody,
+  readTextBody,
   recordSecurityEvent,
 } from "../_shared/security.ts";
 
@@ -186,20 +187,11 @@ function scalarRecord(value: Record<string, unknown>): ScalarRecord {
 }
 
 async function readCallbackPayload(req: Request): Promise<ScalarRecord> {
-  const contentType = (req.headers.get("content-type") || "").toLowerCase();
-  if (!contentType.includes("application/x-www-form-urlencoded")) {
-    throw new HttpError(415, "CALLBACK_CONTENT_TYPE_INVALID");
-  }
-
-  const declaredLength = Number(req.headers.get("content-length") || 0);
-  if (Number.isFinite(declaredLength) && declaredLength > 32 * 1024) {
-    throw new HttpError(413, "CALLBACK_TOO_LARGE");
-  }
-
-  const raw = await req.text();
-  if (new TextEncoder().encode(raw).byteLength > 32 * 1024) {
-    throw new HttpError(413, "CALLBACK_TOO_LARGE");
-  }
+  const raw = await readTextBody(
+    req,
+    32 * 1024,
+    ["application/x-www-form-urlencoded"],
+  );
 
   const payload: ScalarRecord = {};
   for (const [key, value] of new URLSearchParams(raw)) {

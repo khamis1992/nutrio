@@ -14,18 +14,40 @@ import {
 } from "../_shared/security.ts";
 
 const RATE_LIMIT = 50;
+const IP_RATE_LIMIT = 100;
 const RATE_WINDOW_SECONDS = 60 * 60;
+const DAILY_AI_LIMIT = 20;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_REQUEST_BYTES = 8 * 1024 * 1024;
 const MAX_PROVIDER_RESPONSE_BYTES = 256 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 12_000;
 const PROVIDER_TIMEOUT_MS = 45_000;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED_DIET_TAGS = new Set([
+  "dairy-free",
+  "gluten-free",
+  "halal",
+  "high-fiber",
+  "high-protein",
+  "keto",
+  "low-carb",
+  "low-fat",
+  "low-sodium",
+  "nut-free",
+  "paleo",
+  "pescatarian",
+  "sugar-free",
+  "vegan",
+  "vegetarian",
+]);
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface AnalyzeMealRequest {
   imageUrl?: unknown;
   availableTags?: unknown;
   mode?: unknown;
+  requestId?: unknown;
 }
 
 interface PreparedImage {
@@ -258,20 +280,99 @@ async function fetchRemoteImage(url: URL): Promise<PreparedImage> {
 
 function normalizeTags(value: unknown): string[] {
   if (value === undefined || value === null) return [];
-  if (!Array.isArray(value) || value.length > 50) {
+  if (!Array.isArray(value) || value.length > 20) {
     throw new HttpError(400, "invalid_available_tags");
   }
 
-  return value.map((tag) => {
+  return [...new Set(value.map((tag) => {
     if (typeof tag !== "string") {
       throw new HttpError(400, "invalid_available_tags");
     }
-    const normalized = tag.trim().replace(/[\r\n\t]+/g, " ");
-    if (!normalized || normalized.length > 80) {
+    const normalized = tag.trim().toLowerCase();
+    if (!ALLOWED_DIET_TAGS.has(normalized)) {
       throw new HttpError(400, "invalid_available_tags");
     }
     return normalized;
+  }))];
+}
+
+function boundedNumber(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): number {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < minimum || number > maximum) {
+    throw new HttpError(502, "provider_output_invalid");
+  }
+  return Math.round(number * 100) / 100;
+}
+
+function boundedText(value: unknown, maximumLength: number): string {
+  if (typeof value !== "string") {
+    throw new HttpError(502, "provider_output_invalid");
+  }
+  const normalized = value.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!normalized || normalized.length > maximumLength) {
+    throw new HttpError(502, "provider_output_invalid");
+  }
+  return normalized;
+}
+
+function normalizeQuickScanOutput(value: unknown): Array<Record<string, number | string>> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new HttpError(502, "provider_output_invalid");
+  }
+  const items = (value as Record<string, unknown>).items;
+  if (!Array.isArray(items) || items.length > 20) {
+    throw new HttpError(502, "provider_output_invalid");
+  }
+  return items.map((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new HttpError(502, "provider_output_invalid");
+    }
+    const record = item as Record<string, unknown>;
+    return {
+      name: boundedText(record.name, 120),
+      calories: boundedNumber(record.calories, 0, 5000),
+      protein_g: boundedNumber(record.protein_g, 0, 1000),
+      carbs_g: boundedNumber(record.carbs_g, 0, 2000),
+      fat_g: boundedNumber(record.fat_g, 0, 1000),
+    };
   });
+}
+
+function normalizeMealOutput(
+  value: unknown,
+  availableTags: string[],
+): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new HttpError(502, "provider_output_invalid");
+  }
+  const record = value as Record<string, unknown>;
+  const allowedForRequest = new Set(
+    availableTags.length ? availableTags : ALLOWED_DIET_TAGS,
+  );
+  const dietTags = Array.isArray(record.diet_tags)
+    ? [...new Set(record.diet_tags
+      .filter((tag): tag is string => typeof tag === "string")
+      .map((tag) => tag.trim().toLowerCase())
+      .filter((tag) => allowedForRequest.has(tag)))]
+      .slice(0, 10)
+    : [];
+
+  return {
+    name: boundedText(record.name, 160),
+    description: boundedText(record.description, 1000),
+    calories: boundedNumber(record.calories, 0, 10000),
+    protein_g: boundedNumber(record.protein_g, 0, 1000),
+    carbs_g: boundedNumber(record.carbs_g, 0, 2000),
+    fat_g: boundedNumber(record.fat_g, 0, 1000),
+    fiber_g: boundedNumber(record.fiber_g ?? 0, 0, 500),
+    prep_time_minutes: boundedNumber(record.prep_time_minutes, 0, 1440),
+    suggested_price: boundedNumber(record.suggested_price ?? 0, 0, 100000),
+    diet_tags: dietTags,
+  };
 }
 
 async function callVisionProvider(
@@ -342,21 +443,16 @@ async function callVisionProvider(
   }
 }
 
-async function logSuccessfulAnalysis(
-  userId: string,
-  ipAddress: string | null,
-): Promise<void> {
+async function logSuccessfulAnalysis(): Promise<void> {
   try {
     const { error } = await getServiceClient().from("api_logs").insert({
       endpoint: "/functions/v1/analyze-meal-image",
       method: "POST",
       status_code: 200,
-      partner_id: userId,
-      ip_address: ipAddress,
     });
-    if (error) console.error("Analysis audit log failed:", error.message);
-  } catch (error) {
-    console.error("Analysis audit log unavailable:", error);
+    if (error) console.error("Analysis audit log failed", { code: error.code });
+  } catch {
+    console.error("Analysis audit log unavailable");
   }
 }
 
@@ -479,6 +575,53 @@ serve(async (req) => {
     }, 500);
   }
 
+  let rateLimit: { remaining: number; resetAt: number };
+  try {
+    const clientIp = getClientIp(req) || "unknown";
+    [rateLimit] = await Promise.all([
+      enforceRateLimit(
+        req,
+        "analyze-meal-image:user",
+        principal.user.id,
+        RATE_LIMIT,
+        RATE_WINDOW_SECONDS,
+      ),
+      enforceRateLimit(
+        req,
+        "analyze-meal-image:ip",
+        clientIp,
+        IP_RATE_LIMIT,
+        RATE_WINDOW_SECONDS,
+      ),
+    ]);
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 429) {
+      return rateLimitResponse(
+        req,
+        new Date(Date.now() + RATE_WINDOW_SECONDS * 1000),
+      );
+    }
+    return analyzeJsonResponse(req, { error: "Rate limit unavailable" }, 503);
+  }
+
+  const service = getServiceClient();
+  let budgetRequestId: string | null = null;
+  let budgetReserved = false;
+  const completeBudget = async (
+    status: "completed" | "failed",
+    outputChars = 0,
+  ): Promise<void> => {
+    if (!budgetReserved || !budgetRequestId) return;
+    budgetReserved = false;
+    const { error } = await service.rpc("complete_ai_request", {
+      p_user_id: principal.user.id,
+      p_request_id: budgetRequestId,
+      p_status: status,
+      p_output_chars: outputChars,
+    });
+    if (error) console.error("Meal image AI usage completion failed", { code: error.code });
+  };
+
   try {
     const body = await readAnalyzeRequest(req);
     if (typeof body.imageUrl !== "string" || !body.imageUrl) {
@@ -487,25 +630,31 @@ serve(async (req) => {
 
     const mode = body.mode === "quick_scan" ? "quick_scan" : undefined;
     const availableTags = normalizeTags(body.availableTags);
-
-    let rateLimit: { remaining: number; resetAt: number };
-    try {
-      rateLimit = await enforceRateLimit(
-        req,
-        "analyze-meal-image",
-        principal.user.id,
-        RATE_LIMIT,
-        RATE_WINDOW_SECONDS,
-      );
-    } catch (error) {
-      if (error instanceof HttpError && error.status === 429) {
-        return rateLimitResponse(
-          req,
-          new Date(Date.now() + RATE_WINDOW_SECONDS * 1000),
-        );
-      }
-      throw error;
+    if (body.requestId !== undefined && !UUID_PATTERN.test(String(body.requestId))) {
+      throw new HttpError(400, "invalid_request_identifier");
     }
+    budgetRequestId = body.requestId === undefined
+      ? crypto.randomUUID()
+      : String(body.requestId);
+
+    const inputChars = Math.min(
+      100_000,
+      body.imageUrl.length + availableTags.join(",").length + (mode?.length ?? 0),
+    );
+    const { data: budget, error: budgetError } = await service.rpc(
+      "reserve_ai_request",
+      {
+        p_user_id: principal.user.id,
+        p_task: "meal_image",
+        p_request_id: budgetRequestId,
+        p_daily_limit: DAILY_AI_LIMIT,
+        p_input_chars: inputChars,
+      },
+    );
+    if (budgetError) throw new HttpError(503, "ai_budget_check_failed");
+    if (budget?.duplicate) throw new HttpError(409, "duplicate_ai_request");
+    if (!budget?.allowed) throw new HttpError(429, "daily_ai_request_limit_reached");
+    budgetReserved = true;
 
     let image: PreparedImage;
     if (body.imageUrl.startsWith("data:")) {
@@ -544,14 +693,16 @@ serve(async (req) => {
         if (error instanceof HttpError) throw error;
         console.error("Remote meal image fetch failed");
         await recordProviderFailure(req, principal, "image_fetch_failed");
+        await completeBudget("failed");
         return createFallbackResponse(req, mode, "image_fetch_failed");
       }
     }
 
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    const apiKey = Deno.env.get("MANUS_API_KEY");
     if (!apiKey) {
       console.error("Meal image AI provider is not configured");
       await recordProviderFailure(req, principal, "provider_not_configured");
+      await completeBudget("failed");
       return createFallbackResponse(req, mode);
     }
 
@@ -582,6 +733,7 @@ serve(async (req) => {
         principal,
         error instanceof HttpError ? error.code : "provider_request_failed",
       );
+      await completeBudget("failed");
       return createFallbackResponse(req, mode, "ai_service_unavailable");
     }
 
@@ -596,6 +748,7 @@ serve(async (req) => {
         "provider_response_invalid",
         providerResult.status,
       );
+      await completeBudget("failed");
       return createFallbackResponse(req, mode, "ai_service_unavailable");
     }
 
@@ -603,12 +756,15 @@ serve(async (req) => {
       const jsonMatch = providerResult.content.match(
         /```(?:json)?\s*([\s\S]*?)```/,
       );
-      const parsed = JSON.parse(
+      const parsed: unknown = JSON.parse(
         jsonMatch ? jsonMatch[1].trim() : providerResult.content.trim(),
       );
       const resetAt = new Date(rateLimit.resetAt).toISOString();
+      const normalizedOutput = mode === "quick_scan"
+        ? { detectedItems: normalizeQuickScanOutput(parsed) }
+        : { mealDetails: normalizeMealOutput(parsed, availableTags) };
 
-      await logSuccessfulAnalysis(principal.user.id, getClientIp(req));
+      await logSuccessfulAnalysis();
       await recordSecurityEvent(req, {
         eventType: "edge.meal_image_analyzed",
         category: "edge_function",
@@ -621,22 +777,29 @@ serve(async (req) => {
         metadata: { mode: mode || "detailed" },
       });
 
-      if (mode === "quick_scan") {
+      if ("detectedItems" in normalizedOutput) {
+        const { detectedItems } = normalizedOutput;
+        await completeBudget("completed", JSON.stringify(detectedItems).length);
         return analyzeJsonResponse(req, {
           success: true,
-          detectedItems: parsed.items || [],
+          detectedItems,
           rateLimit: { remaining: rateLimit.remaining, resetAt },
+          requestId: budgetRequestId,
         });
       }
 
+      const { mealDetails } = normalizedOutput;
+      await completeBudget("completed", JSON.stringify(mealDetails).length);
       return analyzeJsonResponse(req, {
         success: true,
-        mealDetails: parsed,
+        mealDetails,
         rateLimit: { remaining: rateLimit.remaining, resetAt },
+        requestId: budgetRequestId,
       });
     } catch {
       console.error("Meal image AI response could not be parsed");
       await recordProviderFailure(req, principal, "provider_output_invalid");
+      await completeBudget("failed");
       return analyzeJsonResponse(req, {
         success: false,
         error: "Failed to parse AI response",
@@ -666,7 +829,12 @@ serve(async (req) => {
         unsupported_image_type: "Unsupported image type",
         image_too_large: "Image is too large",
         invalid_available_tags: "Invalid available tags",
+        invalid_request_identifier: "Invalid request identifier",
+        ai_budget_check_failed: "AI budget is unavailable",
+        daily_ai_request_limit_reached: "Daily AI analysis limit reached",
+        duplicate_ai_request: "Duplicate AI request",
       };
+      await completeBudget("failed");
       return analyzeJsonResponse(
         req,
         { success: false, error: messages[error.code] || error.code },
@@ -674,6 +842,7 @@ serve(async (req) => {
       );
     }
 
+    await completeBudget("failed");
     console.error("Unexpected analyze-meal-image failure");
     return analyzeJsonResponse(req, { error: "Internal server error" }, 500);
   }

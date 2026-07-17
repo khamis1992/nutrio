@@ -7,6 +7,7 @@ import {
   getSupabasePublishableKey,
   handlePreflight,
   HttpError,
+  readBoundedResponseJson,
   readJsonBody,
   requirePost,
 } from "../_shared/security.ts";
@@ -17,6 +18,8 @@ interface JsonRpcRequest {
   method: string;
   params?: Record<string, unknown>;
 }
+
+const REST_RESPONSE_LIMIT = 256 * 1024;
 
 const tools = [
   {
@@ -115,7 +118,10 @@ async function restQuery(
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) throw new Error("database_query_failed");
-  return await response.json();
+  return await readBoundedResponseJson<Array<Record<string, unknown>>>(
+    response,
+    REST_RESPONSE_LIMIT,
+  );
 }
 
 serve(async (req) => {
@@ -125,6 +131,23 @@ serve(async (req) => {
   let request: JsonRpcRequest | null = null;
   try {
     requirePost(req);
+
+    let principal;
+    try {
+      principal = await authenticateRequest(req);
+    } catch {
+      return rpcError(req, null, -32001, "Unauthorized");
+    }
+
+    try {
+      await enforceRateLimit(req, "nutrio-mcp", principal.user.id, 180, 3600);
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 429) {
+        return rpcError(req, null, -32002, "Rate limit exceeded");
+      }
+      throw error;
+    }
+
     request = await readJsonBody<JsonRpcRequest>(req, 16 * 1024);
     if (
       request?.jsonrpc !== "2.0" ||
@@ -132,22 +155,6 @@ serve(async (req) => {
       request.method.length > 80
     ) {
       return rpcError(req, request?.id, -32600, "Invalid request");
-    }
-
-    let principal;
-    try {
-      principal = await authenticateRequest(req);
-    } catch {
-      return rpcError(req, request.id, -32001, "Unauthorized");
-    }
-
-    try {
-      await enforceRateLimit(req, "nutrio-mcp", principal.user.id, 180, 3600);
-    } catch (error) {
-      if (error instanceof HttpError && error.status === 429) {
-        return rpcError(req, request.id, -32002, "Rate limit exceeded");
-      }
-      throw error;
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";

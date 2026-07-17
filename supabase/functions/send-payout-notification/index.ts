@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 
 import { getNotificationRecipient } from "../_shared/notificationRecipient.ts";
 import {
@@ -18,6 +17,45 @@ import {
 } from "../_shared/security.ts";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function sendIdempotentEmail(
+  userId: string,
+  subject: string,
+  html: string,
+  idempotencyKey: string,
+): Promise<{ duplicate: boolean; suppressed: boolean }> {
+  const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET") || "";
+  if (!internalSecret) throw new HttpError(503, "email_delivery_not_configured");
+
+  const { data, error, response } = await getServiceClient().functions.invoke(
+    "send-email",
+    {
+      headers: { "x-internal-secret": internalSecret },
+      body: {
+        user_id: userId,
+        subject,
+        html,
+        preference: "email_notifications",
+        idempotency_key: idempotencyKey,
+      },
+    },
+  );
+  if (error) {
+    if (response?.status === 409) return { duplicate: true, suppressed: false };
+    console.error("Payout email delivery failed", {
+      status: response?.status || 0,
+      name: error.name,
+    });
+    throw new HttpError(502, "email_delivery_failed");
+  }
+  const result = data && typeof data === "object"
+    ? data as Record<string, unknown>
+    : {};
+  return {
+    duplicate: result.duplicate === true,
+    suppressed: result.suppressed === true,
+  };
+}
 
 function safeAppUrl(): string | null {
   const configured = Deno.env.get("APP_URL") || "";
@@ -81,36 +119,39 @@ serve(async (req: Request): Promise<Response> => {
       return jsonResponse(req, { success: true, delivered: false, skipped: true });
     }
 
-    const resendKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendKey) throw new HttpError(503, "email_provider_not_configured");
-
     const statusLabel = payout.status === "processing"
       ? "approved for transfer"
       : payout.status === "completed"
         ? "transferred"
         : "rejected";
     const amount = Number(payout.amount || 0);
+    if (!Number.isFinite(amount) || amount < 0 || amount > 1_000_000_000) {
+      throw new HttpError(409, "invalid_payout_record");
+    }
+    const payoutMethod = escapeHtml(
+      String(payout.payout_method || "bank_transfer").replaceAll("_", " ").slice(0, 100),
+    );
+    const rejectionReason = payout.status === "rejected" && payout.notes
+      ? escapeHtml(String(payout.notes).slice(0, 1000))
+      : "";
     const appUrl = safeAppUrl();
-    const resend = new Resend(resendKey);
-    const { error: emailError } = await resend.emails.send({
-      from: Deno.env.get("PAYOUT_EMAIL_FROM") || "Nutrio <noreply@nutrio.qa>",
-      to: [recipient.email],
-      subject: `Affiliate payout ${statusLabel}`,
-      html: `
+    const subject = `Affiliate payout ${statusLabel}`;
+    const html = `
         <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0f172a">
           <h1 style="font-size:24px">Payout ${escapeHtml(statusLabel)}</h1>
           <p>Hi ${escapeHtml(recipient.fullName || "Affiliate Partner")},</p>
           <p>Your QAR ${escapeHtml(amount.toFixed(2))} payout is now <strong>${escapeHtml(statusLabel)}</strong>.</p>
-          <p>Method: ${escapeHtml(String(payout.payout_method || "bank_transfer").replaceAll("_", " "))}</p>
-          ${payout.status === "rejected" && payout.notes ? `<p>Reason: ${escapeHtml(payout.notes)}</p>` : ""}
+          <p>Method: ${payoutMethod}</p>
+          ${rejectionReason ? `<p>Reason: ${rejectionReason}</p>` : ""}
           ${appUrl ? `<p><a href="${escapeHtml(appUrl)}/affiliate">View payout history</a></p>` : ""}
         </div>
-      `,
-    });
-    if (emailError) {
-      console.error("Payout email provider rejected request", { name: emailError.name });
-      throw new HttpError(502, "email_send_failed");
-    }
+      `;
+    const delivery = await sendIdempotentEmail(
+      payout.user_id,
+      subject,
+      html,
+      `affiliate-payout:${payout.id}:${payout.status}`,
+    );
 
     await recordSecurityEvent(req, {
       eventType: "affiliate.payout_notification.sent",
@@ -121,10 +162,21 @@ serve(async (req: Request): Promise<Response> => {
       action: "send_payout_notification",
       resourceType: "public.affiliate_payouts",
       resourceId: payout.id,
-      metadata: { status: payout.status, channel: "email" },
+      metadata: {
+        status: payout.status,
+        channel: "email",
+        duplicate: delivery.duplicate,
+        suppressed: delivery.suppressed,
+      },
     });
 
-    return jsonResponse(req, { success: true, delivered: true, payout_id: payout.id });
+    return jsonResponse(req, {
+      success: true,
+      delivered: !delivery.suppressed,
+      duplicate: delivery.duplicate,
+      suppressed: delivery.suppressed,
+      payout_id: payout.id,
+    });
   } catch (error) {
     if (principal) {
       await recordSecurityEvent(req, {

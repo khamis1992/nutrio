@@ -52,14 +52,6 @@ serve(async (req: Request): Promise<Response> => {
 
   try {
     requirePost(req);
-    const body = await readJsonBody<RenewalInput>(req, 8 * 1024);
-    const subscriptionId = String(body.subscription_id || "").trim() || null;
-    const dryRun = body.dry_run === true;
-
-    if (subscriptionId && !UUID_PATTERN.test(subscriptionId)) {
-      throw new HttpError(400, "invalid_subscription_reference");
-    }
-
     if (req.headers.has("x-internal-secret")) {
       await requireInternalSecret(req, "SUBSCRIPTION_RENEWAL_CRON_SECRET");
       internal = true;
@@ -72,6 +64,14 @@ serve(async (req: Request): Promise<Response> => {
         hasAdminAssurance(principal) ? 30 : 5,
         60 * 60,
       );
+    }
+
+    const body = await readJsonBody<RenewalInput>(req, 8 * 1024);
+    const subscriptionId = String(body.subscription_id || "").trim() || null;
+    const dryRun = body.dry_run === true;
+
+    if (subscriptionId && !UUID_PATTERN.test(subscriptionId)) {
+      throw new HttpError(400, "invalid_subscription_reference");
     }
 
     const hasAdminAccess = hasAdminAssurance(principal);

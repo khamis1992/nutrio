@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 import {
+  enforceRateLimit,
   errorResponse,
   escapeHtml,
+  getClientIp,
   getCorsHeaders,
   getServiceClient,
   handlePreflight,
@@ -12,66 +13,110 @@ import {
   requirePost,
 } from "../_shared/security.ts";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
 interface WelcomeRequest {
-  user_id: string;
-  referral_code: string;
+  user_id?: unknown;
+  referral_code?: unknown;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function commissionRate(value: unknown, fallback: number): number {
+  const rate = Number(value);
+  return Number.isFinite(rate) && rate >= 0 && rate <= 100 ? rate : fallback;
+}
+
+async function sendIdempotentEmail(
+  userId: string,
+  subject: string,
+  html: string,
+  idempotencyKey: string,
+): Promise<{ duplicate: boolean; suppressed: boolean }> {
+  const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET") || "";
+  if (!internalSecret) throw new HttpError(503, "email_delivery_not_configured");
+
+  const { data, error, response } = await getServiceClient().functions.invoke(
+    "send-email",
+    {
+      headers: { "x-internal-secret": internalSecret },
+      body: {
+        user_id: userId,
+        subject,
+        html,
+        preference: "email_notifications",
+        idempotency_key: idempotencyKey,
+      },
+    },
+  );
+  if (error) {
+    if (response?.status === 409) return { duplicate: true, suppressed: false };
+    console.error("Affiliate welcome delivery failed", {
+      status: response?.status || 0,
+      name: error.name,
+    });
+    throw new HttpError(502, "email_delivery_failed");
+  }
+  const result = data && typeof data === "object"
+    ? data as Record<string, unknown>
+    : {};
+  return {
+    duplicate: result.duplicate === true,
+    suppressed: result.suppressed === true,
+  };
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("Affiliate welcome email function called");
-
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
   const corsHeaders = getCorsHeaders(req);
 
   try {
     requirePost(req);
-    await requireAdminOrInternal(req, "AFFILIATE_NOTIFICATION_SECRET");
+    const principal = await requireAdminOrInternal(req, "AFFILIATE_NOTIFICATION_SECRET");
+    await enforceRateLimit(
+      req,
+      "affiliate-welcome-notification",
+      principal?.user.id || getClientIp(req) || "internal",
+      principal ? 30 : 500,
+      60 * 60,
+    );
     const supabase = getServiceClient();
 
     const body = await readJsonBody<WelcomeRequest>(req, 8 * 1024);
-    const user_id = body.user_id;
-    const referral_code = escapeHtml(body.referral_code).slice(0, 100);
-    if (!user_id || !referral_code) throw new HttpError(400, "invalid_notification_request");
-
-    console.log(`Sending welcome email to user ${user_id} with code ${referral_code}`);
-
-    // Get user email
-    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(user_id);
-
-    if (authError || !authUser?.user?.email) {
-      console.error("Error fetching user email:", authError);
-      return new Response(
-        JSON.stringify({ error: "User not found or no email" }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+    const user_id = String(body.user_id || "").trim();
+    if (!UUID_PATTERN.test(user_id)) {
+      throw new HttpError(400, "invalid_notification_request");
     }
-
-    const userEmail = authUser.user.email;
 
     // Get user profile and affiliate settings
     const [profileResult, settingsResult] = await Promise.all([
-      supabase.from("profiles").select("full_name").eq("user_id", user_id).single(),
+      supabase.from("profiles").select("full_name,referral_code").eq("user_id", user_id).maybeSingle(),
       supabase.from("platform_settings").select("value").eq("key", "affiliate_settings").single(),
     ]);
+    if (profileResult.error) throw new HttpError(503, "profile_lookup_failed");
+    if (!profileResult.data) throw new HttpError(404, "profile_not_found");
+
+    const rawReferralCode = String(profileResult.data.referral_code || "").trim();
+    if (!/^[A-Za-z0-9_-]{1,100}$/.test(rawReferralCode)) {
+      throw new HttpError(409, "referral_code_not_ready");
+    }
 
     const userName = escapeHtml(profileResult.data?.full_name || "Partner");
-    const settings = settingsResult.data?.value as any || {
-      tier1_commission: 5,
-      tier2_commission: 2,
-      tier3_commission: 1,
+    const rawSettings = settingsResult.data?.value &&
+        typeof settingsResult.data.value === "object"
+      ? settingsResult.data.value as Record<string, unknown>
+      : {};
+    const settings = {
+      tier1_commission: commissionRate(rawSettings.tier1_commission, 5),
+      tier2_commission: commissionRate(rawSettings.tier2_commission, 2),
+      tier3_commission: commissionRate(rawSettings.tier3_commission, 1),
     };
+    const referral_code = escapeHtml(rawReferralCode);
 
-    const referralLink = `https://your-app.com/auth?ref=${referral_code}`;
+    const referralLink = `https://your-app.com/auth?ref=${encodeURIComponent(rawReferralCode)}`;
 
-    // Send welcome email
-    const emailResponse = await resend.emails.send({
-      from: "Affiliate Program <onboarding@resend.dev>",
-      to: [userEmail],
-      subject: "🎉 Welcome to Our Affiliate Program!",
-      html: `
+    const subject = "🎉 Welcome to Our Affiliate Program!";
+    const html = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -180,20 +225,25 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         </body>
         </html>
-      `,
-    });
-
-    console.log("Welcome email sent successfully:", emailResponse);
+      `;
+    const delivery = await sendIdempotentEmail(
+      user_id,
+      subject,
+      html,
+      `affiliate-welcome:${user_id}`,
+    );
 
     return new Response(
-      JSON.stringify({ success: true, emailResponse }),
+      JSON.stringify({ success: true, ...delivery }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
-  } catch (error: any) {
-    console.error("Error in send-affiliate-welcome function:", error);
+  } catch (error: unknown) {
+    console.error("Affiliate welcome notification failed", {
+      code: error instanceof HttpError ? error.code : "internal_error",
+    });
     return errorResponse(req, error);
   }
 };

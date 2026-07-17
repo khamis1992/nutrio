@@ -9,6 +9,7 @@ import {
   handlePreflight,
   HttpError,
   jsonResponse,
+  readBoundedResponseJson,
   readJsonBody,
   recordSecurityEvent,
   requireInternalSecret,
@@ -18,6 +19,7 @@ import {
 import { getNotificationRecipient } from "../_shared/notificationRecipient.ts";
 
 const FROM_EMAIL = "Nutrio <billing@nutrio.app>";
+const RESEND_RESPONSE_LIMIT = 16 * 1024;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -688,10 +690,10 @@ serve(async (req: Request) => {
       throw new HttpError(502, "invoice_email_delivery_failed");
     }
 
-    const resendData = await resendResponse.json().catch(() => ({})) as Record<
-      string,
-      unknown
-    >;
+    const resendData = await readBoundedResponseJson<Record<string, unknown>>(
+      resendResponse,
+      RESEND_RESPONSE_LIMIT,
+    ).catch(() => ({}));
     const rawEmailId = typeof resendData.id === "string"
       ? resendData.id.trim()
       : "";

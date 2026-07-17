@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 import {
+  enforceRateLimit,
   errorResponse,
   escapeHtml,
+  getClientIp,
   getCorsHeaders,
   getServiceClient,
   handlePreflight,
@@ -12,12 +13,52 @@ import {
   requirePost,
 } from "../_shared/security.ts";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
 interface TierUpgradeRequest {
   user_id: string;
   old_tier: string;
   new_tier: string;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function sendIdempotentEmail(
+  userId: string,
+  subject: string,
+  html: string,
+  idempotencyKey: string,
+): Promise<{ duplicate: boolean; suppressed: boolean }> {
+  const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET") || "";
+  if (!internalSecret) throw new HttpError(503, "email_delivery_not_configured");
+
+  const { data, error, response } = await getServiceClient().functions.invoke(
+    "send-email",
+    {
+      headers: { "x-internal-secret": internalSecret },
+      body: {
+        user_id: userId,
+        subject,
+        html,
+        preference: "email_notifications",
+        idempotency_key: idempotencyKey,
+      },
+    },
+  );
+  if (error) {
+    if (response?.status === 409) return { duplicate: true, suppressed: false };
+    console.error("Tier upgrade email delivery failed", {
+      status: response?.status || 0,
+      name: error.name,
+    });
+    throw new HttpError(502, "email_delivery_failed");
+  }
+  const result = data && typeof data === "object"
+    ? data as Record<string, unknown>
+    : {};
+  return {
+    duplicate: result.duplicate === true,
+    suppressed: result.suppressed === true,
+  };
 }
 
 const tierConfig: Record<string, { color: string; gradient: string; icon: string; benefits: string[] }> = {
@@ -54,57 +95,49 @@ const tierConfig: Record<string, { color: string; gradient: string; icon: string
 };
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("Tier upgrade notification function called");
-
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
   const corsHeaders = getCorsHeaders(req);
 
   try {
     requirePost(req);
-    await requireAdminOrInternal(req, "AFFILIATE_NOTIFICATION_SECRET");
+    const principal = await requireAdminOrInternal(req, "AFFILIATE_NOTIFICATION_SECRET");
+    await enforceRateLimit(
+      req,
+      "affiliate-tier-notification",
+      principal?.user.id || getClientIp(req) || "internal",
+      principal ? 60 : 500,
+      60 * 60,
+    );
     const supabase = getServiceClient();
 
     const { user_id, old_tier, new_tier } = await readJsonBody<TierUpgradeRequest>(req, 8 * 1024);
     const allowedTiers = Object.keys(tierConfig);
-    if (!user_id || !allowedTiers.includes(old_tier) || !allowedTiers.includes(new_tier)) {
+    if (
+      !UUID_PATTERN.test(user_id) || !allowedTiers.includes(old_tier) ||
+      !allowedTiers.includes(new_tier)
+    ) {
       throw new HttpError(400, "invalid_notification_request");
     }
 
-    console.log(`Processing tier upgrade for user ${user_id}: ${old_tier} → ${new_tier}`);
-
-    // Get user email
-    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(user_id);
-
-    if (authError || !authUser?.user?.email) {
-      console.error("Error fetching user email:", authError);
-      return new Response(
-        JSON.stringify({ error: "User not found or no email" }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    const userEmail = authUser.user.email;
-
     // Get user profile
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("full_name, affiliate_balance, total_affiliate_earnings")
+      .select("full_name,affiliate_tier")
       .eq("user_id", user_id)
-      .single();
+      .maybeSingle();
+    if (profileError) throw new HttpError(503, "profile_lookup_failed");
+    if (!profile) throw new HttpError(404, "profile_not_found");
 
     const userName = escapeHtml(profile?.full_name || "Affiliate Partner");
     const newTierLower = new_tier.toLowerCase();
-    const oldTierLower = old_tier.toLowerCase();
+    if (String(profile.affiliate_tier || "").toLowerCase() !== newTierLower) {
+      throw new HttpError(409, "tier_state_mismatch");
+    }
     const newTierConfig = tierConfig[newTierLower] || tierConfig.bronze;
-    const oldTierConfig = tierConfig[oldTierLower] || tierConfig.bronze;
 
-    // Send email notification
-    const emailResponse = await resend.emails.send({
-      from: "Affiliate Program <onboarding@resend.dev>",
-      to: [userEmail],
-      subject: `${newTierConfig.icon} Congratulations! You've been promoted to ${new_tier}!`,
-      html: `
+    const subject = `${newTierConfig.icon} Congratulations! You've been promoted to ${new_tier}!`;
+    const html = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -161,29 +194,40 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         </body>
         </html>
-      `,
-    });
-
-    console.log("Email sent successfully:", emailResponse);
+      `;
+    const delivery = await sendIdempotentEmail(
+      user_id,
+      subject,
+      html,
+      `affiliate-tier:${user_id}:${newTierLower}`,
+    );
 
     // Also create an in-app notification
-    await supabase.from("notifications").insert({
+    const notificationDedupeKey = `tier-upgrade:${user_id}:${newTierLower}`;
+    const { error: notificationError } = await supabase.from("notifications").upsert({
       user_id: user_id,
       type: "tier_upgrade",
       title: `${newTierConfig.icon} Tier Upgrade!`,
       message: `Congratulations! You've been promoted from ${old_tier} to ${new_tier} tier.`,
-      data: { old_tier, new_tier },
+      dedupe_key: notificationDedupeKey,
+      data: { old_tier, new_tier, dedupe_key: notificationDedupeKey },
+    }, {
+      onConflict: "user_id,type,dedupe_key",
+      ignoreDuplicates: true,
     });
+    if (notificationError) throw new HttpError(503, "notification_write_failed");
 
     return new Response(
-      JSON.stringify({ success: true, emailResponse }),
+      JSON.stringify({ success: true, ...delivery }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
-  } catch (error: any) {
-    console.error("Error in send-tier-upgrade-notification function:", error);
+  } catch (error: unknown) {
+    console.error("Tier upgrade notification failed", {
+      code: error instanceof HttpError ? error.code : "internal_error",
+    });
     return errorResponse(req, error);
   }
 };

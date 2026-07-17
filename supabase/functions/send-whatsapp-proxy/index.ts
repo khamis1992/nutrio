@@ -9,6 +9,7 @@ import {
   handlePreflight,
   HttpError,
   jsonResponse,
+  readBoundedResponseJson,
   readJsonBody,
   recordSecurityEvent,
   requireInternalSecret,
@@ -17,6 +18,7 @@ import {
 } from "../_shared/security.ts";
 
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/;
+const ULTRAMSG_RESPONSE_LIMIT = 16 * 1024;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -376,7 +378,10 @@ serve(async (req: Request) => {
       throw new HttpError(502, "whatsapp_delivery_failed");
     }
 
-    const providerData = await response.json().catch(() => null) as unknown;
+    const providerData = await readBoundedResponseJson<unknown>(
+      response,
+      ULTRAMSG_RESPONSE_LIMIT,
+    ).catch(() => null);
     const messageId = parseUltraMsgMessageId(providerData);
     if (!messageId) {
       if (idempotencyKey && claimToken) {

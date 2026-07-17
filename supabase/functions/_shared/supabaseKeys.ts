@@ -31,8 +31,7 @@ export function getSupabaseSecretKey(): string {
     "SUPABASE_SECRET_KEYS",
     "NUTRIO_SUPABASE_SECRET_KEY_NAME",
   ) ||
-    Deno.env.get("SUPABASE_SECRET_KEY")?.trim() ||
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+    Deno.env.get("SUPABASE_SECRET_KEY")?.trim();
   if (!key) throw new Error("SUPABASE_ADMIN_KEY_NOT_CONFIGURED");
   return key;
 }
@@ -41,8 +40,7 @@ export function getSupabasePublishableKey(): string {
   const key = readNamedKey(
     "SUPABASE_PUBLISHABLE_KEYS",
     "NUTRIO_SUPABASE_PUBLISHABLE_KEY_NAME",
-  ) || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")?.trim() ||
-    Deno.env.get("SUPABASE_ANON_KEY")?.trim();
+  ) || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")?.trim();
   if (!key) throw new Error("SUPABASE_PUBLISHABLE_KEY_NOT_CONFIGURED");
   return key;
 }

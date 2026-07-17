@@ -48,6 +48,16 @@ verify_jwt = true
 [functions.check-ip-location]
 verify_jwt = false
 
+[functions.before-user-created]
+# Supabase Auth signs this server-to-server hook with Standard Webhooks.
+verify_jwt = false
+
+[functions.create-fleet-manager]
+verify_jwt = true
+
+[functions.register-driver]
+verify_jwt = true
+
 [functions.log-user-ip]
 verify_jwt = true
 
@@ -101,6 +111,11 @@ verify_jwt = true
 [functions.ai-router]
 verify_jwt = false
 
+# Authenticates the customer session in-function, fetches owned health data
+# server-side, and requires versioned consent before contacting the AI provider.
+[functions.analyze-blood-work]
+verify_jwt = false
+
 [functions.nutrio-mcp]
 verify_jwt = false
 
@@ -124,6 +139,9 @@ verify_jwt = false
 
 [functions.sporthub-oauth-callback]
 verify_jwt = false
+
+[functions.sporthub-link-complete]
+verify_jwt = true
 
 # SADAD callbacks and webhooks do not carry a Supabase JWT. The function
 # validates customer JWTs itself for create/status operations and verifies the
@@ -182,6 +200,10 @@ verify_jwt = false
 # Scheduled daily. The handler requires SECURITY_LOG_CRON_SECRET or an admin
 # JWT, creates an append-only range anchor, and optionally exports it off-site.
 [functions.security-log-maintenance]
+verify_jwt = false
+
+# Internal worker for signed, acknowledged high/critical security alerts.
+[functions.dispatch-security-alerts]
 verify_jwt = false
 
 [functions.secure-sensitive-upload]

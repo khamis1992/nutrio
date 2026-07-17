@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 import {
+  enforceRateLimit,
   errorResponse,
   escapeHtml,
   getCorsHeaders,
@@ -13,12 +13,52 @@ import {
   requirePost,
 } from "../_shared/security.ts";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
 interface NotificationRequest {
   user_id: string;
   status: "approved" | "rejected";
   rejection_reason?: string;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function sendIdempotentEmail(
+  userId: string,
+  subject: string,
+  html: string,
+  idempotencyKey: string,
+): Promise<{ duplicate: boolean; suppressed: boolean }> {
+  const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET") || "";
+  if (!internalSecret) throw new HttpError(503, "email_delivery_not_configured");
+
+  const { data, error, response } = await getServiceClient().functions.invoke(
+    "send-email",
+    {
+      headers: { "x-internal-secret": internalSecret },
+      body: {
+        user_id: userId,
+        subject,
+        html,
+        preference: "email_notifications",
+        idempotency_key: idempotencyKey,
+      },
+    },
+  );
+  if (error) {
+    if (response?.status === 409) return { duplicate: true, suppressed: false };
+    console.error("Affiliate status email delivery failed", {
+      status: response?.status || 0,
+      name: error.name,
+    });
+    throw new HttpError(502, "email_delivery_failed");
+  }
+  const result = data && typeof data === "object"
+    ? data as Record<string, unknown>
+    : {};
+  return {
+    duplicate: result.duplicate === true,
+    suppressed: result.suppressed === true,
+  };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -29,38 +69,42 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     requirePost(req);
     const principal = await requireAdmin(req);
-    const { user_id, status, rejection_reason } = await readJsonBody<NotificationRequest>(req, 16 * 1024);
-    if (!user_id || !["approved", "rejected"].includes(status)) {
+    await enforceRateLimit(
+      req,
+      "affiliate-status-notification",
+      principal.user.id,
+      60,
+      60 * 60,
+    );
+    const { user_id, status } = await readJsonBody<NotificationRequest>(req, 16 * 1024);
+    if (!UUID_PATTERN.test(String(user_id)) || !["approved", "rejected"].includes(status)) {
       throw new HttpError(400, "invalid_notification_request");
     }
 
-    console.log(`Sending affiliate ${status} notification to user: ${user_id}`);
-
     const supabase = getServiceClient();
-
-    // Get user email from auth
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user_id);
-    
-    if (userError || !userData?.user?.email) {
-      console.error("Error fetching user:", userError);
-      return new Response(
-        JSON.stringify({ error: "User not found" }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    const userEmail = userData.user.email;
+    const { data: application, error: applicationError } = await supabase
+      .from("affiliate_applications")
+      .select("id,user_id,status,rejection_reason")
+      .eq("user_id", user_id)
+      .eq("status", status)
+      .order("reviewed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (applicationError) throw new HttpError(503, "application_lookup_failed");
+    if (!application) throw new HttpError(409, "affiliate_application_state_mismatch");
 
     // Get user profile for name
     const { data: profile } = await supabase
       .from("profiles")
       .select("full_name, referral_code")
-      .eq("id", user_id)
-      .single();
+      .eq("user_id", user_id)
+      .maybeSingle();
 
     const userName = escapeHtml(profile?.full_name || "there");
     const referralCode = escapeHtml(profile?.referral_code || "");
-    const safeRejectionReason = rejection_reason ? escapeHtml(rejection_reason).slice(0, 1000) : "";
+    const safeRejectionReason = status === "rejected" && application.rejection_reason
+      ? escapeHtml(String(application.rejection_reason)).slice(0, 1000)
+      : "";
 
     let subject: string;
     let htmlContent: string;
@@ -156,14 +200,12 @@ const handler = async (req: Request): Promise<Response> => {
       `;
     }
 
-    const emailResponse = await resend.emails.send({
-      from: "Affiliate Program <onboarding@resend.dev>",
-      to: [userEmail],
-      subject: subject,
-      html: htmlContent,
-    });
-
-    console.log(`Affiliate status email sent to user ${user_id}`);
+    const delivery = await sendIdempotentEmail(
+      user_id,
+      subject,
+      htmlContent,
+      `affiliate-status:${application.id}:${status}`,
+    );
 
     await recordSecurityEvent(req, {
       eventType: "admin.affiliate_status_notification_sent",
@@ -174,15 +216,21 @@ const handler = async (req: Request): Promise<Response> => {
       action: `notify_${status}`,
       resourceType: "auth.user",
       resourceId: user_id,
-      metadata: { status, provider_id: emailResponse?.data?.id || null },
+      metadata: {
+        status,
+        duplicate: delivery.duplicate,
+        suppressed: delivery.suppressed,
+      },
     });
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, ...delivery }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (error: any) {
-    console.error("Error in send-affiliate-status-notification:", error);
+  } catch (error: unknown) {
+    console.error("Affiliate status notification failed", {
+      code: error instanceof HttpError ? error.code : "internal_error",
+    });
     return errorResponse(req, error);
   }
 };

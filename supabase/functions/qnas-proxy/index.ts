@@ -6,12 +6,14 @@ import {
   getCorsHeaders,
   handlePreflight,
   HttpError,
+  readBoundedResponseText,
   readJsonBody,
   requireAdmin,
   requirePost,
 } from "../_shared/security.ts";
 
 const QNAS_BASE = "https://qnas.qa";
+const QNAS_RESPONSE_LIMIT = 2 * 1024 * 1024;
 const allowedPaths = [
   /^\/get_zones$/,
   /^\/get_streets\/\d{1,10}$/,
@@ -51,15 +53,10 @@ serve(async (req) => {
       },
       signal: AbortSignal.timeout(12_000),
     });
-    const contentLength = Number(response.headers.get("content-length") || 0);
-    if (contentLength > 2 * 1024 * 1024) {
-      throw new HttpError(502, "qnas_response_too_large");
-    }
-
-    const body = await response.text();
-    if (new TextEncoder().encode(body).byteLength > 2 * 1024 * 1024) {
-      throw new HttpError(502, "qnas_response_too_large");
-    }
+    const body = await readBoundedResponseText(response, QNAS_RESPONSE_LIMIT, {
+      tooLargeCode: "qnas_response_too_large",
+      invalidBodyCode: "invalid_qnas_response",
+    });
     if (!response.ok) {
       console.error("QNAS provider returned status", response.status);
       throw new HttpError(502, "qnas_provider_unavailable");

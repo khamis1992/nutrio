@@ -4,6 +4,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
+  assertSelfOrAdmin,
+  authenticateRequest,
   enforceRateLimit,
   errorResponse,
   getCorsHeaders,
@@ -12,7 +14,6 @@ import {
   HttpError,
   readJsonBody,
   requirePost,
-  requireSelfOrAdmin,
 } from "../_shared/security.ts";
 import {
   createAllocationExecutionBudget as createExecutionBudget,
@@ -269,8 +270,10 @@ async function generateDailyPlan(
   const lockedTypes = new Set(options.locked_meal_types || []);
   const mealTypesToGenerate = allMealTypes.filter(type => !lockedTypes.has(type));
   
-  console.log(`Generating for meal types: ${mealTypesToGenerate.join(", ")}`);
-  console.log(`Locked meal types: ${Array.from(lockedTypes).join(", ") || "none"}`);
+  console.log("Meal allocation slots prepared", {
+    generated_count: mealTypesToGenerate.length,
+    locked_count: lockedTypes.size,
+  });
   
   // Use remaining nutrition if provided, otherwise use full targets
   const remainingCalories = options.remaining_calories ?? nutritionTargets.daily_calories;
@@ -278,7 +281,7 @@ async function generateDailyPlan(
   const remainingCarbs = nutritionTargets.carbs * (remainingCalories / nutritionTargets.daily_calories);
   const remainingFats = nutritionTargets.fats * (remainingCalories / nutritionTargets.daily_calories);
   
-  console.log(`Remaining nutrition: ${remainingCalories} cal, ${remainingProtein}g protein`);
+  console.log("Remaining nutrition budget prepared");
   
   // Calculate targets per meal type
   const mealTargets = calculateMealTargets(
@@ -583,6 +586,14 @@ serve(async (req) => {
     budget.check("request.start");
     requirePost(req);
     const supabaseClient = getServiceClient();
+    const principal = await budget.run(
+      "authentication.verify",
+      () => authenticateRequest(req),
+    );
+    await budget.run(
+      "authorization.rate_limit",
+      () => enforceRateLimit(req, "smart-meal-allocator", principal.user.id, 20, 60 * 60),
+    );
 
     const { 
       user_id, 
@@ -655,13 +666,9 @@ serve(async (req) => {
       throw new HttpError(400, "invalid_remaining_protein");
     }
 
-    const principal = await budget.run(
-      "authorization.require_self_or_admin",
-      () => requireSelfOrAdmin(req, user_id),
-    );
     await budget.run(
-      "authorization.rate_limit",
-      () => enforceRateLimit(req, "smart-meal-allocator", principal.user.id, 20, 60 * 60),
+      "authorization.require_self_or_admin",
+      () => assertSelfOrAdmin(req, principal, user_id),
     );
 
     // Fetch user's nutrition profile
@@ -719,7 +726,7 @@ serve(async (req) => {
     );
 
     if (mealsError) {
-      console.error("Error fetching meals:", JSON.stringify(mealsError, null, 2));
+      console.error("Meal catalog lookup failed", { code: mealsError.code });
       return new Response(
         JSON.stringify({ 
           error: "Failed to fetch available meals", 
@@ -750,7 +757,7 @@ serve(async (req) => {
     );
 
     if (restaurantsError) {
-      console.error("Error fetching restaurants:", restaurantsError);
+      console.error("Restaurant lookup failed", { code: restaurantsError.code });
     }
 
     const restaurantMap = new Map<string, any>();
@@ -946,8 +953,10 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: any) {
-    console.error("Error in smart-meal-allocator:", error);
+  } catch (error: unknown) {
+    console.error("Smart meal allocation failed", {
+      code: error instanceof HttpError ? error.code : "internal_error",
+    });
     return errorResponse(req, error);
   }
 });

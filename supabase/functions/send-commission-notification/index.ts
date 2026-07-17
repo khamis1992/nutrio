@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 import {
+  enforceRateLimit,
   errorResponse,
   escapeHtml,
+  getClientIp,
   getCorsHeaders,
   getServiceClient,
   handlePreflight,
@@ -12,58 +13,107 @@ import {
   requirePost,
 } from "../_shared/security.ts";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface CommissionNotificationRequest {
-  user_id: string;
-  commission_amount: number;
-  tier: number;
-  order_amount: number;
+  commission_id?: unknown;
+  user_id?: unknown;
+}
+
+async function sendIdempotentEmail(
+  userId: string,
+  subject: string,
+  html: string,
+  idempotencyKey: string,
+): Promise<{ duplicate: boolean; suppressed: boolean }> {
+  const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET") || "";
+  if (!internalSecret) throw new HttpError(503, "email_delivery_not_configured");
+
+  const { data, error, response } = await getServiceClient().functions.invoke(
+    "send-email",
+    {
+      headers: { "x-internal-secret": internalSecret },
+      body: {
+        user_id: userId,
+        subject,
+        html,
+        preference: "email_notifications",
+        idempotency_key: idempotencyKey,
+      },
+    },
+  );
+  if (error) {
+    if (response?.status === 409) return { duplicate: true, suppressed: false };
+    console.error("Commission email delivery failed", {
+      status: response?.status || 0,
+      name: error.name,
+    });
+    throw new HttpError(502, "email_delivery_failed");
+  }
+  const result = data && typeof data === "object"
+    ? data as Record<string, unknown>
+    : {};
+  return {
+    duplicate: result.duplicate === true,
+    suppressed: result.suppressed === true,
+  };
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("Commission notification function called");
-
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
   const corsHeaders = getCorsHeaders(req);
 
   try {
     requirePost(req);
-    await requireAdminOrInternal(req, "AFFILIATE_NOTIFICATION_SECRET");
+    const principal = await requireAdminOrInternal(req, "AFFILIATE_NOTIFICATION_SECRET");
+    await enforceRateLimit(
+      req,
+      "affiliate-commission-notification",
+      principal?.user.id || getClientIp(req) || "internal",
+      principal ? 120 : 5000,
+      60 * 60,
+    );
     const supabase = getServiceClient();
 
-    const { user_id, commission_amount, tier, order_amount } = await readJsonBody<CommissionNotificationRequest>(req, 16 * 1024);
-    if (!user_id || !Number.isFinite(commission_amount) || commission_amount < 0 ||
-        !Number.isFinite(order_amount) || order_amount < 0 || ![1, 2, 3].includes(tier)) {
-      throw new HttpError(400, "invalid_notification_request");
+    const body = await readJsonBody<CommissionNotificationRequest>(req, 16 * 1024);
+    const commissionId = String(body.commission_id || "").trim();
+    if (!UUID_PATTERN.test(commissionId)) {
+      throw new HttpError(400, "valid_commission_id_required");
     }
 
-    console.log(`Processing commission notification for user ${user_id}: $${commission_amount} (Tier ${tier})`);
+    const { data: commission, error: commissionError } = await supabase
+      .from("affiliate_commissions")
+      .select("id,user_id,commission_amount,tier,order_amount")
+      .eq("id", commissionId)
+      .maybeSingle();
+    if (commissionError) throw new HttpError(503, "commission_lookup_failed");
+    if (!commission) throw new HttpError(404, "commission_not_found");
 
-    // Get user email from auth.users
-    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(user_id);
-
-    if (authError || !authUser?.user?.email) {
-      console.error("Error fetching user email:", authError);
-      return new Response(
-        JSON.stringify({ error: "User not found or no email" }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+    const user_id = String(commission.user_id);
+    if (body.user_id !== undefined && String(body.user_id) !== user_id) {
+      throw new HttpError(409, "commission_recipient_mismatch");
     }
-
-    const userEmail = authUser.user.email;
+    const commission_amount = Number(commission.commission_amount);
+    const tier = Number(commission.tier);
+    const order_amount = Number(commission.order_amount);
+    if (
+      !Number.isFinite(commission_amount) || commission_amount < 0 ||
+      !Number.isFinite(order_amount) || order_amount < 0 ||
+      ![1, 2, 3].includes(tier)
+    ) {
+      throw new HttpError(409, "invalid_commission_record");
+    }
 
     // Get user profile for name
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name, affiliate_balance, total_affiliate_earnings")
+      .select("full_name")
       .eq("user_id", user_id)
       .single();
 
     const userName = escapeHtml(profile?.full_name || "Affiliate Partner");
-    const currentBalance = profile?.affiliate_balance || 0;
-    const totalEarnings = profile?.total_affiliate_earnings || 0;
 
     const tierLabels: Record<number, string> = {
       1: "Direct Referral",
@@ -73,12 +123,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const tierLabel = tierLabels[tier] || `Tier ${tier}`;
 
-    // Send email notification
-    const emailResponse = await resend.emails.send({
-      from: "Affiliate Program <onboarding@resend.dev>",
-      to: [userEmail],
-      subject: `🎉 You earned $${commission_amount.toFixed(2)} in commission!`,
-      html: `
+    const subject = `🎉 You earned $${commission_amount.toFixed(2)} in commission!`;
+    const html = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -124,13 +170,6 @@ const handler = async (req: Request): Promise<Response> => {
               </table>
             </div>
             
-            <div style="background: #ecfdf5; border-radius: 8px; padding: 15px; margin: 20px 0;">
-              <p style="margin: 0; color: #065f46;">
-                <strong>Your current balance:</strong> $${currentBalance.toFixed(2)}<br>
-                <strong>Total earnings:</strong> $${totalEarnings.toFixed(2)}
-              </p>
-            </div>
-            
             <p>Keep sharing your referral link to earn more commissions!</p>
             
             <div style="text-align: center; margin-top: 30px;">
@@ -143,20 +182,25 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         </body>
         </html>
-      `,
-    });
-
-    console.log("Email sent successfully:", emailResponse);
+      `;
+    const delivery = await sendIdempotentEmail(
+      user_id,
+      subject,
+      html,
+      `affiliate-commission:${commissionId}`,
+    );
 
     return new Response(
-      JSON.stringify({ success: true, emailResponse }),
+      JSON.stringify({ success: true, ...delivery }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
-  } catch (error: any) {
-    console.error("Error in send-commission-notification function:", error);
+  } catch (error: unknown) {
+    console.error("Commission notification failed", {
+      code: error instanceof HttpError ? error.code : "internal_error",
+    });
     return errorResponse(req, error);
   }
 };

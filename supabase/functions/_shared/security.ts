@@ -2,11 +2,18 @@ import { createClient, type User } from "https://esm.sh/@supabase/supabase-js@2.
 
 import { checkRateLimit } from "./rateLimiter.ts";
 import {
+  BoundedResponseReadError,
+  readBoundedResponseJson as readBoundedResponseJsonCore,
+  readBoundedResponseText as readBoundedResponseTextCore,
+  type BoundedResponseReadOptions,
+} from "./boundedResponse.ts";
+import {
   getSupabasePublishableKey,
   getSupabaseSecretKey,
 } from "./supabaseKeys.ts";
 
 export { getSupabasePublishableKey, getSupabaseSecretKey } from "./supabaseKeys.ts";
+export type { BoundedResponseReadOptions } from "./boundedResponse.ts";
 
 const DEFAULT_ALLOWED_ORIGINS = new Set([
   "https://nutrio.me",
@@ -162,8 +169,27 @@ export function errorResponse(req: Request, error: unknown): Response {
     return jsonResponse(req, { error: error.code, message: error.message }, error.status);
   }
 
-  console.error("Unhandled Edge Function error:", error);
+  console.error("Unhandled Edge Function error", safeErrorDetails(error));
   return jsonResponse(req, { error: "internal_error" }, 500);
+}
+
+export function safeErrorDetails(error: unknown): Record<string, string | number> {
+  if (!error || typeof error !== "object") {
+    return { kind: typeof error };
+  }
+
+  const candidate = error as {
+    name?: unknown;
+    code?: unknown;
+    status?: unknown;
+  };
+  const details: Record<string, string | number> = {};
+  if (typeof candidate.name === "string") details.name = candidate.name.slice(0, 80);
+  if (typeof candidate.code === "string") details.code = candidate.code.slice(0, 80);
+  if (typeof candidate.status === "number" && Number.isFinite(candidate.status)) {
+    details.status = candidate.status;
+  }
+  return Object.keys(details).length > 0 ? details : { kind: "error" };
 }
 
 export function handlePreflight(req: Request): Response | null {
@@ -175,26 +201,121 @@ export function requirePost(req: Request): void {
   if (req.method !== "POST") throw new HttpError(405, "method_not_allowed");
 }
 
+function assertRequestLimit(maxBytes: number): void {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 10 * 1024 * 1024) {
+    throw new HttpError(500, "invalid_request_limit");
+  }
+}
+
+function assertContentType(req: Request, allowedMimeTypes: readonly string[]): void {
+  const contentType = (req.headers.get("content-type") || "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+  if (!allowedMimeTypes.includes(contentType)) {
+    throw new HttpError(415, "content_type_not_allowed");
+  }
+}
+
+async function readBodyBytes(req: Request, maxBytes: number): Promise<Uint8Array> {
+  assertRequestLimit(maxBytes);
+
+  const declaredLengthHeader = req.headers.get("content-length");
+  const declaredLength = declaredLengthHeader === null
+    ? null
+    : Number(declaredLengthHeader);
+  if (
+    declaredLength !== null &&
+    (!Number.isSafeInteger(declaredLength) || declaredLength < 0)
+  ) {
+    throw new HttpError(400, "invalid_content_length");
+  }
+  if (declaredLength !== null && declaredLength > maxBytes) {
+    throw new HttpError(413, "request_too_large");
+  }
+
+  const reader = req.body?.getReader();
+  if (!reader) throw new HttpError(400, "invalid_json");
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel("request_too_large").catch(() => undefined);
+        throw new HttpError(413, "request_too_large");
+      }
+      chunks.push(value);
+    }
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(400, "invalid_json");
+  } finally {
+    reader.releaseLock();
+  }
+
+  const body = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
+}
+
+export async function readTextBody(
+  req: Request,
+  maxBytes = 64 * 1024,
+  allowedMimeTypes: readonly string[] = ["text/plain"],
+): Promise<string> {
+  assertContentType(req, allowedMimeTypes);
+  const bytes = await readBodyBytes(req, maxBytes);
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new HttpError(400, "invalid_utf8");
+  }
+}
+
 export async function readJsonBody<T>(req: Request, maxBytes = 64 * 1024): Promise<T> {
-  const contentType = req.headers.get("content-type") || "";
-  if (!contentType.toLowerCase().includes("application/json")) {
-    throw new HttpError(415, "json_required");
-  }
-
-  const declaredLength = Number(req.headers.get("content-length") || 0);
-  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-    throw new HttpError(413, "request_too_large");
-  }
-
-  const raw = await req.text();
-  if (new TextEncoder().encode(raw).byteLength > maxBytes) {
-    throw new HttpError(413, "request_too_large");
-  }
-
+  const raw = await readTextBody(req, maxBytes, ["application/json"]);
   try {
     return JSON.parse(raw) as T;
   } catch {
     throw new HttpError(400, "invalid_json");
+  }
+}
+
+export async function readBoundedResponseText(
+  response: Response,
+  maxBytes: number,
+  options: BoundedResponseReadOptions = {},
+): Promise<string> {
+  try {
+    return await readBoundedResponseTextCore(response, maxBytes, options);
+  } catch (error) {
+    if (error instanceof BoundedResponseReadError) {
+      throw new HttpError(error.status, error.code);
+    }
+    throw error;
+  }
+}
+
+export async function readBoundedResponseJson<T>(
+  response: Response,
+  maxBytes: number,
+  options: BoundedResponseReadOptions = {},
+): Promise<T> {
+  try {
+    return await readBoundedResponseJsonCore<T>(response, maxBytes, options);
+  } catch (error) {
+    if (error instanceof BoundedResponseReadError) {
+      throw new HttpError(error.status, error.code);
+    }
+    throw error;
   }
 }
 
@@ -309,11 +430,39 @@ export async function requireAdmin(req: Request): Promise<SecurityPrincipal> {
   return principal;
 }
 
+export async function requireMfaAssurance(
+  req: Request,
+  principal: SecurityPrincipal,
+  action: string,
+): Promise<void> {
+  if (principal.aal === "aal2") return;
+
+  await recordSecurityEvent(req, {
+    eventType: "authorization.privileged_mfa_required",
+    category: "authorization",
+    severity: "high",
+    outcome: "denied",
+    principal,
+    actorType: "admin",
+    action,
+  });
+  throw new HttpError(403, "mfa_required");
+}
+
 export async function requireSelfOrAdmin(
   req: Request,
   requestedUserId: string,
 ): Promise<SecurityPrincipal> {
   const principal = await authenticateRequest(req);
+  await assertSelfOrAdmin(req, principal, requestedUserId);
+  return principal;
+}
+
+export async function assertSelfOrAdmin(
+  req: Request,
+  principal: SecurityPrincipal,
+  requestedUserId: string,
+): Promise<void> {
   if (principal.user.id !== requestedUserId && !principal.isAdmin) {
     await recordSecurityEvent(req, {
       eventType: "authorization.object_access_denied",
@@ -340,7 +489,6 @@ export async function requireSelfOrAdmin(
     });
     throw new HttpError(403, "mfa_required");
   }
-  return principal;
 }
 
 async function hashValue(value: string): Promise<Uint8Array> {
@@ -426,7 +574,7 @@ export function getRequestId(req: Request): string {
   );
 }
 
-async function getSessionFingerprint(req: Request): Promise<string | null> {
+export async function getSessionFingerprint(req: Request): Promise<string | null> {
   const authorization = req.headers.get("authorization") || "";
   const match = authorization.match(/^Bearer\s+(\S+)$/i);
   if (!match?.[1]) return null;

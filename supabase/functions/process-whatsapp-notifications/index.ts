@@ -7,6 +7,7 @@ import {
   handlePreflight,
   HttpError,
   jsonResponse,
+  readBoundedResponseJson,
   readJsonBody,
   recordSecurityEvent,
   requireAdminOrInternal,
@@ -17,6 +18,8 @@ import {
 interface ProcessorRequest {
   limit?: number;
 }
+
+const ULTRAMSG_RESPONSE_LIMIT = 16 * 1024;
 
 interface ClaimedNotification {
   notification_id: string;
@@ -118,7 +121,10 @@ async function sendWhatsAppMessage(
     };
   }
 
-  const providerData = await response.json().catch(() => null) as unknown;
+  const providerData = await readBoundedResponseJson<unknown>(
+    response,
+    ULTRAMSG_RESPONSE_LIMIT,
+  ).catch(() => null);
   const providerMessageId = parseUltraMsgMessageId(providerData);
   if (!providerMessageId) {
     console.error("Ultramsg returned an unverified success payload");

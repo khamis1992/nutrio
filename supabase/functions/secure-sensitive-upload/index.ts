@@ -11,6 +11,7 @@ import {
   hasAdminAssurance,
   HttpError,
   jsonResponse,
+  readBoundedResponseText,
   recordSecurityEvent,
   requireAllowedHttpsUrl,
   requirePost,
@@ -310,12 +311,10 @@ async function scanForMalware(bytes: Uint8Array, mime: string, extension: string
       body,
       signal: controller.signal,
     });
-    const declaredLength = Number(response.headers.get("content-length") || 0);
-    if (declaredLength > SCANNER_RESPONSE_LIMIT) throw new HttpError(502, "scanner_response_too_large");
-    const raw = await response.text();
-    if (new TextEncoder().encode(raw).byteLength > SCANNER_RESPONSE_LIMIT) {
-      throw new HttpError(502, "scanner_response_too_large");
-    }
+    const raw = await readBoundedResponseText(response, SCANNER_RESPONSE_LIMIT, {
+      tooLargeCode: "scanner_response_too_large",
+      invalidBodyCode: "invalid_scanner_response",
+    });
     if (!response.ok) throw new HttpError(503, "malware_scanner_unavailable");
 
     const parsed = JSON.parse(raw) as Record<string, unknown>;

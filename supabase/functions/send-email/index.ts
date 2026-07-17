@@ -9,6 +9,7 @@ import {
   handlePreflight,
   HttpError,
   jsonResponse,
+  readBoundedResponseJson,
   readJsonBody,
   recordSecurityEvent,
   requireInternalSecret,
@@ -24,6 +25,7 @@ const MAX_REQUEST_BYTES = 8 * 1024 * 1024;
 const MAX_HTML_LENGTH = 500_000;
 const MAX_TEXT_LENGTH = 200_000;
 const MAX_ATTACHMENT_BASE64_LENGTH = 6 * 1024 * 1024;
+const RESEND_RESPONSE_LIMIT = 16 * 1024;
 const EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/;
 const UUID_PATTERN =
@@ -457,10 +459,10 @@ serve(async (req: Request) => {
       throw new HttpError(502, "email_delivery_failed");
     }
 
-    const providerData = await response.json().catch(() => ({})) as Record<
-      string,
-      unknown
-    >;
+    const providerData = await readBoundedResponseJson<Record<string, unknown>>(
+      response,
+      RESEND_RESPONSE_LIMIT,
+    ).catch(() => ({}));
     const rawMessageId = typeof providerData.id === "string"
       ? providerData.id.trim()
       : "";

@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 import {
+  assertSelfOrAdmin,
+  authenticateRequest,
   enforceRateLimit,
   errorResponse,
   getServiceClient,
@@ -8,17 +10,19 @@ import {
   handlePreflight,
   HttpError,
   jsonResponse,
+  readBoundedResponseJson,
   readJsonBody,
   recordSecurityEvent,
   requireInternalSecret,
   requirePost,
-  requireSelfOrAdmin,
   type SecurityPrincipal,
 } from "../_shared/security.ts";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/;
+const GOOGLE_OAUTH_RESPONSE_LIMIT = 32 * 1024;
+const FCM_RESPONSE_LIMIT = 32 * 1024;
 const ALLOWED_NOTIFICATION_TYPES = new Set([
   "meal_reminder",
   "plan_update",
@@ -278,10 +282,10 @@ async function getGoogleAccessToken(
       });
       throw new HttpError(502, "push_provider_unavailable");
     }
-    const data = await response.json().catch(() => ({})) as Record<
-      string,
-      unknown
-    >;
+    const data = await readBoundedResponseJson<Record<string, unknown>>(
+      response,
+      GOOGLE_OAUTH_RESPONSE_LIMIT,
+    ).catch(() => ({}));
     if (
       typeof data.access_token !== "string" || data.access_token.length < 20
     ) {
@@ -343,10 +347,10 @@ async function sendFcmNotification(
         signal: AbortSignal.timeout(10_000),
       },
     );
-    const providerData = await response.json().catch(() => ({})) as Record<
-      string,
-      unknown
-    >;
+    const providerData = await readBoundedResponseJson<Record<string, unknown>>(
+      response,
+      FCM_RESPONSE_LIMIT,
+    ).catch(() => ({}));
     if (!response.ok) {
       const providerError = providerData.error;
       const providerStatus = providerError && typeof providerError === "object"
@@ -385,17 +389,36 @@ serve(async (req: Request) => {
 
   try {
     requirePost(req);
+    if (req.headers.has("x-internal-secret")) {
+      await requireInternalSecret(req);
+      internalRequest = true;
+    } else {
+      principal = await authenticateRequest(req);
+      await enforceRateLimit(
+        req,
+        "send-push-notification",
+        principal.user.id,
+        hasAdminAssurance(principal) ? 240 : 20,
+        60 * 60,
+      );
+    }
+
     const payload = await readJsonBody<NotificationPayload>(req, 16 * 1024);
     const requestedUserId = String(payload.user_id ?? "").trim();
     if (!UUID_PATTERN.test(requestedUserId)) {
       throw new HttpError(400, "valid_user_id_required");
     }
 
-    if (req.headers.has("x-internal-secret")) {
-      await requireInternalSecret(req);
-      internalRequest = true;
+    if (principal) {
+      await assertSelfOrAdmin(req, principal, requestedUserId);
     } else {
-      principal = await requireSelfOrAdmin(req, requestedUserId);
+      await enforceRateLimit(
+        req,
+        "send-push-notification-internal",
+        requestedUserId,
+        120,
+        60 * 60,
+      );
     }
 
     const service = getServiceClient();
@@ -440,14 +463,6 @@ serve(async (req: Request) => {
     ) {
       throw new HttpError(400, "invalid_notification_payload");
     }
-
-    await enforceRateLimit(
-      req,
-      "send-push-notification",
-      principal?.user.id || userId,
-      hasAdminAssurance(principal) ? 240 : internalRequest ? 120 : 20,
-      60 * 60,
-    );
 
     deliveryKey = getIdempotencyKey(payload);
     const payloadHash = await sha256Hex(JSON.stringify({

@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
+  assertSelfOrAdmin,
+  authenticateRequest,
   enforceRateLimit,
   errorResponse,
+  getClientIp,
   getServiceClient,
   handlePreflight,
   HttpError,
@@ -10,9 +13,11 @@ import {
   recordSecurityEvent,
   requireInternalSecret,
   requirePost,
-  requireSelfOrAdmin,
   type SecurityPrincipal,
 } from "../_shared/security.ts";
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface ProgressData {
   body_measurements: Array<{ date: string; weight: number }>;
@@ -335,29 +340,49 @@ serve(async (req) => {
 
   try {
     requirePost(req);
+    let principal: SecurityPrincipal | null = null;
+    let internalRequest = false;
+    if (req.headers.has("x-internal-secret")) {
+      await requireInternalSecret(req, "ADAPTIVE_GOALS_CRON_SECRET");
+      internalRequest = true;
+      await enforceRateLimit(
+        req,
+        "adaptive-goals:internal-ip",
+        getClientIp(req) || "unknown",
+        1000,
+        3600,
+      );
+    } else {
+      principal = await authenticateRequest(req);
+      await enforceRateLimit(
+        req,
+        "adaptive-goals:user",
+        principal.user.id,
+        12,
+        3600,
+      );
+    }
+
     const { user_id, dry_run = false } = await readJsonBody<{
       user_id?: string;
       dry_run?: boolean;
     }>(req, 8 * 1024);
 
-    if (!user_id || !/^[0-9a-f-]{36}$/i.test(user_id)) {
+    if (!user_id || !UUID_PATTERN.test(user_id)) {
       throw new HttpError(400, "valid_user_id_required");
     }
 
-    let principal: SecurityPrincipal | null = null;
-    if (req.headers.has("x-internal-secret")) {
-      await requireInternalSecret(req, "ADAPTIVE_GOALS_CRON_SECRET");
-    } else {
-      principal = await requireSelfOrAdmin(req, user_id);
-    }
+    if (principal) await assertSelfOrAdmin(req, principal, user_id);
 
-    await enforceRateLimit(
-      req,
-      "adaptive-goals",
-      principal?.user.id || user_id,
-      principal ? 12 : 4,
-      3600,
-    );
+    if (internalRequest) {
+      await enforceRateLimit(
+        req,
+        "adaptive-goals:internal-user",
+        user_id,
+        4,
+        3600,
+      );
+    }
 
     const supabase = getServiceClient();
 
@@ -447,65 +472,65 @@ serve(async (req) => {
     );
 
     if (!dry_run && (recommendation.new_calories !== profile.daily_calorie_target || recommendation.plateau_detected)) {
-      // Store in adjustment history
-      const { data: adjustmentRecord } = await supabase
-        .from("goal_adjustment_history")
-        .insert({
-          user_id,
-          adjustment_date: new Date().toISOString().split('T')[0],
-          previous_calories: profile.daily_calorie_target,
-          new_calories: recommendation.new_calories,
-          previous_macros: {
+      const adjustmentDate = new Date().toISOString().split("T")[0];
+      const weightChange = progressData.body_measurements.length >= 2
+        ? progressData.body_measurements[progressData.body_measurements.length - 1].weight -
+          progressData.body_measurements[0].weight
+        : null;
+      const { data: persistence, error: persistenceError } = await supabase.rpc(
+        "persist_adaptive_goal_recommendation",
+        {
+          p_user_id: user_id,
+          p_adjustment_date: adjustmentDate,
+          p_previous_calories: profile.daily_calorie_target ?? 2000,
+          p_new_calories: recommendation.new_calories,
+          p_previous_macros: {
             protein: profile.protein_target_g,
             carbs: profile.carbs_target_g,
-            fat: profile.fat_target_g
+            fat: profile.fat_target_g,
           },
-          new_macros: {
+          p_new_macros: {
             protein: recommendation.new_protein,
             carbs: recommendation.new_carbs,
-            fat: recommendation.new_fat
+            fat: recommendation.new_fat,
           },
-          reason: recommendation.reason,
-          weight_change_kg: progressData.body_measurements.length >= 2 
-            ? progressData.body_measurements[progressData.body_measurements.length - 1].weight - progressData.body_measurements[0].weight
-            : null,
-          adherence_rate: avgAdherence,
-          plateau_detected: recommendation.plateau_detected,
-          ai_confidence: recommendation.confidence,
-          applied: false
-        })
-        .select()
-        .single();
-
-      // Store predictions
-      if (predictions.length > 0) {
-        await supabase.from("weight_predictions").insert(
-          predictions.map(p => ({
-            user_id,
-            prediction_date: p.date,
-            predicted_weight: p.predicted_weight,
-            confidence_lower: p.confidence_lower,
-            confidence_upper: p.confidence_upper
-          }))
-        );
+          p_reason: recommendation.reason,
+          p_weight_change_kg: weightChange,
+          p_adherence_rate: avgAdherence,
+          p_plateau_detected: recommendation.plateau_detected,
+          p_ai_confidence: recommendation.confidence,
+          p_predictions: predictions.map((prediction) => ({
+            prediction_date: prediction.date,
+            predicted_weight: prediction.predicted_weight,
+            confidence_lower: prediction.confidence_lower,
+            confidence_upper: prediction.confidence_upper,
+          })),
+          p_suggested_action: recommendation.suggested_action,
+        },
+      );
+      if (persistenceError) {
+        console.error("Adaptive goal persistence failed", {
+          code: persistenceError.code,
+        });
+        throw new HttpError(503, "adaptive_goal_persistence_failed");
       }
 
-      // Update profile with suggestion
-      await supabase.from("profiles").update({
-        ai_suggested_calories: recommendation.new_calories,
-        ai_suggestion_confidence: recommendation.confidence,
-        has_unviewed_adjustment: true,
-        plateau_weeks: recommendation.plateau_detected ? 3 : 0,
-        last_goal_adjustment_date: new Date().toISOString().split('T')[0]
-      }).eq("user_id", user_id);
+      const persistenceResult = persistence && typeof persistence === "object"
+        ? persistence as Record<string, unknown>
+        : {};
+      const duplicate = persistenceResult.duplicate === true;
+      const adjustmentId = typeof persistenceResult.adjustment_id === "string"
+        ? persistenceResult.adjustment_id
+        : null;
 
-      // Create plateau event if detected
-      if (recommendation.plateau_detected) {
-        await supabase.from("plateau_events").insert({
-          user_id,
-          detected_at: new Date().toISOString().split('T')[0],
-          weeks_without_change: 3,
-          suggested_action: recommendation.suggested_action
+      if (duplicate) {
+        return jsonResponse(req, {
+          recommendation,
+          predictions: [],
+          adjustment_id: adjustmentId,
+          duplicate: true,
+          should_notify: false,
+          message: "Recommendation already saved for today.",
         });
       }
 
@@ -519,16 +544,14 @@ serve(async (req) => {
         action: "create_goal_adjustment",
         resourceType: "auth.user",
         resourceId: user_id,
-        metadata: {
-          plateau_detected: recommendation.plateau_detected,
-          confidence: recommendation.confidence,
-        },
+        metadata: { adjustment_created: true },
       });
 
       return jsonResponse(req, {
         recommendation,
         predictions,
-        adjustment_id: adjustmentRecord?.id,
+        adjustment_id: adjustmentId,
+        duplicate: false,
         should_notify: recommendation.plateau_detected || recommendation.confidence > 0.8,
         message: "Analysis complete. Recommendation saved.",
       });
@@ -545,7 +568,9 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("Error in adaptive goals function:", error);
+    console.error("Adaptive goals request failed", {
+      code: error instanceof HttpError ? error.code : "internal_error",
+    });
     return errorResponse(req, error);
   }
 });
