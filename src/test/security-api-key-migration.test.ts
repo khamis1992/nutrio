@@ -15,6 +15,10 @@ describe("Supabase API key migration", () => {
 
     expect(resolver).toContain('"SUPABASE_SECRET_KEYS"');
     expect(resolver).toContain('"SUPABASE_PUBLISHABLE_KEYS"');
+    expect(resolver).toContain('"NUTRIO_ADMIN_KEY"');
+    expect(resolver).toContain('"NUTRIO_PUBLIC_KEY"');
+    expect(resolver).toContain('"NUTRIO_SUPABASE_SECRET_KEY"');
+    expect(resolver).toContain('"NUTRIO_SUPABASE_PUBLISHABLE_KEY"');
     expect(resolver).not.toContain(legacyServerKeyName);
     expect(resolver).not.toContain(legacyPublicKeyName);
   });

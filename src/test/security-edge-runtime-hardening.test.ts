@@ -162,6 +162,17 @@ describe("Edge runtime security hardening", () => {
     expect(mealImage).toContain("normalizeMealOutput(parsed, availableTags)");
   });
 
+  it("returns uncertainty ranges and cross-checks meal estimates with USDA safely", () => {
+    expect(mealImage).toContain('Deno.env.get("USDA_FDC_API_KEY")');
+    expect(mealImage).toContain("https://api.nal.usda.gov/fdc/v1/foods/search");
+    expect(mealImage).toContain("USDA_TIMEOUT_MS");
+    expect(mealImage).toContain("USDA_RESPONSE_BYTES");
+    expect(mealImage).toContain("crossCheckQuickScanItems(");
+    expect(mealImage).toContain('"usda_fallback"');
+    expect(mealImage).toContain("ranges: {");
+    expect(mealImage).not.toContain('USDA_FDC_API_KEY") || "DEMO_KEY"');
+  });
+
   it("checks user and IP quotas before reading the image request body", () => {
     const userQuota = mealImage.indexOf('"analyze-meal-image:user"');
     const ipQuota = mealImage.indexOf('"analyze-meal-image:ip"');

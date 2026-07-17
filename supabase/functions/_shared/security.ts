@@ -321,12 +321,12 @@ export async function readBoundedResponseJson<T>(
 
 export function getServiceClient() {
   const url = Deno.env.get("SUPABASE_URL");
-  if (!url) throw new HttpError(503, "backend_not_configured");
+  if (!url) throw new HttpError(503, "backend_url_not_configured");
   let key: string;
   try {
     key = getSupabaseSecretKey();
   } catch {
-    throw new HttpError(503, "backend_not_configured");
+    throw new HttpError(503, "backend_secret_not_configured");
   }
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -335,12 +335,12 @@ export function getServiceClient() {
 
 function getAnonClient(authorization: string) {
   const url = Deno.env.get("SUPABASE_URL");
-  if (!url) throw new HttpError(503, "backend_not_configured");
+  if (!url) throw new HttpError(503, "backend_url_not_configured");
   let key: string;
   try {
     key = getSupabasePublishableKey();
   } catch {
-    throw new HttpError(503, "backend_not_configured");
+    throw new HttpError(503, "backend_publishable_key_not_configured");
   }
   return createClient(url, key, {
     global: { headers: { Authorization: authorization } },

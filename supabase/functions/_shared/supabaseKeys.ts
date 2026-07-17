@@ -18,6 +18,10 @@ function readNamedKey(
     throw new Error("SUPABASE_KEY_MAP_INVALID");
   }
 
+  // Legacy projects expose the managed key maps as `{}`. Treat that as
+  // unavailable so the explicit compatibility keys below can be used.
+  if (Object.keys(keys).length === 0) return null;
+
   const keyName = Deno.env.get(nameEnvironmentName)?.trim() || "default";
   const key = keys[keyName];
   if (typeof key !== "string" || !key.trim()) {
@@ -27,7 +31,9 @@ function readNamedKey(
 }
 
 export function getSupabaseSecretKey(): string {
-  const key = readNamedKey(
+  const key = Deno.env.get("NUTRIO_ADMIN_KEY")?.trim() ||
+    Deno.env.get("NUTRIO_SUPABASE_SECRET_KEY")?.trim() ||
+    readNamedKey(
     "SUPABASE_SECRET_KEYS",
     "NUTRIO_SUPABASE_SECRET_KEY_NAME",
   ) ||
@@ -40,7 +46,9 @@ export function getSupabasePublishableKey(): string {
   const key = readNamedKey(
     "SUPABASE_PUBLISHABLE_KEYS",
     "NUTRIO_SUPABASE_PUBLISHABLE_KEY_NAME",
-  ) || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")?.trim();
+  ) || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")?.trim() ||
+    Deno.env.get("NUTRIO_PUBLIC_KEY")?.trim() ||
+    Deno.env.get("NUTRIO_SUPABASE_PUBLISHABLE_KEY")?.trim();
   if (!key) throw new Error("SUPABASE_PUBLISHABLE_KEY_NOT_CONFIGURED");
   return key;
 }

@@ -159,6 +159,9 @@ Edge secrets and protected GitHub Environment secrets. Never prefix them with
 - `MANUS_API_KEY` for meal-image analysis. It must remain distinct from
   DeepSeek credentials and server-only; configure the exact provider host
   allowlist required by the deployed image-analysis function.
+- `USDA_FDC_API_KEY` for server-side FoodData Central cross-checks. Keep it
+  server-only, never prefix it with `VITE_`, and do not use the shared
+  `DEMO_KEY` in production.
 - SportHub OAuth/webhook secrets: client credentials, a webhook HMAC secret of
   at least 32 random bytes, and `SPORTHUB_ALLOWED_HOSTS` containing the exact
   authorization, token, user-info, and API hostnames. Parent-domain or wildcard
