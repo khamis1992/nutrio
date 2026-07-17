@@ -19,9 +19,15 @@ on:
         options:
           - debug
           - release
+      release_version:
+        description: SemVer release version (required for release)
+        required: false
+        type: string
 
 env:
   NODE_VERSION: '22'
+  CAPACITOR_SWIFT_VERSION: '8.0.0'
+  CAPACITOR_SWIFT_REVISION: '596259033e94829dffc552a40e7129262122995e'
 
 permissions:
   contents: read
@@ -44,11 +50,13 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Verify dependencies and repository guardrails
         run: |
           npm audit --audit-level=high
+          npm audit signatures
+          npm rebuild
           npm run security:scan
 
       - name: Build web app
@@ -59,6 +67,16 @@ jobs:
 
       - name: Sync Capacitor iOS project
         run: npx --no-install cap sync ios
+
+      - name: Verify locked Swift package revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          lock="ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+          test -f "$lock"
+          grep -F "\"location\" : \"https://github.com/ionic-team/capacitor-swift-pm.git\"" "$lock"
+          grep -F "\"revision\" : \"${CAPACITOR_SWIFT_REVISION}\"" "$lock"
+          grep -F "\"version\" : \"${CAPACITOR_SWIFT_VERSION}\"" "$lock"
 
       - name: Select Xcode version
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
@@ -71,6 +89,7 @@ jobs:
             -configuration Debug \
             -sdk iphonesimulator \
             -derivedDataPath ios/DerivedData \
+            -disableAutomaticPackageResolution \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_ALLOWED=NO \
             build
@@ -108,6 +127,18 @@ jobs:
             exit 1
           fi
 
+      - name: Validate release version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ inputs.release_version }}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error title=Invalid release version::A SemVer release version is required."
+            exit 1
+          fi
+          echo "NUTRIO_VERSION_NAME=$version" >> "$GITHUB_ENV"
+          echo "NUTRIO_VERSION_CODE=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -115,11 +146,13 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Verify dependencies and repository guardrails
         run: |
           npm audit --audit-level=high
+          npm audit signatures
+          npm rebuild
           npm run security:scan
 
       - name: Build web app
@@ -130,6 +163,16 @@ jobs:
 
       - name: Sync Capacitor iOS project
         run: npx --no-install cap sync ios
+
+      - name: Verify locked Swift package revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          lock="ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+          test -f "$lock"
+          grep -F "\"location\" : \"https://github.com/ionic-team/capacitor-swift-pm.git\"" "$lock"
+          grep -F "\"revision\" : \"${CAPACITOR_SWIFT_REVISION}\"" "$lock"
+          grep -F "\"version\" : \"${CAPACITOR_SWIFT_VERSION}\"" "$lock"
 
       - name: Select Xcode version
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
@@ -187,7 +230,10 @@ jobs:
             -configuration Release \
             -sdk iphoneos \
             -archivePath ios/App/build/Nutrio.xcarchive \
+            -disableAutomaticPackageResolution \
             DEVELOPMENT_TEAM="$TEAM_ID" \
+            MARKETING_VERSION="$NUTRIO_VERSION_NAME" \
+            CURRENT_PROJECT_VERSION="$NUTRIO_VERSION_CODE" \
             archive
 
       - name: Export signed IPA
@@ -204,11 +250,56 @@ jobs:
             -exportOptionsPlist "$EXPORT_OPTIONS" \
             -exportPath ios/App/build/export
 
+      - name: Verify signed IPA and create checksums
+        shell: bash
+        env:
+          EXPECTED_CERT_SHA256: ${{ secrets.IOS_DISTRIBUTION_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          test -n "$EXPECTED_CERT_SHA256"
+          shopt -s nullglob
+          IPA_FILES=(ios/App/build/export/*.ipa)
+          if [[ "${#IPA_FILES[@]}" -ne 1 ]]; then
+            echo "::error title=Invalid IPA output::Expected exactly one IPA, found ${#IPA_FILES[@]}."
+            exit 1
+          fi
+          IPA_PATH="${IPA_FILES[0]}"
+          VERIFY_DIR="$RUNNER_TEMP/ipa-verify"
+          ditto -x -k "$IPA_PATH" "$VERIFY_DIR"
+          APP_DIRS=("$VERIFY_DIR"/Payload/*.app)
+          test "${#APP_DIRS[@]}" -eq 1
+          APP_PATH="${APP_DIRS[0]}"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          codesign -d --extract-certificates "$APP_PATH"
+          ACTUAL_CERT_SHA256="$(shasum -a 256 codesign0 | awk '{print tolower($1)}')"
+          EXPECTED_CERT_SHA256="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr '[:upper:]' '[:lower:]' | tr -d ':')"
+          test "$ACTUAL_CERT_SHA256" = "$EXPECTED_CERT_SHA256"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Info.plist")" = "$NUTRIO_VERSION_NAME"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Info.plist")" = "$NUTRIO_VERSION_CODE"
+          CHECKSUM_DIR="ios/App/build/release-checksums"
+          mkdir -p "$CHECKSUM_DIR"
+          printf '%s  %s\n' "$(shasum -a 256 "$IPA_PATH" | awk '{print $1}')" "$(basename "$IPA_PATH")" > "$CHECKSUM_DIR/SHA256SUMS"
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "version_name=$NUTRIO_VERSION_NAME"
+            echo "version_code=$NUTRIO_VERSION_CODE"
+            echo "certificate_sha256=$EXPECTED_CERT_SHA256"
+          } > "$CHECKSUM_DIR/SIGNING-MANIFEST.txt"
+          rm -f codesign0 codesign1 codesign2
+
       - name: Upload Release IPA
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: nutrio-ios-release
           path: ios/App/build/export/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload iOS release checksums
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nutrio-ios-release-checksums
+          path: ios/App/build/release-checksums/*
           if-no-files-found: error
           retention-days: 14
 
@@ -232,7 +323,7 @@ jobs:
       inputs.build_type == 'release' &&
       github.ref == 'refs/heads/main'
     needs: release
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     environment: Mobile Signing
     permissions:
       contents: write
@@ -244,13 +335,42 @@ jobs:
           name: nutrio-ios-release
           path: release-files
 
+      - name: Download IPA checksums
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nutrio-ios-release-checksums
+          path: release-files
+
+      - name: Reverify artifact before publication
+        shell: bash
+        env:
+          EXPECTED_CERT_SHA256: ${{ secrets.IOS_DISTRIBUTION_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          cd release-files
+          shasum -a 256 --check SHA256SUMS
+          shopt -s nullglob
+          IPA_FILES=(./*.ipa)
+          test "${#IPA_FILES[@]}" -eq 1
+          VERIFY_DIR="$RUNNER_TEMP/ipa-publish-verify"
+          ditto -x -k "${IPA_FILES[0]}" "$VERIFY_DIR"
+          APP_DIRS=("$VERIFY_DIR"/Payload/*.app)
+          test "${#APP_DIRS[@]}" -eq 1
+          APP_PATH="${APP_DIRS[0]}"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          codesign -d --extract-certificates "$APP_PATH"
+          actual="$(shasum -a 256 codesign0 | awk '{print tolower($1)}')"
+          expected="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr '[:upper:]' '[:lower:]' | tr -d ':')"
+          test "$actual" = "$expected"
+          rm -f codesign0 codesign1 codesign2
+
       - name: Publish IPA as GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          tag_name: latest-ios-release
-          name: Latest iOS Release IPA
+          tag_name: ios-v${{ inputs.release_version }}-${{ github.run_number }}
+          name: Nutrio iOS ${{ inputs.release_version }} (build ${{ github.run_number }})
           body: |
-            Latest signed iOS release from a protected manual build.
+            Signed iOS release from a protected manual build.
             Branch: ${{ github.ref_name }}
             Commit: ${{ github.sha }}
           prerelease: false

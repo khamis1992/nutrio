@@ -1,0 +1,109 @@
+name: Security Staging Canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type STAGING-CANARY to run the signed alert delivery test
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-staging-canary
+  cancel-in-progress: false
+
+jobs:
+  signed-alert-delivery:
+    environment: Security Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refuse non-staging targets
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          EXPECTED_PROJECT_REF: ${{ vars.STAGING_SUPABASE_PROJECT_REF }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = "STAGING-CANARY"
+          test -n "$SUPABASE_URL"
+          test -n "$EXPECTED_PROJECT_REF"
+          test "$SUPABASE_URL" = "https://${EXPECTED_PROJECT_REF}.supabase.co"
+
+      - name: Create and deliver a signed critical-event canary
+        env:
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+          SECRET_KEY: ${{ secrets.STAGING_SUPABASE_SECRET_KEY }}
+          ALERT_CRON_SECRET: ${{ secrets.STAGING_SECURITY_ALERT_CRON_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$PUBLISHABLE_KEY"
+          test -n "$SECRET_KEY"
+          test -n "$ALERT_CRON_SECRET"
+          case "$SECRET_KEY" in
+            sb_secret_*) ;;
+            *) echo "A scoped Supabase sb_secret_ key is required." >&2; exit 1 ;;
+          esac
+
+          started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          request_id="security-canary-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}"
+          event_payload="$(jq -nc --arg request_id "$request_id" '{
+            p_event_type: "security.canary.alert_delivery",
+            p_category: "detection",
+            p_severity: "critical",
+            p_source: "staging_canary",
+            p_outcome: "failure",
+            p_actor_type: "service",
+            p_action: "verify_signed_security_alert_delivery",
+            p_request_id: $request_id,
+            p_metadata: {
+              environment: "staging",
+              synthetic: true,
+              contains_personal_data: false
+            }
+          }')"
+
+          event_id="$(curl --fail-with-body --silent --show-error \
+            --max-time 30 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/record_security_event" \
+            -H "apikey: $SECRET_KEY" \
+            -H "Content-Type: application/json" \
+            --data "$event_payload" | jq -er '.')"
+          test -n "$event_id"
+
+          delivered=0
+          for attempt in 1 2 3 4 5; do
+            response="$(curl --fail-with-body --silent --show-error \
+              --max-time 30 \
+              -X POST "$SUPABASE_URL/functions/v1/dispatch-security-alerts" \
+              -H "apikey: $PUBLISHABLE_KEY" \
+              -H "x-internal-secret: $ALERT_CRON_SECRET" \
+              -H "Content-Type: application/json" \
+              --data '{"limit":25}')"
+            delivered=$((delivered + $(jq -er '.delivered | numbers' <<<"$response")))
+            if (( delivered > 0 )); then break; fi
+            sleep 2
+          done
+          test "$delivered" -gt 0
+
+          health="$(curl --fail-with-body --silent --show-error \
+            --max-time 30 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/get_security_alert_delivery_health" \
+            -H "apikey: $SECRET_KEY" \
+            -H "Content-Type: application/json" \
+            --data '{}')"
+
+          jq -e --arg started_at "$started_at" '
+            length == 1 and
+            .[0].dead_letter_count == 0 and
+            .[0].last_delivered_at != null and
+            (.[0].last_delivered_at | fromdateiso8601) >= ($started_at | fromdateiso8601)
+          ' <<<"$health" >/dev/null
+
+          printf 'Signed alert canary delivered. Event: %s\n' "$event_id"
