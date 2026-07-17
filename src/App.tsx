@@ -23,6 +23,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const GoogleFitCallback = lazy(() => import("./pages/GoogleFitCallback"));
 
 // Customer pages (used outside CustomerLayout)
 const WalkthroughScreen = lazy(() => import("./pages/WalkthroughScreen"));
@@ -163,6 +164,10 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/sporthub" element={<SportHubWelcome />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route
+              path="/auth/google-fit/callback"
+              element={<ProtectedRoute><GoogleFitCallback /></ProtectedRoute>}
+            />
             
             {/* Onboarding has no dock/nav */}
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />

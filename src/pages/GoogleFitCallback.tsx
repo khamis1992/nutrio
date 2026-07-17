@@ -11,12 +11,18 @@ export default function GoogleFitCallback() {
 
   useEffect(() => {
     const handleCallback = async () => {
+      const clearOAuthSession = () => {
+        sessionStorage.removeItem("google_oauth_state");
+        sessionStorage.removeItem("google_code_verifier");
+      };
+
       const code = searchParams.get("code");
       const state = searchParams.get("state");
       const error = searchParams.get("error");
 
       if (error) {
-        setStatus(`Error: ${error}`);
+        clearOAuthSession();
+        setStatus("Google authorization was not completed. Please try again.");
         setTimeout(() => navigate("/tracker"), 3000);
         return;
       }
@@ -27,25 +33,18 @@ export default function GoogleFitCallback() {
         return;
       }
 
-      const storedState = sessionStorage.getItem('google_oauth_state');
-      if (state && storedState && state !== storedState) {
+      const storedState = sessionStorage.getItem("google_oauth_state");
+      const codeVerifier = sessionStorage.getItem("google_code_verifier");
+
+      // OAuth callbacks must fail closed. Missing state is as unsafe as a mismatch.
+      if (!state || !storedState || state !== storedState || !codeVerifier) {
         setStatus("Security check failed. Please try again.");
-        sessionStorage.removeItem('google_oauth_state');
-        sessionStorage.removeItem('google_code_verifier');
+        clearOAuthSession();
         setTimeout(() => navigate("/tracker"), 3000);
         return;
       }
 
-      sessionStorage.removeItem('google_oauth_state');
-
-      const codeVerifier = sessionStorage.getItem('google_code_verifier');
-      sessionStorage.removeItem('google_code_verifier');
-
-      if (!codeVerifier) {
-        setStatus("Security check failed. Please try again.");
-        setTimeout(() => navigate("/tracker"), 3000);
-        return;
-      }
+      clearOAuthSession();
 
       setStatus("Connecting to Google Fit...");
 

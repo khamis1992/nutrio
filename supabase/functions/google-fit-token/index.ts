@@ -9,12 +9,14 @@ import {
   handlePreflight,
   HttpError,
   jsonResponse,
+  readBoundedResponseJson,
   readJsonBody,
   recordSecurityEvent,
   requirePost,
 } from "../_shared/security.ts";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_TOKEN_RESPONSE_LIMIT = 32 * 1024;
 
 function allowedRedirectUris(): Set<string> {
   const configured = (Deno.env.get("GOOGLE_FIT_REDIRECT_URIS") || "")
@@ -94,7 +96,14 @@ serve(async (req: Request) => {
       throw new HttpError(502, "google_fit_exchange_failed");
     }
 
-    const data = await response.json() as Record<string, unknown>;
+    const data = await readBoundedResponseJson<Record<string, unknown>>(
+      response,
+      GOOGLE_TOKEN_RESPONSE_LIMIT,
+      {
+        tooLargeCode: "google_fit_invalid_response",
+        invalidBodyCode: "google_fit_invalid_response",
+      },
+    );
     const accessToken = typeof data.access_token === "string" ? data.access_token : "";
     const refreshToken = typeof data.refresh_token === "string" ? data.refresh_token : null;
     const expiresIn = Number(data.expires_in || 0);

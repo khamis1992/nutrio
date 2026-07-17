@@ -1,10 +1,12 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.99.2";
 
-import { HttpError } from "./security.ts";
+import { HttpError, readBoundedResponseJson } from "./security.ts";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_FIT_AGGREGATE_URL =
   "https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate";
+const GOOGLE_TOKEN_RESPONSE_LIMIT = 32 * 1024;
+const GOOGLE_AGGREGATE_RESPONSE_LIMIT = 1024 * 1024;
 
 export interface GoogleFitCredentials {
   accessToken: string;
@@ -116,7 +118,14 @@ export async function refreshGoogleFitCredentials(
     throw new HttpError(502, "google_fit_refresh_failed");
   }
 
-  const data = await response.json() as Record<string, unknown>;
+  const data = await readBoundedResponseJson<Record<string, unknown>>(
+    response,
+    GOOGLE_TOKEN_RESPONSE_LIMIT,
+    {
+      tooLargeCode: "google_fit_invalid_response",
+      invalidBodyCode: "google_fit_invalid_response",
+    },
+  );
   const accessToken = typeof data.access_token === "string" ? data.access_token : "";
   const expiresIn = Number(data.expires_in || 0);
   if (!accessToken || !Number.isFinite(expiresIn) || expiresIn <= 0) {
@@ -176,13 +185,16 @@ export async function fetchGoogleFitWorkouts(
     throw new HttpError(502, "google_fit_sync_failed");
   }
 
-  const payload = await response.json() as {
+  const payload = await readBoundedResponseJson<{
     bucket?: Array<{
       startTimeMillis?: string;
       endTimeMillis?: string;
       dataset?: GoogleDataset[];
     }>;
-  };
+  }>(response, GOOGLE_AGGREGATE_RESPONSE_LIMIT, {
+    tooLargeCode: "google_fit_invalid_response",
+    invalidBodyCode: "google_fit_invalid_response",
+  });
 
   const workouts: GoogleFitWorkout[] = [];
   for (const bucket of (payload.bucket || []).slice(0, 500)) {
