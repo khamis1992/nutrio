@@ -201,7 +201,7 @@ export function ActiveOrderBanner({ userId, compact = false }: ActiveOrderBanner
       let mealsData: (Meal & { restaurant?: { name: string } })[] = [];
       if (mealIds.length > 0) {
         const { data: meals, error: mealsError } = await supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select(`id, name, restaurant_id`)
           .in("id", mealIds);
 
@@ -211,7 +211,7 @@ export function ActiveOrderBanner({ userId, compact = false }: ActiveOrderBanner
           let restaurantsData: Restaurant[] = [];
           if (restaurantIds.length > 0) {
             const { data: restaurants, error: restaurantsError } = await supabase
-              .from("restaurants")
+              .from("public_restaurant_catalog" as "restaurants")
               .select("id, name")
               .in("id", restaurantIds);
 

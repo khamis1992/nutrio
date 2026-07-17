@@ -267,7 +267,7 @@ const Meals = () => {
     (async () => {
       try {
         const { data: restaurantsData, error: restaurantsError } = await supabase
-          .from("restaurants")
+          .from("public_restaurant_catalog" as "restaurants")
           .select("id, name, description, logo_url, image_url, rating, total_orders, cuisine_types")
           .eq("approval_status", "approved")
           .eq("is_active", true)
@@ -283,7 +283,7 @@ const Meals = () => {
 
         if (ids.length > 0) {
           const { data: mealsData, error: mealsError } = await supabase
-            .from("meals")
+            .from("public_meal_catalog" as "meals")
             .select("id, restaurant_id, name, image_url, meal_type, calories, protein_g, protein, carbs_g, carbs, rating, avg_rating, order_count")
             .in("restaurant_id", ids)
             .eq("approval_status", "approved")

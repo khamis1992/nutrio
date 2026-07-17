@@ -123,7 +123,7 @@ export function useSmartSubstitutions({
       if (mealIds.length === 0) { setUnavailableMeals([]); setLoading(false); return; }
 
       const { data: mealsData, error } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select("id, name, is_available")
         .in("id", mealIds);
 
@@ -145,7 +145,7 @@ export function useSmartSubstitutions({
       const unavailableSchedules = schedules.filter((s) => unavailableIds.includes(s.meal_id));
 
       const { data: allAvailableMeals, error: allErr } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select(
           "id, name, calories, protein_g, carbs_g, fat_g, fiber_g, prep_time_minutes, image_url, meal_type"
         )

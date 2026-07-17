@@ -139,7 +139,7 @@ describe("delivery service source integration", () => {
         }],
         error: null,
       },
-      meals: {
+      public_meal_catalog: {
         data: [{
           id: "meal-1",
           name: "Chicken Bowl",
@@ -152,7 +152,7 @@ describe("delivery service source integration", () => {
         data: [{ id: "customer-1", full_name: "Khamis" }],
         error: null,
       },
-      restaurants: {
+      public_restaurant_catalog: {
         data: [{
           id: "restaurant-1",
           name: "Nutrio Kitchen",

@@ -298,7 +298,7 @@ const Schedule = () => {
 
     if (mealIds.length > 0) {
       const { data: mealsData, error: mealsError } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select("id, name, calories, protein_g, carbs_g, fat_g, image_url")
         .in("id", mealIds);
 
@@ -382,7 +382,7 @@ const Schedule = () => {
     void (async () => {
       try {
         const { data, error } = await supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select("id,name,calories,protein_g,carbs_g,fat_g,image_url,meal_type,restaurant_id")
           .in("id", mealIds);
         if (cancelled) return;

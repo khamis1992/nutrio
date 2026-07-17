@@ -24,7 +24,7 @@ export function VIPExclusivesCard() {
     const fetchExclusives = async () => {
       try {
         const { data, error } = await supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select("id, name, image_url, restaurant:restaurant_id(name)")
           .eq("is_vip_exclusive", true)
           .eq("is_active", true)

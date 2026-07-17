@@ -130,14 +130,14 @@ const Favorites = () => {
       }
 
       const { data: restaurantsData, error: restaurantsError } = await supabase
-        .from("restaurants")
+        .from("public_restaurant_catalog" as "restaurants")
         .select("id, name, description, logo_url, rating, total_orders")
         .in("id", restaurantIds);
 
       if (restaurantsError) throw restaurantsError;
 
       const { data: mealsCountData } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select("restaurant_id")
         .in("restaurant_id", restaurantIds);
 

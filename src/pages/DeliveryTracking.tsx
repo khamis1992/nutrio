@@ -161,14 +161,14 @@ export default function DeliveryTracking() {
 
       const [{ data: restaurants }, { data: orderItemsData }] = await Promise.all([
         restaurantIds.length > 0
-          ? supabase.from("restaurants").select("id, name, logo_url").in("id", restaurantIds)
+          ? supabase.from("public_restaurant_catalog" as "restaurants").select("id, name, logo_url").in("id", restaurantIds)
           : { data: [] },
         supabase.from("order_items").select("id, order_id, quantity, meal_id").in("order_id", orderIds),
       ]);
 
       const mealIds = [...new Set((orderItemsData || []).map(oi => oi.meal_id).filter(Boolean) as string[])];
       const { data: rawMealsData } = mealIds.length > 0
-        ? await supabase.from("meals").select("id, name, image_url, calories, restaurant_id").in("id", mealIds)
+        ? await supabase.from("public_meal_catalog" as "meals").select("id, name, image_url, calories, restaurant_id").in("id", mealIds)
         : { data: [] };
       const mealsData: Meal[] = (rawMealsData || []).map((meal) => ({
         ...meal,
@@ -225,12 +225,12 @@ export default function DeliveryTracking() {
 
       if (mealIds.length > 0) {
         const { data: meals } = await supabase
-          .from("meals").select("id, name, image_url, calories, restaurant_id").in("id", mealIds);
+          .from("public_meal_catalog" as "meals").select("id, name, image_url, calories, restaurant_id").in("id", mealIds);
 
         if (meals) {
           const restaurantIds = [...new Set(meals.map(m => m.restaurant_id).filter(Boolean) as string[])];
           const { data: restaurants } = restaurantIds.length > 0
-            ? await supabase.from("restaurants").select("id, name, logo_url").in("id", restaurantIds)
+            ? await supabase.from("public_restaurant_catalog" as "restaurants").select("id, name, logo_url").in("id", restaurantIds)
             : { data: [] };
           mealsData = meals.map((meal) => ({
             ...meal,

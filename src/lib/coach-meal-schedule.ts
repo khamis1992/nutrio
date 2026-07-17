@@ -77,7 +77,7 @@ export async function findCoachMealSuggestion({
 
   const mealIds = [...new Set([selectedMealId, suggestion.meal_id])];
   const { data: meals, error: mealsError } = await supabase
-    .from("meals")
+    .from("public_meal_catalog" as "meals")
     .select("id, name, calories, protein_g, carbs_g, fat_g")
     .in("id", mealIds);
 

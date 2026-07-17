@@ -41,7 +41,7 @@ export function useMealRecommendations() {
 
       // Fetch meals
       const { data: mealsData, error: mealsError } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select(
           "id, name, image_url, calories, protein_g, carbs_g, fat_g, price, meal_type, restaurant_id, ingredients, is_available, rating"
         )
@@ -59,7 +59,7 @@ export function useMealRecommendations() {
       let restaurantsData: Array<Record<string, unknown>> = [];
       if (restaurantIds.length > 0) {
         const { data: rData, error: rError } = await supabase
-          .from("restaurants")
+          .from("public_restaurant_catalog" as "restaurants")
           .select("id, name, logo_url, rating, total_orders")
           .in("id", [...new Set(restaurantIds)])
           .eq("approval_status", "approved")

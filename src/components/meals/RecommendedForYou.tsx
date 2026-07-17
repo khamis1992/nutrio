@@ -33,7 +33,7 @@ export function RecommendedForYou() {
   useEffect(() => {
     async function fetchMeals() {
       const { data } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select("id, name, image_url, calories, protein_g, price, meal_type, restaurant_id, ingredients, rating")
         .eq("is_available", true)
         .order("rating", { ascending: false })

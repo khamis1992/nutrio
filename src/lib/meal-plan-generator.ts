@@ -68,7 +68,7 @@ export async function generateWeeklyMealPlan(
   try {
     // Fetch available meals with nutrition info and restaurant details
     const { data: mealsData, error: mealsError } = await supabase
-      .from('meals')
+      .from('public_meal_catalog' as 'meals')
       .select(`
         *,
         restaurants(name)

@@ -189,7 +189,7 @@ export const MealPlanGenerator = ({
     try {
       const [mealsResult, prefsResult, goalsResult, ordersResult] = await Promise.all([
         supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select(`
             id, name, description, calories, protein_g, carbs_g, fat_g,
             fiber_g, image_url, is_available, restaurant_id, meal_type,

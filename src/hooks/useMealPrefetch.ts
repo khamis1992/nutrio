@@ -13,7 +13,7 @@ export function useMealPrefetch() {
       queryKey,
       queryFn: async () => {
         const { data, error } = await supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select("*, restaurants(name, logo_url)")
           .eq("id", mealId)
           .single();
@@ -34,7 +34,7 @@ export function useMealPrefetch() {
       queryKey,
       queryFn: async () => {
         const { data, error } = await supabase
-          .from("restaurants")
+          .from("public_restaurant_catalog" as "restaurants")
           .select("*")
           .eq("id", restaurantId)
           .single();

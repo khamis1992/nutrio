@@ -31,7 +31,7 @@ type MealRow = {
   carbs_g?: number | null;
   fat_g?: number | null;
   meal_type: string | null;
-  restaurants?: { name: string | null; is_active?: boolean | null; approval_status?: string | null } | null;
+  restaurant_name?: string | null;
 };
 
 type ScheduleComboRow = {
@@ -40,7 +40,7 @@ type ScheduleComboRow = {
   scheduled_date: string;
 };
 
-const restaurantName = (meal: MealRow) => meal.restaurants?.name || "Nutrio Chef";
+const restaurantName = (meal: MealRow) => meal.restaurant_name || "Nutrio Chef";
 
 const tagForMeal = (meal: MealRow) => {
   const calories = meal.calories || 0;
@@ -137,17 +137,15 @@ async function fetchScheduleDerivedCombos(): Promise<PopularCombo[]> {
 
   const mealIds = Array.from(new Set(topComboKeys.flatMap((key) => key.split(","))));
   const { data: meals, error: mealsError } = await supabase
-    .from("meals")
-    .select("id,name,image_url,calories,protein_g,carbs_g,fat_g,meal_type,restaurants:restaurant_id(name,is_active,approval_status)")
+    .from("public_meal_catalog" as "meals")
+    .select("id,name,image_url,calories,protein_g,carbs_g,fat_g,meal_type,restaurant_name")
     .in("id", mealIds)
     .eq("is_available", true)
-    .eq("approval_status", "approved")
-    .eq("restaurants.is_active", true)
-    .eq("restaurants.approval_status", "approved");
+    .eq("approval_status", "approved");
 
   if (mealsError || !meals?.length) return [];
 
-  const mealMap = (meals as MealRow[]).reduce<Record<string, MealRow>>((acc, meal) => {
+  const mealMap = (meals as unknown as MealRow[]).reduce<Record<string, MealRow>>((acc, meal) => {
     acc[meal.id] = meal;
     return acc;
   }, {});
@@ -160,18 +158,16 @@ async function fetchScheduleDerivedCombos(): Promise<PopularCombo[]> {
 
 async function fetchNutritionGeneratedCombos(): Promise<PopularCombo[]> {
   const { data: meals, error } = await supabase
-    .from("meals")
-    .select("id,name,image_url,calories,protein_g,carbs_g,fat_g,meal_type,restaurants:restaurant_id(name,is_active,approval_status)")
+    .from("public_meal_catalog" as "meals")
+    .select("id,name,image_url,calories,protein_g,carbs_g,fat_g,meal_type,restaurant_name")
     .eq("is_available", true)
     .eq("approval_status", "approved")
-    .eq("restaurants.is_active", true)
-    .eq("restaurants.approval_status", "approved")
     .order("created_at", { ascending: false })
     .limit(24);
 
   if (error || !meals?.length) return [];
 
-  const rows = meals as MealRow[];
+  const rows = meals as unknown as MealRow[];
   const highProtein = rows.filter((meal) => (meal.protein_g || 0) >= 25 && (meal.calories || 0) <= 650);
   const balanced = rows.filter((meal) => (meal.protein_g || 0) >= 15 && (meal.protein_g || 0) < 30);
   const light = rows.filter((meal) => (meal.calories || 0) > 0 && (meal.calories || 0) <= 450);

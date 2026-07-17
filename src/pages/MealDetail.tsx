@@ -160,7 +160,7 @@ const MealDetail = () => {
     try {
       // Fetch meal first
       const { data: mealData, error: mealError } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select("*")
         .eq("id", id!)
         .eq("approval_status", "approved")
@@ -174,7 +174,7 @@ const MealDetail = () => {
         let restaurantData = null;
         if (mealData.restaurant_id) {
           const { data: restData } = await supabase
-            .from("restaurants")
+            .from("public_restaurant_catalog" as "restaurants")
             .select("id, name, address, logo_url")
             .eq("id", mealData.restaurant_id)
             .single();
@@ -389,7 +389,7 @@ const MealDetail = () => {
       // CRITICAL: Check meal availability before scheduling
       // This prevents scheduling unavailable meals which causes cancellations
       const { data: mealCheck, error: mealCheckError } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select("id, is_available, restaurant_id")
         .eq("id", meal.id)
         .single();

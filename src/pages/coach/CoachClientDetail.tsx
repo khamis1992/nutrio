@@ -1175,8 +1175,8 @@ export default function CoachClientDetail() {
                                         setMealPlanEndDate(p.end_date);
                                         setSelectedMealDate(pm.assigned_date);
                                         setSelectedMealType(pm.meal_type);
-                                        supabase.from("meals").select("id, name, calories, protein_g, carbs_g, fat_g, image_url, price, is_available, restaurants:restaurant_id(name)").eq("is_available", true).order("name").limit(200).then(({ data: meals }) => {
-                                          setAvailableMeals((meals as any[] || []).map((m: any) => ({ id: m.id, name: m.name, calories: m.calories, protein_g: m.protein_g, carbs_g: m.carbs_g, fat_g: m.fat_g, image_url: m.image_url, price: m.price, restaurant_name: m.restaurants?.name })));
+                                        (supabase as any).from("public_meal_catalog").select("id, name, calories, protein_g, carbs_g, fat_g, image_url, price, is_available, restaurant_name").eq("is_available", true).order("name").limit(200).then(({ data: meals }: { data: any[] | null }) => {
+                                          setAvailableMeals((meals || []).map((m: any) => ({ id: m.id, name: m.name, calories: m.calories, protein_g: m.protein_g, carbs_g: m.carbs_g, fat_g: m.fat_g, image_url: m.image_url, price: m.price, restaurant_name: m.restaurant_name })));
                                         });
                                       }}
                                       className="text-slate-300 hover:text-emerald-500 transition-colors shrink-0"
@@ -1456,8 +1456,8 @@ export default function CoachClientDetail() {
                     const result = await createProgram({ title: mealPlanTitle.trim(), type: "meal_plan", start_date: mealPlanStartDate, end_date: mealPlanEndDate });
                     if (result.success && result.data) {
                       setMealPlanProgramId(result.data.id);
-                      const { data: meals } = await supabase.from("meals").select("id, name, calories, protein_g, carbs_g, fat_g, image_url, price, is_available, restaurants:restaurant_id(name)").eq("is_available", true).order("name").limit(200);
-                      setAvailableMeals((meals as any[] || []).map((m: any) => ({ id: m.id, name: m.name, calories: m.calories, protein_g: m.protein_g, carbs_g: m.carbs_g, fat_g: m.fat_g, image_url: m.image_url, price: m.price, restaurant_name: m.restaurants?.name })));
+                      const { data: meals } = await (supabase as any).from("public_meal_catalog").select("id, name, calories, protein_g, carbs_g, fat_g, image_url, price, is_available, restaurant_name").eq("is_available", true).order("name").limit(200);
+                      setAvailableMeals((meals as any[] || []).map((m: any) => ({ id: m.id, name: m.name, calories: m.calories, protein_g: m.protein_g, carbs_g: m.carbs_g, fat_g: m.fat_g, image_url: m.image_url, price: m.price, restaurant_name: m.restaurant_name })));
                       setMealPlanStep("assign");
                     } else if (!result.success && result.error) {
                       toast.error(result.error.message);

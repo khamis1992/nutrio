@@ -11,6 +11,95 @@ const asJsonObject = (value: unknown): Record<string, unknown> | null =>
 const readString = (value: unknown, fallback = "") =>
   typeof value === "string" ? value : fallback;
 
+type DeliverySource = "order" | "meal_schedule";
+
+type UntypedRpcResult<T> = {
+  data: T | null;
+  error: { message: string } | null;
+};
+
+const callDeliveryRpc = <T,>(name: string, args: Record<string, unknown>) =>
+  (supabase as unknown as {
+    rpc: (functionName: string, parameters: Record<string, unknown>) => Promise<UntypedRpcResult<T>>;
+  }).rpc(name, args);
+
+const requireRpcSuccess = (
+  data: unknown,
+  fallbackMessage: string,
+): Record<string, unknown> => {
+  const result = asJsonObject(data);
+  if (result?.success !== true) {
+    throw new Error(
+      typeof result?.error === "string" ? result.error : fallbackMessage,
+    );
+  }
+  return result;
+};
+
+async function transitionDeliveryJob(
+  jobId: string,
+  status: string,
+  deliveryNotes?: string,
+  failureReason?: string,
+) {
+  const { data, error } = await callDeliveryRpc<unknown>("transition_delivery_job", {
+    p_delivery_job_id: jobId,
+    p_new_status: status,
+    p_delivery_notes: deliveryNotes || null,
+    p_failure_reason: failureReason || null,
+  });
+
+  if (error) throw error;
+  return requireRpcSuccess(data, "The delivery status could not be updated.");
+}
+
+async function resolveDeliverySource(jobId: string): Promise<{
+  source: DeliverySource;
+  sourceId: string;
+}> {
+  const { data, error } = await callDeliveryRpc<unknown>(
+    "get_delivery_details_for_driver",
+    { p_delivery_job_id: jobId },
+  );
+
+  if (error) throw error;
+  const details = asJsonObject(data);
+  if (typeof details?.order_id === "string") {
+    return { source: "order", sourceId: details.order_id };
+  }
+  if (typeof details?.schedule_id === "string") {
+    return { source: "meal_schedule", sourceId: details.schedule_id };
+  }
+  throw new Error("The delivery source could not be resolved.");
+}
+
+async function assignDeliverySource(
+  source: DeliverySource,
+  sourceId: string,
+  driverId: string,
+  reason: string,
+) {
+  const { data, error } = await callDeliveryRpc<unknown>("assign_fleet_delivery_job", {
+    p_source_type: source,
+    p_source_id: sourceId,
+    p_driver_id: driverId,
+    p_reason: reason,
+    p_notes: null,
+  });
+
+  if (error) throw error;
+  return requireRpcSuccess(data, "The delivery could not be assigned.");
+}
+
+async function assignDeliveryJobById(
+  jobId: string,
+  driverId: string,
+  reason: string,
+) {
+  const { source, sourceId } = await resolveDeliverySource(jobId);
+  return assignDeliverySource(source, sourceId, driverId, reason);
+}
+
 // ==================== DRIVER MANAGEMENT ====================
 
 /**
@@ -135,7 +224,7 @@ async function getRestaurantLocation(restaurantId: string | null): Promise<Locat
   }
 
   const { data: restaurant, error: restaurantError } = await supabase
-    .from("restaurants")
+    .from("public_restaurant_catalog" as "restaurants")
     .select("latitude, longitude")
     .eq("id", restaurantId)
     .single();
@@ -158,7 +247,7 @@ export async function assignDriverToJob(jobId: string) {
   // Get job details
   const { data: job, error: jobError } = await supabase
     .from("delivery_jobs")
-    .select("restaurant_id")
+    .select("restaurant_id, order_id, schedule_id")
     .eq("id", jobId)
     .eq("status", "pending")
     .single();
@@ -202,17 +291,16 @@ export async function assignDriverToJob(jobId: string) {
   
   const selectedDriver = driversWithDistance[0];
   
-  // Assign driver to job
-  const { error: updateError } = await supabase
-    .from("delivery_jobs")
-    .update({
-      driver_id: selectedDriver.id,
-      status: "assigned",
-      assigned_at: new Date().toISOString()
-    })
-    .eq("id", jobId);
-  
-  if (updateError) throw updateError;
+  const source = job.order_id ? "order" : "meal_schedule";
+  const sourceId = job.order_id || job.schedule_id;
+  if (!sourceId) throw new Error("Delivery job has no dispatch source");
+
+  await assignDeliverySource(
+    source,
+    sourceId,
+    selectedDriver.id,
+    "Automatic assignment",
+  );
   
   return selectedDriver;
 }
@@ -249,64 +337,35 @@ export async function autoAssignAllPendingJobs() {
  * Driver accepts assigned job
  */
 export async function driverAcceptJob(driverId: string, jobId: string) {
-  const { data, error } = await supabase
-    .from("delivery_jobs")
-    .update({
-      status: "accepted",
-      accepted_at: new Date().toISOString()
-    })
-    .eq("id", jobId)
-    .eq("driver_id", driverId)
-    .eq("status", "assigned")
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
+  void driverId;
+  return transitionDeliveryJob(jobId, "accepted");
 }
 
 /**
  * Driver rejects assigned job
  */
 export async function driverRejectJob(driverId: string, jobId: string) {
-  // Reset job to pending for reassignment
-  const { error } = await supabase
-    .from("delivery_jobs")
-    .update({
-      driver_id: null,
-      status: "pending",
-      assigned_at: null
-    })
-    .eq("id", jobId)
-    .eq("driver_id", driverId)
-    .eq("status", "assigned");
-  
-  if (error) throw error;
+  void driverId;
+  await transitionDeliveryJob(jobId, "pending", undefined, "Driver rejected assignment");
 }
 
 /**
  * Driver marks job as picked up
  */
 export async function driverPickupJob(
-  driverId: string, 
+  driverId: string,
   jobId: string,
-  photoUrl?: string
+  capability: string,
 ) {
-  const { data, error } = await supabase
-    .from("delivery_jobs")
-    .update({
-      status: "picked_up",
-      picked_up_at: new Date().toISOString(),
-      pickup_photo_url: photoUrl
-    })
-    .eq("id", jobId)
-    .eq("driver_id", driverId)
-    .eq("status", "accepted")
-    .select()
-    .single();
-  
+  void driverId;
+  if (!capability) throw new Error("A pickup capability is required.");
+
+  const { data, error } = await callDeliveryRpc<unknown>("complete_delivery_pickup", {
+    p_delivery_job_id: jobId,
+    p_capability: capability,
+  });
   if (error) throw error;
-  return data;
+  return requireRpcSuccess(data, "Pickup verification failed.");
 }
 
 /**
@@ -319,23 +378,11 @@ export async function driverDeliverJob(
   photoUrl?: string,
   notes?: string
 ) {
-  const { data, error } = await supabase
-    .from("delivery_jobs")
-    .update({
-      status: "delivered",
-      delivered_at: new Date().toISOString(),
-      customer_otp: otp,
-      delivery_photo_url: photoUrl,
-      delivery_notes: notes
-    })
-    .eq("id", jobId)
-    .eq("driver_id", driverId)
-    .in("status", ["picked_up", "in_transit"])
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
+  void driverId;
+  if (otp || photoUrl) {
+    throw new Error("Delivery proof requires a reviewed proof-verification RPC.");
+  }
+  return transitionDeliveryJob(jobId, "delivered", notes);
 }
 
 /**
@@ -346,21 +393,8 @@ export async function driverFailJob(
   jobId: string,
   reason: string
 ) {
-  const { data, error } = await supabase
-    .from("delivery_jobs")
-    .update({
-      status: "failed",
-      failed_at: new Date().toISOString(),
-      failure_reason: reason
-    })
-    .eq("id", jobId)
-    .eq("driver_id", driverId)
-    .in("status", ["assigned", "accepted", "picked_up", "in_transit"])
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
+  void driverId;
+  return transitionDeliveryJob(jobId, "failed", undefined, reason);
 }
 
 /**
@@ -375,7 +409,7 @@ export async function getDriverCurrentJob(driverId: string) {
     .order("created_at", { ascending: false })
     .limit(1)
     .single();
-  
+
   if (error && error.code !== "PGRST116") throw error;
   if (!job) return null;
 
@@ -384,7 +418,7 @@ export async function getDriverCurrentJob(driverId: string) {
       supabase.rpc("get_delivery_details_for_driver", { p_delivery_job_id: job.id }),
       job.restaurant_id
         ? supabase
-            .from("restaurants")
+            .from("public_restaurant_catalog" as "restaurants")
             .select("name, address, phone, latitude, longitude")
             .eq("id", job.restaurant_id)
             .maybeSingle()
@@ -436,7 +470,7 @@ export async function getDriverJobHistory(driverId: string, limit = 20) {
 
   const restaurantIds = [...new Set(jobs.map((job) => job.restaurant_id).filter((id): id is string => Boolean(id)))];
   const { data: restaurants, error: restaurantsError } = restaurantIds.length > 0
-    ? await supabase.from("restaurants").select("id, name").in("id", restaurantIds)
+    ? await supabase.from("public_restaurant_catalog" as "restaurants").select("id, name").in("id", restaurantIds)
     : { data: [], error: null };
   if (restaurantsError) throw restaurantsError;
   const restaurantNames = new Map((restaurants || []).map((restaurant) => [restaurant.id, restaurant.name]));
@@ -529,7 +563,7 @@ async function enrichDeliveryJobs(jobs: Record<string, unknown>[]) {
 
   const [mealsResult, profilesResult] = await Promise.all([
     mealIds.length > 0
-      ? supabase.from("meals").select("id, name, image_url, restaurant_id").in("id", mealIds)
+      ? supabase.from("public_meal_catalog" as "meals").select("id, name, image_url, restaurant_id").in("id", mealIds)
       : Promise.resolve({ data: [], error: null }),
     userIds.length > 0
       ? supabase.from("profiles").select("id, full_name").in("id", userIds)
@@ -547,7 +581,7 @@ async function enrichDeliveryJobs(jobs: Record<string, unknown>[]) {
   ])];
   const { data: restaurants, error: restaurantsError } = restaurantIds.length > 0
     ? await supabase
-        .from("restaurants")
+        .from("public_restaurant_catalog" as "restaurants")
         .select("id, name, address, phone_number")
         .in("id", restaurantIds)
     : { data: [], error: null };
@@ -629,59 +663,21 @@ export async function getOnlineDrivers() {
  * Manually assign driver to job
  */
 export async function adminAssignDriver(jobId: string, driverId: string) {
-  const { data, error } = await supabase
-    .from("delivery_jobs")
-    .update({
-      driver_id: driverId,
-      status: "assigned",
-      assigned_at: new Date().toISOString()
-    })
-    .eq("id", jobId)
-    .eq("status", "pending")
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
+  return assignDeliveryJobById(jobId, driverId, "Manual admin assignment");
 }
 
 /**
  * Reassign job to different driver
  */
 export async function adminReassignDriver(jobId: string, newDriverId: string) {
-  const { data, error } = await supabase
-    .from("delivery_jobs")
-    .update({
-      driver_id: newDriverId,
-      status: "assigned",
-      assigned_at: new Date().toISOString()
-    })
-    .eq("id", jobId)
-    .in("status", ["assigned", "accepted"])
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
+  return assignDeliveryJobById(jobId, newDriverId, "Manual admin reassignment");
 }
 
 /**
  * Cancel delivery job
  */
 export async function adminCancelJob(jobId: string, reason: string) {
-  const { data, error } = await supabase
-    .from("delivery_jobs")
-    .update({
-      status: "cancelled",
-      failure_reason: reason
-    })
-    .eq("id", jobId)
-    .not("status", "in", ["delivered", "failed", "cancelled"])
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
+  return transitionDeliveryJob(jobId, "cancelled", undefined, reason);
 }
 
 /**

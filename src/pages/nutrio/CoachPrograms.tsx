@@ -33,7 +33,7 @@ type MealCatalogRow = {
   fat_g: number;
   image_url: string | null;
   price: number;
-  restaurants?: { name?: string | null } | null;
+  restaurant_name?: string | null;
 };
 
 type ScheduledCoachMealContext = {
@@ -119,14 +119,14 @@ export default function CoachPrograms() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase
-        .from("meals")
-        .select("id, name, calories, protein_g, carbs_g, fat_g, image_url, price, restaurants:restaurant_id(name)")
+        .from("public_meal_catalog" as "meals")
+        .select("id, name, calories, protein_g, carbs_g, fat_g, image_url, price, restaurant_name")
         .eq("is_available", true)
         .order("name")
         .limit(200);
       if (data) {
         setAllMeals(
-          (data as MealCatalogRow[]).map((m) => ({
+          (data as unknown as MealCatalogRow[]).map((m) => ({
             id: m.id,
             name: m.name,
             calories: m.calories,
@@ -135,7 +135,7 @@ export default function CoachPrograms() {
             fat_g: m.fat_g,
             image_url: m.image_url,
             price: m.price,
-            restaurant_name: m.restaurants?.name ?? undefined,
+            restaurant_name: m.restaurant_name ?? undefined,
           }))
         );
       }

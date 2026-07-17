@@ -174,7 +174,7 @@ const OrderHistory = () => {
       let mealsData: (Meal & { restaurant?: Restaurant })[] = [];
       if (mealIds.length > 0) {
         const { data: meals } = await supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select("id, name, image_url, calories, restaurant_id")
           .in("id", mealIds);
         
@@ -190,7 +190,7 @@ const OrderHistory = () => {
           let restaurantsData: Restaurant[] = [];
           if (restaurantIds.length > 0) {
             const { data: restaurants } = await supabase
-              .from("restaurants")
+              .from("public_restaurant_catalog" as "restaurants")
               .select("id, name, logo_url")
               .in("id", restaurantIds);
             restaurantsData = restaurants || [];

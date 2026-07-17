@@ -48,7 +48,7 @@ export function useHealthFilteredMeals(tags: HealthTag[]) {
       setError(null);
 
       const { data, error: fetchError } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select("id, name, description, ingredients, category, calories, protein_g, carbs_g, fat_g, fiber_g, image_url, price, restaurant_id, meal_type")
         .eq("is_available", true)
         .order("order_count", { ascending: false })

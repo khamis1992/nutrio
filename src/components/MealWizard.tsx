@@ -27,7 +27,11 @@ import { format } from "date-fns";
 import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSubscription } from "@/hooks/useSubscription";
-import { scheduleMealsAtomic, type ScheduleMealInput } from "@/lib/schedule-meals";
+import {
+  getScheduleMealsErrorCode,
+  scheduleMealsAtomic,
+  type ScheduleMealInput,
+} from "@/lib/schedule-meals";
 
 interface Meal {
   id: string;
@@ -168,7 +172,7 @@ const MealWizard = ({
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from("restaurants")
+        .from("public_restaurant_catalog" as "restaurants")
         .select("id, name, description, address, image_url, logo_url, rating, cuisine_type")
         .eq("approval_status", "approved")
         .eq("is_active", true)
@@ -192,7 +196,7 @@ const MealWizard = ({
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select("id, name, description, calories, protein_g, carbs_g, fat_g, image_url, is_available, restaurant_id")
         .eq("restaurant_id", restaurantId)
         .eq("is_available", true)
@@ -268,11 +272,50 @@ const MealWizard = ({
       }, 2000);
     } catch (err) {
       console.error("Error scheduling meals:", err);
+      const errorCode = getScheduleMealsErrorCode(err);
+      const errorContent = (() => {
+        switch (errorCode) {
+          case "SUBSCRIPTION_NOT_FOUND":
+            return {
+              title: t("schedule_subscription_required_title"),
+              description: t("schedule_subscription_required_desc"),
+            };
+          case "MEAL_QUOTA_EXHAUSTED":
+          case "SNACK_QUOTA_EXHAUSTED":
+            return {
+              title: t("schedule_out_of_credits"),
+              description: t("schedule_out_of_credits_desc"),
+            };
+          case "SCHEDULE_DATE_INVALID":
+            return {
+              title: t("schedule_invalid_date_title"),
+              description: t("schedule_invalid_date_desc"),
+            };
+          case "MEAL_NOT_AVAILABLE":
+            return {
+              title: t("schedule_meal_unavailable_title"),
+              description: t("schedule_meal_unavailable_desc"),
+            };
+          case "DELIVERY_ADDRESS_NOT_FOUND":
+            return {
+              title: t("schedule_address_required_title"),
+              description: t("schedule_address_required_desc"),
+            };
+          case "AUTHENTICATION_REQUIRED":
+            return {
+              title: t("schedule_sign_in_required_title"),
+              description: t("schedule_sign_in_required_desc"),
+            };
+          default:
+            return {
+              title: t("schedule_failed_title"),
+              description: t("schedule_failed_desc"),
+            };
+        }
+      })();
+
       toast({
-        title: "Error",
-        description: err instanceof Error && err.message.includes("QUOTA_EXHAUSTED")
-          ? "Your plan does not have enough meal credits for this selection."
-          : "Failed to schedule meals",
+        ...errorContent,
         variant: "destructive",
       });
     } finally {

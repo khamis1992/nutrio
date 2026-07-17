@@ -115,8 +115,8 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
         )];
         if (mealIds.length > 0) {
           const { data: mealsData } = await supabase
-            .from("meals")
-            .select("id, name, calories, protein_g, carbs_g, fat_g, image_url, price, restaurants:restaurant_id(name)")
+            .from("public_meal_catalog" as "meals")
+            .select("id, name, calories, protein_g, carbs_g, fat_g, image_url, price, restaurant_name")
             .in("id", mealIds);
           setMealInfos((mealsData as any[] || []).map((m: any) => ({
             id: m.id,
@@ -127,7 +127,7 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
             fat_g: m.fat_g,
             image_url: m.image_url,
             price: m.price,
-            restaurant_name: m.restaurants?.name,
+            restaurant_name: m.restaurant_name,
           })));
         }
       } else {

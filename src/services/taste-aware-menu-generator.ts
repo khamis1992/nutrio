@@ -3,12 +3,11 @@ import { runAiTask } from "@/lib/ai-router";
 import { TasteProfile } from "./taste-profile-calculator";
 import type { MealPlanDay } from "@/lib/meal-plan-generator";
 
-async function callOpenRouter(systemPrompt: string, userPrompt: string): Promise<string> {
+async function callAiRouter(input: Record<string, unknown>): Promise<string> {
   try {
     const result = await runAiTask({
       task: "meal_plan",
-      systemPrompt,
-      userPrompt,
+      input,
     });
     return result.content;
   } catch {
@@ -48,7 +47,7 @@ export async function generateTasteAwareMealPlan(
 ): Promise<{ days: MealPlanDay[]; recommendations: TasteAwareMeal[] }> {
   // Fetch available meals
   const { data: mealsData } = await supabase
-    .from("meals")
+    .from("public_meal_catalog" as "meals")
     .select("*")
     .eq("is_available", true)
     .not("calories", "is", null)
@@ -72,31 +71,23 @@ export async function generateTasteAwareMealPlan(
   const orderedMealIds = new Set<string>(); // We'd need this from profile, approximate
   const discoveryMeals = mealSummaries.filter(m => !orderedMealIds.has(m.id));
 
-  const systemPrompt = `You are a nutrition AI for Nutrio, a healthy meal delivery app. Generate a 7-day meal plan JSON.
-Respond ONLY with valid JSON, no markdown. Format:
-{"meals": [{"meal_id": "id", "meal_type": "breakfast"|"lunch"|"dinner"|"snack", "day_index": 0-6, "confidence": 0-100, "reason": "brief reason"}]}`;
-
-  const userPrompt = `User taste profile:
-- Favorite cuisines: ${tasteProfile.favoriteCuisines.join(", ") || "none detected yet"}
-- Top ingredients: ${tasteProfile.topIngredients.join(", ") || "none yet"}
-- Protein preference: ${tasteProfile.proteinPreference}
-- Preferred meal types: ${JSON.stringify(tasteProfile.preferredMealTypes)}
-- Spice level: ${tasteProfile.spiceLevel}
-- Allergies to avoid: ${tasteProfile.allergyAvoidances.join(", ") || "none"}
-- Discovery score: ${Math.round(tasteProfile.discoveryScore * 100)}% (${tasteProfile.totalOrders} total orders)
-
-Macro targets: ${calorieTarget} calories/day, ${proteinTarget}g protein/day
-Daily split: breakfast 25%, lunch 35%, dinner 30%, snack 10%
-
-Available meals:
-${JSON.stringify(mealSummaries)}
-
-Discovery meals to mix in (~20%): ${JSON.stringify(discoveryMeals.slice(0, 10))}
-
-Generate a 7-day plan (28 meals total). Include ~6 discovery meals. Match taste preferences while hitting macro targets. Give each meal a confidence score and brief reason.`;
-
   // Try AI generation
-  const aiResponse = await callOpenRouter(systemPrompt, userPrompt);
+  const aiResponse = await callAiRouter({
+    tasteProfile: {
+      favoriteCuisines: tasteProfile.favoriteCuisines,
+      topIngredients: tasteProfile.topIngredients,
+      proteinPreference: tasteProfile.proteinPreference,
+      preferredMealTypes: tasteProfile.preferredMealTypes,
+      spiceLevel: tasteProfile.spiceLevel,
+      allergyAvoidances: tasteProfile.allergyAvoidances,
+      discoveryScore: tasteProfile.discoveryScore,
+      totalOrders: tasteProfile.totalOrders,
+    },
+    calorieTarget,
+    proteinTarget,
+    availableMeals: mealSummaries,
+    discoveryMealIds: discoveryMeals.slice(0, 10).map((meal) => meal.id),
+  });
 
   if (aiResponse) {
     try {

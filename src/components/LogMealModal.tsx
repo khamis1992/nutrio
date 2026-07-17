@@ -101,7 +101,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
       let imageLookup = new Map<string, MealImageLookupRow>();
       if (namesNeedingImages.length > 0) {
         const { data: mealRows, error: mealError } = await supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select("id, name, image_url")
           .in("name", namesNeedingImages);
 

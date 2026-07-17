@@ -71,7 +71,7 @@ export async function getCachedRestaurant(id: string) {
 
   if (!data) {
     const { data: restaurant } = await supabase
-      .from("restaurants")
+      .from("public_restaurant_catalog" as "restaurants")
       .select("*")
       .eq("id", id)
       .single();
@@ -91,7 +91,7 @@ export async function getCachedMeal(id: string) {
 
   if (!data) {
     const { data: meal } = await supabase
-      .from("meals")
+      .from("public_meal_catalog" as "meals")
       .select("*, restaurants(name, logo_url)")
       .eq("id", id)
       .single();

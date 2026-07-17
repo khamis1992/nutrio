@@ -131,14 +131,14 @@ describe("ActiveOrderBanner", () => {
           }),
         };
       }
-      if (table === "meals") {
+      if (table === "public_meal_catalog") {
         return {
           select: vi.fn().mockReturnValue({
             in: vi.fn().mockResolvedValue({ data: mockMeals, error: null }),
           }),
         };
       }
-      if (table === "restaurants") {
+      if (table === "public_restaurant_catalog") {
         return {
           select: vi.fn().mockReturnValue({
             in: vi.fn().mockResolvedValue({ data: mockRestaurants, error: null }),
@@ -180,10 +180,10 @@ describe("ActiveOrderBanner", () => {
           }),
         };
       }
-      if (table === "meals") {
+      if (table === "public_meal_catalog") {
         return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ data: mockMeals, error: null }) }) };
       }
-      if (table === "restaurants") {
+      if (table === "public_restaurant_catalog") {
         return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ data: mockRestaurants, error: null }) }) };
       }
       return { select: vi.fn() };

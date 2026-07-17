@@ -50,7 +50,7 @@ export function useFeaturedRestaurants() {
 
         const [restaurantsResult, mealCountsResult] = await Promise.all([
           supabase
-            .from("restaurants")
+            .from("public_restaurant_catalog" as "restaurants")
             .select(`
               id,
               name,
@@ -63,7 +63,7 @@ export function useFeaturedRestaurants() {
             .eq("approval_status", "approved")
             .eq("is_active", true),
           supabase
-            .from("meals")
+            .from("public_meal_catalog" as "meals")
             .select("restaurant_id, id")
             .in("restaurant_id", restaurantIds)
             .eq("is_available", true),

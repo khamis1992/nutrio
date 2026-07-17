@@ -41,7 +41,7 @@ export default function LiveMap() {
         const restaurantId = schedule.restaurant_id;
         if (restaurantId) {
           const { data: restaurant } = await supabase
-            .from("restaurants")
+            .from("public_restaurant_catalog" as "restaurants")
             .select("name, address, latitude, longitude")
             .eq("id", restaurantId)
             .single();
@@ -59,14 +59,14 @@ export default function LiveMap() {
         // If no direct restaurant_id, try fetching via the meal
         if (!result.restaurant && schedule.meal_id) {
           const { data: meal } = await supabase
-            .from("meals")
+            .from("public_meal_catalog" as "meals")
             .select("restaurant_id")
             .eq("id", schedule.meal_id)
             .single();
 
           if (meal?.restaurant_id) {
             const { data: restaurant } = await supabase
-              .from("restaurants")
+              .from("public_restaurant_catalog" as "restaurants")
               .select("name, address, latitude, longitude")
               .eq("id", meal.restaurant_id)
               .single();

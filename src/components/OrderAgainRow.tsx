@@ -43,7 +43,7 @@ export function OrderAgainRow() {
         const result: PastOrder[] = [];
 
         const { data: meals } = await supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select("id, name, restaurant_id")
           .in("id", mealIds);
 
@@ -58,7 +58,7 @@ export function OrderAgainRow() {
             .filter((id): id is string => typeof id === "string" && id.length > 0),
         )];
         const { data: restaurants } = await supabase
-          .from("restaurants")
+          .from("public_restaurant_catalog" as "restaurants")
           .select("id, name")
           .in("id", restIds);
 

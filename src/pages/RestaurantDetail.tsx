@@ -148,7 +148,7 @@ const RestaurantDetail = () => {
     try {
       // First, fetch the restaurant
       const { data: restaurantData, error: restaurantError } = await supabase
-        .from("restaurants")
+        .from("public_restaurant_catalog" as "restaurants")
         .select("*")
         .eq("id", id)
         .single();
@@ -184,7 +184,7 @@ const RestaurantDetail = () => {
       // Then fetch meals - don't fail if meals query has issues
       try {
         const { data: mealsData, error: mealsError } = await supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select("*")
           .eq("restaurant_id", id)
           .eq("approval_status", "approved")

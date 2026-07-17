@@ -30,7 +30,7 @@ export function useLandingStats(): LandingStats {
       try {
         const [restaurantsRes, membersRes, ordersRes, ratingRes] = await Promise.all([
           supabase
-            .from("restaurants")
+            .from("public_restaurant_catalog" as "restaurants")
             .select("*", { count: "exact", head: true })
             .eq("approval_status", "approved")
             .eq("is_active", true),

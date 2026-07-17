@@ -56,7 +56,7 @@ describe("useFeaturedRestaurants", () => {
           }),
         };
       }
-      if (table === "restaurants") {
+      if (table === "public_restaurant_catalog") {
         return {
           select: vi.fn().mockReturnValue({
             in: vi.fn().mockReturnValue({
@@ -67,7 +67,7 @@ describe("useFeaturedRestaurants", () => {
           }),
         };
       }
-      if (table === "meals") {
+      if (table === "public_meal_catalog") {
         return {
           select: vi.fn().mockReturnValue({
             in: vi.fn().mockReturnValue({
@@ -144,7 +144,7 @@ describe("useFeaturedRestaurants", () => {
           }),
         };
       }
-      if (table === "restaurants") {
+      if (table === "public_restaurant_catalog") {
         return {
           select: vi.fn().mockReturnValue({
             in: vi.fn().mockReturnValue({
@@ -155,7 +155,7 @@ describe("useFeaturedRestaurants", () => {
           }),
         };
       }
-      if (table === "meals") {
+      if (table === "public_meal_catalog") {
         return {
           select: vi.fn().mockReturnValue({
             in: vi.fn().mockReturnValue({
@@ -196,7 +196,7 @@ describe("useFeaturedRestaurants", () => {
           }),
         };
       }
-      if (table === "restaurants") {
+      if (table === "public_restaurant_catalog") {
         return {
           select: vi.fn().mockReturnValue({
             in: vi.fn().mockReturnValue({
@@ -207,7 +207,7 @@ describe("useFeaturedRestaurants", () => {
           }),
         };
       }
-      if (table === "meals") {
+      if (table === "public_meal_catalog") {
         return {
           select: vi.fn().mockReturnValue({
             in: vi.fn().mockReturnValue({

@@ -94,7 +94,7 @@ export function useTopMeals() {
       if (mealIds.length > 0) {
         // Fetch meals
         const { data: meals, error: mealsError } = await supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select("id, name, image_url, calories, protein_g, rating, prep_time_minutes, restaurant_id")
           .in("id", mealIds);
         
@@ -105,7 +105,7 @@ export function useTopMeals() {
           const restaurantIds = meals.map((m: Record<string, unknown>) => m.restaurant_id as string).filter(Boolean);
           if (restaurantIds.length > 0) {
             const { data: restaurants, error: restaurantsError } = await supabase
-              .from("restaurants")
+              .from("public_restaurant_catalog" as "restaurants")
               .select("id, name")
               .in("id", restaurantIds);
             

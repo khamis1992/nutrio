@@ -89,7 +89,7 @@ export function createFoodProviderRegistry(userId: string): FoodProviderRegistry
     id: "nutrio",
     async search(query, limit) {
       const { data, error } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select("id, name, vendor, calories, protein_g, carbs_g, fat_g, fiber_g, image_url")
         .is("deleted_at", null)
         .eq("is_available", true)

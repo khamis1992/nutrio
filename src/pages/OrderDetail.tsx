@@ -275,7 +275,7 @@ const OrderDetail = () => {
       if (error) throw error;
 
       const { data: mealData, error: mealError } = await supabase
-        .from("meals")
+        .from("public_meal_catalog" as "meals")
         .select(`
           id,
           name,

@@ -81,7 +81,7 @@ export async function calculateTasteProfile(userId: string): Promise<TasteProfil
 
     // Fetch meal details
     const { data: meals, error: mealError } = await supabase
-      .from("meals")
+      .from("public_meal_catalog" as "meals")
       .select("id, name, meal_type, restaurant_id, ingredients, calories, protein_g")
       .in("id", mealIds);
 
@@ -91,7 +91,7 @@ export async function calculateTasteProfile(userId: string): Promise<TasteProfil
 
     // Get all available meals for discovery calculation
     const { count: totalAvailableMeals } = await supabase
-      .from("meals")
+      .from("public_meal_catalog" as "meals")
       .select("*", { count: "exact", head: true })
       .eq("is_available", true);
 

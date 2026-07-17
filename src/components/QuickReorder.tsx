@@ -83,7 +83,7 @@ async function fetchPastOrders(userId: string): Promise<QuickMeal[]> {
   if (mealIds.length === 0) return [];
 
   const { data: meals, error: mealsError } = await supabase
-    .from("meals")
+    .from("public_meal_catalog" as "meals")
     .select("id, name, image_url, restaurant_id, price")
     .in("id", mealIds)
     .eq("is_available", true);
@@ -98,7 +98,7 @@ async function fetchPastOrders(userId: string): Promise<QuickMeal[]> {
       .filter((restaurantId): restaurantId is string => Boolean(restaurantId)),
   )];
   const { data: restaurants, error: restaurantsError } = restIds.length > 0
-    ? await supabase.from("restaurants").select("id, name").in("id", restIds)
+    ? await supabase.from("public_restaurant_catalog" as "restaurants").select("id, name").in("id", restIds)
     : { data: null, error: null };
 
   if (restaurantsError) throw restaurantsError;

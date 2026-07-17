@@ -807,7 +807,7 @@ const Dashboard = () => {
       const mealIds = Array.from(new Set(activeSchedules.map((schedule) => schedule.meal_id).filter(Boolean)));
       const { data: mealsData, error: mealsError } = mealIds.length
         ? await supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select("id, name, restaurant_id")
           .in("id", mealIds)
         : { data: [], error: null };
@@ -820,7 +820,7 @@ const Dashboard = () => {
         Array.from(mealsMap.values()).map((meal) => meal.restaurant_id).filter(Boolean) as string[]
       ));
       const { data: restaurantsData, error: restaurantsError } = restaurantIds.length
-        ? await supabase.from("restaurants").select("id, name").in("id", restaurantIds)
+        ? await supabase.from("public_restaurant_catalog" as "restaurants").select("id, name").in("id", restaurantIds)
         : { data: [], error: null };
       if (restaurantsError) throw restaurantsError;
 
@@ -936,7 +936,7 @@ const Dashboard = () => {
       const mealIds = Array.from(new Set(todaySchedules.map((s) => s.meal_id).filter(Boolean)));
       const { data: mealsData, error: mealsError } = mealIds.length
         ? await supabase
-          .from("meals")
+          .from("public_meal_catalog" as "meals")
           .select("id, name, image_url, calories, protein_g, carbs_g, fat_g, restaurant_id")
           .in("id", mealIds)
         : { data: [], error: null };
@@ -950,7 +950,7 @@ const Dashboard = () => {
         ...Array.from(mealsMap.values()).map((meal) => meal.restaurant_id).filter(Boolean),
       ] as string[]));
       const { data: restaurantsData, error: restaurantsError } = restaurantIds.length
-        ? await supabase.from("restaurants").select("id, name").in("id", restaurantIds)
+        ? await supabase.from("public_restaurant_catalog" as "restaurants").select("id, name").in("id", restaurantIds)
         : { data: [], error: null };
       if (restaurantsError) throw restaurantsError;
 
