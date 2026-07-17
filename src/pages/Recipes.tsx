@@ -1,18 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Plus, ChefHat, Flame, Beef, Wheat, Droplets, Users, Trash2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getRecipes, deleteRecipe, type Recipe } from "@/lib/recipeStore";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Recipes() {
   const navigate = useNavigate();
-  const [recipes, setRecipes] = useState<Recipe[]>(() => getRecipes());
+  const { user } = useAuth();
+  const [recipes, setRecipes] = useState<Recipe[]>(() => getRecipes(user?.id));
+
+  useEffect(() => {
+    setRecipes(getRecipes(user?.id));
+  }, [user?.id]);
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    deleteRecipe(id);
-    setRecipes(getRecipes());
+    if (!user?.id) return;
+    deleteRecipe(user.id, id);
+    setRecipes(getRecipes(user.id));
   };
 
   return (

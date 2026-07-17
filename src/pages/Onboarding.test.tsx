@@ -189,7 +189,7 @@ describe("Onboarding", () => {
   });
 
   it("restores a saved step", async () => {
-    localStorage.setItem("nutrio_onboarding_progress", JSON.stringify({
+    localStorage.setItem("nutrio_onboarding_progress:test-user-id", JSON.stringify({
       step: 2,
       data: {
         goal: "lose",
@@ -207,6 +207,32 @@ describe("Onboarding", () => {
     renderPage();
     expect(await screen.findByText("Male")).toBeInTheDocument();
     expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: "Welcome back!" }));
+  });
+
+  it("never restores another account's health draft", async () => {
+    localStorage.setItem("nutrio_onboarding_progress:other-user-id", JSON.stringify({
+      step: 2,
+      data: {
+        goal: "lose",
+        gender: "female",
+        age: "44",
+        height: "160",
+        weight: "60",
+        targetWeight: "55",
+        activityLevel: "active",
+        trainingDaysPerWeek: "5",
+        foodPreferences: ["Keto"],
+        allergies: ["Peanuts"],
+      },
+    }));
+
+    renderPage();
+
+    expect(await screen.findByText("Lose Weight")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "20");
+    expect(mockToast).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Welcome back!" }),
+    );
   });
 
   it("saves quick-start values using the current profile schema", async () => {

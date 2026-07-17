@@ -135,8 +135,13 @@ const calculateMacros = (calories: number, goal: Goal, foodPreferences: string[]
   };
 };
 
-const ONBOARDING_STORAGE_KEY = 'nutrio_onboarding_progress';
-const AUTOSAVE_KEY = 'nutrio_onboarding_draft';
+const LEGACY_ONBOARDING_STORAGE_KEY = 'nutrio_onboarding_progress';
+const LEGACY_AUTOSAVE_KEY = 'nutrio_onboarding_draft';
+
+const getOnboardingStorageKeys = (userId: string) => ({
+  progress: `${LEGACY_ONBOARDING_STORAGE_KEY}:${userId}`,
+  draft: `${LEGACY_AUTOSAVE_KEY}:${userId}`,
+});
 
 const ONBOARDING_STEPS = [
   { id: 'goal', label: 'Your Goal', icon: Target },
@@ -186,6 +191,7 @@ const Onboarding = () => {
   } | null>(null);
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [draftData, setDraftData] = useState<{ data: OnboardingData; step: number; savedAt: string } | null>(null);
+  const [hydratedStorageUserId, setHydratedStorageUserId] = useState<string | null>(null);
   const [data, setData] = useState<OnboardingData>({
     goal: null,
     gender: null,
@@ -213,11 +219,21 @@ const Onboarding = () => {
     }
   }, [authLoading, navigate, profile?.onboarding_completed, profileLoading, user]);
 
-  // Load saved progress from localStorage on mount
+  // Health and body-metric drafts are scoped to the authenticated account.
+  // Legacy global keys are deliberately deleted instead of migrated because
+  // their owner cannot be established safely on a shared device.
   useEffect(() => {
-    const savedProgress = localStorage.getItem(ONBOARDING_STORAGE_KEY);
-    if (savedProgress) {
-      try {
+    if (!user) return;
+
+    const storageKeys = getOnboardingStorageKeys(user.id);
+    localStorage.removeItem(LEGACY_ONBOARDING_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_AUTOSAVE_KEY);
+    setDraftData(null);
+    setShowRecoveryDialog(false);
+
+    const savedProgress = localStorage.getItem(storageKeys.progress);
+    try {
+      if (savedProgress) {
         const parsed = JSON.parse(savedProgress);
         if (parsed.data) {
           setData(parsed.data);
@@ -229,34 +245,56 @@ const Onboarding = () => {
             description: `Continuing from where you left off (Step ${parsed.step} of ${totalSteps})`,
           });
         }
-      } catch (e) {
-        console.error('Failed to parse saved onboarding progress:', e);
       }
-    }
-  }, [toast]);
 
-  // Save progress to localStorage whenever data or step changes
+      const draft = localStorage.getItem(storageKeys.draft);
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        const savedAt = new Date(parsed.savedAt).getTime();
+        const hoursSinceSave = (Date.now() - savedAt) / (1000 * 60 * 60);
+
+        if (Number.isFinite(savedAt) && hoursSinceSave < 24 && parsed.step > 1) {
+          setDraftData(parsed);
+          setShowRecoveryDialog(true);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse saved onboarding progress:', e);
+      localStorage.removeItem(storageKeys.progress);
+      localStorage.removeItem(storageKeys.draft);
+    } finally {
+      setHydratedStorageUserId(user.id);
+    }
+  }, [toast, user]);
+
+  // Save progress only after the current account's storage has been loaded.
+  // This prevents default values from overwriting a saved draft during mount.
   useEffect(() => {
-    if (step < totalSteps) {
-      localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify({
-        step,
-        data,
-        timestamp: new Date().toISOString(),
-      }));
-    }
-  }, [step, data]);
+    if (!user || hydratedStorageUserId !== user.id || step >= totalSteps) return;
 
-  // Clear saved progress when onboarding is completed
+    const storageKeys = getOnboardingStorageKeys(user.id);
+    localStorage.setItem(storageKeys.progress, JSON.stringify({
+      step,
+      data,
+      timestamp: new Date().toISOString(),
+    }));
+  }, [step, data, hydratedStorageUserId, user]);
+
   const clearSavedProgress = () => {
-    localStorage.removeItem(ONBOARDING_STORAGE_KEY);
-    localStorage.removeItem(AUTOSAVE_KEY);
+    saveDraft.cancel();
+    if (user) {
+      const storageKeys = getOnboardingStorageKeys(user.id);
+      localStorage.removeItem(storageKeys.progress);
+      localStorage.removeItem(storageKeys.draft);
+    }
+    localStorage.removeItem(LEGACY_ONBOARDING_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_AUTOSAVE_KEY);
   };
 
-  // Auto-save draft with debounce
   const saveDraft = useMemo(
-    () => debounce((currentData: OnboardingData, currentStep: number) => {
+    () => debounce((storageKey: string, currentData: OnboardingData, currentStep: number) => {
       localStorage.setItem(
-        AUTOSAVE_KEY,
+        storageKey,
         JSON.stringify({
           data: currentData,
           step: currentStep,
@@ -267,30 +305,14 @@ const Onboarding = () => {
     []
   );
 
-  // Trigger auto-save whenever data or step changes
   useEffect(() => {
-    if (step < totalSteps) {
-      saveDraft(data, step);
+    if (!user || hydratedStorageUserId !== user.id || step >= totalSteps) {
+      saveDraft.cancel();
+      return;
     }
-  }, [step, data, saveDraft]);
-
-  // Load draft on mount and show recovery dialog if less than 24 hours old
-  useEffect(() => {
-    const draft = localStorage.getItem(AUTOSAVE_KEY);
-    if (draft) {
-      try {
-        const parsed = JSON.parse(draft);
-        const hoursSinceSave = (Date.now() - new Date(parsed.savedAt).getTime()) / (1000 * 60 * 60);
-
-        if (hoursSinceSave < 24 && parsed.step > 1) {
-          setDraftData(parsed);
-          setShowRecoveryDialog(true);
-        }
-      } catch (e) {
-        console.error("Failed to parse onboarding draft:", e);
-      }
-    }
-  }, []);
+    saveDraft(getOnboardingStorageKeys(user.id).draft, data, step);
+    return () => saveDraft.cancel();
+  }, [step, data, hydratedStorageUserId, saveDraft, user]);
 
   const handleRecoveryContinue = () => {
     if (draftData) {
@@ -301,12 +323,15 @@ const Onboarding = () => {
   };
 
   const handleRecoveryStartFresh = () => {
-    localStorage.removeItem(AUTOSAVE_KEY);
+    if (user) {
+      localStorage.removeItem(getOnboardingStorageKeys(user.id).draft);
+    }
+    setDraftData(null);
     setShowRecoveryDialog(false);
   };
 
   const handleSkip = async () => {
-    localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+    clearSavedProgress();
     navigate("/dashboard");
   };
 
@@ -324,7 +349,9 @@ const Onboarding = () => {
       allergies: [],
     };
     setData(quickStartData);
-    saveDraft(quickStartData, 1);
+    if (user) {
+      saveDraft(getOnboardingStorageKeys(user.id).draft, quickStartData, 1);
+    }
     const age = 30;
     const height = 170;
     const weight = 75;

@@ -7,13 +7,18 @@ import { getRecipe } from "@/lib/recipeStore";
 import { getCatalog } from "@/lib/ingredientCatalog";
 import { addRecipeIngredientsToCart } from "@/lib/cartStore";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [ordered, setOrdered] = useState(false);
 
-  const recipe = useMemo(() => (id ? getRecipe(id) : undefined), [id]);
+  const recipe = useMemo(
+    () => (id ? getRecipe(user?.id, id) : undefined),
+    [id, user?.id],
+  );
   const catalog = useMemo(() => getCatalog(), []);
 
   if (!recipe) {

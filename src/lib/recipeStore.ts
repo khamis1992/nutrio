@@ -23,22 +23,52 @@ export interface Recipe {
   updatedAt: string;
 }
 
-const STORAGE_KEY = "nutrio_recipes";
+const LEGACY_STORAGE_KEY = "nutrio_recipes";
+const STORAGE_PREFIX = "nutrio:recipes:v2:";
+const MAX_RECIPES = 100;
 
-function generateId(): string {
-  return `recipe_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+function storageKey(userId: string | null | undefined): string | null {
+  return userId && /^[A-Za-z0-9_-]{1,160}$/.test(userId)
+    ? `${STORAGE_PREFIX}${userId}`
+    : null;
 }
 
-export function getRecipes(): Recipe[] {
-  const raw = localStorage.getItem(STORAGE_KEY);
+function isRecipe(value: unknown): value is Recipe {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const recipe = value as Partial<Recipe>;
+  return typeof recipe.id === "string" && recipe.id.length <= 160 &&
+    typeof recipe.name === "string" && recipe.name.length <= 160 &&
+    typeof recipe.description === "string" && recipe.description.length <= 2_000 &&
+    Number.isSafeInteger(recipe.servings) && Number(recipe.servings) >= 1 &&
+    Number(recipe.servings) <= 100 && Array.isArray(recipe.ingredients) &&
+    recipe.ingredients.length <= 100 && typeof recipe.instructions === "string" &&
+    recipe.instructions.length <= 10_000 && typeof recipe.createdAt === "string" &&
+    typeof recipe.updatedAt === "string";
+}
+
+function generateId(): string {
+  return `recipe_${crypto.randomUUID()}`;
+}
+
+export function getRecipes(userId?: string | null): Recipe[] {
+  if (typeof localStorage === "undefined") return [];
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
+  const key = storageKey(userId);
+  if (!key) return [];
+  const raw = localStorage.getItem(key);
   if (raw) {
-    try { return JSON.parse(raw); } catch { /* fall through */ }
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? parsed.filter(isRecipe).slice(0, MAX_RECIPES) : [];
+    } catch { /* fall through */ }
   }
   return [];
 }
 
-function saveRecipes(recipes: Recipe[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
+function saveRecipes(userId: string, recipes: Recipe[]): void {
+  const key = storageKey(userId);
+  if (!key || typeof localStorage === "undefined") return;
+  localStorage.setItem(key, JSON.stringify(recipes.filter(isRecipe).slice(0, MAX_RECIPES)));
 }
 
 function calculateNutrition(ingredients: RecipeIngredient[], servings: number) {
@@ -62,6 +92,7 @@ function calculateNutrition(ingredients: RecipeIngredient[], servings: number) {
 }
 
 export function createRecipe(
+  userId: string,
   data: Omit<Recipe, "id" | "createdAt" | "updatedAt" | "calories_per_serving" | "protein_per_serving" | "carbs_per_serving" | "fat_per_serving">
 ): Recipe {
   const nutrition = calculateNutrition(data.ingredients, data.servings);
@@ -72,13 +103,13 @@ export function createRecipe(
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  const recipes = [recipe, ...getRecipes()];
-  saveRecipes(recipes);
+  const recipes = [recipe, ...getRecipes(userId)];
+  saveRecipes(userId, recipes);
   return recipe;
 }
 
-export function updateRecipe(id: string, updates: Partial<Recipe>): Recipe | null {
-  const recipes = getRecipes();
+export function updateRecipe(userId: string, id: string, updates: Partial<Recipe>): Recipe | null {
+  const recipes = getRecipes(userId);
   const idx = recipes.findIndex((r) => r.id === id);
   if (idx === -1) return null;
 
@@ -88,16 +119,16 @@ export function updateRecipe(id: string, updates: Partial<Recipe>): Recipe | nul
     Object.assign(merged, nutrition);
   }
   recipes[idx] = merged;
-  saveRecipes(recipes);
+  saveRecipes(userId, recipes);
   return merged;
 }
 
-export function deleteRecipe(id: string): boolean {
-  const recipes = getRecipes().filter((r) => r.id !== id);
-  saveRecipes(recipes);
+export function deleteRecipe(userId: string, id: string): boolean {
+  const recipes = getRecipes(userId).filter((r) => r.id !== id);
+  saveRecipes(userId, recipes);
   return true;
 }
 
-export function getRecipe(id: string): Recipe | undefined {
-  return getRecipes().find((r) => r.id === id);
+export function getRecipe(userId: string | null | undefined, id: string): Recipe | undefined {
+  return getRecipes(userId).find((r) => r.id === id);
 }

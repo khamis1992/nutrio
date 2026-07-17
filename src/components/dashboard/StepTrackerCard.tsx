@@ -4,20 +4,24 @@ import { motion } from "framer-motion";
 import { Footprints, Target } from "lucide-react";
 import { getStepData, mergeHealthSteps, setDailyGoal, type StepData } from "@/lib/stepStore";
 import { getCachedHealthData } from "@/lib/healthKit";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function StepTrackerCard() {
   const { t } = useLanguage();
-  const [data, setData] = useState<StepData>(() => getStepData());
+  const { user } = useAuth();
+  const [data, setData] = useState<StepData>(() => getStepData(user?.id));
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState(String(data.dailyGoal));
 
   useEffect(() => {
-    const health = getCachedHealthData();
+    setData(getStepData(user?.id));
+    if (!user?.id) return;
+    const health = getCachedHealthData(user.id);
     if (health?.steps) {
-      const merged = mergeHealthSteps(health.steps);
+      const merged = mergeHealthSteps(user.id, health.steps);
       setData(merged);
     }
-  }, []);
+  }, [user?.id]);
 
   const pct = Math.min(100, Math.round((data.today.steps / data.dailyGoal) * 100));
   const remaining = Math.max(0, data.dailyGoal - data.today.steps);
@@ -25,7 +29,8 @@ export function StepTrackerCard() {
   const handleSaveGoal = () => {
     const goal = parseInt(goalInput, 10);
     if (!isNaN(goal) && goal >= 1000 && goal <= 50000) {
-      const updated = setDailyGoal(goal);
+      if (!user?.id) return;
+      const updated = setDailyGoal(user.id, goal);
       setData(updated);
     }
     setEditingGoal(false);

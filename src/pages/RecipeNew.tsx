@@ -8,6 +8,7 @@ import { getCatalog, type Ingredient } from "@/lib/ingredientCatalog";
 import { createRecipe, type RecipeIngredient } from "@/lib/recipeStore";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const CATEGORIES = [
   { key: "all", label: "All" },
@@ -24,6 +25,7 @@ const EMOJIS = ["🍽️", "🥗", "🍲", "🥘", "🍝", "🍛", "🥩", "🍗
 
 export default function RecipeNew() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [servings, setServings] = useState(2);
@@ -88,10 +90,11 @@ export default function RecipeNew() {
   }, [addedIngredients, servings, catalog]);
 
   const handleSave = () => {
+    if (!user?.id) { toast.error("Sign in to save a recipe"); return; }
     if (!name.trim()) { toast.error("Recipe name is required"); return; }
     if (addedIngredients.length === 0) { toast.error("Add at least one ingredient"); return; }
 
-    createRecipe({
+    createRecipe(user.id, {
       name: name.trim(),
       description: description.trim() || "A custom Nutrio recipe",
       servings,

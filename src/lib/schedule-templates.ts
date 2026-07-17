@@ -2,7 +2,8 @@ import { addDays, differenceInCalendarDays, format } from "date-fns";
 
 import type { ScheduleMealInput } from "@/lib/schedule-meals";
 
-const STORAGE_KEY = "nutrio:schedule-templates:v1";
+const LEGACY_STORAGE_KEY = "nutrio:schedule-templates:v1";
+const STORAGE_PREFIX = "nutrio:schedule-templates:v2:";
 
 export interface ScheduleTemplateSource {
   scheduled_date: string;
@@ -34,23 +35,28 @@ export interface ScheduleTemplate {
   slots: ScheduleTemplateSlot[];
 }
 
-const readAll = (): ScheduleTemplate[] => {
+const storageKey = (userId: string) => `${STORAGE_PREFIX}${userId}`;
+
+const readAll = (userId: string): ScheduleTemplate[] => {
   if (typeof localStorage === "undefined") return [];
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    const parsed = JSON.parse(localStorage.getItem(storageKey(userId)) || "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter((template) => template?.userId === userId).slice(-12)
+      : [];
   } catch {
     return [];
   }
 };
 
-const writeAll = (templates: ScheduleTemplate[]) => {
+const writeAll = (userId: string, templates: ScheduleTemplate[]) => {
   if (typeof localStorage === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates.slice(-12)));
+  localStorage.setItem(storageKey(userId), JSON.stringify(templates.slice(-12)));
 };
 
 export function listScheduleTemplates(userId: string): ScheduleTemplate[] {
-  return readAll().filter((template) => template.userId === userId);
+  return readAll(userId);
 }
 
 export function saveScheduleTemplate(
@@ -89,12 +95,16 @@ export function saveScheduleTemplate(
     createdAt: new Date().toISOString(),
     slots,
   };
-  writeAll([...readAll(), template]);
+  writeAll(userId, [...readAll(userId), template]);
   return template;
 }
 
 export function deleteScheduleTemplate(userId: string, templateId: string) {
-  writeAll(readAll().filter((template) => template.userId !== userId || template.id !== templateId));
+  writeAll(userId, readAll(userId).filter((template) => template.id !== templateId));
+}
+
+export function clearScheduleTemplatesForUser(userId: string): void {
+  if (typeof localStorage !== "undefined") localStorage.removeItem(storageKey(userId));
 }
 
 export function templateToScheduleItems(template: ScheduleTemplate, targetWeekStart: Date): ScheduleMealInput[] {

@@ -521,65 +521,22 @@ export const biometricAuth = {
   },
 
   /**
-   * Set credentials for biometric login (stores email/password securely)
+   * Remove the legacy biometric-login record used by older builds.
+   *
+   * Older versions stored the user's raw email and password under this
+   * alias. Nutrio now relies on Supabase's revocable session, which is
+   * already persisted in Keychain / Keystore by the storage adapter. The
+   * legacy record must never be read or migrated because doing so would keep
+   * a reusable password on the device.
    */
-  setCredentials: async (email: string, password: string): Promise<void> => {
-    if (!isNative) return;
-    try {
-      await NativeBiometric.setCredentials({
-        username: email,
-        password: password,
-        server: 'com.nutriofuel.app',
-      });
-    } catch (error) {
-      console.error('Error setting biometric credentials:', error);
-    }
-  },
-
-  /**
-   * Get stored credentials for biometric login
-   */
-  getCredentials: async (): Promise<{ username: string; password: string } | null> => {
-    if (!isNative) return null;
-    try {
-      const credentials = await NativeBiometric.getCredentials({
-        server: 'com.nutriofuel.app',
-      });
-      return {
-        username: credentials.username,
-        password: credentials.password,
-      };
-    } catch {
-      return null;
-    }
-  },
-
-  /**
-   * Delete stored credentials
-   */
-  deleteCredentials: async (): Promise<void> => {
+  purgeLegacyCredentials: async (): Promise<void> => {
     if (!isNative) return;
     try {
       await NativeBiometric.deleteCredentials({
         server: 'com.nutriofuel.app',
       });
-    } catch (error) {
-      console.error('Error deleting biometric credentials:', error);
-    }
-  },
-
-  /**
-   * Check if credentials are stored
-   */
-  hasCredentials: async (): Promise<boolean> => {
-    if (!isNative) return false;
-    try {
-      const credentials = await NativeBiometric.getCredentials({
-        server: 'com.nutriofuel.app',
-      });
-      return !!credentials.username;
     } catch {
-      return false;
+      // A missing legacy record is the desired state.
     }
   },
 };
@@ -603,6 +560,7 @@ export const initializeNativeApp = async () => {
   if (!isNative) return;
 
   try {
+    await biometricAuth.purgeLegacyCredentials();
     await statusBar.setStyle(Style.Light);
     await statusBar.setOverlaysWebView(false);
 

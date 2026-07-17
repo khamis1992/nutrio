@@ -36,6 +36,16 @@ describe("offline mutation queue", () => {
       "meal-log": async () => { throw new Error("network unavailable"); },
     });
 
-    expect(readOfflineMutations()[0]).toMatchObject({ attempts: 1, lastError: "network unavailable" });
+    expect(readOfflineMutations()[0]).toMatchObject({ attempts: 1, lastError: "SYNC_FAILED" });
+  });
+
+  it("rejects oversized offline payloads before persistent storage", () => {
+    expect(() => enqueueOfflineMutation({
+      id: "large",
+      kind: "meal-log",
+      userId: "user-1",
+      payload: { note: "x".repeat(70 * 1024) },
+    })).toThrow("OFFLINE_PAYLOAD_TOO_LARGE");
+    expect(readOfflineMutations()).toEqual([]);
   });
 });

@@ -1,5 +1,8 @@
 const STORAGE_KEY = "nutrio:offline-mutations:v1";
 const MAX_QUEUE_SIZE = 100;
+const MAX_ITEM_BYTES = 64 * 1024;
+const MAX_ATTEMPTS = 10;
+const QUEUE_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 
 export type OfflineMutationKind = "meal-log" | "schedule-meals";
 
@@ -15,11 +18,33 @@ export interface OfflineMutation<T = unknown> {
 
 const storageAvailable = () => typeof localStorage !== "undefined";
 
+function isValidMutation(value: unknown): value is OfflineMutation {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const item = value as Partial<OfflineMutation>;
+  if (
+    typeof item.id !== "string" || item.id.length < 1 || item.id.length > 160 ||
+    (item.kind !== "meal-log" && item.kind !== "schedule-meals") ||
+    typeof item.userId !== "string" || item.userId.length < 1 || item.userId.length > 160 ||
+    typeof item.createdAt !== "string" ||
+    !Number.isSafeInteger(item.attempts) || Number(item.attempts) < 0 ||
+    Number(item.attempts) > MAX_ATTEMPTS
+  ) {
+    return false;
+  }
+  const createdAt = Date.parse(item.createdAt);
+  if (!Number.isFinite(createdAt) || createdAt < Date.now() - QUEUE_TTL_MS) return false;
+  try {
+    return new TextEncoder().encode(JSON.stringify(item.payload)).byteLength <= MAX_ITEM_BYTES;
+  } catch {
+    return false;
+  }
+}
+
 export function readOfflineMutations(): OfflineMutation[] {
   if (!storageAvailable()) return [];
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter(isValidMutation) : [];
   } catch {
     return [];
   }
@@ -33,6 +58,14 @@ function writeOfflineMutations(items: OfflineMutation[]) {
 export function enqueueOfflineMutation<T>(
   mutation: Omit<OfflineMutation<T>, "createdAt" | "attempts">,
 ): OfflineMutation<T> {
+  let payloadBytes = Number.POSITIVE_INFINITY;
+  try {
+    payloadBytes = new TextEncoder().encode(JSON.stringify(mutation.payload)).byteLength;
+  } catch {
+    throw new Error("OFFLINE_PAYLOAD_INVALID");
+  }
+  if (payloadBytes > MAX_ITEM_BYTES) throw new Error("OFFLINE_PAYLOAD_TOO_LARGE");
+
   const queue = readOfflineMutations();
   const existing = queue.find((item) => item.id === mutation.id);
   if (existing) return existing as OfflineMutation<T>;
@@ -78,8 +111,8 @@ export async function flushOfflineMutations(
     } catch (error) {
       next.push({
         ...mutation,
-        attempts: mutation.attempts + 1,
-        lastError: error instanceof Error ? error.message : "SYNC_FAILED",
+        attempts: Math.min(MAX_ATTEMPTS, mutation.attempts + 1),
+        lastError: "SYNC_FAILED",
       });
     }
   }
