@@ -45,7 +45,21 @@ export class RouteErrorBoundary extends Component<Props, State> {
 function RouteErrorFallback({ error }: { error?: Error }) {
   const navigate = useNavigate();
 
-  const handleReload = () => {
+  const handleReload = async () => {
+    try {
+      if ('caches' in window) {
+        const cacheNames = await window.caches.keys();
+        await Promise.allSettled(cacheNames.map((cacheName) => window.caches.delete(cacheName)));
+      }
+
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.allSettled(registrations.map((registration) => registration.unregister()));
+      }
+    } catch (reloadError) {
+      console.warn('Unable to clear app caches before reload:', reloadError);
+    }
+
     window.location.reload();
   };
 

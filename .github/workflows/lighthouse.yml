@@ -19,18 +19,25 @@ on:
 
 env:
   NODE_VERSION: '22'
+  LIGHTHOUSE_VERSION: '13.4.0'
+
+permissions:
+  contents: read
 
 jobs:
   audit:
     name: Lighthouse Audit on ${{ github.event.inputs.device }}
     runs-on: ubuntu-latest
+    env:
+      AUDIT_URL: ${{ inputs.url }}
+      AUDIT_DEVICE: ${{ inputs.device }}
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -40,12 +47,19 @@ jobs:
           sudo apt-get install -y google-chrome-stable
 
       - name: Install Lighthouse
-        run: npm install -g lighthouse
+        run: npm install --no-save "lighthouse@${LIGHTHOUSE_VERSION}"
+
+      - name: Validate audit target
+        run: >-
+          node -e "const u=new URL(process.env.AUDIT_URL); const h=u.hostname.toLowerCase();
+          if(u.protocol!=='https:' || u.username || u.password || (u.port && u.port!=='443') ||
+          (h!=='nutrio.me' && h!=='www.nutrio.me' && !h.endsWith('.nutrio.me')))
+          throw new Error('Only HTTPS Nutrio-owned hosts on port 443 may be audited');"
 
       - name: Run Lighthouse Desktop
         if: github.event.inputs.device == 'desktop' || github.event.inputs.device == 'both'
         run: |
-          lighthouse "${{ github.event.inputs.url }}" \
+          npx lighthouse "$AUDIT_URL" \
             --preset=desktop \
             --output=json \
             --output-path=lighthouse-desktop.json \
@@ -55,7 +69,7 @@ jobs:
       - name: Run Lighthouse Mobile
         if: github.event.inputs.device == 'mobile' || github.event.inputs.device == 'both'
         run: |
-          lighthouse "${{ github.event.inputs.url }}" \
+          npx lighthouse "$AUDIT_URL" \
             --output=json \
             --output-path=lighthouse-mobile.json \
             --chrome-path=$(which google-chrome-stable) \
@@ -106,7 +120,7 @@ jobs:
           ' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: lighthouse-results
           path: |
@@ -114,9 +128,10 @@ jobs:
           retention-days: 7
 
       - name: Check Thresholds
+        env:
+          DEVICE: ${{ inputs.device }}
         run: |
           THRESHOLD=50
-          DEVICE="${{ github.event.inputs.device }}"
 
           check_score() {
             local FILE=$1

@@ -23,6 +23,7 @@ const HIDDEN_NAV_PATHS = [
   "/notifications",
   "/settings",
   "/affiliate",
+  "/coach-programs",
 ];
 
 // Keep content clear of the native-style bottom tab bar.

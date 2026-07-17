@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LottieAnimation } from "@/components/motion/LottieAnimation";
+import nutrioOrbit from "@/assets/lottie/nutrio-orbit.json";
 import { spring, springBouncy } from "@/lib/animations";
 
 interface MacroRing {
@@ -122,6 +124,10 @@ export function PlanRevealAnimation({
         </h1>
 
         <div className="relative mb-8" style={{ width: 240, height: 240 }}>
+          <LottieAnimation
+            animationData={nutrioOrbit}
+            className="absolute -inset-8 h-[304px] w-[304px] opacity-70"
+          />
           <svg width="240" height="240" viewBox="0 0 240 240">
             <defs>
               <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">

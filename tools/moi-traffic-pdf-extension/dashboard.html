@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>حفظ مخالفات جميع المركبات PDF</title>
+    <link rel="stylesheet" href="dashboard.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="card">
+        <div class="eyebrow">المعالجة الكاملة — جميع المركبات</div>
+        <h1>حفظ مخالفات جميع المركبات</h1>
+        <p class="intro">
+          ستجمع الإضافة المركبات من جميع صفحات القائمة، ثم تحفظ كل مركبة في ملف PDF
+          مستقل بمقاس A4. يُحذف <bdi>00</bdi> من بداية رقم المركبة تلقائيًا.
+        </p>
+
+        <div class="notice">
+          <span class="notice-icon" aria-hidden="true">✓</span>
+          <div>
+            <strong>الحفظ آمن وقابل للاستئناف.</strong>
+            <p>أي ملف موجود مسبقًا لن يُستبدل؛ ستتخطاه الإضافة وتكمل بقية المركبات.</p>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="startButton" type="button">اختيار المجلد وبدء حفظ الجميع</button>
+          <button id="cancelButton" class="secondary" type="button" hidden>إيقاف بعد المركبة الحالية</button>
+        </div>
+
+        <div id="progress" class="progress-panel" hidden>
+          <div class="progress-heading">
+            <span class="spinner" aria-hidden="true"></span>
+            <span id="progressText">جاري التحضير…</span>
+          </div>
+
+          <div class="progress-track" aria-hidden="true">
+            <span id="progressBar"></span>
+          </div>
+
+          <div class="stats" aria-label="ملخص التقدم">
+            <div><strong id="processedCount">0</strong><span>تمت معالجتها</span></div>
+            <div><strong id="savedCount">0</strong><span>تم حفظها</span></div>
+            <div><strong id="skippedCount">0</strong><span>موجودة مسبقًا</span></div>
+            <div><strong id="failedCount">0</strong><span>تعذر حفظها</span></div>
+          </div>
+
+          <ul id="activityLog" class="activity-log" aria-label="آخر العمليات"></ul>
+        </div>
+
+        <div id="result" class="result" role="status" aria-live="polite" hidden></div>
+      </section>
+
+      <p class="privacy">
+        تعمل الإضافة محليًا داخل Chrome ولا ترسل بيانات المركبات إلى أي خادم.
+      </p>
+    </main>
+
+    <script src="dashboard.js"></script>
+  </body>
+</html>

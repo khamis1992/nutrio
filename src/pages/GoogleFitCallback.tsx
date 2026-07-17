@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getGoogleFitRedirectUri } from "@/services/health/googleFit";
 import { Loader2 } from "lucide-react";
 
 export default function GoogleFitCallback() {
@@ -49,7 +50,7 @@ export default function GoogleFitCallback() {
       setStatus("Connecting to Google Fit...");
 
       try {
-        const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
+        const redirectUri = getGoogleFitRedirectUri();
 
         const { error: exchangeError } = await supabase.functions.invoke("google-fit-token", {
           body: { code, codeVerifier, redirectUri },

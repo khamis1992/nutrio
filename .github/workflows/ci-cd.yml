@@ -5,49 +5,108 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
 
 env:
   NODE_VERSION: '22'
+
+permissions:
+  contents: read
 
 jobs:
   quality:
     name: Code Quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       - run: npm ci
+      - name: Audit all build dependencies
+        run: npm audit --audit-level=high
+      - name: Run repository security guardrails
+        run: npm run security:scan
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:run
       - run: npm run build
 
   e2e:
-    name: E2E Tests
+    name: Trusted E2E Tests
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || github.event_name == 'push')
     runs-on: ubuntu-latest
     needs: quality
     timeout-minutes: 30
+    environment: Trusted E2E
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout current main
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/heads/main
+          fetch-depth: 0
+      - name: Verify exact current main before lifecycle scripts
+        shell: bash
+        run: |
+          git fetch --force --no-tags origin main
+          trusted_sha="$(git rev-parse origin/main)"
+          checked_out_sha="$(git rev-parse HEAD)"
+          if [[ "$GITHUB_SHA" != "$trusted_sha" || "$checked_out_sha" != "$trusted_sha" ]]; then
+            echo "::error title=Untrusted E2E commit::This job only runs for the exact current origin/main commit."
+            exit 1
+          fi
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx --no-install playwright install --with-deps chromium
       - name: Run six-portal authentication gate
-        run: >-
-          npx playwright test
-          e2e/customer/auth.spec.ts
-          e2e/partner/auth.spec.ts
-          e2e/admin/auth.spec.ts
-          e2e/driver/auth.spec.ts
-          e2e/fleet/auth.spec.ts
-          e2e/coach/auth.spec.ts
-          --project=chromium
+        shell: bash
+        run: |
+          missing=0
+          for name in E2E_{CUSTOMER,ADMIN,PARTNER,DRIVER,FLEET,COACH}_{EMAIL,PASSWORD}; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error title=Missing E2E secret::$name is required"
+              missing=1
+            fi
+          done
+          if [[ -z "$E2E_ADMIN_TOTP_SECRET" ]]; then
+            echo "::error title=Missing E2E secret::E2E_ADMIN_TOTP_SECRET is required for the AAL2 admin gate"
+            missing=1
+          fi
+          if (( missing != 0 )); then
+            exit 1
+          fi
+
+          set +e
+          npx --no-install playwright test \
+            e2e/customer/auth.spec.ts \
+            e2e/partner/auth.spec.ts \
+            e2e/admin/auth.spec.ts \
+            e2e/driver/auth.spec.ts \
+            e2e/fleet/auth.spec.ts \
+            e2e/coach/auth.spec.ts \
+            --project=chromium \
+            --reporter=line \
+            --trace=off
+          test_status=$?
+
+          ALLOW_LOCAL_LAUNCH_GATE=1 npx --no-install playwright test \
+            --config=playwright.launch.config.ts \
+            --project=session-revocation
+          revoke_status=$?
+          set -e
+
+          if (( revoke_status != 0 )); then
+            echo "::error title=Session teardown failed::Dedicated test-account sessions were not fully revoked."
+          fi
+          if (( test_status != 0 || revoke_status != 0 )); then
+            exit 1
+          fi
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173/nutrio
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
@@ -56,6 +115,8 @@ jobs:
           E2E_CUSTOMER_PASSWORD: ${{ secrets.E2E_CUSTOMER_PASSWORD }}
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_ADMIN_TOTP_SECRET: ${{ secrets.E2E_ADMIN_TOTP_SECRET }}
+          E2E_ADMIN_TOTP_FACTOR_NAME: ${{ secrets.E2E_ADMIN_TOTP_FACTOR_NAME }}
           E2E_PARTNER_EMAIL: ${{ secrets.E2E_PARTNER_EMAIL }}
           E2E_PARTNER_PASSWORD: ${{ secrets.E2E_PARTNER_PASSWORD }}
           E2E_DRIVER_EMAIL: ${{ secrets.E2E_DRIVER_EMAIL }}
@@ -64,9 +125,3 @@ jobs:
           E2E_FLEET_PASSWORD: ${{ secrets.E2E_FLEET_PASSWORD }}
           E2E_COACH_EMAIL: ${{ secrets.E2E_COACH_EMAIL }}
           E2E_COACH_PASSWORD: ${{ secrets.E2E_COACH_PASSWORD }}
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7

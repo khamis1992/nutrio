@@ -4,8 +4,8 @@ import { sanitizeProperties } from "./analytics";
 describe("analytics", () => {
   describe("sanitizeProperties", () => {
     it("passes through non-sensitive properties", () => {
-      const result = sanitizeProperties({ user_id: "123", plan: "standard" });
-      expect(result.user_id).toBe("123");
+      const result = sanitizeProperties({ feature: "dashboard", plan: "standard" });
+      expect(result.feature).toBe("dashboard");
       expect(result.plan).toBe("standard");
     });
 
@@ -48,7 +48,7 @@ describe("analytics", () => {
         status: "completed",
         password: "hunter2",
       });
-      expect(result.order_id).toBe("ord-123");
+      expect(result.order_id).toBe("[REDACTED]");
       expect(result.amount).toBe(50);
       expect(result.email).toBe("[REDACTED]");
       expect(result.status).toBe("completed");
@@ -70,9 +70,9 @@ describe("analytics", () => {
       expect(result.refresh_token).toBe("[REDACTED]");
     });
 
-    it("does not redact api_key (not in sensitive list)", () => {
+    it("redacts api_key", () => {
       const result = sanitizeProperties({ api_key: "key789" });
-      expect(result.api_key).toBe("key789");
+      expect(result.api_key).toBe("[REDACTED]");
     });
 
     it("redacts user_password", () => {
@@ -85,9 +85,9 @@ describe("analytics", () => {
       expect(result).toEqual({});
     });
 
-    it("does not redact non-sensitive keys like user_id", () => {
+    it("redacts direct identifiers while preserving safe dimensions", () => {
       const result = sanitizeProperties({ user_id: "u1", plan: "basic" });
-      expect(result.user_id).toBe("u1");
+      expect(result.user_id).toBe("[REDACTED]");
       expect(result.plan).toBe("basic");
     });
   });

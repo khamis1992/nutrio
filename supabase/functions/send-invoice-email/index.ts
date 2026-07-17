@@ -1,19 +1,25 @@
-// Supabase Edge Function: Send Invoice Email (Phase 2 Automation)
-// Automatically sends invoice email when payment is completed
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
+import {
+  authenticateRequest,
+  enforceRateLimit,
+  errorResponse,
+  escapeHtml,
+  getServiceClient,
+  hasAdminAssurance,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requireInternalSecret,
+  requirePost,
+  type SecurityPrincipal,
+} from "../_shared/security.ts";
+import { getNotificationRecipient } from "../_shared/notificationRecipient.ts";
 
-// Environment variables
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const FROM_EMAIL = "Nutrio <billing@nutrio.app>";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface InvoiceRequest {
   paymentId: string;
@@ -24,9 +30,9 @@ interface PaymentData {
   id: string;
   user_id: string;
   amount: number;
-  payment_method: string;
+  payment_method: string | null;
   payment_type: string;
-  status: string;
+  status: string | null;
   created_at: string;
   gateway_reference?: string;
   invoice_id?: string;
@@ -36,18 +42,16 @@ interface PaymentData {
   } | null;
 }
 
-// Create Supabase client with service role
-const createSupabaseClient = () => {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("Supabase credentials not configured");
-  }
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-};
-
 // Generate invoice number
-const generateInvoiceNumber = (paymentId: string): string => {
-  const year = new Date().getFullYear();
-  const idPart = paymentId.replace(/-/g, "").slice(-6).toUpperCase();
+const generateInvoiceNumber = (
+  paymentId: string,
+  createdAt: string,
+): string => {
+  const year = new Date(createdAt).getUTCFullYear();
+  // A payment UUID is unique at the database boundary. Keeping all 128 bits
+  // makes the externally visible number deterministic and collision-resistant
+  // across retries without relying on a racy MAX(invoice_number) lookup.
+  const idPart = paymentId.replace(/-/g, "").toUpperCase();
   return `INV-${year}-${idPart}`;
 };
 
@@ -66,17 +70,20 @@ const formatCurrency = (amount: number): string => {
 };
 
 // Get payment type label
-const getPaymentTypeLabel = (type: string): string => {
+const getPaymentTypeLabel = (value: unknown): string => {
+  const type = String(value ?? "payment");
   const labels: Record<string, string> = {
     wallet_topup: "Wallet Top-up",
     subscription: "Subscription Payment",
     order: "Order Payment",
   };
-  return labels[type] || type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  return labels[type] ||
+    type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 };
 
 // Get payment method label
-const getPaymentMethodLabel = (method: string): string => {
+const getPaymentMethodLabel = (value: unknown): string => {
+  const method = String(value ?? "unknown");
   const labels: Record<string, string> = {
     sadad: "SADAD",
     wallet: "Wallet Balance",
@@ -86,18 +93,28 @@ const getPaymentMethodLabel = (method: string): string => {
 };
 
 // Generate HTML email template
-const generateInvoiceEmail = (payment: PaymentData, invoiceNumber: string): string => {
-  const typeLabel = getPaymentTypeLabel(payment.payment_type);
-  const methodLabel = getPaymentMethodLabel(payment.payment_method);
-  const date = formatDate(payment.created_at);
-  const amount = formatCurrency(payment.amount);
+const generateInvoiceEmail = (
+  payment: PaymentData,
+  invoiceNumber: string,
+): string => {
+  const safeInvoiceNumber = escapeHtml(invoiceNumber);
+  const typeLabel = escapeHtml(getPaymentTypeLabel(payment.payment_type));
+  const methodLabel = escapeHtml(getPaymentMethodLabel(payment.payment_method));
+  const date = escapeHtml(formatDate(payment.created_at));
+  const amount = escapeHtml(formatCurrency(payment.amount));
+  const status = escapeHtml(
+    String(payment.status ?? "completed").toUpperCase(),
+  );
+  const transactionId = escapeHtml(payment.gateway_reference || payment.id);
+  const customerName = escapeHtml(payment.profiles?.full_name || "Customer");
+  const customerEmail = escapeHtml(payment.profiles?.email || "");
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invoice ${invoiceNumber} - Nutrio</title>
+  <title>Invoice ${safeInvoiceNumber} - Nutrio</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
@@ -260,7 +277,7 @@ const generateInvoiceEmail = (payment: PaymentData, invoiceNumber: string): stri
       <div class="invoice-details">
         <div class="detail-row">
           <span class="detail-label">Invoice Number</span>
-          <span class="detail-value">${invoiceNumber}</span>
+          <span class="detail-value">${safeInvoiceNumber}</span>
         </div>
         <div class="detail-row">
           <span class="detail-label">Date</span>
@@ -277,19 +294,19 @@ const generateInvoiceEmail = (payment: PaymentData, invoiceNumber: string): stri
         <div class="detail-row">
           <span class="detail-label">Status</span>
           <span class="detail-value">
-            <span class="status-badge status-completed">${payment.status.toUpperCase()}</span>
+            <span class="status-badge status-completed">${status}</span>
           </span>
         </div>
         <div class="detail-row">
           <span class="detail-label">Transaction ID</span>
-          <span class="detail-value" style="font-family: monospace; font-size: 12px;">${payment.gateway_reference || payment.id}</span>
+          <span class="detail-value" style="font-family: monospace; font-size: 12px;">${transactionId}</span>
         </div>
       </div>
       
       <div class="customer-info">
         <h3>Billed To</h3>
-        <p><strong>${payment.profiles?.full_name || "Customer"}</strong></p>
-        <p style="color: #6b7280; margin-top: 4px;">${payment.profiles?.email || ""}</p>
+        <p><strong>${customerName}</strong></p>
+        <p style="color: #6b7280; margin-top: 4px;">${customerEmail}</p>
       </div>
       
       <div class="amount-box">
@@ -323,217 +340,458 @@ const generateInvoiceEmail = (payment: PaymentData, invoiceNumber: string): stri
 </html>`;
 };
 
-// Send invoice email
-const sendInvoiceEmail = async (paymentId: string): Promise<{
-  success: boolean;
-  message?: string;
-  emailId?: string;
-  invoiceNumber?: string;
-}> => {
-  const supabase = createSupabaseClient();
+interface DeliveryClaim {
+  claimed: boolean;
+  state: string;
+  claim_token?: string;
+  provider_message_id?: string;
+}
 
-  // Fetch payment with user details
-  const { data: payment, error: paymentError } = await supabase
-    .from("payments")
-    .select(`
-      id,
-      user_id,
-      amount,
-      payment_method,
-      payment_type,
-      status,
-      created_at,
-      gateway_reference,
-      invoice_id,
-      profiles:user_id (full_name, email)
-    `)
-    .eq("id", paymentId)
-    .single();
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
 
-  if (paymentError || !payment) {
-    throw new Error(`Payment not found: ${paymentError?.message || "Unknown error"}`);
-  }
-
-  // Check if already has a sent invoice
-  if (payment.invoice_id) {
-    const { data: existingInvoice } = await supabase
-      .from("invoices")
-      .select("status, sent_at")
-      .eq("id", payment.invoice_id)
-      .single();
-    
-    if (existingInvoice?.status === "sent" && existingInvoice?.sent_at) {
-      return { success: true, message: "Invoice already sent" };
-    }
-  }
-
-  // Check if payment is completed
-  if (payment.status !== "completed") {
-    return { success: false, message: `Payment status is ${payment.status}, invoice not sent` };
-  }
-
-  // Generate invoice number
-  const invoiceNumber = generateInvoiceNumber(payment.id);
-
-  let invoiceId = payment.invoice_id;
-
-  // Create or update invoice record
-  if (!invoiceId) {
-    // Create new invoice
-    const { data: newInvoice, error: invoiceError } = await supabase
-      .from("invoices")
-      .insert({
-        invoice_number: invoiceNumber,
-        user_id: payment.user_id,
-        invoice_type: payment.payment_type,
-        amount: payment.amount,
-        total_amount: payment.amount,
-        status: "draft",
-      })
-      .select("id")
-      .single();
-
-    if (invoiceError) {
-      console.error("Failed to create invoice record:", invoiceError);
-    } else {
-      invoiceId = newInvoice?.id;
-      
-      // Link invoice to payment
-      await supabase
-        .from("payments")
-        .update({ invoice_id: invoiceId })
-        .eq("id", paymentId);
-    }
-  } else {
-    // Update existing invoice
-    await supabase
-      .from("invoices")
-      .update({
-        invoice_number: invoiceNumber,
-        amount: payment.amount,
-        total_amount: payment.amount,
-      })
-      .eq("id", invoiceId);
-  }
-
-  // Generate email HTML
-  const html = generateInvoiceEmail(payment as PaymentData, invoiceNumber);
-
-  // Send email via Resend
-  const resendResponse = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [payment.profiles?.email],
-      subject: `Your Nutrio Invoice - ${invoiceNumber}`,
-      html,
-    }),
+async function claimDelivery(
+  idempotencyKey: string,
+  payloadHash: string,
+): Promise<DeliveryClaim> {
+  const service = getServiceClient();
+  const { data, error } = await service.rpc("claim_notification_delivery", {
+    p_channel: "invoice_email",
+    p_idempotency_key: idempotencyKey,
+    p_payload_hash: payloadHash,
+    p_lease_seconds: 90,
   });
-
-  if (!resendResponse.ok) {
-    const errorData = await resendResponse.text();
-    throw new Error(`Resend API error: ${errorData}`);
+  if (error || !data || typeof data !== "object" || Array.isArray(data)) {
+    console.error("Invoice delivery claim unavailable", { code: error?.code });
+    throw new HttpError(503, "delivery_claim_unavailable");
   }
+  return data as DeliveryClaim;
+}
 
-  const resendData = await resendResponse.json();
-
-  // Log email in email_logs
-  await supabase.from("email_logs").insert({
-    invoice_id: invoiceId,
-    recipient_email: payment.profiles?.email,
-    recipient_name: payment.profiles?.full_name,
-    email_type: "invoice",
-    status: "sent",
-    subject: `Your Nutrio Invoice - ${invoiceNumber}`,
-    resend_id: resendData.id,
-    sent_at: new Date().toISOString(),
+async function completeDelivery(
+  idempotencyKey: string,
+  claimToken: string,
+  succeeded: boolean,
+  providerMessageId: string | null,
+  errorCode: string | null,
+): Promise<void> {
+  const service = getServiceClient();
+  const { data, error } = await service.rpc("complete_notification_delivery", {
+    p_channel: "invoice_email",
+    p_idempotency_key: idempotencyKey,
+    p_claim_token: claimToken,
+    p_succeeded: succeeded,
+    p_provider_message_id: providerMessageId,
+    p_error_code: errorCode,
   });
+  if (error || data !== true) {
+    console.error("Invoice delivery claim completion failed", {
+      code: error?.code,
+    });
+  }
+}
 
-  // Update invoice status
-  if (invoiceId) {
-    await supabase
-      .from("invoices")
-      .update({
-        status: "sent",
-        sent_at: new Date().toISOString(),
-      })
-      .eq("id", invoiceId);
+function normalizePayment(raw: Record<string, unknown>): PaymentData {
+  const amount = Number(raw.amount);
+  const userId = String(raw.user_id ?? "");
+  const createdAt = String(raw.created_at ?? "");
+
+  if (
+    !UUID_PATTERN.test(String(raw.id ?? "")) ||
+    !UUID_PATTERN.test(userId) ||
+    !Number.isFinite(amount) ||
+    amount < 0 ||
+    Number.isNaN(new Date(createdAt).getTime())
+  ) {
+    throw new HttpError(422, "invalid_payment_record");
   }
 
   return {
-    success: true,
-    message: "Invoice email sent successfully",
-    emailId: resendData.id,
-    invoiceNumber,
+    id: String(raw.id),
+    user_id: userId,
+    amount,
+    payment_method: raw.payment_method === null
+      ? null
+      : String(raw.payment_method ?? ""),
+    payment_type: String(raw.payment_type ?? ""),
+    status: raw.status === null ? null : String(raw.status ?? ""),
+    created_at: createdAt,
+    gateway_reference: raw.gateway_reference
+      ? String(raw.gateway_reference)
+      : undefined,
+    invoice_id: raw.invoice_id ? String(raw.invoice_id) : undefined,
+    profiles: null,
   };
-};
+}
 
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+serve(async (req: Request) => {
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+
+  let principal: SecurityPrincipal | null = null;
+  let internalRequest = false;
+  let idempotencyKey: string | null = null;
+  let claimToken: string | null = null;
+  let paymentResourceId: string | undefined;
 
   try {
-    // Verify credentials
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Supabase credentials not configured");
-      return new Response(
-        JSON.stringify({
-          error: "Service not configured",
-          details: "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set",
+    requirePost(req);
+    if (req.headers.has("x-internal-secret")) {
+      await requireInternalSecret(req);
+      internalRequest = true;
+    } else {
+      principal = await authenticateRequest(req);
+    }
+    const hasAdminAccess = hasAdminAssurance(principal);
+
+    const body = await readJsonBody<InvoiceRequest>(req, 4 * 1024);
+    const paymentId = String(body.paymentId ?? "").trim();
+    if (!UUID_PATTERN.test(paymentId)) {
+      throw new HttpError(400, "valid_payment_id_required");
+    }
+    paymentResourceId = paymentId;
+
+    const service = getServiceClient();
+    let paymentQuery = service
+      .from("payments")
+      .select(`
+        id,
+        user_id,
+        amount,
+        payment_method,
+        payment_type,
+        status,
+        created_at,
+        gateway_reference,
+        invoice_id
+      `)
+      .eq("id", paymentId);
+    if (principal && !hasAdminAccess) {
+      paymentQuery = paymentQuery.eq("user_id", principal.user.id);
+    }
+
+    const { data: rawPayment, error: paymentError } = await paymentQuery
+      .maybeSingle();
+    if (paymentError) {
+      console.error("Invoice payment lookup failed", {
+        code: paymentError.code,
+      });
+      throw new HttpError(503, "payment_store_unavailable");
+    }
+    if (!rawPayment) throw new HttpError(404, "payment_not_found");
+
+    const payment = normalizePayment(rawPayment as Record<string, unknown>);
+    const recipient = await getNotificationRecipient(payment.user_id);
+    payment.profiles = recipient.email
+      ? { full_name: recipient.fullName, email: recipient.email }
+      : null;
+    if (body.userId !== undefined && String(body.userId) !== payment.user_id) {
+      throw new HttpError(400, "payment_user_mismatch");
+    }
+
+    await enforceRateLimit(
+      req,
+      "send-invoice-email",
+      principal?.user.id || payment.user_id,
+      hasAdminAccess ? 120 : internalRequest ? 60 : 10,
+      60 * 60,
+    );
+
+    if (payment.status !== "completed") {
+      return jsonResponse(
+        req,
+        {
+          success: false,
+          message: "Payment is not eligible for an invoice email",
+        },
+        400,
+      );
+    }
+
+    if (
+      !payment.profiles?.email ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payment.profiles.email)
+    ) {
+      throw new HttpError(422, "invoice_recipient_unavailable");
+    }
+
+    const invoiceNumber = generateInvoiceNumber(payment.id, payment.created_at);
+    if (!recipient.emailEnabled) {
+      await recordSecurityEvent(req, {
+        eventType: "notification.invoice_email_suppressed",
+        category: "edge_function",
+        outcome: "success",
+        principal,
+        actorType: internalRequest ? "service" : undefined,
+        action: "suppress_invoice_email",
+        resourceType: "payment",
+        resourceId: payment.id,
+        metadata: { reason: "email_channel_disabled" },
+      });
+      return jsonResponse(req, {
+        success: true,
+        suppressed: true,
+        reason: "email_channel_disabled",
+        invoiceNumber,
+      });
+    }
+    if (payment.invoice_id) {
+      const { data: existingInvoice, error } = await service
+        .from("invoices")
+        .select("status, sent_at, invoice_number")
+        .eq("id", payment.invoice_id)
+        .eq("user_id", payment.user_id)
+        .maybeSingle();
+      if (error) {
+        console.error("Existing invoice lookup failed", { code: error.code });
+        throw new HttpError(503, "invoice_store_unavailable");
+      }
+      if (!existingInvoice) {
+        throw new HttpError(422, "invalid_payment_record");
+      }
+      if (existingInvoice?.status === "sent" && existingInvoice.sent_at) {
+        return jsonResponse(req, {
+          success: true,
+          message: "Invoice already sent",
+          invoiceNumber: existingInvoice.invoice_number || invoiceNumber,
+        });
+      }
+    }
+
+    idempotencyKey = `invoice:${payment.id}`;
+    const payloadHash = await sha256Hex(JSON.stringify({
+      paymentId: payment.id,
+      userId: payment.user_id,
+      amount: payment.amount,
+      recipient: payment.profiles.email,
+      invoiceNumber,
+    }));
+    const claim = await claimDelivery(idempotencyKey, payloadHash);
+    if (claim.state === "completed") {
+      return jsonResponse(req, {
+        success: true,
+        message: "Invoice already sent",
+        emailId: claim.provider_message_id,
+        invoiceNumber,
+        duplicate: true,
+      });
+    }
+    if (!claim.claimed || !claim.claim_token) {
+      let code = "delivery_in_progress";
+      if (claim.state === "conflict") code = "idempotency_conflict";
+      if (claim.state === "exhausted") code = "delivery_retry_exhausted";
+      throw new HttpError(409, code);
+    }
+    claimToken = claim.claim_token;
+
+    let invoiceId = payment.invoice_id;
+    if (!invoiceId) {
+      const { data: createdInvoice, error } = await service
+        .from("invoices")
+        .insert({
+          invoice_number: invoiceNumber,
+          user_id: payment.user_id,
+          invoice_type: payment.payment_type,
+          amount: payment.amount,
+          total_amount: payment.amount,
+          status: "draft",
+        })
+        .select("id")
+        .single();
+      if (error?.code === "23505") {
+        // A prior attempt may have created the deterministic invoice before
+        // failing to link it to the payment. Recover that row on retry.
+        const { data: recoveredInvoice, error: recoveryError } = await service
+          .from("invoices")
+          .select("id")
+          .eq("invoice_number", invoiceNumber)
+          .eq("user_id", payment.user_id)
+          .maybeSingle();
+        if (recoveryError || !recoveredInvoice) {
+          console.error("Invoice collision recovery failed", {
+            code: recoveryError?.code,
+          });
+          throw new HttpError(503, "invoice_store_unavailable");
+        }
+        invoiceId = String(recoveredInvoice.id);
+      } else if (error || !createdInvoice) {
+        console.error("Invoice creation failed", { code: error?.code });
+        throw new HttpError(503, "invoice_store_unavailable");
+      } else {
+        invoiceId = String(createdInvoice.id);
+      }
+
+      const { error: linkError } = await service
+        .from("payments")
+        .update({ invoice_id: invoiceId })
+        .eq("id", payment.id)
+        .eq("user_id", payment.user_id);
+      if (linkError) {
+        console.error("Invoice payment link failed", { code: linkError.code });
+        throw new HttpError(503, "invoice_store_unavailable");
+      }
+    } else {
+      const { error } = await service
+        .from("invoices")
+        .update({
+          invoice_number: invoiceNumber,
+          amount: payment.amount,
+          total_amount: payment.amount,
+        })
+        .eq("id", invoiceId)
+        .eq("user_id", payment.user_id);
+      if (error) {
+        console.error("Invoice update failed", { code: error.code });
+        throw new HttpError(503, "invoice_store_unavailable");
+      }
+    }
+
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) throw new HttpError(503, "email_service_unavailable");
+
+    const subject = `Your Nutrio Invoice - ${invoiceNumber}`;
+    let resendResponse: Response;
+    try {
+      resendResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${resendApiKey}`,
+          "Idempotency-Key": `invoice/${payment.id}`,
+        },
+        body: JSON.stringify({
+          from: FROM_EMAIL,
+          to: [payment.profiles.email],
+          subject,
+          html: generateInvoiceEmail(payment, invoiceNumber),
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch (error) {
+      console.error("Invoice email provider request failed", {
+        name: error instanceof Error ? error.name : "unknown",
+      });
+      throw new HttpError(502, "invoice_email_delivery_failed");
     }
 
-    if (!RESEND_API_KEY) {
-      console.error("RESEND_API_KEY not configured");
-      return new Response(
-        JSON.stringify({ error: "Email service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!resendResponse.ok) {
+      console.error("Invoice email provider rejected request", {
+        status: resendResponse.status,
+      });
+      throw new HttpError(502, "invoice_email_delivery_failed");
     }
 
-    // Only accept POST requests
-    if (req.method !== "POST") {
-      return new Response(
-        JSON.stringify({ error: "Method not allowed" }),
-        { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const resendData = await resendResponse.json().catch(() => ({})) as Record<
+      string,
+      unknown
+    >;
+    const rawEmailId = typeof resendData.id === "string"
+      ? resendData.id.trim()
+      : "";
+    const emailId = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,249}$/.test(rawEmailId)
+      ? rawEmailId
+      : null;
+    if (!emailId) {
+      throw new HttpError(502, "invoice_email_delivery_failed");
+    }
+    const sentAt = new Date().toISOString();
+
+    const { error: invoiceStatusError } = await service
+      .from("invoices")
+      .update({ status: "sent", sent_at: sentAt })
+      .eq("id", invoiceId)
+      .eq("user_id", payment.user_id);
+    if (invoiceStatusError) {
+      console.error("Invoice sent status update failed", {
+        code: invoiceStatusError.code,
+      });
+      throw new HttpError(503, "invoice_store_unavailable");
     }
 
-    // Parse request body
-    const body: InvoiceRequest = await req.json();
-    const { paymentId } = body;
-
-    if (!paymentId) {
-      return new Response(
-        JSON.stringify({ error: "Missing required field: paymentId" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const { data: existingLog, error: logLookupError } = emailId
+      ? await service.from("email_logs").select("id").eq("resend_id", emailId)
+        .maybeSingle()
+      : { data: null, error: null };
+    if (logLookupError) {
+      console.error("Invoice email log lookup failed", {
+        code: logLookupError.code,
+      });
+      throw new HttpError(503, "invoice_store_unavailable");
+    }
+    if (!existingLog) {
+      const { error: logError } = await service.from("email_logs").insert({
+        invoice_id: invoiceId,
+        recipient_email: payment.profiles.email,
+        recipient_name: payment.profiles.full_name,
+        email_type: "invoice",
+        status: "sent",
+        subject,
+        resend_id: emailId,
+        sent_at: sentAt,
+      });
+      if (logError) {
+        console.error("Invoice email log write failed", {
+          code: logError.code,
+        });
+        throw new HttpError(503, "invoice_store_unavailable");
+      }
     }
 
-    // Send invoice email
-    const result = await sendInvoiceEmail(paymentId);
+    await completeDelivery(idempotencyKey, claimToken, true, emailId, null);
+    claimToken = null;
 
-    return new Response(
-      JSON.stringify(result),
-      { status: result.success ? 200 : 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    await recordSecurityEvent(req, {
+      eventType: "notification.invoice_email_sent",
+      category: "edge_function",
+      outcome: "success",
+      principal,
+      actorType: internalRequest ? "service" : undefined,
+      action: "send_invoice_email",
+      resourceType: "payment",
+      resourceId: payment.id,
+    });
 
+    return jsonResponse(req, {
+      success: true,
+      message: "Invoice email sent successfully",
+      emailId,
+      invoiceNumber,
+    });
   } catch (error) {
-    console.error("Error in send-invoice-email:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    if (idempotencyKey && claimToken) {
+      await completeDelivery(
+        idempotencyKey,
+        claimToken,
+        false,
+        null,
+        error instanceof HttpError ? error.code : "internal_error",
+      );
+    }
+    await recordSecurityEvent(req, {
+      eventType: "notification.invoice_email_failed",
+      category: "edge_function",
+      severity: error instanceof HttpError && error.status < 500
+        ? "medium"
+        : "high",
+      outcome: error instanceof HttpError && error.status === 403
+        ? "denied"
+        : "failure",
+      principal,
+      actorType: internalRequest ? "service" : undefined,
+      action: "send_invoice_email",
+      resourceType: "payment",
+      resourceId: paymentResourceId,
+      metadata: {
+        code: error instanceof HttpError ? error.code : "internal_error",
+      },
+    });
+    return errorResponse(req, error);
   }
 });

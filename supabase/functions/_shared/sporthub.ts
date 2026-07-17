@@ -1,45 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-export const jsonHeaders = {
-  "Content-Type": "application/json",
-  "Cache-Control": "no-store",
-};
-
-export const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-export function jsonResponse(body: unknown, status = 200, headers: HeadersInit = {}) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, ...jsonHeaders, ...headers },
-  });
-}
+import { getServiceClient, HttpError } from "./security.ts";
 
 export function getAdminClient() {
-  const url = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !serviceKey) throw new Error("Supabase service environment is missing");
-  return createClient(url, serviceKey, { auth: { persistSession: false } });
-}
-
-export async function getAuthenticatedUser(req: Request) {
-  const authorization = req.headers.get("Authorization");
-  if (!authorization?.startsWith("Bearer ")) return null;
-
-  const url = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  if (!url || !anonKey) throw new Error("Supabase auth environment is missing");
-
-  const client = createClient(url, anonKey, {
-    global: { headers: { Authorization: authorization } },
-    auth: { persistSession: false },
-  });
-  const { data, error } = await client.auth.getUser();
-  if (error || !data.user) return null;
-  return data.user;
+  return getServiceClient();
 }
 
 export function randomBase64Url(byteLength = 32) {
@@ -98,15 +60,60 @@ export async function decryptSecret(value: string) {
 }
 
 export function safeRedirectPath(value: unknown) {
-  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
-    return "/dashboard/activity";
+  const allowed = new Set(["/dashboard/activity", "/partners/sporthub"]);
+  return typeof value === "string" && allowed.has(value)
+    ? value
+    : "/dashboard/activity";
+}
+
+export function requireHttpsUrl(value: string | undefined, configName: string): URL {
+  if (!value) throw new HttpError(503, `${configName.toLowerCase()}_missing`);
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password) throw new Error();
+    return url;
+  } catch {
+    throw new HttpError(503, `${configName.toLowerCase()}_invalid`);
   }
-  return value.slice(0, 300);
+}
+
+export function requireSportHubUrl(value: string | undefined, configName: string): URL {
+  const url = requireHttpsUrl(value, configName);
+  const configuredRoots = (Deno.env.get("SPORTHUB_ALLOWED_HOSTS") || "sporthubapp.com")
+    .split(",")
+    .map((host) => host.trim().toLowerCase())
+    .filter((host) => /^[a-z0-9.-]+$/.test(host) && !host.startsWith(".") && !host.endsWith("."));
+
+  const hostname = url.hostname.toLowerCase();
+  const allowed = configuredRoots.some(
+    (root) => hostname === root || hostname.endsWith(`.${root}`),
+  );
+  if (!configuredRoots.length || !allowed) {
+    throw new HttpError(503, `${configName.toLowerCase()}_host_not_allowed`);
+  }
+  return url;
+}
+
+export async function readLimitedJson<T>(response: Response, maxBytes = 1024 * 1024): Promise<T> {
+  const declared = Number(response.headers.get("content-length") || 0);
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    throw new HttpError(502, "sporthub_response_too_large");
+  }
+  const raw = await response.text();
+  if (new TextEncoder().encode(raw).byteLength > maxBytes) {
+    throw new HttpError(502, "sporthub_response_too_large");
+  }
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    throw new HttpError(502, "sporthub_response_invalid");
+  }
 }
 
 export function appRedirect(path: string, params: Record<string, string>) {
   const base = Deno.env.get("NUTRIO_APP_URL") || "https://nutrio.me/nutrio";
-  const url = new URL(base.replace(/\/$/, "") + path);
+  const parsedBase = requireHttpsUrl(base, "NUTRIO_APP_URL");
+  const url = new URL(parsedBase.toString().replace(/\/$/, "") + safeRedirectPath(path));
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
   return url.toString();
 }

@@ -1,0 +1,93 @@
+name: Scheduled Security and Notification Workers
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+    - cron: '17 * * * *'
+    - cron: '47 * * * *'
+    - cron: '31 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  whatsapp-queue:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Process a bounded WhatsApp queue batch
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          WORKER_SECRET: ${{ secrets.WHATSAPP_PROCESSOR_CRON_SECRET }}
+        run: |
+          test -n "$SUPABASE_URL" && test -n "$SUPABASE_ANON_KEY" && test -n "$WORKER_SECRET"
+          curl --fail-with-body --silent --show-error \
+            --max-time 150 \
+            -X POST "$SUPABASE_URL/functions/v1/process-whatsapp-notifications" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "x-internal-secret: $WORKER_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{"limit":5}'
+
+  subscription-recovery:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '17 * * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Process a bounded subscription recovery batch
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          WORKER_SECRET: ${{ secrets.SUBSCRIPTION_RECOVERY_CRON_SECRET }}
+        run: |
+          test -n "$SUPABASE_URL" && test -n "$SUPABASE_ANON_KEY" && test -n "$WORKER_SECRET"
+          curl --fail-with-body --silent --show-error \
+            --max-time 150 \
+            -X POST "$SUPABASE_URL/functions/v1/subscription-recovery-cron" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "x-internal-secret: $WORKER_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{"limit":3}'
+
+  subscription-lifecycle:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '47 * * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Expire due subscription entitlements
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          WORKER_SECRET: ${{ secrets.SUBSCRIPTION_RENEWAL_CRON_SECRET }}
+        run: |
+          test -n "$SUPABASE_URL" && test -n "$SUPABASE_ANON_KEY" && test -n "$WORKER_SECRET"
+          curl --fail-with-body --silent --show-error \
+            --max-time 150 \
+            -X POST "$SUPABASE_URL/functions/v1/process-subscription-renewal" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "x-internal-secret: $WORKER_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{}'
+
+  security-ledger-anchor:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '31 0 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Seal the prior UTC day and publish its receipt
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          WORKER_SECRET: ${{ secrets.SECURITY_LOG_CRON_SECRET }}
+        run: |
+          test -n "$SUPABASE_URL" && test -n "$SUPABASE_ANON_KEY" && test -n "$WORKER_SECRET"
+          curl --fail-with-body --silent --show-error \
+            --max-time 150 \
+            -X POST "$SUPABASE_URL/functions/v1/security-log-maintenance" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "x-internal-secret: $WORKER_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{}'

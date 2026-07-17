@@ -1,14 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  authenticateRequest,
+  enforceRateLimit,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requirePost,
+  type SecurityPrincipal,
+} from "../_shared/security.ts";
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const RATE_LIMIT = 100;
-const RATE_WINDOW_MS = 60 * 60 * 1000;
+const RATE_WINDOW_SECONDS = 60 * 60;
+const MAX_PROVIDER_RESPONSE_BYTES = 1024 * 1024;
 
 interface BarcodeCacheRow {
   barcode: string;
@@ -43,56 +51,15 @@ interface OpenFoodFactsProduct {
   status_verbose?: string;
 }
 
-async function validateAuth(req: Request): Promise<{ userId: string | null; error: string | null }> {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return { userId: null, error: "Missing Authorization header" };
-
-  const token = authHeader.replace("Bearer ", "").trim();
-  if (!token) return { userId: null, error: "Invalid Authorization header format" };
-
+async function logApiCall(
+  userId: string,
+  barcode: string,
+  statusCode: number,
+  source: string,
+  errorMessage?: string,
+): Promise<void> {
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { auth: { persistSession: false, autoRefreshToken: false } },
-    );
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return { userId: null, error: "Invalid or expired token" };
-    return { userId: user.id, error: null };
-  } catch {
-    return { userId: null, error: "Authentication service error" };
-  }
-}
-
-async function getServiceClient() {
-  return createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
-}
-
-async function checkRateLimit(userId: string): Promise<{ allowed: boolean; remaining: number }> {
-  try {
-    const supabase = await getServiceClient();
-    const windowStart = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
-    const { count, error } = await supabase
-      .from("api_logs")
-      .select("*", { count: "exact", head: true })
-      .eq("endpoint", "/functions/v1/lookup-barcode")
-      .eq("partner_id", userId)
-      .eq("status_code", 200)
-      .gte("created_at", windowStart);
-    if (error) return { allowed: true, remaining: RATE_LIMIT };
-    return { allowed: (count || 0) < RATE_LIMIT, remaining: Math.max(0, RATE_LIMIT - (count || 0)) };
-  } catch {
-    return { allowed: true, remaining: RATE_LIMIT };
-  }
-}
-
-async function logApiCall(userId: string, barcode: string, statusCode: number, source: string, errorMessage?: string) {
-  try {
-    const supabase = await getServiceClient();
-    await supabase.from("api_logs").insert({
+    const { error } = await getServiceClient().from("api_logs").insert({
       endpoint: "/functions/v1/lookup-barcode",
       method: "POST",
       status_code: statusCode,
@@ -101,35 +68,104 @@ async function logApiCall(userId: string, barcode: string, statusCode: number, s
       error_message: errorMessage,
       metadata: { source },
     });
-  } catch (e) {
-    console.error("Failed to log API call:", e);
+    if (error) console.error("Barcode API audit log failed:", error.message);
+  } catch (error) {
+    console.error("Barcode API audit log unavailable:", error);
   }
 }
 
-async function lookupFromCache(supabase: ReturnType<typeof createClient>, barcode: string): Promise<BarcodeCacheRow | null> {
-  const { data } = await supabase
+async function lookupFromCache(
+  barcode: string,
+): Promise<BarcodeCacheRow | null> {
+  const { data, error } = await getServiceClient()
     .from("barcode_products")
     .select("*")
     .eq("barcode", barcode)
-    .single();
-  return data;
+    .maybeSingle();
+  if (error) {
+    console.error("Barcode cache lookup failed:", error.message);
+    throw new HttpError(503, "barcode_cache_unavailable");
+  }
+  return data as BarcodeCacheRow | null;
 }
 
-async function fetchFromOpenFoodFacts(barcode: string): Promise<OpenFoodFactsProduct | null> {
+async function readProviderJson(
+  response: Response,
+): Promise<OpenFoodFactsProduct | null> {
+  const declaredLength = Number(response.headers.get("content-length") || 0);
+  if (
+    Number.isFinite(declaredLength) &&
+    declaredLength > MAX_PROVIDER_RESPONSE_BYTES
+  ) {
+    return null;
+  }
+  if (!response.body) return null;
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
   try {
-    const response = await fetch(
-      `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`,
-      { headers: { "User-Agent": "Nutrio/1.0 (nutrition tracking app)" } },
-    );
-    if (!response.ok) return null;
-    return await response.json();
-  } catch (e) {
-    console.error("Open Food Facts fetch error:", e);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > MAX_PROVIDER_RESPONSE_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes)) as OpenFoodFactsProduct;
+  } catch {
     return null;
   }
 }
 
-function mapOpenFoodFactsToCache(product: NonNullable<OpenFoodFactsProduct["product"]>, barcode: string): Partial<BarcodeCacheRow> {
+async function fetchFromOpenFoodFacts(
+  barcode: string,
+): Promise<{ data: OpenFoodFactsProduct | null; providerFailed: boolean }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+
+  try {
+    const response = await fetch(
+      `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`,
+      {
+        signal: controller.signal,
+        redirect: "error",
+        headers: { "User-Agent": "Nutrio/1.0 (nutrition tracking app)" },
+      },
+    );
+    if (!response.ok) {
+      return { data: null, providerFailed: response.status >= 500 };
+    }
+    const data = await readProviderJson(response);
+    return { data, providerFailed: !data };
+  } catch {
+    console.error("Open Food Facts request failed");
+    return { data: null, providerFailed: true };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function mapOpenFoodFactsToCache(
+  product: NonNullable<OpenFoodFactsProduct["product"]>,
+  barcode: string,
+): Partial<BarcodeCacheRow> {
   const nutriments = product.nutriments || {};
   return {
     barcode,
@@ -145,11 +181,13 @@ function mapOpenFoodFactsToCache(product: NonNullable<OpenFoodFactsProduct["prod
   };
 }
 
-async function upsertCache(supabase: ReturnType<typeof createClient>, row: Partial<BarcodeCacheRow>) {
-  const { error } = await supabase
+async function upsertCache(row: Partial<BarcodeCacheRow>): Promise<void> {
+  const { error } = await getServiceClient()
     .from("barcode_products")
-    .upsert({ ...row, last_fetched_at: new Date().toISOString() }, { onConflict: "barcode" });
-  if (error) console.error("Cache upsert error:", error);
+    .upsert({ ...row, last_fetched_at: new Date().toISOString() }, {
+      onConflict: "barcode",
+    });
+  if (error) console.error("Barcode cache upsert failed:", error.message);
 }
 
 function formatResponse(data: BarcodeCacheRow) {
@@ -170,86 +208,151 @@ function formatResponse(data: BarcodeCacheRow) {
   };
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  const { userId, error: authError } = await validateAuth(req);
-  if (!userId) {
-    return new Response(
-      JSON.stringify({ success: false, error: authError || "Unauthorized" }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
-  const rateLimit = await checkRateLimit(userId);
-  if (!rateLimit.allowed) {
-    return new Response(
-      JSON.stringify({ success: false, error: "Rate limit exceeded", remaining: 0 }),
-      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
-  try {
-    const { barcode } = await req.json() as { barcode: string };
-    if (!barcode || !/^\d{8,13}$/.test(barcode)) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Invalid barcode format" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+function barcodeErrorResponse(req: Request, error: unknown): Response {
+  if (error instanceof HttpError) {
+    if (error.status === 401) {
+      return jsonResponse(req, { success: false, error: "Unauthorized" }, 401);
+    }
+    if (error.status === 429) {
+      return jsonResponse(
+        req,
+        { success: false, error: "Rate limit exceeded", remaining: 0 },
+        429,
       );
     }
+    return jsonResponse(
+      req,
+      {
+        success: false,
+        error: error.status >= 500 ? "Internal server error" : error.code,
+      },
+      error.status,
+    );
+  }
 
-    const supabase = await getServiceClient();
+  console.error("Unexpected lookup-barcode failure");
+  return jsonResponse(
+    req,
+    { success: false, error: "Internal server error" },
+    500,
+  );
+}
 
-    const cached = await lookupFromCache(supabase, barcode);
+serve(async (req) => {
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+
+  let principal: SecurityPrincipal | null = null;
+  let barcode: string | null = null;
+
+  try {
+    requirePost(req);
+    principal = await authenticateRequest(req);
+
+    const parsedBody = await readJsonBody<unknown>(req, 2 * 1024);
+    if (
+      !parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)
+    ) {
+      return jsonResponse(req, {
+        success: false,
+        error: "Invalid request body",
+      }, 400);
+    }
+    const body = parsedBody as { barcode?: unknown };
+    if (typeof body.barcode !== "string" || !/^\d{8,13}$/.test(body.barcode)) {
+      return jsonResponse(req, {
+        success: false,
+        error: "Invalid barcode format",
+      }, 400);
+    }
+    barcode = body.barcode;
+
+    // Consume quota before either a cache or provider lookup. This atomically
+    // counts successful hits, cache misses, and failed provider lookups alike.
+    await enforceRateLimit(
+      req,
+      "lookup-barcode",
+      principal.user.id,
+      RATE_LIMIT,
+      RATE_WINDOW_SECONDS,
+    );
+
+    const cached = await lookupFromCache(barcode);
     if (cached) {
       const age = Date.now() - new Date(cached.last_fetched_at).getTime();
       if (age < CACHE_TTL_MS) {
-        await logApiCall(userId, barcode, 200, "cache");
-        return new Response(
-          JSON.stringify(formatResponse(cached)),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        await logApiCall(principal.user.id, barcode, 200, "cache");
+        return jsonResponse(req, formatResponse(cached));
       }
     }
 
-    const offData = await fetchFromOpenFoodFacts(barcode);
+    const provider = await fetchFromOpenFoodFacts(barcode);
+    const offData = provider.data;
     if (!offData || offData.status !== 1 || !offData.product) {
-      await logApiCall(userId, barcode, 404, "openfoodfacts", "Product not found");
-      return new Response(
-        JSON.stringify({ success: false, error: "Product not found in database" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      await logApiCall(
+        principal.user.id,
+        barcode,
+        404,
+        "openfoodfacts",
+        "Product not found",
+      );
+      if (provider.providerFailed) {
+        await recordSecurityEvent(req, {
+          eventType: "edge.barcode_provider_failed",
+          category: "edge_function",
+          severity: "low",
+          outcome: "failure",
+          principal,
+          action: "lookup_barcode",
+          resourceType: "api.provider",
+          resourceId: "openfoodfacts",
+        });
+      }
+      return jsonResponse(
+        req,
+        { success: false, error: "Product not found in database" },
+        404,
       );
     }
 
-    const cacheRow = mapOpenFoodFactsToCache(offData.product, barcode) as BarcodeCacheRow;
-    await upsertCache(supabase, cacheRow);
-    await logApiCall(userId, barcode, 200, "openfoodfacts");
+    const cacheRow = mapOpenFoodFactsToCache(
+      offData.product,
+      barcode,
+    ) as BarcodeCacheRow;
+    await upsertCache(cacheRow);
+    await logApiCall(principal.user.id, barcode, 200, "openfoodfacts");
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        product: {
-          name: cacheRow.name,
-          barcode: cacheRow.barcode,
-          brand: cacheRow.brand,
-          calories: cacheRow.calories_per_100g,
-          protein: cacheRow.protein_per_100g,
-          carbs: cacheRow.carbs_per_100g,
-          fat: cacheRow.fat_per_100g,
-          fiber: cacheRow.fiber_per_100g,
-          imageUrl: cacheRow.image_url,
-        },
-        cached: false,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (err) {
-    console.error("lookup-barcode error:", err);
-    return new Response(
-      JSON.stringify({ success: false, error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return jsonResponse(req, {
+      success: true,
+      product: {
+        name: cacheRow.name,
+        barcode: cacheRow.barcode,
+        brand: cacheRow.brand,
+        calories: cacheRow.calories_per_100g,
+        protein: cacheRow.protein_per_100g,
+        carbs: cacheRow.carbs_per_100g,
+        fat: cacheRow.fat_per_100g,
+        fiber: cacheRow.fiber_per_100g,
+        imageUrl: cacheRow.image_url,
+      },
+      cached: false,
+    });
+  } catch (error) {
+    if (
+      principal && barcode &&
+      !(error instanceof HttpError && error.status < 500)
+    ) {
+      await recordSecurityEvent(req, {
+        eventType: "edge.barcode_lookup_failed",
+        category: "edge_function",
+        severity: "low",
+        outcome: "failure",
+        principal,
+        action: "lookup_barcode",
+        resourceType: "barcode",
+        resourceId: barcode,
+      });
+    }
+    return barcodeErrorResponse(req, error);
   }
 });

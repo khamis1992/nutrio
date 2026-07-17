@@ -1,4 +1,5 @@
 import type { BloodMarker } from "@/lib/blood-markers";
+import { runAiTask } from "@/lib/ai-router";
 
 interface UserProfile {
   fullName?: string | null;
@@ -82,32 +83,12 @@ ${profile.trendSummary || "No previous comparable report is available yet."}
 
 Please provide an organized, customer-specific wellness and nutrition summary. Do not add any demographic detail that is not listed above.`;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-  if (!supabaseUrl || !publishableKey) {
-    throw new Error("Supabase configuration is missing.");
-  }
-
-  const response = await fetch(`${supabaseUrl}/functions/v1/proxy-openrouter`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: publishableKey,
-      Authorization: `Bearer ${publishableKey}`,
-    },
-    body: JSON.stringify({ systemPrompt, userPrompt }),
+  const result = await runAiTask({
+    task: "blood_work",
+    systemPrompt,
+    userPrompt,
+    retrievalQuery: "blood test nutrition wellness guidance laboratory markers",
   });
 
-  const data = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(data?.details || data?.error || `AI analysis failed with status ${response.status}.`);
-  }
-
-  if (!data?.content) {
-    throw new Error(data?.details || data?.error || "AI analysis service returned an empty response.");
-  }
-
-  return data.content;
+  return result.content;
 }

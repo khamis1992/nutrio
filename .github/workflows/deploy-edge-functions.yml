@@ -1,12 +1,6 @@
 name: Deploy Edge Functions
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - 'supabase/functions/**'
   workflow_dispatch:
     inputs:
       environment:
@@ -17,30 +11,78 @@ on:
         options:
           - staging
           - production
+      confirm_database_ready:
+        description: 'I confirm all required database migrations are already applied'
+        required: true
+        default: false
+        type: boolean
+  schedule:
+    # GitHub-hosted cron is the repo-managed worker runner. Each worker uses a
+    # dedicated production-environment secret; no provider secret lives in SQL.
+    - cron: '*/5 * * * *'
+    - cron: '17 * * * *'
+    - cron: '23 2 * * *'
+
+concurrency:
+  group: edge-runtime-${{ github.event_name }}-${{ github.event.inputs.environment || github.event.schedule || 'production' }}
+  cancel-in-progress: false
 
 env:
   NODE_VERSION: '22'
+  SUPABASE_CLI_VERSION: '2.109.1'
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch'
     name: Deploy Edge Functions to ${{ github.event.inputs.environment || 'staging' }}
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'staging' }}
     permissions:
       contents: read
-      id-token: write  # Required for OIDC
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install Supabase CLI
-        run: npm install -g supabase
+        run: npm install --no-save "supabase@${SUPABASE_CLI_VERSION}"
+
+      - name: Require database readiness confirmation
+        if: github.event.inputs.confirm_database_ready != 'true'
+        run: |
+          echo "Database readiness must be confirmed before Edge functions can be deployed."
+          exit 1
+
+      - name: Verify notification runtime database contract
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_RUNTIME_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          test -n "$SUPABASE_PROJECT_ID"
+          test -n "$SUPABASE_RUNTIME_SECRET_KEY"
+
+          auth_headers=(-H "apikey: ${SUPABASE_RUNTIME_SECRET_KEY}")
+          if [[ "$SUPABASE_RUNTIME_SECRET_KEY" == eyJ* ]]; then
+            auth_headers+=(-H "Authorization: Bearer ${SUPABASE_RUNTIME_SECRET_KEY}")
+          fi
+
+          runtime_version=$(curl --silent --show-error --fail \
+            "https://${SUPABASE_PROJECT_ID}.supabase.co/rest/v1/rpc/notification_delivery_runtime_version" \
+            -X POST \
+            "${auth_headers[@]}" \
+            -H "Content-Type: application/json" \
+            --data '{}')
+
+          if [ "$runtime_version" != '"20260717090000"' ]; then
+            echo "Notification runtime migration is missing or has the wrong version."
+            exit 1
+          fi
 
       - name: Deploy Edge Functions
         env:
@@ -50,8 +92,12 @@ jobs:
         run: |
           for dir in supabase/functions/*/; do
             function_name=$(basename "$dir")
+            if [[ "$function_name" == _* ]]; then
+              echo "Skipping shared directory $function_name"
+              continue
+            fi
             echo "Deploying $function_name..."
-            supabase functions deploy "$function_name" \
+            npx supabase functions deploy "$function_name" \
               --project-ref "$SUPABASE_PROJECT_ID"
           done
 
@@ -60,3 +106,61 @@ jobs:
           echo "## Deployed Successfully" >> $GITHUB_STEP_SUMMARY
           echo "- Environment: ${{ github.event.inputs.environment || 'staging' }}" >> $GITHUB_STEP_SUMMARY
           echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
+  invoke-notification-workers:
+    if: github.event_name == 'schedule'
+    name: Invoke production notification workers
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    env:
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
+    steps:
+      - name: Process WhatsApp outbox
+        if: github.event.schedule == '*/5 * * * *'
+        env:
+          WORKER_SECRET: ${{ secrets.WHATSAPP_PROCESSOR_CRON_SECRET }}
+        run: |
+          test -n "$SUPABASE_PROJECT_ID"
+          test -n "$WORKER_SECRET"
+          curl --silent --show-error --fail \
+            "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/process-whatsapp-notifications" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-internal-secret: ${WORKER_SECRET}" \
+            --data '{"limit":3}' >/dev/null
+
+      - name: Process post-expiry subscription recovery
+        if: github.event.schedule == '17 * * * *'
+        env:
+          WORKER_SECRET: ${{ secrets.SUBSCRIPTION_RECOVERY_CRON_SECRET }}
+        run: |
+          test -n "$SUPABASE_PROJECT_ID"
+          test -n "$WORKER_SECRET"
+          curl --silent --show-error --fail \
+            "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/subscription-recovery-cron" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-internal-secret: ${WORKER_SECRET}" \
+            --data '{"limit":2}' >/dev/null
+
+      - name: Clean up expired rollover credits
+        if: github.event.schedule == '23 2 * * *'
+        env:
+          WORKER_SECRET: ${{ secrets.ROLLOVER_CLEANUP_CRON_SECRET }}
+        run: |
+          test -n "$SUPABASE_PROJECT_ID"
+          test -n "$WORKER_SECRET"
+          curl --silent --show-error --fail \
+            "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/cleanup-expired-rollovers" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-internal-secret: ${WORKER_SECRET}" \
+            --data '{"limit":5}' >/dev/null
+
+      # calculate-health-score intentionally remains unscheduled here. Its
+      # gateway has verify_jwt=true, so a custom cron secret alone cannot reach
+      # it. We fail closed instead of storing a long-lived user/service JWT in
+      # GitHub; invoke it through a short-lived authenticated scheduler only.

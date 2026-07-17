@@ -14,11 +14,28 @@ import {
 } from "lucide-react";
 
 import { AdminLayout } from "@/components/AdminLayout";
+import {
+  AdminAlertDialogContent,
+  AdminEmptyState,
+  AdminKpiStrip,
+  AdminPanel,
+  AdminPanelHeader,
+  AdminSheetContent,
+  AdminWorkbenchHeader,
+} from "@/components/admin/AdminPrimitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -28,7 +45,6 @@ import {
 } from "@/components/ui/select";
 import {
   Sheet,
-  SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
@@ -51,16 +67,6 @@ interface SubscriptionPlan {
   created_at: string | null;
 }
 
-const C = {
-  ink: "#020617",
-  muted: "#94A3B8",
-  panel: "#F6F8FB",
-  protein: "#7C83F6",
-  progress: "#22C7A1",
-  water: "#38BDF8",
-  fat: "#FB6B7A",
-};
-
 function planLabel(tier: string) {
   return tier.replace(/-/g, " ");
 }
@@ -69,7 +75,13 @@ const AdminSubscriptions = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPlanEditOpen, setIsPlanEditOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(
+    null,
+  );
+  const [planPendingDelete, setPlanPendingDelete] =
+    useState<SubscriptionPlan | null>(null);
+  const [planPendingDeactivate, setPlanPendingDeactivate] =
+    useState<SubscriptionPlan | null>(null);
   const [processing, setProcessing] = useState(false);
   const [planForm, setPlanForm] = useState({
     tier: "",
@@ -98,7 +110,12 @@ const AdminSubscriptions = () => {
         tier: plan.tier,
         billing_interval: plan.billing_interval,
         price_qar: plan.price_qar,
-        meals_per_week: "meals_per_week" in plan ? (plan as Record<string, unknown>).meals_per_week as number | null : null,
+        meals_per_week:
+          "meals_per_week" in plan
+            ? ((plan as Record<string, unknown>).meals_per_week as
+                | number
+                | null)
+            : null,
         meals_per_month: plan.meals_per_month,
         discount_percent: plan.discount_percent,
         features: plan.features as string[] | null,
@@ -196,13 +213,18 @@ const AdminSubscriptions = () => {
       setIsPlanEditOpen(false);
       resetPlanForm();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to create plan";
-      const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code) : "";
+      const message =
+        error instanceof Error ? error.message : "Failed to create plan";
+      const code =
+        typeof error === "object" && error !== null && "code" in error
+          ? String((error as { code?: unknown }).code)
+          : "";
       toast({
         title: "Error",
-        description: message.includes("unique") || code === "23505"
-          ? `A ${planForm.tier} / ${planForm.billing_interval} plan already exists.`
-          : message,
+        description:
+          message.includes("unique") || code === "23505"
+            ? `A ${planForm.tier} / ${planForm.billing_interval} plan already exists.`
+            : message,
         variant: "destructive",
       });
     } finally {
@@ -247,35 +269,19 @@ const AdminSubscriptions = () => {
     }
   };
 
-  const handleDeletePlan = async (planId: string) => {
-    const plan = plans.find((item) => item.id === planId);
-    if (!plan) return;
+  const requestDeletePlan = (plan: SubscriptionPlan) => {
+    setPlanPendingDelete(plan);
+  };
 
-    const confirmed = confirm(`Are you sure you want to permanently delete "${planLabel(plan.tier)}" plan? This cannot be undone.`);
-    if (!confirmed) return;
-
+  const handleDeletePlan = async (plan: SubscriptionPlan) => {
     try {
       const { error } = await supabase
         .from("subscription_plans")
         .delete()
-        .eq("id", planId);
+        .eq("id", plan.id);
 
       if (error) {
-        const deactivateConfirm = confirm(`Cannot delete "${planLabel(plan.tier)}" because subscriptions use it.\n\nDeactivate it instead?`);
-        if (!deactivateConfirm) return;
-
-        const { error: deactivateError } = await supabase
-          .from("subscription_plans")
-          .update({ is_active: false })
-          .eq("id", planId);
-
-        if (deactivateError) throw deactivateError;
-
-        toast({
-          title: "Plan Deactivated",
-          description: `"${planLabel(plan.tier)}" plan has been deactivated.`,
-        });
-        fetchPlans();
+        setPlanPendingDeactivate(plan);
         return;
       }
 
@@ -287,7 +293,42 @@ const AdminSubscriptions = () => {
     } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete plan",
+        description:
+          error instanceof Error ? error.message : "Failed to delete plan",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const confirmDeletePlan = async () => {
+    if (!planPendingDelete) return;
+    const plan = planPendingDelete;
+    setPlanPendingDelete(null);
+    await handleDeletePlan(plan);
+  };
+
+  const confirmDeactivatePlan = async () => {
+    if (!planPendingDeactivate) return;
+    const plan = planPendingDeactivate;
+    setPlanPendingDeactivate(null);
+    try {
+      const { error } = await supabase
+        .from("subscription_plans")
+        .update({ is_active: false })
+        .eq("id", plan.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Plan Deactivated",
+        description: `"${planLabel(plan.tier)}" plan has been deactivated.`,
+      });
+      fetchPlans();
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to deactivate plan",
         variant: "destructive",
       });
     }
@@ -317,106 +358,143 @@ const AdminSubscriptions = () => {
     }
   };
 
-  const stats = useMemo(() => ({
-    totalPlans: plans.length,
-    activePlans: plans.filter((plan) => plan.is_active).length,
-    monthlyPlans: plans.filter((plan) => plan.billing_interval === "monthly").length,
-    annualPlans: plans.filter((plan) => plan.billing_interval === "annual").length,
-    avgPrice: plans.length > 0
-      ? plans.reduce((acc, plan) => acc + (plan.price_qar || 0), 0) / plans.length
-      : 0,
-  }), [plans]);
+  const stats = useMemo(
+    () => ({
+      totalPlans: plans.length,
+      activePlans: plans.filter((plan) => plan.is_active).length,
+      monthlyPlans: plans.filter((plan) => plan.billing_interval === "monthly")
+        .length,
+      annualPlans: plans.filter((plan) => plan.billing_interval === "annual")
+        .length,
+      avgPrice:
+        plans.length > 0
+          ? plans.reduce((acc, plan) => acc + (plan.price_qar || 0), 0) /
+            plans.length
+          : 0,
+    }),
+    [plans],
+  );
 
   return (
-    <AdminLayout title="Subscription Plans" subtitle={`${stats.activePlans} active plans`}>
+    <AdminLayout
+      title="Subscription Plans"
+      subtitle={`${stats.activePlans} active plans`}
+    >
       <div className="space-y-5 bg-[#F6F8FB] pb-8 text-[#020617]">
-        <div className="overflow-hidden rounded-[28px] bg-white p-5 ring-1 ring-[#E5EAF1]">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#F6F8FB] px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-[#7C83F6]">
-                <span className="h-2 w-2 rounded-full bg-[#22C7A1]" />
-                Plans
-              </div>
-              <h1 className="mt-3 text-[28px] font-black leading-tight text-[#020617]">Subscription plans</h1>
-              <p className="mt-1 max-w-[42rem] text-sm font-semibold leading-6 text-[#64748B]">
-                Manage customer subscription tiers, meal allowance, pricing, discounts, and plan availability.
-              </p>
-            </div>
+        <AdminWorkbenchHeader
+          eyebrow="Subscription catalog"
+          title="Plans revenue desk"
+          icon={Sparkles}
+          accent="#7C83F6"
+          description="Manage customer subscription tiers, meal allowance, billing intervals, discounts, and plan availability from one catalog workflow."
+          meta={[
+            { label: "Active plans", value: stats.activePlans },
+            { label: "Monthly plans", value: stats.monthlyPlans },
+            { label: "Average price", value: formatCurrency(stats.avgPrice) },
+          ]}
+          actions={
             <Button
+              variant="outline"
               onClick={() => openPlanEdit()}
-              className="min-h-12 rounded-full bg-[#020617] px-5 font-black text-white shadow-none hover:bg-[#020617]/90"
+              className="h-11 rounded-[14px] border-[#7C83F6]/30 bg-[#7C83F6]/10 px-4 font-black text-[#020617] hover:bg-[#7C83F6]/15"
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-4 w-4 text-[#7C83F6]" />
               Add Plan
             </Button>
-          </div>
-        </div>
+          }
+        />
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {[
-            { label: "Total Plans", value: stats.totalPlans, icon: Sparkles, color: C.protein },
-            { label: "Active", value: stats.activePlans, icon: Check, color: C.progress },
-            { label: "Monthly", value: stats.monthlyPlans, icon: Calendar, color: C.water },
-            { label: "Avg Price", value: formatCurrency(stats.avgPrice), icon: DollarSign, color: C.fat },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="rounded-[24px] bg-white p-4 ring-1 ring-[#E5EAF1]">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}18`, color }}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-2xl font-black leading-none text-[#020617]">{value}</p>
-                  <p className="mt-1 text-xs font-bold text-[#94A3B8]">{label}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <AdminKpiStrip
+          items={[
+            {
+              label: "Total Plans",
+              value: stats.totalPlans,
+              icon: Sparkles,
+              accent: "#7C83F6",
+              helper: "Catalog records",
+            },
+            {
+              label: "Active",
+              value: stats.activePlans,
+              icon: Check,
+              accent: "#22C7A1",
+              helper: "Available to customers",
+            },
+            {
+              label: "Monthly",
+              value: stats.monthlyPlans,
+              icon: Calendar,
+              accent: "#38BDF8",
+              helper: "Monthly billing",
+            },
+            {
+              label: "Avg Price",
+              value: formatCurrency(stats.avgPrice),
+              icon: DollarSign,
+              accent: "#FB6B7A",
+              helper: "Across all plans",
+            },
+          ]}
+        />
 
-        <Card className="rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
-          <CardContent className="p-4">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#94A3B8]">Catalog</p>
-                <h2 className="text-xl font-black text-[#020617]">All plans</h2>
-              </div>
-              <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">
+        <AdminPanel>
+          <AdminPanelHeader
+            title="All plans"
+            eyebrow="Catalog"
+            actions={
+              <Badge className="border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#22C7A1]">
                 {stats.activePlans} active
               </Badge>
-            </div>
+            }
+          />
 
+          <div className="p-4">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-[#7C83F6]" />
               </div>
             ) : plans.length === 0 ? (
-              <div className="rounded-[24px] border border-dashed border-[#CBD5E1] bg-[#F6F8FB] px-6 py-12 text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-[#7C83F6] ring-1 ring-[#E5EAF1]">
-                  <Sparkles className="h-8 w-8" />
+              <div className="rounded-[24px] border border-dashed border-[#E5EAF1] bg-[#F6F8FB]">
+                <AdminEmptyState
+                  icon={Sparkles}
+                  title="No plans yet"
+                  description="Create your first subscription plan."
+                  className="py-10"
+                />
+                <div className="flex justify-center px-6 pb-10">
+                  <Button
+                    variant="outline"
+                    onClick={() => openPlanEdit()}
+                    className="rounded-full border-[#7C83F6]/30 bg-[#7C83F6]/10 font-black text-[#020617] shadow-none hover:bg-[#7C83F6]/15"
+                  >
+                    <Plus className="mr-2 h-4 w-4 text-[#7C83F6]" />
+                    Create Plan
+                  </Button>
                 </div>
-                <p className="font-black text-[#020617]">No plans yet</p>
-                <p className="mb-4 mt-1 text-sm font-semibold text-[#94A3B8]">Create your first subscription plan.</p>
-                <Button onClick={() => openPlanEdit()} className="rounded-full bg-[#020617] font-black text-white shadow-none">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Plan
-                </Button>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {plans.map((plan) => {
-                  const weeklyMeals = plan.meals_per_week ?? Math.round((plan.meals_per_month || 0) / 4);
+                  const weeklyMeals =
+                    plan.meals_per_week ??
+                    Math.round((plan.meals_per_month || 0) / 4);
                   return (
                     <div
                       key={plan.id}
-                      className={`relative rounded-[26px] bg-[#F6F8FB] p-4 ring-1 transition ${
-                        plan.is_active ? "ring-[#22C7A1]/35" : "opacity-70 ring-[#E5EAF1]"
+                      className={`relative rounded-[26px] bg-[#F6F8FB] p-4 shadow-[0_10px_26px_rgba(2,6,23,0.035)] ring-1 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_16px_38px_rgba(2,6,23,0.065)] ${
+                        plan.is_active
+                          ? "ring-[#22C7A1]/35"
+                          : "opacity-70 ring-[#E5EAF1]"
                       }`}
                     >
                       <button
                         type="button"
                         onClick={() => handleToggleActive(plan)}
-                        className="absolute right-4 top-4 rounded-full bg-white p-2 text-[#020617] ring-1 ring-[#E5EAF1]"
-                        title={plan.is_active ? "Deactivate plan" : "Activate plan"}
+                        aria-label={`${plan.is_active ? "Deactivate" : "Activate"} ${planLabel(plan.tier)} plan`}
+                        className="absolute right-4 top-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white text-[#020617] ring-1 ring-[#E5EAF1]"
+                        title={
+                          plan.is_active ? "Deactivate plan" : "Activate plan"
+                        }
                       >
                         {plan.is_active ? (
                           <ToggleRight className="h-6 w-6 text-[#22C7A1]" />
@@ -426,43 +504,74 @@ const AdminSubscriptions = () => {
                       </button>
 
                       <div className="pr-12">
-                        <Badge className={plan.is_active ? "border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]" : "border border-[#E5EAF1] bg-white text-[#94A3B8]"}>
+                        <Badge
+                          className={
+                            plan.is_active
+                              ? "border border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#22C7A1]"
+                              : "border border-[#E5EAF1] bg-white text-[#94A3B8]"
+                          }
+                        >
                           {plan.is_active ? "Active" : "Inactive"}
                         </Badge>
-                        <h3 className="mt-3 text-xl font-black capitalize text-[#020617]">{planLabel(plan.tier)}</h3>
-                        <p className="text-sm font-bold capitalize text-[#94A3B8]">{plan.billing_interval}</p>
+                        <h3 className="mt-3 text-xl font-black capitalize text-[#020617]">
+                          {planLabel(plan.tier)}
+                        </h3>
+                        <p className="text-sm font-bold capitalize text-[#94A3B8]">
+                          {plan.billing_interval}
+                        </p>
                       </div>
 
                       <div className="mt-5 rounded-[22px] bg-white p-4 ring-1 ring-[#E5EAF1]">
                         <div className="flex items-end gap-1">
-                          <span className="text-3xl font-black text-[#020617]">{formatCurrency(plan.price_qar || 0)}</span>
-                          <span className="pb-1 text-xs font-bold text-[#94A3B8]">/month</span>
+                          <span className="text-3xl font-black text-[#020617]">
+                            {formatCurrency(plan.price_qar || 0)}
+                          </span>
+                          <span className="pb-1 text-xs font-bold text-[#94A3B8]">
+                            /month
+                          </span>
                         </div>
                         {plan.discount_percent && plan.discount_percent > 0 ? (
-                          <p className="mt-1 text-xs font-black text-[#22C7A1]">{plan.discount_percent}% discount applied</p>
+                          <p className="mt-1 text-xs font-black text-[#22C7A1]">
+                            {plan.discount_percent}% discount applied
+                          </p>
                         ) : null}
                       </div>
 
-                      <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
-                          <p className="text-lg font-black text-[#7C83F6]">{weeklyMeals}</p>
-                          <p className="text-[10px] font-black uppercase text-[#94A3B8]">Meals/week</p>
+                          <p className="text-lg font-black text-[#7C83F6]">
+                            {weeklyMeals}
+                          </p>
+                          <p className="text-[10px] font-black uppercase text-[#94A3B8]">
+                            Meals/week
+                          </p>
                         </div>
                         <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
-                          <p className="text-lg font-black text-[#38BDF8]">{plan.meals_per_month || 0}</p>
-                          <p className="text-[10px] font-black uppercase text-[#94A3B8]">Meals/month</p>
+                          <p className="text-lg font-black text-[#38BDF8]">
+                            {plan.meals_per_month || 0}
+                          </p>
+                          <p className="text-[10px] font-black uppercase text-[#94A3B8]">
+                            Meals/month
+                          </p>
                         </div>
                       </div>
 
                       {plan.features && plan.features.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           {plan.features.slice(0, 4).map((feature) => (
-                            <Badge key={feature} variant="outline" className="border-[#E5EAF1] bg-white text-xs font-bold text-[#64748B]">
+                            <Badge
+                              key={feature}
+                              variant="outline"
+                              className="border-[#E5EAF1] bg-white text-xs font-bold text-[#94A3B8]"
+                            >
                               {feature}
                             </Badge>
                           ))}
                           {plan.features.length > 4 && (
-                            <Badge variant="outline" className="border-[#E5EAF1] bg-white text-xs font-bold text-[#94A3B8]">
+                            <Badge
+                              variant="outline"
+                              className="border-[#E5EAF1] bg-white text-xs font-bold text-[#94A3B8]"
+                            >
                               +{plan.features.length - 4}
                             </Badge>
                           )}
@@ -473,7 +582,7 @@ const AdminSubscriptions = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="min-h-10 rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none"
+                          className="min-h-11 rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none"
                           onClick={() => openPlanEdit(plan)}
                         >
                           <Edit className="mr-1 h-3.5 w-3.5" />
@@ -482,10 +591,11 @@ const AdminSubscriptions = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="min-h-10 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 px-3 text-[#BE123C] shadow-none"
-                          onClick={() => handleDeletePlan(plan.id)}
+                          className="min-h-11 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 px-3 text-[#FB6B7A] shadow-none"
+                          aria-label={`Delete ${planLabel(plan.tier)} plan`}
+                          onClick={() => requestDeletePlan(plan)}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -493,8 +603,8 @@ const AdminSubscriptions = () => {
                 })}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </AdminPanel>
 
         <Sheet
           open={isPlanEditOpen}
@@ -506,17 +616,19 @@ const AdminSubscriptions = () => {
             }
           }}
         >
-          <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-md">
-            <SheetHeader className="pb-4">
+          <AdminSheetContent size="md">
+            <SheetHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left shadow-[0_12px_30px_rgba(2,6,23,0.05)]">
               <SheetTitle className="text-2xl font-black text-[#020617]">
                 {selectedPlan ? "Edit Plan" : "Create New Plan"}
               </SheetTitle>
               <SheetDescription className="font-semibold text-[#94A3B8]">
-                {selectedPlan ? "Update the subscription plan details." : "Add a new subscription plan tier."}
+                {selectedPlan
+                  ? "Update the subscription plan details."
+                  : "Add a new subscription plan tier."}
               </SheetDescription>
             </SheetHeader>
 
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 p-5">
               <div className="space-y-2">
                 <Label className="font-black text-[#020617]">Plan Name</Label>
                 <Input
@@ -524,7 +636,9 @@ const AdminSubscriptions = () => {
                   onChange={(event) =>
                     setPlanForm({
                       ...planForm,
-                      tier: event.target.value.toLowerCase().replace(/\s+/g, "-"),
+                      tier: event.target.value
+                        .toLowerCase()
+                        .replace(/\s+/g, "-"),
                     })
                   }
                   placeholder="e.g. gold, silver, family"
@@ -536,45 +650,65 @@ const AdminSubscriptions = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="font-black text-[#020617]">Billing Interval</Label>
+                <Label className="font-black text-[#020617]">
+                  Billing Interval
+                </Label>
                 <Select
                   value={planForm.billing_interval}
-                  onValueChange={(value) => setPlanForm({ ...planForm, billing_interval: value })}
+                  onValueChange={(value) =>
+                    setPlanForm({ ...planForm, billing_interval: value })
+                  }
                 >
                   <SelectTrigger className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                     <SelectItem value="monthly">Monthly</SelectItem>
                     <SelectItem value="annual">Annual</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="font-black text-[#020617]">Price (QAR)</Label>
+                  <Label className="font-black text-[#020617]">
+                    Price (QAR)
+                  </Label>
                   <Input
                     type="number"
                     value={planForm.price_qar}
-                    onChange={(event) => setPlanForm({ ...planForm, price_qar: parseFloat(event.target.value) || 0 })}
+                    onChange={(event) =>
+                      setPlanForm({
+                        ...planForm,
+                        price_qar: parseFloat(event.target.value) || 0,
+                      })
+                    }
                     className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="font-black text-[#020617]">Discount (%)</Label>
+                  <Label className="font-black text-[#020617]">
+                    Discount (%)
+                  </Label>
                   <Input
                     type="number"
                     value={planForm.discount_percent}
-                    onChange={(event) => setPlanForm({ ...planForm, discount_percent: parseInt(event.target.value) || 0 })}
+                    onChange={(event) =>
+                      setPlanForm({
+                        ...planForm,
+                        discount_percent: parseInt(event.target.value) || 0,
+                      })
+                    }
                     className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="font-black text-[#020617]">Meals per Week</Label>
+                <Label className="font-black text-[#020617]">
+                  Meals per Week
+                </Label>
                 <Input
                   type="number"
                   min={0}
@@ -600,7 +734,9 @@ const AdminSubscriptions = () => {
                 <Label className="font-black text-[#020617]">Active</Label>
                 <Switch
                   checked={planForm.is_active}
-                  onCheckedChange={(checked) => setPlanForm({ ...planForm, is_active: checked })}
+                  onCheckedChange={(checked) =>
+                    setPlanForm({ ...planForm, is_active: checked })
+                  }
                 />
               </div>
 
@@ -619,15 +755,31 @@ const AdminSubscriptions = () => {
                     }}
                     className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
                   />
-                  <Button type="button" variant="outline" size="icon" onClick={addFeature} className="h-11 w-11 rounded-full border-[#E5EAF1] bg-white shadow-none">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={addFeature}
+                    aria-label="Add subscription feature"
+                    className="h-11 w-11 rounded-full border-[#E5EAF1] bg-white shadow-none"
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {planForm.features.map((feature) => (
-                    <Badge key={feature} variant="secondary" className="gap-1 rounded-full bg-[#F6F8FB] pr-1 font-bold text-[#020617]">
+                    <Badge
+                      key={feature}
+                      variant="secondary"
+                      className="gap-1 rounded-full bg-[#F6F8FB] pr-1 font-bold text-[#020617]"
+                    >
                       {feature}
-                      <button type="button" onClick={() => removeFeature(feature)} className="rounded-full p-0.5 text-[#FB6B7A]">
+                      <button
+                        type="button"
+                        onClick={() => removeFeature(feature)}
+                        aria-label={`Remove feature ${feature}`}
+                        className="-my-2 ml-1 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[#FB6B7A] transition hover:bg-[#FB6B7A]/10"
+                      >
                         <X className="h-3 w-3" />
                       </button>
                     </Badge>
@@ -635,7 +787,7 @@ const AdminSubscriptions = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-4">
+              <div className="grid grid-cols-1 gap-2 pt-4 sm:grid-cols-2">
                 <Button
                   variant="outline"
                   className="min-h-11 rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none"
@@ -648,17 +800,116 @@ const AdminSubscriptions = () => {
                   Cancel
                 </Button>
                 <Button
-                  className="min-h-11 rounded-full bg-[#020617] font-black text-white shadow-none hover:bg-[#020617]/90"
+                  variant="outline"
+                  className="min-h-11 rounded-full border-[#7C83F6]/30 bg-[#7C83F6]/10 font-black text-[#020617] shadow-none hover:bg-[#7C83F6]/15"
                   onClick={selectedPlan ? handleUpdatePlan : handleAddPlan}
                   disabled={processing || !planForm.tier}
                 >
-                  {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                  {processing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin text-[#7C83F6]" />
+                  ) : (
+                    <Check className="mr-2 h-4 w-4 text-[#7C83F6]" />
+                  )}
                   {selectedPlan ? "Save" : "Create"}
                 </Button>
               </div>
             </div>
-          </SheetContent>
+          </AdminSheetContent>
         </Sheet>
+
+        <AlertDialog
+          open={!!planPendingDelete}
+          onOpenChange={(open) => !open && setPlanPendingDelete(null)}
+        >
+          <AdminAlertDialogContent>
+            <AlertDialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4 text-left">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#FB6B7A]/10 text-[#FB6B7A]">
+                  <Trash2 className="h-5 w-5" />
+                </span>
+                <div>
+                  <AlertDialogTitle className="text-xl font-black text-[#020617]">
+                    Delete subscription plan?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="mt-1 font-semibold leading-6 text-[#94A3B8]">
+                    {planPendingDelete
+                      ? `"${planLabel(planPendingDelete.tier)}" will be permanently removed if it is not used by active subscriptions.`
+                      : "This plan will be permanently removed."}
+                  </AlertDialogDescription>
+                </div>
+              </div>
+            </AlertDialogHeader>
+            <div className="px-5 py-4">
+              <div className="rounded-[20px] border border-[#FB6B7A]/20 bg-[#FB6B7A]/10 p-4">
+                <p className="text-sm font-black text-[#020617]">
+                  This action cannot be undone.
+                </p>
+                <p className="mt-1 text-sm font-semibold leading-6 text-[#94A3B8]">
+                  If customers already use this plan, Nutrio will ask you to
+                  deactivate it instead.
+                </p>
+              </div>
+            </div>
+            <AlertDialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+              <AlertDialogCancel className="min-h-[44px] rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white">
+                Keep plan
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeletePlan}
+                className="min-h-[44px] rounded-2xl bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90"
+              >
+                Delete plan
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AdminAlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog
+          open={!!planPendingDeactivate}
+          onOpenChange={(open) => !open && setPlanPendingDeactivate(null)}
+        >
+          <AdminAlertDialogContent>
+            <AlertDialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4 text-left">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F97316]/10 text-[#F97316]">
+                  <ToggleLeft className="h-5 w-5" />
+                </span>
+                <div>
+                  <AlertDialogTitle className="text-xl font-black text-[#020617]">
+                    Deactivate instead?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="mt-1 font-semibold leading-6 text-[#94A3B8]">
+                    {planPendingDeactivate
+                      ? `"${planLabel(planPendingDeactivate.tier)}" cannot be deleted because subscriptions use it.`
+                      : "This plan cannot be deleted because subscriptions use it."}
+                  </AlertDialogDescription>
+                </div>
+              </div>
+            </AlertDialogHeader>
+            <div className="px-5 py-4">
+              <div className="rounded-[20px] border border-[#F97316]/20 bg-[#F97316]/10 p-4">
+                <p className="text-sm font-black text-[#020617]">
+                  Recommended action
+                </p>
+                <p className="mt-1 text-sm font-semibold leading-6 text-[#94A3B8]">
+                  Deactivating hides the plan from new customers while
+                  preserving historical subscription records.
+                </p>
+              </div>
+            </div>
+            <AlertDialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+              <AlertDialogCancel className="min-h-[44px] rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white">
+                Leave active
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeactivatePlan}
+                className="min-h-[44px] rounded-2xl border border-[#F97316]/30 bg-[#F97316]/10 font-black text-[#020617] hover:bg-[#F97316]/15"
+              >
+                Deactivate plan
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AdminAlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );

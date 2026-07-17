@@ -12,15 +12,33 @@ env:
   NODE_VERSION: '22'
   PRODUCTION_APP_URL: ${{ vars.PRODUCTION_APP_URL || 'https://nutrio.me/nutrio' }}
 
+permissions:
+  contents: read
+
 jobs:
   launch-gate:
     name: Verify all production portals
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: Production
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout current main
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/heads/main
+          fetch-depth: 0
+      - name: Verify exact current main before lifecycle scripts
+        shell: bash
+        run: |
+          git fetch --force --no-tags origin main
+          trusted_sha="$(git rev-parse origin/main)"
+          checked_out_sha="$(git rev-parse HEAD)"
+          if [[ "$GITHUB_SHA" != "$trusted_sha" || "$checked_out_sha" != "$trusted_sha" ]]; then
+            echo "::error title=Untrusted production gate commit::Select the current main branch commit."
+            exit 1
+          fi
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -31,17 +49,58 @@ jobs:
             exit 1
           fi
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - name: Audit all launch dependencies
+        run: npm audit --audit-level=high
+      - run: npx --no-install playwright install --with-deps chromium
+      - name: Initialize redacted launch evidence
+        shell: bash
+        run: |
+          mkdir -p production-evidence
+          printf 'Nutrio production launch gate\nResult: not-run\nCommit: %s\nRun ID: %s\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_ID" > production-evidence/launch-summary.txt
       - name: Run six-portal launch gate
-        run: npm run test:e2e:launch
+        shell: bash
+        run: |
+          missing=0
+          for name in E2E_{CUSTOMER,ADMIN,PARTNER,DRIVER,FLEET,COACH}_{EMAIL,PASSWORD}; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error title=Missing E2E secret::$name is required"
+              missing=1
+            fi
+          done
+          if [[ -z "$E2E_ADMIN_TOTP_SECRET" ]]; then
+            echo "::error title=Missing E2E secret::E2E_ADMIN_TOTP_SECRET is required for the AAL2 admin launch gate"
+            missing=1
+          fi
+
+          status=1
+          if (( missing == 0 )); then
+            set +e
+            npm run test:e2e:launch > "$RUNNER_TEMP/production-launch-gate.log" 2>&1
+            status=$?
+            set -e
+          fi
+
+          rm -f "$RUNNER_TEMP/production-launch-gate.log"
+
+          result=failed
+          if (( status == 0 )); then
+            result=passed
+          fi
+          printf 'Nutrio production launch gate\nResult: %s\nCommit: %s\nRun ID: %s\n' \
+            "$result" "$GITHUB_SHA" "$GITHUB_RUN_ID" > production-evidence/launch-summary.txt
+          exit "$status"
         env:
           PLAYWRIGHT_BASE_URL: ${{ env.PRODUCTION_APP_URL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          E2E_SHARED_SCHEDULE_ID: ${{ inputs.shared_schedule_id }}
           E2E_CUSTOMER_EMAIL: ${{ secrets.E2E_CUSTOMER_EMAIL }}
           E2E_CUSTOMER_PASSWORD: ${{ secrets.E2E_CUSTOMER_PASSWORD }}
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_ADMIN_TOTP_SECRET: ${{ secrets.E2E_ADMIN_TOTP_SECRET }}
+          E2E_ADMIN_TOTP_FACTOR_NAME: ${{ secrets.E2E_ADMIN_TOTP_FACTOR_NAME }}
           E2E_PARTNER_EMAIL: ${{ secrets.E2E_PARTNER_EMAIL }}
           E2E_PARTNER_PASSWORD: ${{ secrets.E2E_PARTNER_PASSWORD }}
           E2E_DRIVER_EMAIL: ${{ secrets.E2E_DRIVER_EMAIL }}
@@ -50,13 +109,10 @@ jobs:
           E2E_FLEET_PASSWORD: ${{ secrets.E2E_FLEET_PASSWORD }}
           E2E_COACH_EMAIL: ${{ secrets.E2E_COACH_EMAIL }}
           E2E_COACH_PASSWORD: ${{ secrets.E2E_COACH_PASSWORD }}
-          E2E_SHARED_SCHEDULE_ID: ${{ inputs.shared_schedule_id }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: production-launch-evidence
-          path: |
-            test-results/
-            playwright-report/
-          if-no-files-found: ignore
+          name: production-launch-redacted-summary
+          path: production-evidence/launch-summary.txt
+          if-no-files-found: error
           retention-days: 14

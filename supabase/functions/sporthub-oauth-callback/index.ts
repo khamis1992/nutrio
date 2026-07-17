@@ -4,8 +4,18 @@ import {
   appRedirect,
   encryptSecret,
   getAdminClient,
+  readLimitedJson,
+  requireHttpsUrl,
+  requireSportHubUrl,
+  safeRedirectPath,
   sha256,
 } from "../_shared/sporthub.ts";
+import {
+  enforceRateLimit,
+  getClientIp,
+  HttpError,
+  recordSecurityEvent,
+} from "../_shared/security.ts";
 
 type TokenResponse = {
   access_token?: string;
@@ -17,106 +27,187 @@ type TokenResponse = {
   sub?: string;
 };
 
-function redirect(path: string, status: string, reason?: string) {
+type ConsumedState = {
+  user_id: string;
+  code_verifier: string;
+  redirect_path: string;
+  expires_at: string;
+};
+
+function redirect(path: string, status: "linked" | "failed", reason?: string) {
   const params: Record<string, string> = { sporthub_link: status };
   if (reason) params.reason = reason;
-  return Response.redirect(appRedirect(path, params), 302);
+  return Response.redirect(appRedirect(safeRedirectPath(path), params), 303);
 }
 
-serve(async (req) => {
+serve(async (req: Request): Promise<Response> => {
+  if (req.method !== "GET") {
+    return new Response("Method not allowed", {
+      status: 405,
+      headers: { "Cache-Control": "no-store", Allow: "GET" },
+    });
+  }
+
   const requestUrl = new URL(req.url);
-  const code = requestUrl.searchParams.get("code");
-  const state = requestUrl.searchParams.get("state");
+  const code = requestUrl.searchParams.get("code") || "";
+  const state = requestUrl.searchParams.get("state") || "";
   const oauthError = requestUrl.searchParams.get("error");
-  if (!state) return redirect("/dashboard/activity", "failed", "missing_state");
-
-  const admin = getAdminClient();
-  const stateHash = await sha256(state);
-  const { data: oauthState, error: stateError } = await admin
-    .from("partner_oauth_states")
-    .select("state_hash,user_id,code_verifier,redirect_path,expires_at,consumed_at")
-    .eq("state_hash", stateHash)
-    .eq("partner", "sporthub")
-    .maybeSingle();
-
-  if (stateError || !oauthState || oauthState.consumed_at || new Date(oauthState.expires_at) <= new Date()) {
+  if (!/^[A-Za-z0-9_-]{40,128}$/.test(state)) {
     return redirect("/dashboard/activity", "failed", "invalid_state");
   }
 
-  await admin.from("partner_oauth_states").update({ consumed_at: new Date().toISOString() }).eq("state_hash", stateHash);
-  const redirectPath = oauthState.redirect_path || "/dashboard/activity";
-
-  if (oauthError || !code) {
-    await admin.from("partner_integrations").update({
-      consent_status: "failed",
-      updated_at: new Date().toISOString(),
-      metadata: { oauth_error: oauthError || "missing_code" },
-    }).eq("user_id", oauthState.user_id).eq("partner", "sporthub");
-    return redirect(redirectPath, "failed", oauthError || "missing_code");
-  }
+  const admin = getAdminClient();
+  const stateHash = await sha256(state);
+  let consumedState: ConsumedState | null = null;
 
   try {
-    const tokenUrl = Deno.env.get("SPORTHUB_TOKEN_URL");
-    const clientId = Deno.env.get("SPORTHUB_CLIENT_ID");
-    const clientSecret = Deno.env.get("SPORTHUB_CLIENT_SECRET");
-    const redirectUri = Deno.env.get("SPORTHUB_REDIRECT_URI");
-    if (!tokenUrl || !clientId || !clientSecret || !redirectUri) throw new Error("OAuth environment missing");
+    await enforceRateLimit(
+      req,
+      "sporthub-oauth-callback",
+      getClientIp(req) || stateHash,
+      30,
+      10 * 60,
+    );
+
+    const { data, error: consumeError } = await admin.rpc(
+      "consume_partner_oauth_state",
+      { p_state_hash: stateHash, p_partner: "sporthub" },
+    );
+    consumedState = (Array.isArray(data) ? data[0] : null) as ConsumedState | null;
+    if (consumeError || !consumedState) {
+      await recordSecurityEvent(req, {
+        eventType: "integration.sporthub.oauth_state_rejected",
+        category: "authorization",
+        severity: "high",
+        outcome: "denied",
+        actorType: "anonymous",
+        action: "consume_oauth_state",
+        resourceType: "public.partner_oauth_states",
+        resourceId: "sporthub",
+      });
+      return redirect("/dashboard/activity", "failed", "invalid_state");
+    }
+
+    const oauthState = consumedState;
+    const redirectPath = safeRedirectPath(oauthState.redirect_path);
+    if (oauthError || !code || code.length > 4096) {
+      await admin.from("partner_integrations").update({
+        consent_status: "failed",
+        updated_at: new Date().toISOString(),
+        metadata: { oauth_error: oauthError ? "provider_denied" : "missing_code" },
+      }).eq("user_id", oauthState.user_id).eq("partner", "sporthub");
+      return redirect(redirectPath, "failed", oauthError ? "permission_denied" : "missing_code");
+    }
+
+    const tokenUrl = requireSportHubUrl(Deno.env.get("SPORTHUB_TOKEN_URL"), "SPORTHUB_TOKEN_URL");
+    const redirectUri = requireHttpsUrl(
+      Deno.env.get("SPORTHUB_REDIRECT_URI"),
+      "SPORTHUB_REDIRECT_URI",
+    );
+    const clientId = (Deno.env.get("SPORTHUB_CLIENT_ID") || "").trim();
+    const clientSecret = (Deno.env.get("SPORTHUB_CLIENT_SECRET") || "").trim();
+    if (!clientId || !clientSecret || clientId.length > 512 || clientSecret.length > 4096) {
+      throw new HttpError(503, "sporthub_oauth_not_configured");
+    }
 
     const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      redirect: "error",
+      signal: AbortSignal.timeout(12_000),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
         client_id: clientId,
         client_secret: clientSecret,
-        redirect_uri: redirectUri,
+        redirect_uri: redirectUri.toString(),
         code_verifier: oauthState.code_verifier || "",
       }),
     });
-    if (!tokenResponse.ok) throw new Error(`Token exchange failed: ${tokenResponse.status}`);
-    const tokens = await tokenResponse.json() as TokenResponse;
-    if (!tokens.access_token) throw new Error("Token response has no access_token");
+    if (!tokenResponse.ok) {
+      console.error("SportHub token exchange rejected", { status: tokenResponse.status });
+      throw new HttpError(502, "sporthub_token_exchange_failed");
+    }
 
-    let externalUserId = tokens.user_id || tokens.sub || null;
-    const userInfoUrl = Deno.env.get("SPORTHUB_USERINFO_URL");
-    if (!externalUserId && userInfoUrl) {
-      const response = await fetch(userInfoUrl, {
-        headers: { Authorization: `${tokens.token_type || "Bearer"} ${tokens.access_token}`, Accept: "application/json" },
-      });
-      if (response.ok) {
-        const profile = await response.json() as { id?: string; user_id?: string; sub?: string };
-        externalUserId = profile.id || profile.user_id || profile.sub || null;
+    const tokens = await readLimitedJson<TokenResponse>(tokenResponse, 64 * 1024);
+    if (
+      typeof tokens.access_token !== "string"
+      || tokens.access_token.length < 16
+      || tokens.access_token.length > 16_384
+      || (tokens.refresh_token && tokens.refresh_token.length > 16_384)
+    ) {
+      throw new HttpError(502, "sporthub_token_response_invalid");
+    }
+
+    if (tokens.scope) {
+      const scopes = new Set(tokens.scope.split(/[\s,]+/).filter(Boolean));
+      if (!scopes.has("activities.read")) {
+        throw new HttpError(403, "sporthub_required_scope_missing");
       }
     }
-    if (!externalUserId) throw new Error("SportHub external user ID is missing");
+
+    let externalUserId = String(tokens.user_id || tokens.sub || "").trim();
+    const configuredUserInfo = Deno.env.get("SPORTHUB_USERINFO_URL");
+    if (!externalUserId && configuredUserInfo) {
+      const userInfoUrl = requireSportHubUrl(configuredUserInfo, "SPORTHUB_USERINFO_URL");
+      const response = await fetch(userInfoUrl, {
+        redirect: "error",
+        signal: AbortSignal.timeout(10_000),
+        headers: {
+          Authorization: `${tokens.token_type || "Bearer"} ${tokens.access_token}`,
+          Accept: "application/json",
+        },
+      });
+      if (response.ok) {
+        const profile = await readLimitedJson<{ id?: string; user_id?: string; sub?: string }>(
+          response,
+          64 * 1024,
+        );
+        externalUserId = String(profile.id || profile.user_id || profile.sub || "").trim();
+      }
+    }
+    if (!externalUserId || externalUserId.length > 255) {
+      throw new HttpError(502, "sporthub_external_identity_missing");
+    }
 
     const now = new Date().toISOString();
-    const { data: integration, error: integrationError } = await admin.from("partner_integrations").upsert({
-      user_id: oauthState.user_id,
-      partner: "sporthub",
-      external_user_id: externalUserId,
-      consent_status: "linked",
-      linked_at: now,
-      unlinked_at: null,
-      last_synced_at: now,
-      metadata: { scope: tokens.scope || null, oauth_version: "2.0-pkce" },
-      updated_at: now,
-    }, { onConflict: "user_id,partner" }).select("id").single();
-    if (integrationError || !integration) throw integrationError || new Error("Integration was not saved");
+    const { data: integration, error: integrationError } = await admin
+      .from("partner_integrations")
+      .upsert({
+        user_id: oauthState.user_id,
+        partner: "sporthub",
+        external_user_id: externalUserId,
+        consent_status: "linked",
+        linked_at: now,
+        unlinked_at: null,
+        last_synced_at: null,
+        metadata: { scope: tokens.scope || null, oauth_version: "2.0-pkce" },
+        updated_at: now,
+      }, { onConflict: "user_id,partner" })
+      .select("id")
+      .single();
+    if (integrationError || !integration) throw integrationError || new Error("integration_save_failed");
 
     const accessTokenEncrypted = await encryptSecret(tokens.access_token);
-    const refreshTokenEncrypted = tokens.refresh_token ? await encryptSecret(tokens.refresh_token) : null;
-    const expiresAt = tokens.expires_in
-      ? new Date(Date.now() + Math.max(0, tokens.expires_in - 60) * 1000).toISOString()
+    const refreshTokenEncrypted = tokens.refresh_token
+      ? await encryptSecret(tokens.refresh_token)
+      : null;
+    const expiresIn = Number(tokens.expires_in);
+    const expiresAt = Number.isFinite(expiresIn) && expiresIn > 0
+      ? new Date(Date.now() + Math.min(Math.max(expiresIn - 60, 60), 30 * 86400) * 1000)
+        .toISOString()
       : null;
 
     const { error: credentialError } = await admin.from("partner_credentials").upsert({
       integration_id: integration.id,
       access_token_encrypted: accessTokenEncrypted,
       refresh_token_encrypted: refreshTokenEncrypted,
-      token_type: tokens.token_type || "Bearer",
-      scope: tokens.scope || null,
+      // Do not reflect an arbitrary token scheme into future Authorization headers.
+      token_type: "Bearer",
+      scope: tokens.scope?.slice(0, 1000) || null,
       expires_at: expiresAt,
       updated_at: now,
     });
@@ -129,14 +220,48 @@ serve(async (req) => {
       payload: { external_user_id: externalUserId },
     });
 
+    await recordSecurityEvent(req, {
+      eventType: "integration.sporthub.linked",
+      category: "authorization",
+      severity: "medium",
+      outcome: "success",
+      actorUserId: oauthState.user_id,
+      actorType: "user",
+      action: "complete_oauth_link",
+      resourceType: "public.partner_integrations",
+      resourceId: integration.id,
+      metadata: { token_expires_at: expiresAt, scope_present: Boolean(tokens.scope) },
+    });
+
     return redirect(redirectPath, "linked");
   } catch (error) {
-    console.error("SportHub OAuth callback failed", error);
-    await admin.from("partner_integrations").update({
-      consent_status: "failed",
-      updated_at: new Date().toISOString(),
-      metadata: { oauth_error: error instanceof Error ? error.message : "callback_failed" },
-    }).eq("user_id", oauthState.user_id).eq("partner", "sporthub");
-    return redirect(redirectPath, "failed", "callback_failed");
+    const failureCode = error instanceof HttpError ? error.code : "callback_failed";
+    console.error("SportHub OAuth callback failed", {
+      code: failureCode,
+    });
+    if (consumedState) {
+      await admin.from("partner_integrations").update({
+        consent_status: "failed",
+        updated_at: new Date().toISOString(),
+        metadata: { oauth_error: failureCode },
+      }).eq("user_id", consumedState.user_id).eq("partner", "sporthub");
+      await recordSecurityEvent(req, {
+        eventType: "integration.sporthub.link_failed",
+        category: "authorization",
+        severity: "medium",
+        outcome: "failure",
+        actorUserId: consumedState.user_id,
+        actorType: "user",
+        action: "complete_oauth_link",
+        resourceType: "public.partner_integrations",
+        resourceId: "sporthub",
+        metadata: { error_code: failureCode },
+      });
+    }
+    return redirect(
+      consumedState?.redirect_path || "/dashboard/activity",
+      "failed",
+      "callback_failed",
+    );
   }
 });

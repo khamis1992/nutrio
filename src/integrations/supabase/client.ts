@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 // Do not regenerate without preserving these changes
 import type { Database } from './types';
 import { Preferences } from '@capacitor/preferences';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { isNative } from '@/lib/capacitor';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -67,33 +68,76 @@ if (supabaseConfigError) {
   );
 }
 
-// Custom storage adapter for Capacitor that uses native Preferences.
-// The `isAsyncStorage: true` flag is required by Supabase v2 when using
-// an async storage backend (like Capacitor Preferences). Without this flag,
-// Supabase may treat the adapter as synchronous and mishandle session reads,
-// which can result in a perpetual loading state and a blank screen on launch.
+const nativeSessionMemory = new Map<string, string>();
+const secureSessionAlias = (key: string) => `nutrio.supabase.${key}`;
+
+// Native session tokens are encrypted by iOS Keychain / Android Keystore via
+// NativeBiometric. Preferences is read once only to migrate older installs.
+// If secure persistence is unavailable, the session remains in memory for the
+// current app process and is intentionally lost after restart.
 const capacitorStorage = {
   isAsyncStorage: true as const,
   getItem: async (key: string): Promise<string | null> => {
+    const inMemory = nativeSessionMemory.get(key);
+    if (inMemory) return inMemory;
+
     try {
-      const { value } = await Preferences.get({ key });
-      return value;
+      const credentials = await NativeBiometric.getCredentials({
+        server: secureSessionAlias(key),
+      });
+      if (credentials.password) {
+        nativeSessionMemory.set(key, credentials.password);
+        return credentials.password;
+      }
+    } catch {
+      // A missing secure item is expected on first launch or after sign-out.
+    }
+
+    try {
+      const { value: legacyValue } = await Preferences.get({ key });
+      if (!legacyValue) return null;
+      nativeSessionMemory.set(key, legacyValue);
+      try {
+        await NativeBiometric.setCredentials({
+          server: secureSessionAlias(key),
+          username: 'supabase-session',
+          password: legacyValue,
+        });
+      } catch {
+        console.warn('[Nutrio] Secure session migration unavailable; session is memory-only.');
+      } finally {
+        // Never leave a refresh token in plaintext after a migration attempt.
+        await Preferences.remove({ key });
+      }
+      return legacyValue;
     } catch {
       return null;
     }
   },
   setItem: async (key: string, value: string): Promise<void> => {
+    nativeSessionMemory.set(key, value);
     try {
-      await Preferences.set({ key, value });
+      await NativeBiometric.setCredentials({
+        server: secureSessionAlias(key),
+        username: 'supabase-session',
+        password: value,
+      });
+      await Preferences.remove({ key });
     } catch {
-      // Silently fail — session will be lost on restart but app won't crash
+      console.warn('[Nutrio] Secure session persistence unavailable; session is memory-only.');
     }
   },
   removeItem: async (key: string): Promise<void> => {
+    nativeSessionMemory.delete(key);
+    try {
+      await NativeBiometric.deleteCredentials({ server: secureSessionAlias(key) });
+    } catch {
+      // Missing credentials are already equivalent to removal.
+    }
     try {
       await Preferences.remove({ key });
     } catch {
-      // Silently fail
+      // Best-effort removal of a legacy Preferences value.
     }
   },
 };
@@ -102,8 +146,11 @@ const capacitorStorage = {
 // - If "remember_me" flag is set in localStorage → use localStorage (session persists across browser restarts)
 // - Otherwise → use sessionStorage (session ends when browser/tab is closed)
 // This implements true "Remember Me" behaviour without requiring a different Supabase client instance.
+const webSessionKeys = new Set<string>();
+
 const webSmartStorage = {
   getItem: (key: string): string | null => {
+    webSessionKeys.add(key);
     try {
       // Always check localStorage first (covers "remember me" users and existing sessions)
       const local = localStorage.getItem(key);
@@ -114,6 +161,7 @@ const webSmartStorage = {
     }
   },
   setItem: (key: string, value: string): void => {
+    webSessionKeys.add(key);
     try {
       const rememberMe = localStorage.getItem('nutrio_remember_me') === 'true';
       if (rememberMe) {
@@ -130,6 +178,7 @@ const webSmartStorage = {
     }
   },
   removeItem: (key: string): void => {
+    webSessionKeys.delete(key);
     try {
       localStorage.removeItem(key);
       sessionStorage.removeItem(key);
@@ -138,6 +187,21 @@ const webSmartStorage = {
     }
   },
 };
+
+export function restrictWebSessionToCurrentTab(): void {
+  if (isNative) return;
+  try {
+    localStorage.removeItem('nutrio_remember_me');
+    for (const key of webSessionKeys) {
+      const persistedSession = localStorage.getItem(key);
+      if (!persistedSession) continue;
+      sessionStorage.setItem(key, persistedSession);
+      localStorage.removeItem(key);
+    }
+  } catch {
+    // The admin session lifetime guard still applies when browser storage is unavailable.
+  }
+}
 
 const storage = isNative ? capacitorStorage : webSmartStorage;
 

@@ -1,512 +1,511 @@
-// Fleet Management Portal - Location Tracking Edge Function
-// Handles driver location updates and tracking queries
+// Fleet location tracking with driver ownership and fleet city scoping.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { jwtVerify } from 'https://esm.sh/jose@5.2.0';
-import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
-const JWT_SECRET = new TextEncoder().encode(Deno.env.get('FLEET_JWT_SECRET') || '');
-const DRIVER_JWT_SECRET = new TextEncoder().encode(Deno.env.get('SUPABASE_JWT_SECRET') || '');
+import {
+  authenticateRequest,
+  enforceRateLimit,
+  getClientIp,
+  getCorsHeaders,
+  getServiceClient,
+  hasAdminAssurance,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  type SecurityPrincipal,
+} from "../_shared/security.ts";
 
-// Rate limiting:
-// - Driver location updates: 1 request per 5 seconds per driver
-// - Fleet tracking queries: 100 requests per minute per manager
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const FLEET_ROLES = new Set(["super_admin", "fleet_manager"]);
+const CORS_METHODS = "GET, POST, OPTIONS";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+interface FleetActor {
+  principal: SecurityPrincipal;
+  managerId: string;
+  authUserId: string;
+  role: "super_admin" | "fleet_manager";
+  assignedCities: string[];
+}
 
-// JWT validation middleware - supports both fleet and driver tokens
-async function validateToken(req: Request, allowDriver: boolean = false) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null;
+interface DriverActor {
+  principal: SecurityPrincipal;
+  driver: {
+    id: string;
+    user_id: string;
+    city_id: string | null;
+    is_active: boolean | null;
+    approval_status: string | null;
+    status: string | null;
+  };
+}
+
+function respond(
+  req: Request,
+  body: unknown,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+): Response {
+  return jsonResponse(req, body, status, {
+    "Access-Control-Allow-Methods": CORS_METHODS,
+    ...extraHeaders,
+  });
+}
+
+function preflight(req: Request): Response | null {
+  if (req.method !== "OPTIONS") return null;
+  return new Response(null, {
+    status: 204,
+    headers: { ...getCorsHeaders(req), "Access-Control-Allow-Methods": CORS_METHODS },
+  });
+}
+
+function safeError(req: Request, error: unknown): Response {
+  if (error instanceof HttpError) {
+    return respond(req, { error: error.code }, error.status);
   }
-  
-  const token = authHeader.substring(7);
-  
-  try {
-    // Try fleet token first
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    if (payload.type === 'fleet_access') {
-      return { ...payload, type: 'fleet' };
+  console.error("fleet-tracking failed:", error);
+  return respond(req, { error: "internal_error" }, 500);
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new HttpError(400, "invalid_request_body");
+  }
+  return value as Record<string, unknown>;
+}
+
+function assertAllowedKeys(body: Record<string, unknown>, allowed: string[]): void {
+  const allowedSet = new Set(allowed);
+  if (Object.keys(body).some((key) => !allowedSet.has(key))) {
+    throw new HttpError(400, "unexpected_request_field");
+  }
+}
+
+function requireUuid(value: unknown, code: string): string {
+  if (typeof value !== "string" || !UUID_PATTERN.test(value)) {
+    throw new HttpError(400, code);
+  }
+  return value;
+}
+
+function optionalFiniteNumber(
+  value: unknown,
+  code: string,
+  minimum: number,
+  maximum: number,
+): number | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < minimum || value > maximum) {
+    throw new HttpError(400, code);
+  }
+  return value;
+}
+
+function normalizeCityIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((item): item is string => typeof item === "string" && UUID_PATTERN.test(item)))];
+}
+
+async function authenticateFleetActor(req: Request): Promise<FleetActor> {
+  const principal = await authenticateRequest(req);
+  const service = getServiceClient();
+  const { data: manager, error } = await service
+    .from("fleet_managers")
+    .select("id, auth_user_id, role, assigned_city_ids, is_active")
+    .eq("auth_user_id", principal.user.id)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error) throw new HttpError(503, "authorization_unavailable");
+
+  if (hasAdminAssurance(principal)) {
+    return {
+      principal,
+      managerId: manager?.id || principal.user.id,
+      authUserId: principal.user.id,
+      role: "super_admin",
+      assignedCities: [],
+    };
+  }
+  if (!manager || !FLEET_ROLES.has(String(manager.role))) {
+    throw new HttpError(403, "fleet_operator_required");
+  }
+
+  return {
+    principal,
+    managerId: manager.id,
+    authUserId: principal.user.id,
+    role: manager.role as FleetActor["role"],
+    assignedCities: normalizeCityIds(manager.assigned_city_ids),
+  };
+}
+
+async function authenticateDriverActor(req: Request): Promise<DriverActor> {
+  const principal = await authenticateRequest(req);
+  const service = getServiceClient();
+  const { data: driver, error } = await service
+    .from("drivers")
+    .select("id, user_id, city_id, is_active, approval_status, status")
+    .eq("user_id", principal.user.id)
+    .maybeSingle();
+  if (error) throw new HttpError(503, "authorization_unavailable");
+  if (!driver) throw new HttpError(403, "driver_required");
+  return { principal, driver };
+}
+
+async function requireDriverOwnership(
+  req: Request,
+  actor: DriverActor,
+  requestedDriverId: string,
+): Promise<void> {
+  if (actor.driver.id === requestedDriverId) return;
+  await recordSecurityEvent(req, {
+    eventType: "authorization.driver_spoofing_blocked",
+    category: "authorization",
+    severity: "high",
+    outcome: "blocked",
+    principal: actor.principal,
+    actorType: "driver",
+    action: "update_other_driver",
+    resourceType: "driver",
+    resourceId: requestedDriverId,
+  });
+  throw new HttpError(403, "forbidden");
+}
+
+function assertDriverMayTrack(actor: DriverActor): void {
+  const status = actor.driver.status || "";
+  if (
+    actor.driver.is_active !== true ||
+    actor.driver.approval_status !== "approved" ||
+    status === "suspended" ||
+    status === "inactive"
+  ) {
+    throw new HttpError(403, "driver_not_active");
+  }
+}
+
+async function assertCityAccess(
+  req: Request,
+  actor: FleetActor,
+  cityId: string | null,
+  resourceType: string,
+  resourceId?: string,
+): Promise<void> {
+  if (actor.role === "super_admin") return;
+  if (cityId && actor.assignedCities.includes(cityId)) return;
+
+  await recordSecurityEvent(req, {
+    eventType: "authorization.fleet_city_access_denied",
+    category: "authorization",
+    severity: "high",
+    outcome: "denied",
+    principal: actor.principal,
+    actorUserId: actor.authUserId,
+    actorRole: actor.role,
+    actorType: "admin",
+    action: "access_fleet_city_object",
+    resourceType,
+    resourceId,
+    metadata: { city_id: cityId },
+  });
+  throw new HttpError(403, "city_access_denied");
+}
+
+async function getCityFilter(
+  req: Request,
+  actor: FleetActor,
+  requestedCityId: string | null,
+): Promise<string[] | null> {
+  if (requestedCityId && !UUID_PATTERN.test(requestedCityId)) {
+    throw new HttpError(400, "invalid_city_id");
+  }
+  if (actor.role === "super_admin") return requestedCityId ? [requestedCityId] : null;
+  if (actor.assignedCities.length === 0) {
+    await assertCityAccess(req, actor, null, "city");
+  }
+  if (requestedCityId) {
+    await assertCityAccess(req, actor, requestedCityId, "city", requestedCityId);
+    return [requestedCityId];
+  }
+  return actor.assignedCities;
+}
+
+function parseClientTimestamp(value: unknown): string {
+  if (value === undefined || value === null) return new Date().toISOString();
+  if (typeof value !== "string" || value.length > 40) {
+    throw new HttpError(400, "invalid_timestamp");
+  }
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed) || Math.abs(Date.now() - parsed) > 5 * 60 * 1000) {
+    throw new HttpError(400, "invalid_timestamp");
+  }
+  return new Date(parsed).toISOString();
+}
+
+function parsePoint(value: unknown): { latitude: number; longitude: number } | null {
+  if (typeof value === "string") {
+    const match = value.match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/i);
+    if (match) return { longitude: Number(match[1]), latitude: Number(match[2]) };
+  }
+  if (value && typeof value === "object" && "coordinates" in value) {
+    const coordinates = (value as { coordinates?: unknown }).coordinates;
+    if (Array.isArray(coordinates) && coordinates.length >= 2) {
+      const longitude = Number(coordinates[0]);
+      const latitude = Number(coordinates[1]);
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) return { latitude, longitude };
     }
-  } catch {
-    // Not a fleet token
   }
-  
-  if (allowDriver) {
-    try {
-      // Try driver token (Supabase auth token)
-      const { payload } = await jwtVerify(token, DRIVER_JWT_SECRET);
-      return { ...payload, type: 'driver' };
-    } catch {
-      // Not a driver token either
-    }
-  }
-  
   return null;
 }
 
-// Check if user has access to a specific city
-function hasCityAccess(user: any, cityId: string): boolean {
-  if (user.role === 'super_admin') return true;
-  return user.assignedCities?.includes(cityId) || false;
+async function handleLocationUpdate(req: Request): Promise<Response> {
+  const actor = await authenticateDriverActor(req);
+  const body = asObject(await readJsonBody<unknown>(req, 8 * 1024));
+  assertAllowedKeys(body, [
+    "driverId",
+    "latitude",
+    "longitude",
+    "accuracy",
+    "speed",
+    "heading",
+    "batteryLevel",
+    "timestamp",
+  ]);
+
+  const driverId = requireUuid(body.driverId, "invalid_driver_id");
+  await requireDriverOwnership(req, actor, driverId);
+  assertDriverMayTrack(actor);
+  await enforceRateLimit(req, "fleet-tracking:driver-location", driverId, 1, 5);
+
+  const latitude = optionalFiniteNumber(body.latitude, "invalid_latitude", -90, 90);
+  const longitude = optionalFiniteNumber(body.longitude, "invalid_longitude", -180, 180);
+  if (latitude === null || longitude === null) throw new HttpError(400, "coordinates_required");
+  const accuracy = optionalFiniteNumber(body.accuracy, "invalid_accuracy", 0, 10_000);
+  const speed = optionalFiniteNumber(body.speed, "invalid_speed", 0, 350);
+  const heading = optionalFiniteNumber(body.heading, "invalid_heading", 0, 360);
+  const batteryLevel = optionalFiniteNumber(body.batteryLevel, "invalid_battery_level", 0, 100);
+  const recordedAt = parseClientTimestamp(body.timestamp);
+  const now = new Date().toISOString();
+  const service = getServiceClient();
+
+  const { data: updated, error: updateError } = await service
+    .from("drivers")
+    .update({
+      current_lat: latitude,
+      current_lng: longitude,
+      current_location: `POINT(${longitude} ${latitude})`,
+      last_location_at: now,
+      last_location_update: now,
+      is_online: true,
+    })
+    .eq("id", driverId)
+    .eq("user_id", actor.principal.user.id)
+    .select("id")
+    .maybeSingle();
+  if (updateError || !updated) throw new HttpError(500, "location_update_failed");
+
+  const { error: historyError } = await service.from("driver_locations").insert({
+    driver_id: driverId,
+    location: `POINT(${longitude} ${latitude})`,
+    accuracy_meters: accuracy,
+    speed_kmh: speed,
+    heading,
+    timestamp: recordedAt,
+  });
+  if (historyError) {
+    console.error("Driver location history insert failed:", historyError.message);
+    throw new HttpError(500, "location_history_failed");
+  }
+
+  let nextUpdateInterval = speed !== null && speed < 1 ? 30 : 5;
+  if (batteryLevel !== null && batteryLevel < 20) nextUpdateInterval = 60;
+  return respond(req, { success: true, serverTime: now, nextUpdateInterval });
 }
 
-// Get allowed city IDs for user
-function getAllowedCityIds(user: any, requestedCityId?: string | null): string[] {
-  if (user.role === 'super_admin') {
-    return requestedCityId ? [requestedCityId] : [];
+async function handleHeartbeat(req: Request): Promise<Response> {
+  const actor = await authenticateDriverActor(req);
+  const body = asObject(await readJsonBody<unknown>(req, 4 * 1024));
+  assertAllowedKeys(body, ["driverId", "isOnline"]);
+  const driverId = requireUuid(body.driverId, "invalid_driver_id");
+  await requireDriverOwnership(req, actor, driverId);
+  assertDriverMayTrack(actor);
+  if (body.isOnline !== undefined && typeof body.isOnline !== "boolean") {
+    throw new HttpError(400, "invalid_online_status");
   }
-  const allowedCities = user.assignedCities || [];
-  if (requestedCityId && !allowedCities.includes(requestedCityId)) {
-    throw new Error('Unauthorized city access');
-  }
-  return requestedCityId ? [requestedCityId] : allowedCities;
+  await enforceRateLimit(req, "fleet-tracking:driver-heartbeat", driverId, 12, 60);
+
+  const now = new Date().toISOString();
+  const isOnline = body.isOnline !== false;
+  const service = getServiceClient();
+  const { data, error } = await service
+    .from("drivers")
+    .update({ is_online: isOnline, last_location_at: now, last_location_update: now })
+    .eq("id", driverId)
+    .eq("user_id", actor.principal.user.id)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) throw new HttpError(500, "heartbeat_update_failed");
+  return respond(req, { success: true, timestamp: now });
 }
 
-// POST /drivers/location/update - Driver mobile app endpoint
-async function handleLocationUpdate(req: Request, supabase: any) {
-  try {
-    const body = await req.json();
-    const {
-      driverId,
-      latitude,
-      longitude,
-      accuracy,
-      speed,
-      heading,
-      batteryLevel,
-      timestamp,
-    } = body;
-    
-    // Validate required fields
-    if (!driverId || latitude === undefined || longitude === undefined) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: driverId, latitude, longitude' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Validate coordinates
-    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-      return new Response(
-        JSON.stringify({ error: 'Invalid coordinates' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Get driver info
-    const { data: driver, error: driverError } = await supabase
-      .from('drivers')
-      .select('id, city_id, is_online, status')
-      .eq('id', driverId)
-      .single();
-    
-    if (driverError || !driver) {
-      return new Response(
-        JSON.stringify({ error: 'Driver not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Only active and online drivers can update location
-    if (driver.status !== 'active') {
-      return new Response(
-        JSON.stringify({ error: 'Driver is not active' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    const now = new Date();
-    
-    // Update driver current location
-    const { error: updateError } = await supabase
-      .from('drivers')
-      .update({
-        current_latitude: latitude,
-        current_longitude: longitude,
-        location_updated_at: timestamp || now.toISOString(),
-        is_online: true,
-      })
-      .eq('id', driverId);
-    
-    if (updateError) {
-      console.error('Location update error:', updateError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to update location' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Store location history
-    await supabase.from('driver_locations').insert({
-      driver_id: driverId,
-      latitude,
-      longitude,
-      accuracy: accuracy || null,
-      speed: speed || null,
-      heading: heading || null,
-      battery_level: batteryLevel || null,
-      recorded_at: timestamp || now.toISOString(),
-    });
-    
-    // Determine adaptive update interval based on activity
-    // - Moving: 5 seconds
-    // - Stationary: 30 seconds
-    // - Low battery: 60 seconds
-    let nextUpdateInterval = 5;
-    
-    if (speed !== undefined && speed < 1) {
-      nextUpdateInterval = 30; // Stationary
-    }
-    
-    if (batteryLevel !== undefined && batteryLevel < 20) {
-      nextUpdateInterval = 60; // Low battery
-    }
-    
-    return new Response(
-      JSON.stringify({
-        success: true,
-        serverTime: now.toISOString(),
-        nextUpdateInterval,
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-    
-  } catch (error) {
-    console.error('Location update error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-}
+async function handleGetTrackingDrivers(req: Request, actor: FleetActor): Promise<Response> {
+  await enforceRateLimit(req, "fleet-tracking:fleet-read", actor.managerId, 100, 60);
+  const url = new URL(req.url);
+  const cityFilter = await getCityFilter(req, actor, url.searchParams.get("cityId"));
+  const service = getServiceClient();
+  let query = service
+    .from("drivers")
+    .select(`
+      id, full_name, city_id, current_lat, current_lng, last_location_at,
+      last_location_update, is_online,
+      vehicles!vehicles_assigned_driver_id_fkey(id, plate_number, type)
+    `)
+    .eq("is_online", true)
+    .eq("is_active", true)
+    .eq("approval_status", "approved")
+    .not("current_lat", "is", null)
+    .not("current_lng", "is", null)
+    .gte("last_location_at", new Date(Date.now() - 10 * 60 * 1000).toISOString());
+  if (cityFilter) query = query.in("city_id", cityFilter);
 
-// GET /fleet/tracking/drivers - Get online driver locations
-async function handleGetTrackingDrivers(req: Request, supabase: any, user: any) {
-  try {
-    const url = new URL(req.url);
-    const cityId = url.searchParams.get('cityId');
-    
-    const allowedCityIds = getAllowedCityIds(user, cityId);
-    
-    // Build query for online drivers
-    let query = supabase
-      .from('drivers')
-      .select(`
-        id,
-        full_name,
-        city_id,
-        current_latitude,
-        current_longitude,
-        location_updated_at,
-        is_online,
-        assigned_vehicle_id,
-        vehicles(plate_number, type)
-      `)
-      .eq('is_online', true)
-      .eq('status', 'active')
-      .not('current_latitude', 'is', null)
-      .not('current_longitude', 'is', null);
-    
-    // Apply city filter
-    if (allowedCityIds.length > 0) {
-      query = query.in('city_id', allowedCityIds);
-    }
-    
-    // Only get recent locations (within last 10 minutes)
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    query = query.gte('location_updated_at', tenMinutesAgo);
-    
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error('Get tracking drivers error:', error);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch driver locations' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Transform response
-    const drivers = data?.map((driver: any) => ({
+  const { data, error } = await query;
+  if (error) {
+    console.error("Fleet tracking query failed:", error.message);
+    throw new HttpError(500, "tracking_query_failed");
+  }
+
+  const drivers = (data || []).map((driver: Record<string, unknown>) => {
+    const vehicles = Array.isArray(driver.vehicles) ? driver.vehicles : driver.vehicles ? [driver.vehicles] : [];
+    const vehicle = vehicles[0] as Record<string, unknown> | undefined;
+    return {
       driverId: driver.id,
       driverName: driver.full_name,
       cityId: driver.city_id,
-      latitude: driver.current_latitude,
-      longitude: driver.current_longitude,
+      latitude: driver.current_lat,
+      longitude: driver.current_lng,
       isOnline: driver.is_online,
-      lastUpdated: driver.location_updated_at,
-      vehicleId: driver.assigned_vehicle_id,
-      vehiclePlate: driver.vehicles?.plate_number,
-      vehicleType: driver.vehicles?.type,
-    })) || [];
-    
-    return new Response(
-      JSON.stringify(drivers),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-    
-  } catch (error) {
-    console.error('Get tracking drivers error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    const status = message.includes('Unauthorized') ? 403 : 500;
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
+      lastUpdated: driver.last_location_at || driver.last_location_update,
+      vehicleId: vehicle?.id || null,
+      vehiclePlate: vehicle?.plate_number || null,
+      vehicleType: vehicle?.type || null,
+    };
+  });
+  return respond(req, drivers);
 }
 
-// GET /fleet/tracking/drivers/:id/history - Get driver location history
-async function handleGetLocationHistory(req: Request, supabase: any, user: any, driverId: string) {
-  try {
-    const url = new URL(req.url);
-    const startTime = url.searchParams.get('startTime');
-    const endTime = url.searchParams.get('endTime');
-    
-    // Validate required parameters
-    if (!startTime || !endTime) {
-      return new Response(
-        JSON.stringify({ error: 'startTime and endTime are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Validate time range
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid time format' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Limit to 24 hours max
-    const maxDuration = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-    if (end.getTime() - start.getTime() > maxDuration) {
-      return new Response(
-        JSON.stringify({ error: 'Time range cannot exceed 24 hours' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Get driver info and check city access
-    const { data: driver, error: driverError } = await supabase
-      .from('drivers')
-      .select('city_id, full_name')
-      .eq('id', driverId)
-      .single();
-    
-    if (driverError || !driver) {
-      return new Response(
-        JSON.stringify({ error: 'Driver not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    if (!hasCityAccess(user, driver.city_id)) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized city access' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Get location history with sampling for large datasets
-    // Return max 1000 points, sampling if necessary
-    const { data: locations, error } = await supabase
-      .from('driver_locations')
-      .select('*')
-      .eq('driver_id', driverId)
-      .gte('recorded_at', startTime)
-      .lte('recorded_at', endTime)
-      .order('recorded_at', { ascending: true })
-      .limit(1000);
-    
-    if (error) {
-      console.error('Get location history error:', error);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch location history' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Transform response
-    const history = locations?.map((loc: any) => ({
-      latitude: loc.latitude,
-      longitude: loc.longitude,
-      accuracy: loc.accuracy,
-      speed: loc.speed,
-      heading: loc.heading,
-      batteryLevel: loc.battery_level,
-      recordedAt: loc.recorded_at,
-    })) || [];
-    
-    return new Response(
-      JSON.stringify({
-        driverId,
-        driverName: driver.full_name,
-        startTime,
-        endTime,
-        totalPoints: history.length,
-        locations: history,
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-    
-  } catch (error) {
-    console.error('Get location history error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+async function handleGetLocationHistory(
+  req: Request,
+  actor: FleetActor,
+  driverId: string,
+): Promise<Response> {
+  requireUuid(driverId, "invalid_driver_id");
+  await enforceRateLimit(req, "fleet-tracking:fleet-history", actor.managerId, 60, 60);
+  const url = new URL(req.url);
+  const startRaw = url.searchParams.get("startTime");
+  const endRaw = url.searchParams.get("endTime");
+  if (!startRaw || !endRaw || startRaw.length > 40 || endRaw.length > 40) {
+    throw new HttpError(400, "time_range_required");
   }
-}
+  const start = Date.parse(startRaw);
+  const end = Date.parse(endRaw);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) {
+    throw new HttpError(400, "invalid_time_range");
+  }
+  if (end - start > 24 * 60 * 60 * 1000 || end > Date.now() + 60_000) {
+    throw new HttpError(400, "invalid_time_range");
+  }
 
-// POST /drivers/heartbeat - Driver heartbeat to maintain online status
-async function handleDriverHeartbeat(req: Request, supabase: any) {
-  try {
-    const body = await req.json();
-    const { driverId, isOnline } = body;
-    
-    if (!driverId) {
-      return new Response(
-        JSON.stringify({ error: 'driverId is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Update online status
-    const { error } = await supabase
-      .from('drivers')
-      .update({
-        is_online: isOnline !== false, // Default to true
-        location_updated_at: new Date().toISOString(),
-      })
-      .eq('id', driverId);
-    
-    if (error) {
-      console.error('Heartbeat error:', error);
-      return new Response(
-        JSON.stringify({ error: 'Failed to update status' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Log activity if going offline
-    if (isOnline === false) {
-      await supabase.from('driver_activity_logs').insert({
-        driver_id: driverId,
-        activity_type: 'logout',
-        details: { reason: 'heartbeat_timeout' },
-      });
-    }
-    
-    return new Response(
-      JSON.stringify({
-        success: true,
-        timestamp: new Date().toISOString(),
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-    
-  } catch (error) {
-    console.error('Heartbeat error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  const service = getServiceClient();
+  const { data: driver, error: driverError } = await service
+    .from("drivers")
+    .select("id, city_id, full_name")
+    .eq("id", driverId)
+    .maybeSingle();
+  if (driverError) throw new HttpError(500, "driver_lookup_failed");
+  if (!driver) throw new HttpError(404, "driver_not_found");
+  await assertCityAccess(req, actor, driver.city_id, "driver", driverId);
+
+  const { data: locations, error } = await service
+    .from("driver_locations")
+    .select("location, accuracy_meters, speed_kmh, heading, timestamp")
+    .eq("driver_id", driverId)
+    .gte("timestamp", new Date(start).toISOString())
+    .lte("timestamp", new Date(end).toISOString())
+    .order("timestamp", { ascending: true })
+    .limit(1000);
+  if (error) {
+    console.error("Driver location history query failed:", error.message);
+    throw new HttpError(500, "location_history_query_failed");
   }
+
+  const history = (locations || []).flatMap((location: Record<string, unknown>) => {
+    const point = parsePoint(location.location);
+    if (!point) return [];
+    return [{
+      ...point,
+      accuracy: location.accuracy_meters,
+      speed: location.speed_kmh,
+      heading: location.heading,
+      recordedAt: location.timestamp,
+    }];
+  });
+  return respond(req, {
+    driverId,
+    driverName: driver.full_name,
+    startTime: new Date(start).toISOString(),
+    endTime: new Date(end).toISOString(),
+    totalPoints: history.length,
+    locations: history,
+  });
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-  
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
-  
-  // Rate limiting
-  const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
-  const rateLimit = await checkRateLimit(supabase, `fleet-tracking:${clientIP}`, 100, 60);
-  if (!rateLimit.allowed) {
-    return new Response(
-      JSON.stringify({ error: 'Rate limit exceeded', retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000) }),
-      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } }
-    );
-  }
-  
-  const url = new URL(req.url);
-  const pathParts = url.pathname.replace('/fleet-tracking', '').split('/').filter(Boolean);
-  
-  // Route handling
-  
-  // Driver mobile app endpoints
-  if (pathParts.length >= 2 && pathParts[0] === 'drivers' && pathParts[1] === 'location') {
-    if (req.method === 'POST' && pathParts[2] === 'update') {
-      // Allow driver tokens for location updates
-      const user = await validateToken(req, true);
-      if (!user) {
-        return new Response(
-          JSON.stringify({ error: 'Unauthorized' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      return await handleLocationUpdate(req, supabase);
+  const cors = preflight(req);
+  if (cors) return cors;
+
+  try {
+    const ip = getClientIp(req) || "unknown";
+    await enforceRateLimit(req, "fleet-tracking:ip", ip, 240, 60);
+    const path = new URL(req.url).pathname
+      .replace(/^\/fleet-tracking\/?/, "")
+      .split("/")
+      .filter(Boolean);
+
+    if (req.method === "POST" && path.join("/") === "drivers/location/update") {
+      return await handleLocationUpdate(req);
     }
-  }
-  
-  if (pathParts.length >= 2 && pathParts[0] === 'drivers' && pathParts[1] === 'heartbeat') {
-    if (req.method === 'POST') {
-      const user = await validateToken(req, true);
-      if (!user) {
-        return new Response(
-          JSON.stringify({ error: 'Unauthorized' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      return await handleDriverHeartbeat(req, supabase);
+    if (req.method === "POST" && path.join("/") === "drivers/heartbeat") {
+      return await handleHeartbeat(req);
     }
-  }
-  
-  // Fleet manager endpoints - require fleet token
-  const user = await validateToken(req, false);
-  if (!user || user.type !== 'fleet') {
-    return new Response(
-      JSON.stringify({ error: 'Unauthorized' }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-  
-  // Fleet tracking endpoints
-  if (pathParts.length >= 2 && pathParts[0] === 'fleet' && pathParts[1] === 'tracking') {
-    // /fleet/tracking/drivers
-    if (pathParts.length === 3 && pathParts[2] === 'drivers' && req.method === 'GET') {
-      return await handleGetTrackingDrivers(req, supabase, user);
+
+    const actor = await authenticateFleetActor(req);
+    if (req.method === "GET" && path.join("/") === "fleet/tracking/drivers") {
+      return await handleGetTrackingDrivers(req, actor);
     }
-    
-    // /fleet/tracking/drivers/:id/history
-    if (pathParts.length === 4 && pathParts[2] === 'drivers' && pathParts[3] === 'history') {
-      const driverId = pathParts[3];
-      if (req.method === 'GET') {
-        return await handleGetLocationHistory(req, supabase, user, driverId);
-      }
+    if (
+      req.method === "GET" &&
+      path.length === 5 &&
+      path[0] === "fleet" &&
+      path[1] === "tracking" &&
+      path[2] === "drivers" &&
+      path[4] === "history"
+    ) {
+      return await handleGetLocationHistory(req, actor, path[3]);
     }
+    throw new HttpError(404, "not_found");
+  } catch (error) {
+    if (error instanceof HttpError && (error.status === 401 || error.status === 403)) {
+      await recordSecurityEvent(req, {
+        eventType: "authorization.fleet_tracking_request_denied",
+        category: "authorization",
+        severity: error.status === 403 ? "high" : "medium",
+        outcome: "denied",
+        actorType: "anonymous",
+        action: "fleet_tracking_request",
+        metadata: { reason: error.code },
+      });
+    }
+    return safeError(req, error);
   }
-  
-  return new Response(
-    JSON.stringify({ error: 'Not found' }),
-    { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
 });

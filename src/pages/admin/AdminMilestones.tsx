@@ -10,8 +10,16 @@ import {
   Users,
   Gift,
 } from "lucide-react";
+import {
+  AdminDialogContent,
+  AdminAlertDialogContent,
+  AdminEmptyState,
+  AdminKpiStrip,
+  AdminPanel,
+  AdminPanelHeader,
+  AdminWorkbenchHeader,
+} from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +27,6 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -29,7 +36,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -256,6 +262,33 @@ export default function AdminMilestones() {
     }
   };
 
+  const metricCards = [
+    {
+      label: "Total",
+      value: stats.totalMilestones,
+      icon: Trophy,
+      accent: "#7C83F6" as const,
+    },
+    {
+      label: "Active",
+      value: stats.activeMilestones,
+      icon: Check,
+      accent: "#22C7A1" as const,
+    },
+    {
+      label: "Bonus Value",
+      value: formatCurrency(stats.totalBonusValue),
+      icon: DollarSign,
+      accent: "#F97316" as const,
+    },
+    {
+      label: "Unlocked",
+      value: stats.totalAchievements,
+      icon: Gift,
+      accent: "#38BDF8" as const,
+    },
+  ];
+
   if (loading) {
     return (
       <AdminLayout
@@ -275,125 +308,142 @@ export default function AdminMilestones() {
       subtitle="Manage affiliate milestone bonuses"
     >
       <div className="space-y-6 bg-[#F6F8FB] text-[#020617]">
-        <section className="overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white p-5 text-[#020617] shadow-[0_18px_44px_rgba(2,6,23,0.06)] sm:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#7C83F6]/15 bg-[#7C83F6]/10 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-[#7C83F6]">
-                <Trophy className="h-3.5 w-3.5" />
-                Affiliate growth
-              </div>
-              <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
-                Milestone bonus rules
-              </h2>
-              <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-[#94A3B8]">
-                Configure referral thresholds, reward values, and active
-                campaigns affiliates can unlock.
-              </p>
-            </div>
+        <AdminWorkbenchHeader
+          eyebrow="Affiliate growth"
+          title="Milestone bonus rules"
+          icon={Trophy}
+          accent="#7C83F6"
+          description="Configure referral thresholds, reward values, and active campaigns affiliates can unlock."
+          meta={[
+            { label: "Active milestones", value: stats.activeMilestones },
+            { label: "Achievements", value: stats.totalAchievements },
+            {
+              label: "Bonus value",
+              value: formatCurrency(stats.totalBonusValue),
+            },
+          ]}
+          actions={
             <Button
               onClick={() => handleOpenDialog()}
-              className="min-h-[48px] rounded-2xl bg-[#020617] px-5 font-bold text-white hover:bg-[#020617]/90"
+              variant="outline"
+              className="min-h-[48px] rounded-2xl border-[#7C83F6]/30 bg-[#7C83F6]/10 px-5 font-bold text-[#020617] hover:bg-[#7C83F6]/15"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Milestone
             </Button>
-          </div>
-        </section>
+          }
+        />
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#7C83F6]/10">
-                  <Trophy className="h-5 w-5 text-[#7C83F6]" />
-                </div>
-                <div>
-                  <p className="text-2xl font-black text-[#020617]">
-                    {stats.totalMilestones}
-                  </p>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#94A3B8]">
-                    Total
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#22C7A1]/10">
-                  <Check className="h-5 w-5 text-[#22C7A1]" />
-                </div>
-                <div>
-                  <p className="text-2xl font-black text-[#020617]">
-                    {stats.activeMilestones}
-                  </p>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#94A3B8]">
-                    Active
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F97316]/10">
-                  <DollarSign className="h-5 w-5 text-[#F97316]" />
-                </div>
-                <div>
-                  <p className="text-2xl font-black text-[#020617]">
-                    {formatCurrency(stats.totalBonusValue)}
-                  </p>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#94A3B8]">
-                    Bonus Value
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#38BDF8]/10">
-                  <Gift className="h-5 w-5 text-[#38BDF8]" />
-                </div>
-                <div>
-                  <p className="text-2xl font-black text-[#020617]">
-                    {stats.totalAchievements}
-                  </p>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#94A3B8]">
-                    Unlocked
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <AdminKpiStrip items={metricCards} />
 
         {/* Milestones Table */}
-        <Card className="overflow-hidden rounded-[28px] border-[#E5EAF1] bg-white shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-[#E5EAF1] p-5">
-            <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
-              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F97316]/10">
-                <Trophy className="h-5 w-5 text-[#F97316]" />
-              </span>
-              Milestone Bonuses
-            </CardTitle>
-            <Button
-              onClick={() => handleOpenDialog()}
-              className="min-h-[44px] rounded-2xl bg-[#020617] px-4 font-bold text-white hover:bg-[#020617]/90"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Milestone
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+        <AdminPanel>
+          <AdminPanelHeader
+            title="Milestone Bonuses"
+            eyebrow="Reward rules"
+            actions={
+              <Button
+                onClick={() => handleOpenDialog()}
+                variant="outline"
+                className="min-h-[44px] rounded-2xl border-[#22C7A1]/30 bg-[#22C7A1]/10 px-4 font-bold text-[#020617] hover:bg-[#22C7A1]/15"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Milestone
+              </Button>
+            }
+          />
+          <div className="p-0">
+            <div className="grid gap-3 p-4 md:hidden">
+              {milestones.length === 0 ? (
+                <AdminEmptyState
+                  icon={Trophy}
+                  title="No milestones configured"
+                  description="Add your first milestone bonus."
+                  className="rounded-[22px] border border-dashed border-[#E5EAF1] bg-[#F6F8FB] p-8"
+                />
+              ) : (
+                milestones.map((milestone) => (
+                  <div
+                    key={milestone.id}
+                    className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_30px_rgba(2,6,23,0.05)]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-black text-[#020617]">
+                          {milestone.name}
+                        </p>
+                        {milestone.description && (
+                          <p className="mt-1 line-clamp-2 text-sm font-medium text-[#94A3B8]">
+                            {milestone.description.replace(/\$/g, "QAR ")}
+                          </p>
+                        )}
+                      </div>
+                      <Switch
+                        checked={milestone.is_active}
+                        onCheckedChange={() => toggleActive(milestone)}
+                      />
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-[#E5EAF1] bg-[#7C83F6]/10 p-3">
+                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">
+                          Referrals
+                        </p>
+                        <p className="mt-1 text-lg font-black text-[#020617]">
+                          {milestone.referral_count}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-[#E5EAF1] bg-[#22C7A1]/10 p-3">
+                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">
+                          Bonus
+                        </p>
+                        <p className="mt-1 text-lg font-black text-[#020617]">
+                          {formatCurrency(milestone.bonus_amount)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between rounded-2xl bg-[#F6F8FB] px-3 py-2">
+                      <Badge
+                        variant="outline"
+                        className={
+                          milestone.is_active
+                            ? "border-[#22C7A1]/20 bg-[#22C7A1]/10 font-black text-[#22C7A1]"
+                            : "border-[#E5EAF1] bg-white font-black text-[#94A3B8]"
+                        }
+                      >
+                        {milestone.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="min-h-[44px] min-w-[44px] rounded-2xl text-[#020617] hover:bg-white"
+                          onClick={() => handleOpenDialog(milestone)}
+                          aria-label={`Edit milestone ${milestone.name}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="min-h-[44px] min-w-[44px] rounded-2xl text-[#FB6B7A] hover:bg-[#FB6B7A]/10 hover:text-[#FB6B7A]"
+                          onClick={() => {
+                            setSelectedMilestone(milestone);
+                            setDeleteDialogOpen(true);
+                          }}
+                          aria-label={`Delete milestone ${milestone.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader className="bg-[#F6F8FB]">
                   <TableRow className="border-[#E5EAF1] hover:bg-[#F6F8FB]">
@@ -417,12 +467,12 @@ export default function AdminMilestones() {
                 <TableBody>
                   {milestones.length === 0 ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={5}
-                        className="py-12 text-center font-semibold text-[#94A3B8]"
-                      >
-                        No milestones configured. Add your first milestone
-                        bonus.
+                      <TableCell colSpan={5} className="p-0">
+                        <AdminEmptyState
+                          icon={Trophy}
+                          title="No milestones configured"
+                          description="Add your first milestone bonus."
+                        />
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -437,7 +487,7 @@ export default function AdminMilestones() {
                               {milestone.name}
                             </p>
                             {milestone.description && (
-                              <p className="mt-1 max-w-md text-sm font-medium text-[#64748B]">
+                              <p className="mt-1 max-w-md text-sm font-medium text-[#94A3B8]">
                                 {milestone.description.replace(/\$/g, "QAR ")}
                               </p>
                             )}
@@ -475,6 +525,7 @@ export default function AdminMilestones() {
                               size="icon"
                               className="min-h-[44px] min-w-[44px] rounded-2xl text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]"
                               onClick={() => handleOpenDialog(milestone)}
+                              aria-label={`Edit milestone ${milestone.name}`}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -486,6 +537,7 @@ export default function AdminMilestones() {
                                 setSelectedMilestone(milestone);
                                 setDeleteDialogOpen(true);
                               }}
+                              aria-label={`Delete milestone ${milestone.name}`}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -497,14 +549,14 @@ export default function AdminMilestones() {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </AdminPanel>
       </div>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="mx-4 max-h-[90vh] max-w-[95vw] overflow-y-auto rounded-[28px] border-[#E5EAF1] bg-white text-[#020617] sm:max-w-md">
-          <DialogHeader>
+        <AdminDialogContent size="md">
+          <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4 text-left">
             <DialogTitle className="text-xl font-black text-[#020617]">
               {selectedMilestone ? "Edit Milestone" : "Add New Milestone"}
             </DialogTitle>
@@ -513,7 +565,7 @@ export default function AdminMilestones() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 bg-[#F6F8FB] px-5 py-4">
             <div className="space-y-2">
               <Label htmlFor="name" className="font-bold text-[#020617]">
                 Milestone Name
@@ -609,7 +661,7 @@ export default function AdminMilestones() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
             <Button
               variant="outline"
               onClick={() => setDialogOpen(false)}
@@ -620,19 +672,20 @@ export default function AdminMilestones() {
             <Button
               onClick={handleSubmit}
               disabled={saving}
-              className="min-h-[44px] rounded-2xl bg-[#020617] px-5 font-bold text-white hover:bg-[#020617]/90"
+              variant="outline"
+              className="min-h-[44px] rounded-2xl border-[#22C7A1]/30 bg-[#22C7A1]/10 px-5 font-bold text-[#020617] hover:bg-[#22C7A1]/15"
             >
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {selectedMilestone ? "Save Changes" : "Create Milestone"}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="rounded-[28px] border-[#E5EAF1] bg-white text-[#020617]">
-          <AlertDialogHeader>
+        <AdminAlertDialogContent>
+          <AlertDialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4 text-left">
             <AlertDialogTitle className="text-xl font-black text-[#020617]">
               Delete Milestone
             </AlertDialogTitle>
@@ -642,7 +695,7 @@ export default function AdminMilestones() {
               action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
             <AlertDialogCancel className="min-h-[44px] rounded-2xl border-[#E5EAF1] bg-white px-5 font-bold text-[#020617] hover:bg-[#F6F8FB]">
               Cancel
             </AlertDialogCancel>
@@ -653,7 +706,7 @@ export default function AdminMilestones() {
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </AdminAlertDialogContent>
       </AlertDialog>
     </AdminLayout>
   );

@@ -1,10 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 import { getQatarDay } from "@/lib/dateUtils";
+import type { Micronutrients } from "@/lib/nutrition-types";
+import {
+  enqueueOfflineMutation,
+  flushOfflineMutations,
+  isNetworkFailure,
+  type OfflineMutation,
+} from "@/lib/offline-mutation-queue";
 
-type ManualMealLogRpcClient = typeof supabase & {
+interface ManualMealLogRpcClient {
   rpc(
-    fn: "log_manual_meal_items",
+    fn: "log_manual_meal_items" | "log_manual_meal_items_v2",
     args: {
       p_items: Array<{
         name: string;
@@ -12,6 +19,9 @@ type ManualMealLogRpcClient = typeof supabase & {
         protein_g: number;
         carbs_g: number;
         fat_g: number;
+        fiber_g: number;
+        sugar_g: number;
+        sodium_mg: number;
         image_url: string | null;
       }>;
       p_log_date: string;
@@ -26,13 +36,13 @@ type ManualMealLogRpcClient = typeof supabase & {
       logged_count?: number;
       xp_awarded?: number;
     } | null;
-    error: { message?: string } | null;
+    error: { code?: string; message?: string } | null;
   }>;
-};
+}
 
-const manualMealRpc = supabase as ManualMealLogRpcClient;
+const manualMealRpc = supabase as unknown as ManualMealLogRpcClient;
 
-export interface MealLogItemInput {
+export interface MealLogItemInput extends Micronutrients {
   name: string;
   calories: number;
   protein_g: number;
@@ -57,6 +67,7 @@ export interface LogMealItemsOptions {
     fat: number;
     timestamp: Date;
   }) => Promise<boolean>;
+  requestId?: string;
 }
 
 export interface LogMealItemsResult {
@@ -66,24 +77,49 @@ export interface LogMealItemsResult {
   protein: number;
   carbs: number;
   fat: number;
+  fiber: number;
+  sugar: number;
+  sodium: number;
+}
+
+export interface QueuedMealLogResult {
+  persisted: false;
+  queued: true;
+  requestId: string;
+  loggedCount: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  sugar: number;
+  sodium: number;
+}
+
+interface QueuedMealLogPayload {
+  userId: string;
+  items: MealLogItemInput[];
+  logDate: string;
+  source: string;
+  requestId: string;
 }
 
 const roundedMacro = (value: number, quantity = 1) => Math.round(value * quantity);
 
-export async function logMealItems({
-  userId,
-  items,
-  logDate = getQatarDay(),
-  source = "manual",
-  awardXp: _awardXp = true,
-  track,
-  writeMealToHealth,
-}: LogMealItemsOptions): Promise<LogMealItemsResult> {
+const normalizeMealItems = (items: MealLogItemInput[]) => {
   if (items.length === 0) throw new Error("MEAL_ITEMS_REQUIRED");
 
-  const normalizedItems = items.map((item, index) => {
+  return items.map((item, index) => {
     const quantity = item.quantity ?? 1;
-    const nutrition = [item.calories, item.protein_g, item.carbs_g, item.fat_g];
+    const nutrition = [
+      item.calories,
+      item.protein_g,
+      item.carbs_g,
+      item.fat_g,
+      item.fiber_g ?? 0,
+      item.sugar_g ?? 0,
+      item.sodium_mg ?? 0,
+    ];
 
     if (
       !Number.isFinite(quantity)
@@ -99,6 +135,9 @@ export async function logMealItems({
       protein_g: roundedMacro(item.protein_g, quantity),
       carbs_g: roundedMacro(item.carbs_g, quantity),
       fat_g: roundedMacro(item.fat_g, quantity),
+      fiber_g: roundedMacro(item.fiber_g ?? 0, quantity),
+      sugar_g: roundedMacro(item.sugar_g ?? 0, quantity),
+      sodium_mg: roundedMacro(item.sodium_mg ?? 0, quantity),
       image_url: item.image_url || null,
     };
 
@@ -113,27 +152,51 @@ export async function logMealItems({
 
     return normalizedItem;
   });
+};
 
-  const totals = normalizedItems.reduce(
-    (sum, item) => ({
-      calories: sum.calories + item.calories,
-      protein: sum.protein + item.protein_g,
-      carbs: sum.carbs + item.carbs_g,
-      fat: sum.fat + item.fat_g,
-    }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+const getMealTotals = (items: ReturnType<typeof normalizeMealItems>) => items.reduce(
+  (sum, item) => ({
+    calories: sum.calories + item.calories,
+    protein: sum.protein + item.protein_g,
+    carbs: sum.carbs + item.carbs_g,
+    fat: sum.fat + item.fat_g,
+    fiber: sum.fiber + item.fiber_g,
+    sugar: sum.sugar + item.sugar_g,
+    sodium: sum.sodium + item.sodium_mg,
+  }),
+  { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 },
+);
+
+export async function logMealItems({
+  userId,
+  items,
+  logDate = getQatarDay(),
+  source = "manual",
+  awardXp: _awardXp = true,
+  track,
+  writeMealToHealth,
+  requestId = globalThis.crypto.randomUUID(),
+}: LogMealItemsOptions): Promise<LogMealItemsResult> {
+  const normalizedItems = normalizeMealItems(items);
+  const totals = getMealTotals(normalizedItems);
+  const rpcArgs = {
+    p_items: normalizedItems,
+    p_log_date: logDate,
+    p_request_id: requestId,
+    p_source: source,
+  };
+  let { data: logResult, error: logError } = await manualMealRpc.rpc(
+    "log_manual_meal_items_v2",
+    rpcArgs,
   );
 
-  const requestId = globalThis.crypto.randomUUID();
-  const { data: logResult, error: logError } = await manualMealRpc.rpc(
-    "log_manual_meal_items",
-    {
-      p_items: normalizedItems,
-      p_log_date: logDate,
-      p_request_id: requestId,
-      p_source: source,
-    },
-  );
+  // Older deployed backends keep working until the V2 migration is applied.
+  if (logError && ["PGRST202", "42883"].includes(logError.code || "")) {
+    ({ data: logResult, error: logError } = await manualMealRpc.rpc(
+      "log_manual_meal_items",
+      rpcArgs,
+    ));
+  }
   if (logError) throw logError;
 
   const persistedCount = logResult?.logged_count
@@ -176,5 +239,57 @@ export async function logMealItems({
     protein: totals.protein,
     carbs: totals.carbs,
     fat: totals.fat,
+    fiber: totals.fiber,
+    sugar: totals.sugar,
+    sodium: totals.sodium,
   };
+}
+
+export async function logMealItemsResilient(
+  options: LogMealItemsOptions,
+): Promise<LogMealItemsResult | QueuedMealLogResult> {
+  const requestId = options.requestId || globalThis.crypto.randomUUID();
+  const normalizedItems = normalizeMealItems(options.items);
+  const totals = getMealTotals(normalizedItems);
+  const payload: QueuedMealLogPayload = {
+    userId: options.userId,
+    items: options.items,
+    logDate: options.logDate || getQatarDay(),
+    source: options.source || "manual",
+    requestId,
+  };
+
+  const queue = () => {
+    enqueueOfflineMutation({
+      id: requestId,
+      kind: "meal-log",
+      userId: options.userId,
+      payload,
+    });
+    return {
+      persisted: false as const,
+      queued: true as const,
+      requestId,
+      loggedCount: normalizedItems.length,
+      ...totals,
+    };
+  };
+
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return queue();
+
+  try {
+    return await logMealItems({ ...options, requestId });
+  } catch (error) {
+    if (isNetworkFailure(error)) return queue();
+    throw error;
+  }
+}
+
+export async function flushQueuedMealLogs(userId: string) {
+  return flushOfflineMutations(userId, {
+    "meal-log": async (mutation: OfflineMutation) => {
+      const payload = mutation.payload as QueuedMealLogPayload;
+      await logMealItems(payload);
+    },
+  });
 }

@@ -1,146 +1,122 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import {
+  enforceRateLimit,
+  errorResponse,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requireAdmin,
+  requirePost,
+} from "../_shared/security.ts";
 
-function jsonResponse(body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const NON_PRODUCTION_ENVIRONMENTS = new Set([
+  "development",
+  "local",
+  "test",
+  "staging",
+]);
+
+interface SimulationRequest {
+  user_id?: string;
+  amount?: number;
+  payment_method?: "card" | "wallet" | "sadad";
+  simulation_mode?: boolean;
+  idempotency_key?: string;
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
+serve(async (req: Request): Promise<Response> => {
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
-  }
-
-  if (Deno.env.get("ALLOW_PAYMENT_SIMULATION") !== "true") {
-    return jsonResponse({ error: "Payment simulation is disabled" }, 403);
-  }
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) {
-    return jsonResponse({ error: "Service is not configured" }, 503);
-  }
-
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
+  let principal: Awaited<ReturnType<typeof requireAdmin>> | null = null;
   try {
-    const token = req.headers
-      .get("Authorization")
-      ?.replace(/^Bearer\s+/i, "")
-      .trim();
-    if (!token) return jsonResponse({ error: "Unauthorized" }, 401);
+    requirePost(req);
 
-    const {
-      data: { user: caller },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !caller) return jsonResponse({ error: "Unauthorized" }, 401);
+    const environment = (Deno.env.get("APP_ENV") || "").trim().toLowerCase();
+    if (
+      Deno.env.get("ALLOW_PAYMENT_SIMULATION") !== "true"
+      || !NON_PRODUCTION_ENVIRONMENTS.has(environment)
+    ) {
+      throw new HttpError(404, "not_found");
+    }
 
-    const { data: adminRole, error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", caller.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (roleError) throw roleError;
-    if (!adminRole) return jsonResponse({ error: "Forbidden" }, 403);
+    principal = await requireAdmin(req);
+    await enforceRateLimit(
+      req,
+      "payment-simulation",
+      principal.user.id,
+      10,
+      60 * 60,
+    );
 
-    const body = await req.json();
-    const userId = typeof body.user_id === "string" ? body.user_id : "";
+    const body = await readJsonBody<SimulationRequest>(req, 8 * 1024);
+    const userId = String(body.user_id || "").trim();
     const amount = Number(body.amount);
-    const paymentMethod =
-      typeof body.payment_method === "string"
-        ? body.payment_method
-        : "simulation";
+    const paymentMethod = body.payment_method || "card";
+    const idempotencyKey = body.idempotency_key || crypto.randomUUID();
 
-    if (!userId || !Number.isFinite(amount) || amount <= 0 || amount > 100000) {
-      return jsonResponse({ error: "Invalid user_id or amount" }, 400);
+    if (
+      !UUID_PATTERN.test(userId)
+      || !UUID_PATTERN.test(idempotencyKey)
+      || !Number.isFinite(amount)
+      || amount <= 0
+      || amount > 10000
+      || body.simulation_mode === false
+      || !["card", "wallet", "sadad"].includes(paymentMethod)
+    ) {
+      throw new HttpError(400, "invalid_simulation_request");
     }
-    if (body.simulation_mode === false) {
-      return jsonResponse(
-        { error: "Use the configured payment gateway for real payments" },
-        400,
-      );
-    }
 
-    const { data: targetProfile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("user_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (profileError) throw profileError;
-    if (!targetProfile) return jsonResponse({ error: "User not found" }, 404);
-
-    const { data: payment, error: paymentError } = await supabaseAdmin
-      .from("payments")
-      .insert({
-        user_id: userId,
-        payment_type: "wallet_topup",
-        amount,
-        currency: "QAR",
-        status: "pending",
-        payment_method: paymentMethod,
-        gateway: "simulation",
-      })
-      .select()
-      .single();
-    if (paymentError) throw paymentError;
-
-    const reference = `SIM-${crypto.randomUUID()}`;
-    const { error: walletError } = await supabaseAdmin.rpc("credit_wallet", {
+    const service = getServiceClient();
+    const { data, error } = await service.rpc("admin_simulate_wallet_payment", {
+      p_actor_id: principal.user.id,
       p_user_id: userId,
-      p_amount: amount,
-      p_type: "credit",
-      p_reference_type: "wallet_topup",
-      p_reference_id: payment.id,
-      p_description: "Admin payment simulation",
+      p_amount: Math.round(amount * 100) / 100,
+      p_requested_method: paymentMethod,
+      p_idempotency_key: idempotencyKey,
     });
 
-    if (walletError) {
-      await supabaseAdmin
-        .from("payments")
-        .update({
-          status: "failed",
-          gateway_response: { error: "Wallet credit failed" },
-        })
-        .eq("id", payment.id);
-      throw walletError;
+    if (error) {
+      console.error("Atomic payment simulation failed", { code: error.code });
+      throw new HttpError(409, "payment_simulation_failed");
     }
 
-    const { error: completeError } = await supabaseAdmin
-      .from("payments")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-        gateway_reference: reference,
-      })
-      .eq("id", payment.id);
-    if (completeError) throw completeError;
-
-    return jsonResponse({
-      success: true,
-      payment_id: payment.id,
-      transaction_id: reference,
-      message: "Payment simulation completed",
+    await recordSecurityEvent(req, {
+      eventType: "admin.payment_simulation.completed",
+      category: "payment",
+      severity: "high",
+      outcome: "success",
+      principal,
+      action: "simulate_wallet_payment",
+      resourceType: "auth.user",
+      resourceId: userId,
+      metadata: {
+        amount: Math.round(amount * 100) / 100,
+        currency: "QAR",
+        idempotency_key: idempotencyKey,
+      },
     });
+
+    return jsonResponse(req, data);
   } catch (error) {
-    console.error("simulate-payment failed", getErrorMessage(error));
-    return jsonResponse({ error: "Unable to simulate payment" }, 500);
+    if (principal) {
+      await recordSecurityEvent(req, {
+        eventType: "admin.payment_simulation.failed",
+        category: "payment",
+        severity: "high",
+        outcome: "failure",
+        principal,
+        action: "simulate_wallet_payment",
+        metadata: {
+          error_code: error instanceof HttpError ? error.code : "internal_error",
+        },
+      });
+    }
+    return errorResponse(req, error);
   }
 });

@@ -1,6 +1,6 @@
 -- Apply this file manually in the Supabase SQL Editor for project loepcagitrijlfksawfm.
 -- It creates the missing blood-work tables, marker definitions, RLS policies, and
--- the PDF-only blood-reports storage bucket used by the app.
+-- the private PDF-only blood-reports storage bucket used by the app.
 
 CREATE TABLE IF NOT EXISTS public.blood_work_records (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -226,23 +226,19 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 VALUES (
   'blood-reports',
   'blood-reports',
-  true,
+  false,
   10485760,
   ARRAY['application/pdf']
 )
 ON CONFLICT (id) DO UPDATE SET
-  public = true,
+  public = false,
   file_size_limit = 10485760,
   allowed_mime_types = ARRAY['application/pdf'];
 
 DROP POLICY IF EXISTS "Users can upload their own blood reports" ON storage.objects;
-CREATE POLICY "Users can upload their own blood reports"
-  ON storage.objects FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    bucket_id = 'blood-reports'
-    AND (storage.foldername(name))[1] = auth.uid()::text
-  );
+DROP POLICY IF EXISTS "Owners can upload blood reports" ON storage.objects;
+-- Uploads must pass through secure-sensitive-upload for server-side signature,
+-- authorization, hash, and malware checks. Do not recreate a client INSERT policy.
 
 DROP POLICY IF EXISTS "Users can read their own blood reports" ON storage.objects;
 CREATE POLICY "Users can read their own blood reports"
@@ -254,17 +250,7 @@ CREATE POLICY "Users can read their own blood reports"
   );
 
 DROP POLICY IF EXISTS "Users can update their own blood reports" ON storage.objects;
-CREATE POLICY "Users can update their own blood reports"
-  ON storage.objects FOR UPDATE
-  TO authenticated
-  USING (
-    bucket_id = 'blood-reports'
-    AND (storage.foldername(name))[1] = auth.uid()::text
-  )
-  WITH CHECK (
-    bucket_id = 'blood-reports'
-    AND (storage.foldername(name))[1] = auth.uid()::text
-  );
+DROP POLICY IF EXISTS "Owners can update blood reports" ON storage.objects;
 
 DROP POLICY IF EXISTS "Users can delete their own blood reports" ON storage.objects;
 CREATE POLICY "Users can delete their own blood reports"
@@ -276,7 +262,3 @@ CREATE POLICY "Users can delete their own blood reports"
   );
 
 DROP POLICY IF EXISTS "Public read access for blood reports" ON storage.objects;
-CREATE POLICY "Public read access for blood reports"
-  ON storage.objects FOR SELECT
-  TO public
-  USING (bucket_id = 'blood-reports');

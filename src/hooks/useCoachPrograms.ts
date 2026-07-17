@@ -28,6 +28,7 @@ export interface ProgramMeal {
 export interface ProgramExercise {
   id: string;
   program_id: string;
+  exercise_catalog_id: string | null;
   exercise_name: string;
   sets: number;
   reps: string;
@@ -303,12 +304,13 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
   );
 
   const assignExercise = useCallback(
-    async (programId: string, exercise: { exercise_name: string; sets: number; reps: string; rest_seconds?: number; notes?: string; day_number: number; order_index: number }) => {
+    async (programId: string, exercise: { exercise_catalog_id?: string | null; exercise_name: string; sets: number; reps: string; rest_seconds?: number; notes?: string; day_number: number; order_index: number }) => {
       try {
         const { data, error } = await supabase
           .from("program_exercises")
           .insert({
             program_id: programId,
+            exercise_catalog_id: exercise.exercise_catalog_id || null,
             exercise_name: exercise.exercise_name,
             sets: exercise.sets,
             reps: exercise.reps,
@@ -336,7 +338,7 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
     [notifyClient]
   );
 
-  const updateExercise = useCallback(async (programExerciseId: string, updates: { exercise_name?: string; sets?: number; reps?: string; rest_seconds?: number; notes?: string; day_number?: number; order_index?: number }) => {
+  const updateExercise = useCallback(async (programExerciseId: string, updates: { exercise_catalog_id?: string | null; exercise_name?: string; sets?: number; reps?: string; rest_seconds?: number; notes?: string; day_number?: number; order_index?: number }) => {
     try {
       const { data, error } = await supabase
         .from("program_exercises")

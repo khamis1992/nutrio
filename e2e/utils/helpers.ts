@@ -5,6 +5,7 @@
 
 import { Page, expect } from '@playwright/test';
 import { appUrl, getTestUser } from '../config';
+import { generateTotp, secondsUntilNextTotp } from './totp';
 
 // Portal URLs
 export const URLS = {
@@ -78,6 +79,50 @@ export const loginAsAdmin = async (page: Page) => {
   await page.waitForLoadState('networkidle');
   await fillLoginForm(page, credentials.email, credentials.password);
   await expect(page).toHaveURL(/.*admin.*/, { timeout: 12000 });
+
+  const totpSecret = process.env.E2E_ADMIN_TOTP_SECRET?.trim();
+  const codeInput = page.getByLabel(/six-digit code/i);
+  const mfaVisible = await codeInput.isVisible({ timeout: 12000 }).catch(() => false);
+
+  if (!mfaVisible) {
+    if (totpSecret) {
+      throw new Error(
+        'The production admin account did not present the required MFA gate.',
+      );
+    }
+    return;
+  }
+
+  if (!totpSecret) {
+    throw new Error(
+      'Admin MFA is required. Set E2E_ADMIN_TOTP_SECRET to the dedicated test account base32 secret.',
+    );
+  }
+
+  const factorSelect = page.getByRole('combobox', { name: /choose authenticator/i });
+  if (await factorSelect.isVisible().catch(() => false)) {
+    const factorName = process.env.E2E_ADMIN_TOTP_FACTOR_NAME?.trim();
+    if (!factorName) {
+      throw new Error(
+        'The E2E admin has multiple authenticators. Set E2E_ADMIN_TOTP_FACTOR_NAME to the dedicated factor name.',
+      );
+    }
+    const option = factorSelect.locator('option').filter({ hasText: factorName }).first();
+    const optionValue = await option.getAttribute('value');
+    if (!optionValue) {
+      throw new Error('The configured E2E admin authenticator factor was not found.');
+    }
+    await factorSelect.selectOption(optionValue);
+  }
+
+  const validitySeconds = secondsUntilNextTotp();
+  if (validitySeconds < 5) {
+    await page.waitForTimeout((validitySeconds + 1) * 1000);
+  }
+
+  await codeInput.fill(generateTotp(totpSecret));
+  await page.getByRole('button', { name: /verify and continue/i }).click();
+  await expect(codeInput).not.toBeVisible({ timeout: 12000 });
 };
 
 export const loginAsPartner = async (page: Page) => {

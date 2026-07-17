@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 
 export interface IPLocationResponse {
   allowed: boolean;
@@ -20,11 +20,11 @@ export const checkIPLocation = async (): Promise<IPLocationResponse> => {
     return {
       allowed: true,
       blocked: false,
-      ip: '127.0.0.1',
-      countryCode: 'QA',
-      country: 'Qatar',
-      city: 'Doha',
-      reason: 'Development mode - IP check skipped',
+      ip: "127.0.0.1",
+      countryCode: "QA",
+      country: "Qatar",
+      city: "Doha",
+      reason: "Development mode - IP check skipped",
     };
   }
 
@@ -35,47 +35,53 @@ export const checkIPLocation = async (): Promise<IPLocationResponse> => {
       return {
         allowed: false,
         blocked: false,
-        ip: 'unknown',
-        reason: 'Location verification is not configured',
+        ip: "unknown",
+        reason: "Location verification is not configured",
       };
     }
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/check-ip-location`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': publishableKey,
-      }
-    });
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/check-ip-location`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: publishableKey,
+        },
+      },
+    );
 
     if (!response.ok) {
       console.warn(`IP check failed with status ${response.status}`);
       return {
         allowed: false,
         blocked: false,
-        ip: 'unknown',
-        reason: 'Location verification is temporarily unavailable',
+        ip: "unknown",
+        reason: "Location verification is temporarily unavailable",
       };
     }
 
-    const data = await response.json() as Partial<IPLocationResponse>;
-    if (typeof data.allowed !== 'boolean' || typeof data.blocked !== 'boolean') {
+    const data = (await response.json()) as Partial<IPLocationResponse>;
+    if (
+      typeof data.allowed !== "boolean" ||
+      typeof data.blocked !== "boolean"
+    ) {
       return {
         allowed: false,
         blocked: false,
-        ip: 'unknown',
-        reason: 'Location verification returned an invalid response',
+        ip: "unknown",
+        reason: "Location verification returned an invalid response",
       };
     }
 
-    return { ...data, ip: data.ip || 'unknown' } as IPLocationResponse;
+    return { ...data, ip: data.ip || "unknown" } as IPLocationResponse;
   } catch (error) {
-    console.error('Error checking IP location:', error);
+    console.error("Error checking IP location:", error);
     return {
       allowed: false,
       blocked: false,
-      ip: 'unknown',
-      reason: 'Unable to verify location',
+      ip: "unknown",
+      reason: "Unable to verify location",
     };
   }
 };
@@ -83,31 +89,41 @@ export const checkIPLocation = async (): Promise<IPLocationResponse> => {
 /**
  * Log user IP information
  * @param action - The action being performed (signup, login)
- * @param userId - The user ID (optional for signup)
+ * @param accessToken - Optional session token captured immediately after auth
  */
-export const logUserIP = async (action: 'signup' | 'login') => {
-  // Skip in development
-  if (import.meta.env.DEV) {
-    return;
-  }
-
+export const logUserIP = async (
+  action: "signup" | "login",
+  accessToken?: string | null,
+) => {
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!supabaseUrl || !publishableKey || !session?.access_token) return;
+    let token = accessToken;
 
-    await fetch(`${supabaseUrl}/functions/v1/log-user-ip`, {
-      method: 'POST',
+    if (!token) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      token = session?.access_token;
+    }
+
+    if (!supabaseUrl || !publishableKey || !token) return;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/log-user-ip`, {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'apikey': publishableKey,
-        'Authorization': `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+        apikey: publishableKey,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ action }),
     });
+
+    if (!response.ok) {
+      console.warn(`IP log failed with status ${response.status}`);
+    }
   } catch (error) {
     // Silently fail - IP logging is not critical
-    console.warn('Error logging user IP (non-critical):', error);
+    console.warn("Error logging user IP (non-critical):", error);
   }
 };

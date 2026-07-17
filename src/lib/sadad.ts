@@ -53,12 +53,31 @@ interface FunctionErrorPayload {
   error?: string;
 }
 
-function getFunctionError(
+interface FunctionInvokeError extends Error {
+  context?: {
+    clone?: () => { json: () => Promise<unknown> };
+    json?: () => Promise<unknown>;
+  };
+}
+
+async function readFunctionError(error: FunctionInvokeError | null): Promise<string | undefined> {
+  if (!error?.context) return error?.message;
+
+  try {
+    const context = error.context.clone?.() ?? error.context;
+    const payload = await context.json?.() as FunctionErrorPayload | undefined;
+    return payload?.error || error.message;
+  } catch {
+    return error.message;
+  }
+}
+
+async function getFunctionError(
   fallback: string,
   result: FunctionErrorPayload | null | undefined,
-  message?: string,
-): Error {
-  return new Error(result?.error || message || fallback);
+  invokeError: FunctionInvokeError | null,
+): Promise<Error> {
+  return new Error(result?.error || await readFunctionError(invokeError) || fallback);
 }
 
 class SadadService {
@@ -79,7 +98,7 @@ class SadadService {
 
     const result = data as (SadadCheckoutResponse & FunctionErrorPayload) | null;
     if (error || !result || result.error) {
-      throw getFunctionError("SADAD_PAYMENT_CREATION_FAILED", result, error?.message);
+      throw await getFunctionError("SADAD_PAYMENT_CREATION_FAILED", result, error);
     }
 
     return result;
@@ -113,7 +132,7 @@ class SadadService {
 
     const result = data as (SadadPaymentStatus & FunctionErrorPayload) | null;
     if (error || !result || (result.error && !result.payment_id)) {
-      throw getFunctionError("SADAD_STATUS_LOOKUP_FAILED", result, error?.message);
+      throw await getFunctionError("SADAD_STATUS_LOOKUP_FAILED", result, error);
     }
 
     return result;

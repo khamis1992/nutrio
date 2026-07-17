@@ -19,6 +19,14 @@ export interface GoogleFitAuth {
   expiresAt: number;
 }
 
+export function getGoogleFitRedirectUri(): string {
+  const configuredBase = import.meta.env.BASE_URL || "/";
+  const basePath = configuredBase.startsWith("/")
+    ? configuredBase.replace(/\/$/, "")
+    : "";
+  return `${window.location.origin}${basePath}/auth/google-fit/callback`;
+}
+
 // Google Fit API configuration
 const GOOGLE_FIT_SCOPES = [
   "https://www.googleapis.com/auth/fitness.activity.read",
@@ -247,40 +255,6 @@ export async function getAuthUrl(clientId: string, redirectUri: string): Promise
   });
 
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-}
-
-/**
- * Exchange authorization code for access token
- */
-export async function exchangeCodeForToken(
-  code: string,
-  clientId: string,
-  clientSecret: string,
-  redirectUri: string
-): Promise<GoogleFitAuth | null> {
-  try {
-    const response = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: "authorization_code",
-      }),
-    });
-    
-    if (!response.ok) return null;
-    
-    const data = await response.json();
-    return {
-      accessToken: data.access_token,
-      expiresAt: Date.now() + data.expires_in * 1000,
-    };
-  } catch {
-    return null;
-  }
 }
 
 /**

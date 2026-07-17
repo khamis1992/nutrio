@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, type Variants } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EditClientTargetsModal } from "@/components/coach/EditClientTargetsModal";
+import { ExerciseCatalogSheet } from "@/components/exercises/ExerciseCatalogSheet";
+import { ExerciseMedia } from "@/components/exercises/ExerciseMedia";
+import {
+  CoachClientHero,
+  CoachClientSectionNav,
+  CoachClientViewIntro,
+  type CoachClientView,
+} from "@/components/coach/client/CoachClientShell";
 import { useCoachNotes } from "@/hooks/useCoachNotes";
 import { useBodyMeasurements } from "@/hooks/useBodyMeasurements";
 import { useGoalProposals } from "@/hooks/useGoalProposals";
@@ -17,8 +25,15 @@ import { useCoachPrograms } from "@/hooks/useCoachPrograms";
 import { useClientCompletionStats } from "@/hooks/useClientCompletionStats";
 import { useWorkoutAdherence } from "@/hooks/useWorkoutAdherence";
 import { useCoachReport } from "@/hooks/useCoachReport";
+import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  formatExerciseLabel,
+  type ExerciseCatalogItem,
+} from "@/lib/exercise-catalog";
 import { toast } from "sonner";
+
+import "./CoachClientDetail.css";
 
 interface ClientProfile {
   full_name: string | null;
@@ -80,6 +95,11 @@ export default function CoachClientDetail() {
   const { getExerciseStat, getMealStat } = useClientCompletionStats(clientId);
   const { weekAdherence, alerts: workoutAlerts, overallWeeklyPct, loading: adherenceLoading, getExerciseWeightHistory, getExerciseTrend } = useWorkoutAdherence(clientId);
   const { generating, generateReport } = useCoachReport();
+  const { exercises: exerciseCatalog } = useExerciseCatalog();
+  const exerciseCatalogById = useMemo(
+    () => new Map(exerciseCatalog.map((exercise) => [exercise.id, exercise])),
+    [exerciseCatalog],
+  );
   const [newNote, setNewNote] = useState("");
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState("");
@@ -91,6 +111,7 @@ export default function CoachClientDetail() {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
+  const [activeView, setActiveView] = useState<CoachClientView>("overview");
   // Meal plan builder state
   const [mealPlanTitle, setMealPlanTitle] = useState("");
   const [mealPlanStartDate, setMealPlanStartDate] = useState("");
@@ -107,9 +128,15 @@ export default function CoachClientDetail() {
   const [workoutProgramId, setWorkoutProgramId] = useState<string | null>(null);
   const [workoutStep, setWorkoutStep] = useState<"create" | "assign">("create");
   const [exerciseName, setExerciseName] = useState("");
+  const [exerciseCatalogOpen, setExerciseCatalogOpen] = useState(false);
+  const [exercisePreviewOpen, setExercisePreviewOpen] = useState(false);
+  const [exercisePreviewId, setExercisePreviewId] = useState<string | null>(null);
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
+  const [selectedCatalogExercise, setSelectedCatalogExercise] = useState<ExerciseCatalogItem | null>(null);
   const [exerciseSets, setExerciseSets] = useState(3);
   const [exerciseReps, setExerciseReps] = useState("10");
   const [exerciseRest, setExerciseRest] = useState(60);
+  const [exerciseNotes, setExerciseNotes] = useState("");
   const [programTab, setProgramTab] = useState<"meal" | "workout">("meal");
   const [expandedProgramId, setExpandedProgramId] = useState<string | null>(null);
   const [mealSearch, setMealSearch] = useState("");
@@ -315,10 +342,73 @@ export default function CoachClientDetail() {
   const WeightIcon = weightTrend === null ? null : weightTrend < 0 ? TrendingDown : weightTrend > 0 ? TrendingUp : Minus;
   const weightColor = weightTrend === null ? "text-slate-400" : weightTrend < 0 ? "text-emerald-500" : weightTrend > 0 ? "text-red-500" : "text-slate-400";
 
+  const activeGoals = proposals.filter((proposal) => proposal.status === "accepted").length;
+  const activePlans = programs.filter((program) => program.status === "active").length;
+  const clientGoal = profile.health_goal
+    ? profile.health_goal.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+    : "General Health";
+  const openReport = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    setReportStartDate(start.toISOString().split("T")[0]);
+    setReportEndDate(end.toISOString().split("T")[0]);
+    setReportModalOpen(true);
+  };
+
+  const resetExerciseForm = () => {
+    setEditingExerciseId(null);
+    setSelectedExerciseId(null);
+    setSelectedCatalogExercise(null);
+    setExerciseName("");
+    setExerciseSets(3);
+    setExerciseReps("10");
+    setExerciseRest(60);
+    setExerciseNotes("");
+  };
+
+  const openWorkoutBuilder = (program?: (typeof programs)[number], day = 1) => {
+    resetExerciseForm();
+    setSelectedWorkoutDay(day);
+    if (program) {
+      setWorkoutPlanTitle(program.title);
+      setWorkoutPlanStartDate(program.start_date);
+      setWorkoutPlanEndDate(program.end_date);
+      setWorkoutProgramId(program.id);
+      setWorkoutStep("assign");
+      setExpandedProgramId(program.id);
+    } else {
+      const start = new Date();
+      const end = new Date(start);
+      end.setDate(end.getDate() + 28);
+      setWorkoutPlanTitle("");
+      setWorkoutPlanStartDate(start.toISOString().split("T")[0]);
+      setWorkoutPlanEndDate(end.toISOString().split("T")[0]);
+      setWorkoutProgramId(null);
+      setWorkoutStep("create");
+    }
+    setWorkoutBuilderOpen(true);
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="coach-client-page space-y-4 pb-4">
+      <CoachClientHero
+        name={profile.full_name || "Client"}
+        avatarUrl={profile.avatar_url}
+        goal={clientGoal}
+        streak={streak}
+        adherence={overallAdherence}
+        activeGoals={activeGoals}
+        activePlans={activePlans}
+        onBack={() => navigate(-1)}
+        onEditTargets={() => setTargetsModalOpen(true)}
+        onExportReport={openReport}
+      />
+
+      <CoachClientSectionNav value={activeView} onChange={setActiveView} />
+      <CoachClientViewIntro view={activeView} />
       {/* Back button + Header */}
-      <div className="flex items-center gap-3">
+      <div className="hidden items-center gap-3">
         <button
           onClick={() => navigate(-1)}
           className="w-10 h-10 rounded-full bg-white border border-slate-100 flex items-center justify-center shrink-0 shadow-sm"
@@ -358,7 +448,7 @@ export default function CoachClientDetail() {
             setReportEndDate(end.toISOString().split("T")[0]);
             setReportModalOpen(true);
           }}
-          className="flex items-center gap-1.5 h-[34px] px-3 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 active:scale-95 transition-all ml-auto"
+          className="hidden items-center gap-1.5 h-[34px] px-3 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 active:scale-95 transition-all ml-auto"
         >
           <FileDown className="w-3.5 h-3.5" />
           Export Report
@@ -366,12 +456,12 @@ export default function CoachClientDetail() {
       )}
 
       {/* Macro Compliance Ring */}
-      {profile.daily_calorie_target && (
+      {activeView === "overview" && profile.daily_calorie_target && (
         <motion.div
           variants={fadeInUp}
           initial="hidden"
           animate="visible"
-          className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+          className="client-card client-card--teal bg-white rounded-[24px] p-5"
         >
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -413,12 +503,12 @@ export default function CoachClientDetail() {
       )}
 
       {/* 7-Day Meal Adherence */}
-      {adherenceDays.length > 0 && (
+      {activeView === "overview" && adherenceDays.length > 0 && (
         <motion.div
           variants={fadeInUp}
           initial="hidden"
           animate="visible"
-          className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+          className="client-card client-card--orange bg-white rounded-[24px] p-5"
         >
           <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950 mb-3">Meal Adherence</h2>
           <div className="flex justify-between gap-1">
@@ -441,12 +531,12 @@ export default function CoachClientDetail() {
       )}
 
       {/* Weight Trend */}
-      {weights.length > 0 && (
+      {activeView === "progress" && weights.length > 0 && (
         <motion.div
           variants={fadeInUp}
           initial="hidden"
           animate="visible"
-          className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+          className="client-card client-card--blue bg-white rounded-[24px] p-5"
         >
           <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950 mb-3">Weight Trend</h2>
           <div className="flex items-end gap-2 h-16">
@@ -479,12 +569,12 @@ export default function CoachClientDetail() {
       )}
 
       {/* Upcoming Meals */}
-      {meals.length > 0 && (
+      {activeView === "overview" && meals.length > 0 && (
         <motion.div
           variants={fadeInUp}
           initial="hidden"
           animate="visible"
-          className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+          className="client-card client-card--coral bg-white rounded-[24px] p-5"
         >
           <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950 mb-3">Scheduled Meals</h2>
           <div className="space-y-2">
@@ -522,7 +612,7 @@ export default function CoachClientDetail() {
       )}
 
       {/* Empty state */}
-      {meals.length === 0 && (
+      {activeView === "overview" && meals.length === 0 && (
         <motion.div
           variants={fadeInUp}
           initial="hidden"
@@ -534,15 +624,26 @@ export default function CoachClientDetail() {
           </div>
           <h3 className="text-[15px] font-bold text-slate-900 mb-1">No meals scheduled</h3>
           <p className="text-[12px] text-slate-500">This client hasn't scheduled any meals this week.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setProgramTab("meal");
+              setActiveView("plans");
+            }}
+            className="mt-5 h-11 rounded-full bg-[#08162f] px-5 text-[12px] font-bold text-white active:scale-95"
+          >
+            Build a meal plan
+          </button>
         </motion.div>
       )}
 
       {/* Private Notes Section */}
+      {activeView === "notes" && (
       <motion.div
         variants={fadeInUp}
         initial="hidden"
         animate="visible"
-        className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+        className="client-card client-card--yellow bg-white rounded-[24px] p-5"
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -659,9 +760,11 @@ export default function CoachClientDetail() {
           </div>
         )}
       </motion.div>
+      )}
 
       {/* Body Measurements Section */}
-      <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="bg-white rounded-[24px] shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80 overflow-hidden">
+      {activeView === "progress" && (
+      <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="client-card client-card--blue bg-white rounded-[24px] overflow-hidden">
         <div className="px-5 pt-5 pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -803,8 +906,10 @@ export default function CoachClientDetail() {
           </div>
         )}
       </motion.div>
+      )}
 
-      <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+      {activeView === "overview" && (
+      <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="client-card client-card--coral bg-white rounded-[24px] p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Flag className="w-4 h-4 text-slate-400" />
@@ -877,9 +982,11 @@ export default function CoachClientDetail() {
           </div>
         )}
       </motion.div>
+      )}
 
       {/* Program Builder Section */}
-      <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+      {activeView === "plans" && (
+      <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="client-card client-card--teal bg-white rounded-[24px] p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Dumbbell className="w-4 h-4 text-slate-400" />
@@ -897,7 +1004,7 @@ export default function CoachClientDetail() {
         </div>
 
         <button
-          onClick={() => programTab === "meal" ? setMealBuilderOpen(true) : setWorkoutBuilderOpen(true)}
+          onClick={() => programTab === "meal" ? setMealBuilderOpen(true) : openWorkoutBuilder()}
           className={cn("w-full h-[48px] rounded-2xl text-[13px] font-bold active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-2 border-dashed", programTab === "meal" ? "border-emerald-300 text-emerald-600 bg-emerald-50/50 hover:bg-emerald-50" : "border-purple-300 text-purple-600 bg-purple-50/50 hover:bg-purple-50")}
         >
           <Plus className="w-4 h-4" />
@@ -1021,9 +1128,10 @@ export default function CoachClientDetail() {
                       setEditingProgramEndDate(p.end_date);
                     }
                   }}
-                  className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all", editingProgramId === p.id ? "bg-emerald-100 text-emerald-600" : "text-slate-300 hover:text-slate-500 hover:bg-slate-100")}
+                  className={cn("flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg px-2.5 text-[10px] font-bold transition-all", editingProgramId === p.id ? "bg-emerald-100 text-emerald-600" : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50")}
                 >
                   <Pencil className="w-3.5 h-3.5" />
+                  Edit
                 </button>
               </div>
 
@@ -1087,6 +1195,22 @@ export default function CoachClientDetail() {
                     </div>
                   ) : (
                     <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2 pb-1">
+                        <button
+                          type="button"
+                          onClick={() => openWorkoutBuilder(p, pExercises[0]?.day_number || 1)}
+                          className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white text-[11px] font-bold text-[#41506A] ring-1 ring-[#DDE5EF] transition active:scale-[0.98]"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Manage plan
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openWorkoutBuilder(p, 1)}
+                          className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#E9FBF7] text-[11px] font-bold text-[#087B67] ring-1 ring-[#BCECDF] transition active:scale-[0.98]"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Add exercise
+                        </button>
+                      </div>
                       {Object.entries(
                         pExercises.reduce<Record<number, typeof pExercises>>((acc, ex) => {
                           if (!acc[ex.day_number]) acc[ex.day_number] = [];
@@ -1111,35 +1235,52 @@ export default function CoachClientDetail() {
                               const trend = getExerciseTrend(ex.exercise_name);
                               const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
                               const trendColor = trend === "up" ? "text-emerald-600" : trend === "down" ? "text-red-500" : "text-slate-400";
+                              const catalogExercise = ex.exercise_catalog_id ? exerciseCatalogById.get(ex.exercise_catalog_id) : undefined;
                               return (
                               <div key={ex.id} className="bg-purple-50/50 rounded-lg px-2 py-1.5">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[9px] font-black text-purple-400 w-3 shrink-0">{i + 1}</span>
-                                  <span className="text-[11px] text-slate-700 flex-1 truncate">{ex.exercise_name}</span>
-                                  <span className="text-[10px] text-slate-500 font-mono shrink-0">{ex.sets}×{ex.reps}</span>
-                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${completionColor}`}>
-                                    {completed}× done
-                                  </span>
+                                  <button
+                                    type="button"
+                                    disabled={!catalogExercise}
+                                    onClick={() => {
+                                      if (!catalogExercise) return;
+                                      setExercisePreviewId(catalogExercise.id);
+                                      setExercisePreviewOpen(true);
+                                    }}
+                                    className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white ring-1 ring-[#DDE5EF] disabled:cursor-default"
+                                    aria-label={catalogExercise ? `Preview ${ex.exercise_name}` : undefined}
+                                  >
+                                    {catalogExercise ? (
+                                      <ExerciseMedia exercise={catalogExercise} alt="" loading="lazy" className="h-full w-full object-contain p-1" />
+                                    ) : (
+                                      <Dumbbell className="m-auto h-full w-5 text-purple-400" />
+                                    )}
+                                    <span className="absolute left-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#07152F] px-1 text-[8px] font-black text-white">{i + 1}</span>
+                                  </button>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-[11px] font-bold text-slate-700">{ex.exercise_name}</p>
+                                    <p className="mt-1 text-[9px] font-semibold text-slate-500">{ex.sets} sets · {ex.reps} reps · {ex.rest_seconds ?? 60}s rest</p>
+                                    <span className={`mt-1 inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-bold ${completionColor}`}>
+                                      {completed}x done
+                                    </span>
+                                  </div>
                                   <button
                                     onClick={() => {
-                                      setWorkoutBuilderOpen(true);
-                                      setWorkoutProgramId(p.id);
-                                      setWorkoutStep("assign");
-                                      setWorkoutPlanTitle(p.title);
-                                      setWorkoutPlanStartDate(p.start_date);
-                                      setWorkoutPlanEndDate(p.end_date);
-                                      setSelectedWorkoutDay(ex.day_number);
+                                      openWorkoutBuilder(p, ex.day_number);
                                       setEditingExerciseId(ex.id);
+                                      setSelectedExerciseId(ex.exercise_catalog_id);
+                                      setSelectedCatalogExercise(catalogExercise ?? null);
                                       setExerciseName(ex.exercise_name);
                                       setExerciseSets(ex.sets);
                                       setExerciseReps(ex.reps);
                                       setExerciseRest(ex.rest_seconds ?? 60);
+                                      setExerciseNotes(ex.notes ?? "");
                                     }}
-                                    className="text-slate-300 hover:text-purple-500 transition-colors shrink-0"
+                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 ring-1 ring-slate-200 transition-colors hover:text-purple-500"
                                   >
-                                    <Pencil className="w-3 h-3" />
+                                    <Pencil className="w-3.5 h-3.5" />
                                   </button>
-                                  <button onClick={() => removeExercise(ex.id)} className="text-slate-300 hover:text-red-500 transition-colors shrink-0"><Trash2 className="w-3 h-3" /></button>
+                                  <button onClick={() => removeExercise(ex.id)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-400 ring-1 ring-red-100 transition-colors hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                                 </div>
                                 {weightHist.length > 0 && (
                                   <div className="flex items-center gap-1.5 mt-1 pl-5">
@@ -1167,10 +1308,11 @@ export default function CoachClientDetail() {
           );
         })}
       </motion.div>
+      )}
 
       {/* Workout Adherence Card */}
-      {programTab === "workout" && (
-        <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80 mt-4">
+      {activeView === "progress" && (
+        <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="client-card client-card--violet bg-white rounded-[24px] p-5 mt-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-purple-500" />
@@ -1277,8 +1419,8 @@ export default function CoachClientDetail() {
 
       {/* Meal Plan Builder Modal */}
       {mealBuilderOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-md bg-white rounded-[28px] shadow-2xl max-h-[85vh] flex flex-col">
+        <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-slate-900/35 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+          <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-md bg-white rounded-t-[28px] sm:rounded-[28px] shadow-2xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col pb-[env(safe-area-inset-bottom)]">
             <div className="flex items-center justify-between px-5 pt-5 pb-3">
               <div>
                 <h2 className="text-[17px] font-extrabold text-slate-950">
@@ -1288,7 +1430,7 @@ export default function CoachClientDetail() {
                   {mealPlanStep === "create" ? "Set up your client's nutrition program" : <>{programMeals.filter((m) => m.program_id === mealPlanProgramId).length} meals assigned {clientSub && !clientSub.isUnlimited && <span className="text-amber-500 font-bold">· {Math.max(0, clientSub.remainingMeals - programMeals.length)} of {clientSub.totalMeals} remaining</span>}</>}
                 </p>
               </div>
-              <button onClick={() => { setMealBuilderOpen(false); setMealPlanStep("create"); setMealPlanProgramId(null); setMealSearch(""); }} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>
+              <button aria-label="Close meal plan builder" onClick={() => { setMealBuilderOpen(false); setMealPlanStep("create"); setMealPlanProgramId(null); setMealSearch(""); }} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
 
             {mealPlanStep === "create" ? (
@@ -1576,8 +1718,8 @@ export default function CoachClientDetail() {
 
       {/* Workout Plan Builder Modal */}
       {workoutBuilderOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-md bg-white rounded-[28px] shadow-2xl max-h-[85vh] flex flex-col">
+        <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-slate-900/35 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+          <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-md bg-white rounded-t-[28px] sm:rounded-[28px] shadow-2xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col pb-[env(safe-area-inset-bottom)]">
             <div className="flex items-center justify-between px-5 pt-5 pb-3">
               <div>
                 <h2 className="text-[17px] font-extrabold text-slate-950">
@@ -1587,7 +1729,7 @@ export default function CoachClientDetail() {
                   {workoutStep === "create" ? "Build a training program" : "Add exercises for each day"}
                 </p>
               </div>
-              <button onClick={() => { setWorkoutBuilderOpen(false); setWorkoutStep("create"); setWorkoutProgramId(null); setEditingExerciseId(null); }} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>
+              <button aria-label="Close workout plan builder" onClick={() => { setWorkoutBuilderOpen(false); setWorkoutStep("create"); setWorkoutProgramId(null); resetExerciseForm(); }} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
 
             {workoutStep === "create" ? (
@@ -1620,7 +1762,7 @@ export default function CoachClientDetail() {
                     setCreatingProgram(false);
                   }}
                   disabled={!workoutPlanTitle.trim() || !workoutPlanStartDate || !workoutPlanEndDate || creatingProgram}
-                  className="w-full h-[52px] rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[14px] font-bold shadow-lg shadow-purple-600/20 disabled:opacity-40 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#07152F] text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(7,21,47,0.18)] transition-all active:scale-[0.98] disabled:opacity-40"
                 >
                   {creatingProgram ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Dumbbell className="w-4 h-4" /> Create Plan</>}
                 </button>
@@ -1635,11 +1777,11 @@ export default function CoachClientDetail() {
                         <button
                           key={d}
                           onClick={() => setSelectedWorkoutDay(d)}
-                          className={cn("flex-shrink-0 w-[52px] h-[52px] rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all", selectedWorkoutDay === d ? "bg-purple-600 text-white shadow-md shadow-purple-600/20" : "bg-slate-100 text-slate-500")}
+                          className={cn("flex-shrink-0 w-[52px] h-[52px] rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all", selectedWorkoutDay === d ? "bg-[#DDF8F1] text-[#087B67] ring-1 ring-[#A9E8D9]" : "bg-slate-100 text-slate-500")}
                         >
                           <span className="text-[9px] font-bold uppercase">Day</span>
                           <span className="text-[16px] font-extrabold leading-none">{d}</span>
-                          {dayExercises.length > 0 && <div className={cn("w-1 h-1 rounded-full", selectedWorkoutDay === d ? "bg-white" : "bg-purple-400")} />}
+                          {dayExercises.length > 0 && <div className={cn("w-1 h-1 rounded-full", selectedWorkoutDay === d ? "bg-[#0FBF9F]" : "bg-slate-400")} />}
                         </button>
                       );
                     })}
@@ -1655,45 +1797,89 @@ export default function CoachClientDetail() {
                       <div className="space-y-2.5">
                         {dayExercises.length === 0 && (
                           <div className="py-8 text-center">
-                            <div className="w-12 h-12 rounded-2xl bg-purple-50 mx-auto mb-3 flex items-center justify-center">
-                              <Dumbbell className="w-6 h-6 text-purple-300" />
+                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 mx-auto mb-3 flex items-center justify-center">
+                              <Dumbbell className="w-6 h-6 text-emerald-400" />
                             </div>
                             <p className="text-[12px] text-slate-400">No exercises for Day {selectedWorkoutDay}</p>
                             <p className="text-[10px] text-slate-300">Add one below</p>
                           </div>
                         )}
-                        {dayExercises.map((ex, i) => (
-                          <motion.div key={ex.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className={cn("flex items-center gap-3 p-3 rounded-2xl ring-1", editingExerciseId === ex.id ? "bg-purple-100 ring-purple-300" : "bg-purple-50/60 ring-purple-100")}>
-                            <div className="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center shrink-0">
-                              <span className="text-[10px] font-black text-purple-600">{i + 1}</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[13px] font-bold text-slate-800">{ex.exercise_name}</p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[10px] font-semibold text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded-md">{ex.sets} sets</span>
-                                <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded-md">{ex.reps} reps</span>
-                                <span className="text-[10px] text-slate-400">{ex.rest_seconds}s rest</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
+                        {dayExercises.map((ex, i) => {
+                          const catalogExercise = ex.exercise_catalog_id
+                            ? exerciseCatalogById.get(ex.exercise_catalog_id)
+                            : undefined;
+
+                          return (
+                            <motion.article
+                              key={ex.id}
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={cn(
+                                "grid grid-cols-[64px_minmax(0,1fr)] gap-3 rounded-2xl border bg-white p-3 shadow-[0_8px_22px_rgba(15,23,42,0.05)]",
+                                editingExerciseId === ex.id ? "border-emerald-400 ring-2 ring-emerald-100" : "border-slate-200",
+                              )}
+                            >
                               <button
+                                type="button"
+                                disabled={!catalogExercise}
                                 onClick={() => {
-                                  setEditingExerciseId(ex.id);
-                                  setExerciseName(ex.exercise_name);
-                                  setExerciseSets(ex.sets);
-                                  setExerciseReps(ex.reps);
-                                  setExerciseRest(ex.rest_seconds ?? 60);
+                                  if (!catalogExercise) return;
+                                  setExercisePreviewId(catalogExercise.id);
+                                  setExercisePreviewOpen(true);
                                 }}
-                                className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-slate-300 hover:text-purple-600 hover:bg-purple-50 transition-all shrink-0"
+                                aria-label={catalogExercise ? `Preview ${ex.exercise_name}` : undefined}
+                                className="relative h-16 w-16 overflow-hidden rounded-xl bg-emerald-50 disabled:cursor-default"
                               >
-                                <Pencil className="w-3.5 h-3.5" />
+                                {catalogExercise ? (
+                                  <ExerciseMedia exercise={catalogExercise} alt="" className="h-full w-full object-contain p-1" />
+                                ) : (
+                                  <span className="flex h-full w-full items-center justify-center text-emerald-600">
+                                    <Dumbbell className="h-6 w-6" />
+                                  </span>
+                                )}
+                                <span className="absolute left-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[9px] font-black text-slate-700 shadow-sm">
+                                  {i + 1}
+                                </span>
                               </button>
-                              <button onClick={() => removeExercise(ex.id)} className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </motion.div>
-                        ))}
+
+                              <div className="min-w-0">
+                                <p className="truncate text-[13px] font-extrabold text-slate-900">{ex.exercise_name}</p>
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                  <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">{ex.sets} sets</span>
+                                  <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">{ex.reps} reps</span>
+                                  <span className="text-[10px] font-semibold text-slate-400">{ex.rest_seconds ?? 60}s rest</span>
+                                </div>
+                                {ex.notes && <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-slate-500">{ex.notes}</p>}
+                                <div className="mt-2 flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingExerciseId(ex.id);
+                                      setSelectedExerciseId(ex.exercise_catalog_id);
+                                      setSelectedCatalogExercise(catalogExercise ?? null);
+                                      setExerciseName(ex.exercise_name);
+                                      setExerciseSets(ex.sets);
+                                      setExerciseReps(ex.reps);
+                                      setExerciseRest(ex.rest_seconds ?? 60);
+                                      setExerciseNotes(ex.notes ?? "");
+                                    }}
+                                    className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-100 text-[11px] font-bold text-slate-700 transition active:scale-[0.98]"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" /> Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    aria-label={`Remove ${ex.exercise_name}`}
+                                    onClick={() => removeExercise(ex.id)}
+                                    className="flex h-9 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 transition active:scale-[0.98]"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.article>
+                          );
+                        })}
 
                         <div className="mt-4 p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 space-y-3">
                           <div className="flex items-center justify-between">
@@ -1701,11 +1887,7 @@ export default function CoachClientDetail() {
                             {editingExerciseId && (
                               <button
                                 onClick={() => {
-                                  setEditingExerciseId(null);
-                                  setExerciseName("");
-                                  setExerciseSets(3);
-                                  setExerciseReps("10");
-                                  setExerciseRest(60);
+                                  resetExerciseForm();
                                 }}
                                 className="text-[10px] font-semibold text-slate-400 hover:text-slate-600"
                               >
@@ -1713,7 +1895,52 @@ export default function CoachClientDetail() {
                               </button>
                             )}
                           </div>
-                          <input type="text" value={exerciseName} onChange={(e) => setExerciseName(e.target.value)} placeholder="Exercise name (e.g. Bench Press)" className="w-full h-[44px] px-4 rounded-xl bg-white border border-slate-200 text-[13px] text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+                          <button
+                            type="button"
+                            onClick={() => setExerciseCatalogOpen(true)}
+                            className="flex min-h-[64px] w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-[0_6px_18px_rgba(15,23,42,0.04)] ring-1 ring-slate-200 transition active:scale-[0.99]"
+                          >
+                            {selectedCatalogExercise ? (
+                              <ExerciseMedia
+                                exercise={selectedCatalogExercise}
+                                alt=""
+                                className="h-11 w-11 shrink-0 rounded-xl bg-emerald-50 object-contain p-1"
+                              />
+                            ) : (
+                              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                                <Search className="h-5 w-5" />
+                              </span>
+                            )}
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-emerald-600">
+                                Exercise library
+                              </span>
+                              <span className="mt-1 block truncate text-[13px] font-bold text-slate-800">
+                                {selectedCatalogExercise?.name
+                                  ? formatExerciseLabel(selectedCatalogExercise.name)
+                                  : selectedExerciseId
+                                    ? exerciseName
+                                    : "Choose from 1,324 exercises"}
+                              </span>
+                            </span>
+                            <ChevronDown className="h-4 w-4 shrink-0 -rotate-90 text-slate-400" />
+                          </button>
+                          <div>
+                            <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-slate-400">Or use a custom name</label>
+                            <input
+                              type="text"
+                              value={exerciseName}
+                              onChange={(event) => {
+                                setExerciseName(event.target.value);
+                                if (selectedCatalogExercise && event.target.value !== formatExerciseLabel(selectedCatalogExercise.name)) {
+                                  setSelectedExerciseId(null);
+                                  setSelectedCatalogExercise(null);
+                                }
+                              }}
+                              placeholder="Exercise name (e.g. Bench Press)"
+                              className="h-[44px] w-full rounded-xl border border-slate-200 bg-white px-4 text-[13px] text-slate-900 placeholder:text-slate-300 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                            />
+                          </div>
                           <div className="grid grid-cols-3 gap-2">
                             <div>
                               <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Sets</label>
@@ -1728,40 +1955,51 @@ export default function CoachClientDetail() {
                               <input type="number" min={0} step={15} value={exerciseRest} onChange={(e) => setExerciseRest(Number(e.target.value))} className="w-full h-[40px] px-3 rounded-xl bg-white border border-slate-200 text-[13px] text-slate-900 text-center font-bold focus:outline-none focus:ring-2 focus:ring-purple-500/20" />
                             </div>
                           </div>
+                          <div>
+                            <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-slate-400">Coach instructions</label>
+                            <textarea
+                              value={exerciseNotes}
+                              onChange={(event) => setExerciseNotes(event.target.value)}
+                              rows={3}
+                              placeholder="Technique cues, tempo, or client-specific notes"
+                              className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] leading-5 text-slate-900 placeholder:text-slate-300 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                            />
+                          </div>
                           <button
                             onClick={async () => {
                               if (!workoutProgramId || !exerciseName.trim()) return;
                               if (editingExerciseId) {
                                 await updateExercise(editingExerciseId, {
+                                  exercise_catalog_id: selectedExerciseId,
                                   exercise_name: exerciseName.trim(),
                                   sets: exerciseSets,
                                   reps: exerciseReps,
                                   rest_seconds: exerciseRest,
+                                  notes: exerciseNotes.trim(),
                                 });
                                 setEditingExerciseId(null);
                               } else {
                                 await assignExercise(workoutProgramId, {
+                                  exercise_catalog_id: selectedExerciseId,
                                   exercise_name: exerciseName.trim(),
                                   sets: exerciseSets,
                                   reps: exerciseReps,
                                   rest_seconds: exerciseRest,
+                                  notes: exerciseNotes.trim(),
                                   day_number: selectedWorkoutDay,
                                   order_index: programExercises.filter((e) => e.program_id === workoutProgramId && e.day_number === selectedWorkoutDay).length,
                                 });
                               }
-                              setExerciseName("");
-                              setExerciseSets(3);
-                              setExerciseReps("10");
-                              setExerciseRest(60);
+                              resetExerciseForm();
                             }}
                             disabled={!exerciseName.trim()}
-                            className="w-full h-[44px] rounded-xl bg-purple-600 text-white text-[13px] font-bold hover:bg-purple-700 disabled:opacity-40 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                            className="flex h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-[#07152F] text-[13px] font-bold text-white transition-all active:scale-[0.98] disabled:opacity-40"
                           >
                             {editingExerciseId ? <><Pencil className="w-4 h-4" /> Update Exercise</> : <><Plus className="w-4 h-4" /> Add to Day {selectedWorkoutDay}</>}
                           </button>
                         </div>
 
-                        <button onClick={() => { setWorkoutBuilderOpen(false); setWorkoutStep("create"); setWorkoutProgramId(null); setEditingExerciseId(null); }} className="w-full h-[48px] rounded-2xl bg-slate-100 text-slate-600 text-[13px] font-bold hover:bg-slate-200 active:scale-[0.98] transition-all mt-2">
+                        <button onClick={() => { setWorkoutBuilderOpen(false); setWorkoutStep("create"); setWorkoutProgramId(null); resetExerciseForm(); }} className="w-full h-[48px] rounded-2xl bg-slate-100 text-slate-600 text-[13px] font-bold hover:bg-slate-200 active:scale-[0.98] transition-all mt-2">
                           Done
                         </button>
                       </div>
@@ -1776,14 +2014,14 @@ export default function CoachClientDetail() {
 
       {/* Goal Proposal Modal */}
       {goalModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
-          <motion.div initial={{ opacity: 0, scale: 0.96, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="w-full max-w-md bg-white rounded-[24px] p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[1200] bg-[#08162f]/60 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+          <motion.div initial={{ opacity: 0, scale: 0.96, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="w-full max-w-md bg-white rounded-t-[28px] sm:rounded-[28px] p-6 pb-[calc(24px+env(safe-area-inset-bottom))] shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-[16px] font-extrabold text-slate-950">Propose a Goal</h2>
                 <p className="text-[11px] text-slate-500">Set a target for this client</p>
               </div>
-              <button onClick={() => setGoalModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>
+              <button aria-label="Close goal proposal" onClick={() => setGoalModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <GoalProposalForm onPropose={async (data) => { await proposeGoal(data); setGoalModalOpen(false); }} />
           </motion.div>
@@ -1792,14 +2030,14 @@ export default function CoachClientDetail() {
 
       {/* Export Report Modal */}
       {reportModalOpen && profile && clientId && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 pb-24">
-          <motion.div initial={{ opacity: 0, scale: 0.96, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="w-full max-w-md bg-white rounded-[24px] p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[1200] bg-[#08162f]/60 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+          <motion.div initial={{ opacity: 0, scale: 0.96, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="w-full max-w-md bg-white rounded-t-[28px] sm:rounded-[28px] p-6 pb-[calc(24px+env(safe-area-inset-bottom))] shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-[16px] font-extrabold text-slate-950">Export Progress Report</h2>
                 <p className="text-[11px] text-slate-500">Generate a comprehensive PDF for {profile.full_name || "client"}</p>
               </div>
-              <button onClick={() => setReportModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>
+              <button aria-label="Close report generator" onClick={() => setReportModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
@@ -1837,6 +2075,25 @@ export default function CoachClientDetail() {
           </motion.div>
         </div>
       )}
+
+      <ExerciseCatalogSheet
+        open={exerciseCatalogOpen}
+        onOpenChange={setExerciseCatalogOpen}
+        selectedId={selectedExerciseId}
+        title="Choose an exercise"
+        onSelect={(exercise) => {
+          setSelectedExerciseId(exercise.id);
+          setSelectedCatalogExercise(exercise);
+          setExerciseName(formatExerciseLabel(exercise.name));
+        }}
+      />
+      <ExerciseCatalogSheet
+        open={exercisePreviewOpen}
+        onOpenChange={setExercisePreviewOpen}
+        title="Exercise details"
+        allowedExerciseIds={exercisePreviewId ? [exercisePreviewId] : []}
+        initialExerciseId={exercisePreviewId}
+      />
     </div>
   );
 }

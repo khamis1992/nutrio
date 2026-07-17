@@ -44,6 +44,7 @@ const healthData = (syncedAt: string): SyncedHealthData => ({
 describe("healthKit user-scoped cache", () => {
   beforeEach(() => {
     vi.stubGlobal("localStorage", createMemoryStorage());
+    vi.stubGlobal("sessionStorage", createMemoryStorage());
   });
 
   afterEach(() => {
@@ -55,7 +56,7 @@ describe("healthKit user-scoped cache", () => {
 
     setCachedHealthData(data, "user-a");
 
-    expect(JSON.parse(localStorage.getItem(cacheKey("user-a")) ?? "null")).toMatchObject({
+    expect(JSON.parse(sessionStorage.getItem(cacheKey("user-a")) ?? "null")).toMatchObject({
       version: 1,
       userId: "user-a",
       sourceDate: "2026-07-12",
@@ -82,11 +83,11 @@ describe("healthKit user-scoped cache", () => {
 
     expect(getCachedHealthData("user-b", "2026-07-12")).toBeNull();
 
-    const userARecord = localStorage.getItem(cacheKey("user-a"));
-    localStorage.setItem(cacheKey("user-b"), userARecord ?? "");
+    const userARecord = sessionStorage.getItem(cacheKey("user-a"));
+    sessionStorage.setItem(cacheKey("user-b"), userARecord ?? "");
 
     expect(getCachedHealthData("user-b", "2026-07-12")).toBeNull();
-    expect(localStorage.getItem(cacheKey("user-b"))).toBeNull();
+    expect(sessionStorage.getItem(cacheKey("user-b"))).toBeNull();
     expect(getCachedHealthData("user-a", "2026-07-12")).toEqual(data);
   });
 
@@ -103,9 +104,9 @@ describe("healthKit user-scoped cache", () => {
 
     setCachedHealthData(data, "user-a", "2026-07-11");
 
-    expect(localStorage.getItem(cacheKey("user-a"))).toBeNull();
+    expect(sessionStorage.getItem(cacheKey("user-a"))).toBeNull();
 
-    localStorage.setItem(cacheKey("user-a"), JSON.stringify({
+    sessionStorage.setItem(cacheKey("user-a"), JSON.stringify({
       version: 1,
       userId: "user-a",
       sourceDate: "2026-07-11",
@@ -113,7 +114,7 @@ describe("healthKit user-scoped cache", () => {
       data,
     }));
     expect(getCachedHealthData("user-a", "2026-07-11")).toBeNull();
-    expect(localStorage.getItem(cacheKey("user-a"))).toBeNull();
+    expect(sessionStorage.getItem(cacheKey("user-a"))).toBeNull();
   });
 
   it("keeps health permissions and polling state scoped to one account", () => {

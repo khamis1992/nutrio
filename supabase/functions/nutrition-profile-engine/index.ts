@@ -3,12 +3,17 @@
 // Mifflin-St Jeor BMR equation with TDEE and macro distribution
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  enforceRateLimit,
+  errorResponse,
+  getCorsHeaders,
+  getServiceClient,
+  handlePreflight,
+  readJsonBody,
+  recordSecurityEvent,
+  requirePost,
+  requireSelfOrAdmin,
+} from "../_shared/security.ts";
 
 interface NutritionProfileInput {
   gender: "male" | "female";
@@ -197,20 +202,21 @@ function calculateNutritionProfile(input: NutritionProfileInput): NutritionProfi
 }
 
 serve(async (req) => {
-  // Handle CORS
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
-    // Create Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    requirePost(req);
+    const { user_id, profile_data, save_to_database = true } = await readJsonBody<{
+      user_id: string;
+      profile_data: NutritionProfileInput;
+      save_to_database?: boolean;
+    }>(req, 32 * 1024);
+    const principal = await requireSelfOrAdmin(req, user_id);
+    await enforceRateLimit(req, "nutrition-profile", principal.user.id, 20, 60 * 60);
 
-    // Parse request
-    const { user_id, profile_data, save_to_database = true } = await req.json();
+    const supabaseClient = getServiceClient();
 
     // Validate inputs
     if (!user_id) {
@@ -318,6 +324,17 @@ serve(async (req) => {
       });
     }
 
+    await recordSecurityEvent(req, {
+      eventType: "edge.nutrition_profile_calculated",
+      category: "edge_function",
+      severity: "info",
+      outcome: "success",
+      principal,
+      action: save_to_database ? "calculate_and_save" : "calculate",
+      resourceType: "profile",
+      resourceId: user_id,
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -329,9 +346,6 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in nutrition-profile-engine:", error);
-    return new Response(
-      JSON.stringify({ error: "An unexpected error occurred" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(req, error);
   }
 });

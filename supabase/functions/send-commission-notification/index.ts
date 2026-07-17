@@ -1,13 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import {
+  errorResponse,
+  escapeHtml,
+  getCorsHeaders,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  readJsonBody,
+  requireAdminOrInternal,
+  requirePost,
+} from "../_shared/security.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 interface CommissionNotificationRequest {
   user_id: string;
@@ -19,17 +24,20 @@ interface CommissionNotificationRequest {
 const handler = async (req: Request): Promise<Response> => {
   console.log("Commission notification function called");
 
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    requirePost(req);
+    await requireAdminOrInternal(req, "AFFILIATE_NOTIFICATION_SECRET");
+    const supabase = getServiceClient();
 
-    const { user_id, commission_amount, tier, order_amount }: CommissionNotificationRequest = await req.json();
+    const { user_id, commission_amount, tier, order_amount } = await readJsonBody<CommissionNotificationRequest>(req, 16 * 1024);
+    if (!user_id || !Number.isFinite(commission_amount) || commission_amount < 0 ||
+        !Number.isFinite(order_amount) || order_amount < 0 || ![1, 2, 3].includes(tier)) {
+      throw new HttpError(400, "invalid_notification_request");
+    }
 
     console.log(`Processing commission notification for user ${user_id}: $${commission_amount} (Tier ${tier})`);
 
@@ -53,7 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("user_id", user_id)
       .single();
 
-    const userName = profile?.full_name || "Affiliate Partner";
+    const userName = escapeHtml(profile?.full_name || "Affiliate Partner");
     const currentBalance = profile?.affiliate_balance || 0;
     const totalEarnings = profile?.total_affiliate_earnings || 0;
 
@@ -149,13 +157,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("Error in send-commission-notification function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return errorResponse(req, error);
   }
 };
 

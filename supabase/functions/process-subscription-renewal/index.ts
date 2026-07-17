@@ -1,15 +1,25 @@
-// Edge Function: process-subscription-renewal
 // Synchronizes freezes and expires subscriptions whose paid period ended.
 // A verified SADAD payment is the only path that may extend entitlement.
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-cron-secret",
-};
+import {
+  authenticateRequest,
+  enforceRateLimit,
+  errorResponse,
+  getServiceClient,
+  hasAdminAssurance,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requireInternalSecret,
+  requirePost,
+  type SecurityPrincipal,
+} from "../_shared/security.ts";
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface RenewalInput {
   subscription_id?: string;
@@ -18,31 +28,8 @@ interface RenewalInput {
 
 interface RenewalLifecycleResult {
   subscription_id: string;
-  user_id: string;
-  action: "would_expire" | "expired" | "unchanged";
-  success: boolean;
-  error?: string;
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-function safeEqual(left: string, right: string): boolean {
-  const encoder = new TextEncoder();
-  const leftBytes = encoder.encode(left);
-  const rightBytes = encoder.encode(right);
-  let difference = leftBytes.length ^ rightBytes.length;
-  const length = Math.max(leftBytes.length, rightBytes.length);
-
-  for (let index = 0; index < length; index += 1) {
-    difference |= (leftBytes[index] ?? 0) ^ (rightBytes[index] ?? 0);
-  }
-
-  return difference === 0;
+  action: "would_expire" | "expired";
+  success: true;
 }
 
 function getQatarDate(): string {
@@ -56,123 +43,98 @@ function getQatarDate(): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+serve(async (req: Request): Promise<Response> => {
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
-  if (req.method !== "POST") {
-    return json({ error: "METHOD_NOT_ALLOWED" }, 405);
-  }
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const cronSecret = Deno.env.get("SUBSCRIPTION_RENEWAL_CRON_SECRET") ?? "";
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.error("Subscription renewal server configuration is incomplete");
-    return json({ error: "SERVER_CONFIGURATION_MISSING" }, 500);
-  }
-
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  let principal: SecurityPrincipal | null = null;
+  let internal = false;
 
   try {
-    const body = (await req.json().catch(() => ({}))) as RenewalInput;
-    const subscriptionId = body.subscription_id?.trim() || null;
+    requirePost(req);
+    const body = await readJsonBody<RenewalInput>(req, 8 * 1024);
+    const subscriptionId = String(body.subscription_id || "").trim() || null;
     const dryRun = body.dry_run === true;
-    const suppliedCronSecret = req.headers.get("x-cron-secret") ?? "";
-    const isCron = Boolean(
-      cronSecret
-        && suppliedCronSecret
-        && safeEqual(suppliedCronSecret, cronSecret),
-    );
 
-    let actorId: string | null = null;
-    let isAdmin = false;
-
-    if (!isCron) {
-      const authorization = req.headers.get("authorization") ?? "";
-      const token = authorization.startsWith("Bearer ")
-        ? authorization.slice("Bearer ".length).trim()
-        : "";
-
-      if (!token) {
-        return json({ error: "UNAUTHORIZED" }, 401);
-      }
-
-      const { data: authData, error: authError } = await adminClient.auth.getUser(token);
-      if (authError || !authData.user) {
-        return json({ error: "UNAUTHORIZED" }, 401);
-      }
-
-      actorId = authData.user.id;
-      const { data: roles, error: rolesError } = await adminClient
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", actorId);
-
-      if (rolesError) {
-        throw rolesError;
-      }
-
-      isAdmin = (roles ?? []).some((entry) => entry.role === "admin");
-
-      if (!isAdmin && (!dryRun || !subscriptionId)) {
-        return json(
-          { error: "FORBIDDEN", message: "Customers may only preview their own renewal status." },
-          403,
-        );
-      }
+    if (subscriptionId && !UUID_PATTERN.test(subscriptionId)) {
+      throw new HttpError(400, "invalid_subscription_reference");
     }
 
-    if (!dryRun && !isCron && !isAdmin) {
-      return json({ error: "FORBIDDEN" }, 403);
+    if (req.headers.has("x-internal-secret")) {
+      await requireInternalSecret(req, "SUBSCRIPTION_RENEWAL_CRON_SECRET");
+      internal = true;
+    } else {
+      principal = await authenticateRequest(req);
+      await enforceRateLimit(
+        req,
+        "subscription-renewal",
+        principal.user.id,
+        hasAdminAssurance(principal) ? 30 : 5,
+        60 * 60,
+      );
     }
 
-    const syncTarget = isCron || isAdmin ? null : actorId;
-    const { error: freezeError } = await adminClient.rpc("sync_subscription_freezes", {
-      p_user_id: syncTarget,
-    });
-
-    if (freezeError) {
-      throw freezeError;
+    const hasAdminAccess = hasAdminAssurance(principal);
+    if (!internal && !hasAdminAccess && (!dryRun || !subscriptionId)) {
+      throw new HttpError(403, "renewal_preview_scope_forbidden");
+    }
+    if (!dryRun && !internal && !hasAdminAccess) {
+      throw new HttpError(403, "admin_or_scheduler_required");
     }
 
+    const service = getServiceClient();
+
+    // A dry run must be observational. Freeze synchronization and expiry are
+    // both intentionally skipped so previewing cannot mutate entitlement.
     if (!dryRun) {
-      const { data: expired, error: expireError } = await adminClient.rpc(
+      const syncTarget = internal || hasAdminAccess ? null : principal?.user.id;
+      const { error: freezeError } = await service.rpc("sync_subscription_freezes", {
+        p_user_id: syncTarget,
+      });
+      if (freezeError) throw freezeError;
+
+      const { data: expired, error: expireError } = await service.rpc(
         "expire_due_subscriptions",
         {
           p_subscription_id: subscriptionId,
           p_limit: subscriptionId ? 1 : 500,
         },
       );
+      if (expireError) throw expireError;
 
-      if (expireError) {
-        throw expireError;
-      }
-
-      const results: RenewalLifecycleResult[] = (expired ?? []).map((subscription) => ({
-        subscription_id: subscription.subscription_id,
-        user_id: subscription.user_id,
+      const results: RenewalLifecycleResult[] = (expired ?? []).map((item) => ({
+        subscription_id: String(item.subscription_id),
         action: "expired",
         success: true,
       }));
 
-      return json({
-        message: "Renewal lifecycle processed",
+      await recordSecurityEvent(req, {
+        eventType: "subscription.lifecycle_processed",
+        category: "payment",
+        severity: results.length ? "medium" : "info",
+        outcome: "success",
+        principal,
+        actorType: internal ? "system" : undefined,
+        actorRole: internal ? "scheduler" : undefined,
+        action: "expire_due_subscriptions",
+        resourceType: "public.subscriptions",
+        resourceId: subscriptionId || undefined,
+        metadata: { processed: results.length, bounded_limit: subscriptionId ? 1 : 500 },
+      });
+
+      return jsonResponse(req, {
+        success: true,
         processed: results.length,
-        successful: results.length,
-        failed: 0,
-        results,
+        // Scheduler responses are aggregate-only to avoid writing customer
+        // identifiers into CI provider logs.
+        results: internal ? undefined : results,
       });
     }
 
     const today = getQatarDate();
-    let query = adminClient
+    let query = service
       .from("subscriptions")
-      .select("id,user_id,end_date,status,active,auto_renew,freeze_active_id")
+      .select("id,user_id,end_date")
       .in("status", ["active", "cancelled"])
       .is("freeze_active_id", null)
       .not("end_date", "is", null)
@@ -180,40 +142,40 @@ serve(async (req) => {
       .order("end_date", { ascending: true })
       .limit(subscriptionId ? 1 : 500);
 
-    if (subscriptionId) {
-      query = query.eq("id", subscriptionId);
-    }
-    if (!isCron && !isAdmin && actorId) {
-      query = query.eq("user_id", actorId);
+    if (subscriptionId) query = query.eq("id", subscriptionId);
+    if (!internal && !hasAdminAccess && principal) {
+      query = query.eq("user_id", principal.user.id);
     }
 
     const { data: subscriptions, error: fetchError } = await query;
-    if (fetchError) {
-      throw fetchError;
-    }
+    if (fetchError) throw fetchError;
 
-    const results: RenewalLifecycleResult[] = (subscriptions ?? []).map((subscription) => ({
-      subscription_id: subscription.id,
-      user_id: subscription.user_id,
+    const results: RenewalLifecycleResult[] = (subscriptions ?? []).map((item) => ({
+      subscription_id: String(item.id),
       action: "would_expire",
       success: true,
     }));
 
-    return json({
-      message: "Renewal lifecycle preview completed",
+    return jsonResponse(req, {
+      success: true,
+      dry_run: true,
       processed: results.length,
-      successful: results.filter((result) => result.success).length,
-      failed: results.filter((result) => !result.success).length,
-      results,
+      results: internal ? undefined : results,
     });
   } catch (error) {
-    console.error("Error processing subscription renewal lifecycle", error);
-    return json(
-      {
-        error: "SUBSCRIPTION_RENEWAL_PROCESSING_FAILED",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      500,
-    );
+    await recordSecurityEvent(req, {
+      eventType: "subscription.lifecycle_failed",
+      category: "payment",
+      severity: error instanceof HttpError && error.status < 500 ? "medium" : "high",
+      outcome: error instanceof HttpError && [401, 403, 429].includes(error.status)
+        ? "denied"
+        : "failure",
+      principal,
+      actorType: internal ? "system" : undefined,
+      actorRole: internal ? "scheduler" : undefined,
+      action: "process_subscription_lifecycle",
+      metadata: { error_code: error instanceof HttpError ? error.code : "internal_error" },
+    });
+    return errorResponse(req, error);
   }
 });

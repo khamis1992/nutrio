@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { createPrivateStorageUrl, uploadSensitiveFile } from "@/lib/private-storage";
 
 export interface BodyMeasurement {
   id: string;
@@ -55,17 +56,22 @@ export function useBodyMeasurements(clientId: string | undefined) {
   const fetchPhotos = useCallback(async () => {
     if (!clientId) return;
     try {
-      const { data } = await supabase.storage
+      const { data, error } = await supabase.storage
         .from("coach-photos")
         .list(`${clientId}`, { limit: 20, sortBy: { column: "created_at", order: "desc" } });
 
+      if (error) throw error;
       if (data?.length) {
-        const photoList: ProgressPhoto[] = data.map((file) => ({
-          id: file.id ?? file.name,
-          url: supabase.storage.from("coach-photos").getPublicUrl(`${clientId}/${file.name}`).data.publicUrl,
-          log_date: file.created_at || new Date().toISOString(),
-        }));
+        const photoList: ProgressPhoto[] = await Promise.all(
+          data.map(async (file) => ({
+            id: file.id ?? file.name,
+            url: await createPrivateStorageUrl("coach-photos", `${clientId}/${file.name}`, 300),
+            log_date: file.created_at || new Date().toISOString(),
+          })),
+        );
         setPhotos(photoList);
+      } else {
+        setPhotos([]);
       }
     } catch (err) {
       console.error("Error fetching progress photos:", err);
@@ -126,16 +132,18 @@ export function useBodyMeasurements(clientId: string | undefined) {
     async (file: File) => {
       if (!clientId) throw new Error("Missing client ID");
       if (file.size > 10 * 1024 * 1024) throw new Error("File must be under 10MB");
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        throw new Error("Only JPEG, PNG, and WebP photos are allowed");
+      }
       setUploading(true);
       try {
         const timestamp = Date.now();
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const filePath = `${clientId}/${timestamp}_${safeName}`;
-        const { error } = await supabase.storage
-          .from("coach-photos")
-          .upload(filePath, file, { cacheControl: "3600", upsert: false });
-        if (error) {
-          if (error.message.includes("Bucket") && error.message.includes("not found")) {
+        try {
+          await uploadSensitiveFile("coach-photos", filePath, file);
+        } catch (error) {
+          if (error instanceof Error && error.message.includes("Bucket") && error.message.includes("not found")) {
             throw new Error("Storage bucket not configured. Please create the 'coach-photos' bucket.");
           }
           throw error;

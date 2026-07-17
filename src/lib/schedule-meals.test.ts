@@ -5,12 +5,17 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 import { supabase } from "@/integrations/supabase/client";
-import { scheduleMealsAtomic } from "@/lib/schedule-meals";
+import { scheduleMealsAtomic, scheduleMealsResilient } from "@/lib/schedule-meals";
+import { readOfflineMutations } from "@/lib/offline-mutation-queue";
 
 const rpc = vi.mocked(supabase.rpc);
 
 describe("scheduleMealsAtomic", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    vi.stubGlobal("navigator", { onLine: true });
+  });
 
   it("sends the complete batch through one idempotent RPC", async () => {
     rpc.mockResolvedValue({
@@ -73,5 +78,24 @@ describe("scheduleMealsAtomic", () => {
       scheduled_date: "2026-07-13",
       meal_type: "lunch",
     }], "00000000-0000-4000-8000-000000000003")).rejects.toThrow("MEAL_SCHEDULING_FAILED");
+  });
+
+  it("queues a stable batch while offline", async () => {
+    vi.stubGlobal("navigator", { onLine: false });
+    const items = [{
+      meal_id: "meal-1",
+      scheduled_date: "2026-07-13",
+      meal_type: "lunch" as const,
+    }];
+
+    await expect(scheduleMealsResilient(
+      "user-1",
+      "subscription-1",
+      items,
+      "00000000-0000-4000-8000-000000000004",
+    )).resolves.toMatchObject({ queued: true });
+
+    expect(rpc).not.toHaveBeenCalled();
+    expect(readOfflineMutations()).toHaveLength(1);
   });
 });

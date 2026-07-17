@@ -1,10 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  authenticateRequest,
+  enforceRateLimit,
+  errorResponse,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  requirePost,
+} from "../_shared/security.ts";
 
 interface MealScore {
   meal_id: string;
@@ -77,41 +82,40 @@ function scoreMeal(
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    requirePost(req);
+    const principal = await authenticateRequest(req);
+    await enforceRateLimit(req, "recommend-meals", principal.user.id, 60, 60 * 60);
+
+    const body = await readJsonBody<{
+      limit?: unknown;
+      cuisine?: unknown;
+      mealType?: unknown;
+    }>(req, 4 * 1024);
+    const requestedLimit = body.limit === undefined ? 40 : Number(body.limit);
+    if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 80) {
+      throw new HttpError(400, "invalid_limit");
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    const cuisine = body.cuisine === undefined ? "" : String(body.cuisine).trim();
+    const mealType = body.mealType === undefined ? "" : String(body.mealType).trim();
+    if (cuisine.length > 80 || mealType.length > 40) {
+      throw new HttpError(400, "invalid_filter");
     }
 
-    const { limit, cuisine, mealType } = await req.json().catch(() => ({}));
+    const supabaseClient = getServiceClient();
+    const user = principal.user;
 
-    const { data: activeGoal } = await supabaseClient
+    const { data: activeGoal, error: goalError } = await supabaseClient
       .from("nutrition_goals")
       .select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g, fiber_target_g")
       .eq("user_id", user.id)
       .eq("is_active", true)
-      .single();
+      .maybeSingle();
+    if (goalError) throw goalError;
 
     const targets: NutritionTargets = {
       daily_calorie_target: activeGoal?.daily_calorie_target || 2000,
@@ -121,25 +125,28 @@ serve(async (req) => {
       fiber_target_g: activeGoal?.fiber_target_g || null,
     };
 
-    const { data: userPrefs } = await supabaseClient
+    const { data: userPrefs, error: preferenceError } = await supabaseClient
       .from("user_dietary_preferences")
       .select("diet_tag_id")
       .eq("user_id", user.id);
+    if (preferenceError) throw preferenceError;
 
     const userDietTagIds = (userPrefs || []).map((p) => p.diet_tag_id);
 
-    const { data: userAllergens } = await supabaseClient
+    const { data: userAllergens, error: allergenError } = await supabaseClient
       .from("user_allergens")
       .select("allergen_id")
       .eq("user_id", user.id);
+    if (allergenError) throw allergenError;
 
     let allergenMealIds = new Set<string>();
     if (userAllergens && userAllergens.length > 0) {
       const allergenIds = userAllergens.map((a) => a.allergen_id);
-      const { data: mealAllergens } = await supabaseClient
+      const { data: mealAllergens, error: mealAllergenError } = await supabaseClient
         .from("meal_allergens")
         .select("meal_id")
         .in("allergen_id", allergenIds);
+      if (mealAllergenError) throw mealAllergenError;
       allergenMealIds = new Set((mealAllergens || []).map((m) => m.meal_id));
     }
 
@@ -153,16 +160,21 @@ serve(async (req) => {
 
     const { data: meals, error: mealsError } = await query
       .order("created_at", { ascending: false })
-      .limit(limit || 80);
+      .limit(requestedLimit);
 
     if (mealsError) throw mealsError;
 
     const mealIds = (meals || []).map((m: any) => m.id);
 
-    const { data: mealTagsData } = await supabaseClient
-      .from("meal_diet_tags")
-      .select("meal_id, diet_tag_id")
-      .in("meal_id", mealIds);
+    let mealTagsData: Array<{ meal_id: string; diet_tag_id: string }> = [];
+    if (mealIds.length > 0) {
+      const { data, error } = await supabaseClient
+        .from("meal_diet_tags")
+        .select("meal_id, diet_tag_id")
+        .in("meal_id", mealIds);
+      if (error) throw error;
+      mealTagsData = data || [];
+    }
 
     const mealDietTags = new Map<string, string[]>();
     for (const mt of mealTagsData || []) {
@@ -193,18 +205,12 @@ serve(async (req) => {
 
     scored.sort((a, b) => b.match_score - a.match_score);
 
-    return new Response(
-      JSON.stringify({
-        meals: scored,
-        targets,
-        total: scored.length,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return jsonResponse(req, {
+      meals: scored,
+      targets,
+      total: scored.length,
+    });
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Internal error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return errorResponse(req, err);
   }
 });

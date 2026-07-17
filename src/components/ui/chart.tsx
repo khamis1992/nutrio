@@ -6,6 +6,15 @@ import { cn } from "@/lib/utils";
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
 
+const safeCssIdentifier = (value: string) =>
+  value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "chart";
+
+const safeCssColor = (value: string | undefined) => {
+  const color = value?.trim();
+  if (!color || color.length > 160 || /[;{}<>@\\\r\n]/.test(color)) return null;
+  return color;
+};
+
 export type ChartConfig = {
   [k in string]: {
     label?: React.ReactNode;
@@ -37,7 +46,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = `chart-${safeCssIdentifier(id || uniqueId)}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,26 +74,26 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
-}
-`,
-          )
-          .join("\n"),
-      }}
-    />
-  );
+  const safeId = safeCssIdentifier(id);
+  const cssText = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const variables = colorConfig
+        .map(([key, itemConfig]) => {
+          const color = safeCssColor(
+            itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color,
+          );
+          return color
+            ? `  --color-${safeCssIdentifier(key)}: ${color};`
+            : null;
+        })
+        .filter(Boolean)
+        .join("\n");
+      return variables ? `${prefix} [data-chart="${safeId}"] {\n${variables}\n}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  return cssText ? <style>{cssText}</style> : null;
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;

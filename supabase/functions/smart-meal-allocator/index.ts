@@ -3,12 +3,53 @@
 // Uses optimization algorithm with variety constraints
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  enforceRateLimit,
+  errorResponse,
+  getCorsHeaders,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  readJsonBody,
+  requirePost,
+  requireSelfOrAdmin,
+} from "../_shared/security.ts";
+import {
+  createAllocationExecutionBudget as createExecutionBudget,
+  type AllocationExecutionBudget,
+  type AllocationNow,
+} from "./execution-budget.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const MAX_VARIATIONS = 3;
+const MAX_CATALOG_ROWS = 1_000;
+const MAX_ALLOCATION_RUNTIME_MS = 20_000;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const ALLOWED_MEAL_TYPES = new Set(["breakfast", "lunch", "dinner", "snack"]);
+const BUDGET_CHECK_INTERVAL = 64;
+
+function allocationBudgetExceeded(stage: string): HttpError {
+  const error = new HttpError(
+    503,
+    "allocation_budget_exceeded",
+    "Meal allocation exceeded its execution budget",
+  ) as HttpError & { stage: string };
+  error.stage = stage;
+  return error;
+}
+
+function createAllocationExecutionBudget(
+  maxRuntimeMs = MAX_ALLOCATION_RUNTIME_MS,
+  now: AllocationNow = Date.now,
+  parentSignal?: AbortSignal,
+): AllocationExecutionBudget {
+  return createExecutionBudget(
+    maxRuntimeMs,
+    now,
+    parentSignal,
+    allocationBudgetExceeded,
+  );
+}
 
 interface Meal {
   id: string;
@@ -83,9 +124,13 @@ function scoreMealMacroMatch(meal: Meal, targetCalories: number, targetProtein: 
 // Filter meals based on dietary restrictions and allergies
 function filterValidMeals(
   meals: Meal[],
-  preferences: UserPreferences
+  preferences: UserPreferences,
+  budget: AllocationExecutionBudget,
+  stage: string,
 ): Meal[] {
-  return meals.filter(meal => {
+  return meals.filter((meal, index) => {
+    if (index % BUDGET_CHECK_INTERVAL === 0) budget.check(stage);
+
     // Check availability
     if (!meal.is_available) return false;
     
@@ -94,6 +139,47 @@ function filterValidMeals(
     
     return true;
   });
+}
+
+function selectBestMeal(
+  validMeals: Meal[],
+  planItems: PlanItem[],
+  targets: { calories: number; protein: number },
+  budget: AllocationExecutionBudget,
+  stage: string,
+): Meal | null {
+  let selectedMeal: Meal | null = null;
+  let selectedScore = Number.NEGATIVE_INFINITY;
+
+  for (let index = 0; index < validMeals.length; index += 1) {
+    if (index % BUDGET_CHECK_INTERVAL === 0) budget.check(stage);
+    const meal = validMeals[index];
+    const macroScore = scoreMealMacroMatch(meal, targets.calories, targets.protein);
+    const varietyScore = calculateVarietyScore(planItems, meal);
+    const totalScore = macroScore * 0.7 + varietyScore * 0.3;
+
+    if (totalScore > selectedScore) {
+      selectedMeal = meal;
+      selectedScore = totalScore;
+    }
+  }
+
+  budget.check(stage);
+  return selectedMeal;
+}
+
+function shuffleMeals(
+  meals: Meal[],
+  budget: AllocationExecutionBudget,
+): Meal[] {
+  const shuffled = [...meals];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    if (index % BUDGET_CHECK_INTERVAL === 0) budget.check("weekly.shuffle");
+    const replacementIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[replacementIndex]] = [shuffled[replacementIndex], shuffled[index]];
+  }
+  budget.check("weekly.shuffle");
+  return shuffled;
 }
 
 // Score meals for variety
@@ -167,12 +253,14 @@ async function generateDailyPlan(
   nutritionTargets: NutritionTargets,
   preferences: UserPreferences,
   supabaseClient: any,
+  budget: AllocationExecutionBudget,
   options: {
     remaining_calories?: number;
     remaining_protein?: number;
     locked_meal_types?: string[];
   } = {}
 ): Promise<{ plan_items: PlanItem[]; total_calories: number; total_protein: number }> {
+  budget.check("daily.start");
   const planItems: PlanItem[] = [];
   const usedRestaurants = new Map<string, number>();
   
@@ -203,6 +291,8 @@ async function generateDailyPlan(
   
   // Generate for each meal type
   for (const mealType of mealTypesToGenerate) {
+    budget.check("daily.meal_slot");
+
     // Skip snacks if calories are tight
     if (mealType === "snack" && remainingCalories < 1800) {
       continue;
@@ -212,8 +302,13 @@ async function generateDailyPlan(
     if (!targets) continue;
     
     // Filter valid meals
-    const validMeals = filterValidMeals(availableMeals, preferences)
-      .filter(meal => {
+    const validMeals = filterValidMeals(
+      availableMeals,
+      preferences,
+      budget,
+      "daily.filter_available",
+    ).filter((meal, index) => {
+        if (index % BUDGET_CHECK_INTERVAL === 0) budget.check("daily.filter_variety");
         // Enforce variety: max 2 meals from same restaurant
         const restaurantCount = usedRestaurants.get(meal.restaurant_id) || 0;
         return restaurantCount < 2;
@@ -224,56 +319,40 @@ async function generateDailyPlan(
       continue;
     }
     
-    // Score each meal based on remaining nutrition targets
-    const scoredMeals = validMeals.map(meal => {
-      const macroScore = scoreMealMacroMatch(
-        meal,
-        targets.calories,
-        targets.protein
-      );
-      const varietyScore = calculateVarietyScore(planItems, meal);
-      const totalScore = macroScore * 0.7 + varietyScore * 0.3;
-      
-      return {
-        meal,
-        score: totalScore,
-        macroScore,
-        varietyScore,
-      };
-    });
-    
-    // Sort by score descending (highest score = best match)
-    scoredMeals.sort((a, b) => b.score - a.score);
-    
-    // Select top meal
-    const selected = scoredMeals[0];
+    const selectedMeal = selectBestMeal(
+      validMeals,
+      planItems,
+      targets,
+      budget,
+      "daily.score_meals",
+    );
+    if (!selectedMeal) continue;
     
     planItems.push({
       day: 0, // Single day
       meal_type: mealType as "breakfast" | "lunch" | "dinner" | "snack",
-      meal_id: selected.meal.id,
-      restaurant_id: selected.meal.restaurant_id,
-      calories: selected.meal.calories,
-      protein: selected.meal.protein_g,
-      carbs: selected.meal.carbs_g,
-      fats: selected.meal.fat_g,
+      meal_id: selectedMeal.id,
+      restaurant_id: selectedMeal.restaurant_id,
+      calories: selectedMeal.calories,
+      protein: selectedMeal.protein_g,
+      carbs: selectedMeal.carbs_g,
+      fats: selectedMeal.fat_g,
     });
     
     // Track restaurant usage
     usedRestaurants.set(
-      selected.meal.restaurant_id,
-      (usedRestaurants.get(selected.meal.restaurant_id) || 0) + 1
+      selectedMeal.restaurant_id,
+      (usedRestaurants.get(selectedMeal.restaurant_id) || 0) + 1
     );
   }
-  
+
   // Calculate totals
-  const totals = planItems.reduce(
-    (acc, item) => ({
-      calories: acc.calories + item.calories,
-      protein: acc.protein + item.protein,
-    }),
-    { calories: 0, protein: 0 }
-  );
+  const totals = { calories: 0, protein: 0 };
+  for (const item of planItems) {
+    budget.check("daily.calculate_totals");
+    totals.calories += item.calories;
+    totals.protein += item.protein;
+  }
   
   return {
     plan_items: planItems,
@@ -289,8 +368,10 @@ async function generateWeeklyPlan(
   availableMeals: Meal[],
   dailyTargets: NutritionTargets,
   preferences: UserPreferences,
-  supabaseClient: any
+  supabaseClient: any,
+  budget: AllocationExecutionBudget,
 ): Promise<WeeklyPlan> {
+  budget.check("weekly.start");
   const planItems: PlanItem[] = [];
   const usedRestaurants = new Map<string, number>(); // Track restaurant usage
   
@@ -304,6 +385,8 @@ async function generateWeeklyPlan(
   
   // Generate for 7 days
   for (let day = 0; day < 7; day++) {
+    budget.check("weekly.day");
+
     // Calculate targets per meal based on daily targets
     const mealTargets = calculateMealTargets(
       dailyTargets.daily_calories,
@@ -314,6 +397,8 @@ async function generateWeeklyPlan(
     );
     
     for (const mealSlot of mealStructure) {
+      budget.check("weekly.meal_slot");
+
       // Skip snacks on days where calories are tight
       if (mealSlot.type === "snack" && dailyTargets.daily_calories < 1800) {
         continue;
@@ -323,8 +408,13 @@ async function generateWeeklyPlan(
       if (!targets) continue;
       
       // Filter and score meals for this slot
-      const validMeals = filterValidMeals(availableMeals, preferences)
-        .filter(meal => {
+      const validMeals = filterValidMeals(
+        availableMeals,
+        preferences,
+        budget,
+        "weekly.filter_available",
+      ).filter((meal, index) => {
+          if (index % BUDGET_CHECK_INTERVAL === 0) budget.check("weekly.filter_variety");
           // Enforce variety: max 2 meals from same restaurant per week
           const restaurantCount = usedRestaurants.get(meal.restaurant_id) || 0;
           return restaurantCount < 2;
@@ -337,59 +427,43 @@ async function generateWeeklyPlan(
         continue;
       }
       
-      // Score each meal using proper targets
-      const scoredMeals = validMeals.map(meal => {
-        const macroScore = scoreMealMacroMatch(
-          meal,
-          targets.calories,
-          targets.protein
-        );
-        const varietyScore = calculateVarietyScore(planItems, meal);
-        const totalScore = macroScore * 0.7 + varietyScore * 0.3;
-        
-        return {
-          meal,
-          score: totalScore,
-          macroScore,
-          varietyScore,
-        };
-      });
-      
-      // Sort by score descending
-      scoredMeals.sort((a, b) => b.score - a.score);
-      
-      // Select top meal
-      const selected = scoredMeals[0];
+      const selectedMeal = selectBestMeal(
+        validMeals,
+        planItems,
+        targets,
+        budget,
+        "weekly.score_meals",
+      );
+      if (!selectedMeal) continue;
       
       planItems.push({
         day,
         meal_type: mealSlot.type as "breakfast" | "lunch" | "dinner" | "snack",
-        meal_id: selected.meal.id,
-        restaurant_id: selected.meal.restaurant_id,
-        calories: selected.meal.calories,
-        protein: selected.meal.protein_g,
-        carbs: selected.meal.carbs_g,
-        fats: selected.meal.fat_g,
+        meal_id: selectedMeal.id,
+        restaurant_id: selectedMeal.restaurant_id,
+        calories: selectedMeal.calories,
+        protein: selectedMeal.protein_g,
+        carbs: selectedMeal.carbs_g,
+        fats: selectedMeal.fat_g,
       });
       
       // Track restaurant usage
       usedRestaurants.set(
-        selected.meal.restaurant_id,
-        (usedRestaurants.get(selected.meal.restaurant_id) || 0) + 1
+        selectedMeal.restaurant_id,
+        (usedRestaurants.get(selectedMeal.restaurant_id) || 0) + 1
       );
     }
   }
   
   // Calculate totals
-  const totals = planItems.reduce(
-    (acc, item) => ({
-      calories: acc.calories + item.calories,
-      protein: acc.protein + item.protein,
-      carbs: acc.carbs + item.carbs,
-      fats: acc.fats + item.fats,
-    }),
-    { calories: 0, protein: 0, carbs: 0, fats: 0 }
-  );
+  const totals = { calories: 0, protein: 0, carbs: 0, fats: 0 };
+  for (const item of planItems) {
+    budget.check("weekly.calculate_totals");
+    totals.calories += item.calories;
+    totals.protein += item.protein;
+    totals.carbs += item.carbs;
+    totals.fats += item.fats;
+  }
   
   // Calculate compliance score
   const targetCalories = dailyTargets.daily_calories * 7;
@@ -400,11 +474,16 @@ async function generateWeeklyPlan(
   const macroComplianceScore = Math.round((calorieCompliance + proteinCompliance) / 2);
   
   // Calculate variety score
-  const uniqueRestaurants = new Set(planItems.map(item => item.restaurant_id)).size;
-  const uniqueMeals = new Set(planItems.map(item => item.meal_id)).size;
+  const uniqueRestaurants = new Set<string>();
+  const uniqueMeals = new Set<string>();
+  for (const item of planItems) {
+    budget.check("weekly.calculate_variety");
+    uniqueRestaurants.add(item.restaurant_id);
+    uniqueMeals.add(item.meal_id);
+  }
   const varietyScore = Math.round(
-    (uniqueRestaurants / Math.max(1, planItems.length * 0.4)) * 50 +
-    (uniqueMeals / planItems.length) * 50
+    (uniqueRestaurants.size / Math.max(1, planItems.length * 0.4)) * 50 +
+    (uniqueMeals.size / planItems.length) * 50
   );
   
   return {
@@ -423,52 +502,65 @@ async function saveWeeklyPlan(
   userId: string,
   weekStartDate: string,
   plan: WeeklyPlan,
-  supabaseClient: any
+  supabaseClient: any,
+  budget: AllocationExecutionBudget,
 ): Promise<string> {
+  budget.check("weekly.save.start");
   const weekEndDate = new Date(weekStartDate);
   weekEndDate.setDate(weekEndDate.getDate() + 6);
   
   // Create weekly plan record
-  const { data: planData, error: planError } = await supabaseClient
-    .from("weekly_meal_plans")
-    .insert({
-      user_id: userId,
-      week_start_date: weekStartDate,
-      week_end_date: weekEndDate.toISOString().split("T")[0],
-      plan_status: "draft",
-      total_calories: plan.total_calories,
-      total_protein: plan.total_protein,
-      total_carbs: plan.total_carbs,
-      total_fats: plan.total_fats,
-      ai_confidence_score: plan.macro_compliance_score / 100,
-      user_accepted: false,
-      user_modified: false,
-    })
-    .select()
-    .single();
+  const { data: planData, error: planError } = await budget.run(
+    "weekly.save.plan",
+    (signal) => supabaseClient
+      .from("weekly_meal_plans")
+      .insert({
+        user_id: userId,
+        week_start_date: weekStartDate,
+        week_end_date: weekEndDate.toISOString().split("T")[0],
+        plan_status: "draft",
+        total_calories: plan.total_calories,
+        total_protein: plan.total_protein,
+        total_carbs: plan.total_carbs,
+        total_fats: plan.total_fats,
+        ai_confidence_score: plan.macro_compliance_score / 100,
+        user_accepted: false,
+        user_modified: false,
+      })
+      .select()
+      .single()
+      .abortSignal(signal),
+  );
   
   if (planError || !planData) {
     throw new Error(`Failed to create weekly plan: ${planError?.message}`);
   }
   
   // Create plan items
-  const planItems = plan.plan_items.map(item => ({
-    plan_id: planData.id,
-    meal_id: item.meal_id,
-    restaurant_id: item.restaurant_id,
-    scheduled_date: new Date(new Date(weekStartDate).getTime() + item.day * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    meal_type: item.meal_type,
-    calories: item.calories,
-    protein: item.protein,
-    carbs: item.carbs,
-    fats: item.fats,
-    is_ai_suggested: true,
-    user_swapped: false,
-  }));
-  
-  const { error: itemsError } = await supabaseClient
-    .from("weekly_meal_plan_items")
-    .insert(planItems);
+  const planItems = plan.plan_items.map((item) => {
+    budget.check("weekly.save.prepare_items");
+    return {
+      plan_id: planData.id,
+      meal_id: item.meal_id,
+      restaurant_id: item.restaurant_id,
+      scheduled_date: new Date(new Date(weekStartDate).getTime() + item.day * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      meal_type: item.meal_type,
+      calories: item.calories,
+      protein: item.protein,
+      carbs: item.carbs,
+      fats: item.fats,
+      is_ai_suggested: true,
+      user_swapped: false,
+    };
+  });
+
+  const { error: itemsError } = await budget.run(
+    "weekly.save.items",
+    (signal) => supabaseClient
+      .from("weekly_meal_plan_items")
+      .insert(planItems)
+      .abortSignal(signal),
+  );
   
   if (itemsError) {
     throw new Error(`Failed to create plan items: ${itemsError.message}`);
@@ -478,49 +570,110 @@ async function saveWeeklyPlan(
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
+  const budget = createAllocationExecutionBudget(
+    MAX_ALLOCATION_RUNTIME_MS,
+    Date.now,
+    req.signal,
+  );
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    budget.check("request.start");
+    requirePost(req);
+    const supabaseClient = getServiceClient();
 
     const { 
       user_id, 
       week_start_date,
       generate_variations = 1,
-      save_to_database = true,
       // New parameters for smart refresh
       remaining_calories,
       remaining_protein,
       locked_meal_types = [],
       mode = "weekly", // "weekly" or "daily"
-    } = await req.json();
+    } = await budget.run(
+      "request.read_body",
+      () => readJsonBody<{
+        user_id: string;
+        week_start_date: string;
+        generate_variations?: number;
+        remaining_calories?: number;
+        remaining_protein?: number;
+        locked_meal_types?: string[];
+        mode?: string;
+      }>(req, 32 * 1024),
+    );
 
     // Validation
-    if (!user_id) {
-      return new Response(
-        JSON.stringify({ error: "user_id is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    if (typeof user_id !== "string" || !UUID_PATTERN.test(user_id)) {
+      throw new HttpError(400, "invalid_user_id", "user_id must be a valid UUID");
+    }
+
+    if (
+      typeof week_start_date !== "string" ||
+      !ISO_DATE_PATTERN.test(week_start_date) ||
+      Number.isNaN(Date.parse(`${week_start_date}T00:00:00.000Z`)) ||
+      new Date(`${week_start_date}T00:00:00.000Z`).toISOString().slice(0, 10) !== week_start_date
+    ) {
+      throw new HttpError(400, "invalid_week_start_date", "week_start_date must be a valid YYYY-MM-DD date");
+    }
+
+    if (!Number.isInteger(generate_variations) || generate_variations < 1 || generate_variations > MAX_VARIATIONS) {
+      throw new HttpError(
+        400,
+        "invalid_generate_variations",
+        `generate_variations must be an integer between 1 and ${MAX_VARIATIONS}`,
       );
     }
 
-    if (!week_start_date) {
-      return new Response(
-        JSON.stringify({ error: "week_start_date is required (YYYY-MM-DD)" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (mode !== "weekly" && mode !== "daily") {
+      throw new HttpError(400, "invalid_mode", "mode must be weekly or daily");
     }
+
+    if (
+      !Array.isArray(locked_meal_types) ||
+      locked_meal_types.length > ALLOWED_MEAL_TYPES.size ||
+      locked_meal_types.some((mealType) => typeof mealType !== "string" || !ALLOWED_MEAL_TYPES.has(mealType)) ||
+      new Set(locked_meal_types).size !== locked_meal_types.length
+    ) {
+      throw new HttpError(400, "invalid_locked_meal_types");
+    }
+
+    if (
+      remaining_calories !== undefined &&
+      (typeof remaining_calories !== "number" || !Number.isFinite(remaining_calories) || remaining_calories < 0 || remaining_calories > 10_000)
+    ) {
+      throw new HttpError(400, "invalid_remaining_calories");
+    }
+
+    if (
+      remaining_protein !== undefined &&
+      (typeof remaining_protein !== "number" || !Number.isFinite(remaining_protein) || remaining_protein < 0 || remaining_protein > 1_000)
+    ) {
+      throw new HttpError(400, "invalid_remaining_protein");
+    }
+
+    const principal = await budget.run(
+      "authorization.require_self_or_admin",
+      () => requireSelfOrAdmin(req, user_id),
+    );
+    await budget.run(
+      "authorization.rate_limit",
+      () => enforceRateLimit(req, "smart-meal-allocator", principal.user.id, 20, 60 * 60),
+    );
 
     // Fetch user's nutrition profile
-    const { data: profile, error: profileError } = await supabaseClient
-      .from("profiles")
-      .select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g")
-      .eq("user_id", user_id)
-      .single();
+    const { data: profile, error: profileError } = await budget.run(
+      "database.profile",
+      (signal) => supabaseClient
+        .from("profiles")
+        .select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g")
+        .eq("user_id", user_id)
+        .single()
+        .abortSignal(signal),
+    );
 
     if (profileError || !profile || !profile.daily_calorie_target) {
       return new Response(
@@ -530,11 +683,19 @@ serve(async (req) => {
     }
 
     // Fetch user preferences
-    const { data: preferences, error: prefError } = await supabaseClient
-      .from("user_preferences")
-      .select("*")
-      .eq("user_id", user_id)
-      .single();
+    const { data: preferences, error: prefError } = await budget.run(
+      "database.preferences",
+      (signal) => supabaseClient
+        .from("user_preferences")
+        .select("*")
+        .eq("user_id", user_id)
+        .single()
+        .abortSignal(signal),
+    );
+
+    if (prefError) {
+      console.warn("Could not load user preferences; using defaults:", prefError.code);
+    }
 
     const userPrefs: UserPreferences = preferences || {
       cuisine_preferences: [],
@@ -547,10 +708,15 @@ serve(async (req) => {
 
     // Fetch available meals with macros
     console.log("Fetching meals from database...");
-    const { data: meals, error: mealsError } = await supabaseClient
-      .from("meals")
-      .select("id, restaurant_id, name, calories, protein_g, carbs_g, fat_g, is_available, meal_type")
-      .eq("is_available", true);
+    const { data: meals, error: mealsError } = await budget.run(
+      "database.meals",
+      (signal) => supabaseClient
+        .from("meals")
+        .select("id, restaurant_id, name, calories, protein_g, carbs_g, fat_g, is_available, meal_type")
+        .eq("is_available", true)
+        .limit(MAX_CATALOG_ROWS)
+        .abortSignal(signal),
+    );
 
     if (mealsError) {
       console.error("Error fetching meals:", JSON.stringify(mealsError, null, 2));
@@ -574,15 +740,25 @@ serve(async (req) => {
     }
 
     // Fetch restaurants for response enrichment
-    const { data: restaurants, error: restaurantsError } = await supabaseClient
-      .from("restaurants")
-      .select("id, name, logo_url");
+    const { data: restaurants, error: restaurantsError } = await budget.run(
+      "database.restaurants",
+      (signal) => supabaseClient
+        .from("restaurants")
+        .select("id, name, logo_url")
+        .limit(MAX_CATALOG_ROWS)
+        .abortSignal(signal),
+    );
 
     if (restaurantsError) {
       console.error("Error fetching restaurants:", restaurantsError);
     }
 
-    const restaurantMap = new Map((restaurants || []).map(r => [r.id, r]));
+    const restaurantMap = new Map<string, any>();
+    for (let index = 0; index < (restaurants || []).length; index += 1) {
+      if (index % BUDGET_CHECK_INTERVAL === 0) budget.check("response.map_restaurants");
+      const restaurant = restaurants[index];
+      restaurantMap.set(restaurant.id, restaurant);
+    }
 
     // Check if this is a daily refresh with locked meals
     const isDailyRefresh = remaining_calories !== undefined && locked_meal_types.length > 0;
@@ -603,6 +779,7 @@ serve(async (req) => {
         },
         userPrefs,
         supabaseClient,
+        budget,
         {
           remaining_calories,
           remaining_protein,
@@ -611,10 +788,16 @@ serve(async (req) => {
       );
       
       // Create a meals map for quick lookup
-      const mealsMap = new Map(meals.map((m: Meal) => [m.id, m]));
+      const mealsMap = new Map<string, Meal>();
+      for (let index = 0; index < meals.length; index += 1) {
+        if (index % BUDGET_CHECK_INTERVAL === 0) budget.check("daily.map_meals");
+        const meal = meals[index] as Meal;
+        mealsMap.set(meal.id, meal);
+      }
       
       // Enrich with restaurant data and nest meal info properly
-      const enrichedItems = dailyPlan.plan_items.map(item => {
+      const enrichedItems = dailyPlan.plan_items.map((item) => {
+        budget.check("daily.enrich_response");
         const mealData = mealsMap.get(item.meal_id) as Meal | undefined;
         return {
           ...item,
@@ -634,17 +817,29 @@ serve(async (req) => {
       });
       
       // Log behavior event
-      await supabaseClient.from("behavior_events").insert({
-        user_id: user_id,
-        event_type: "daily_plan_generated",
-        metadata: {
-          date: week_start_date,
-          remaining_calories,
-          remaining_protein,
-          locked_meal_types,
-          items_generated: enrichedItems.length,
-        },
-      });
+      const { error: behaviorError } = await budget.run(
+        "database.behavior_event",
+        (signal) => supabaseClient
+          .from("behavior_events")
+          .insert({
+            user_id: user_id,
+            event_type: "daily_plan_generated",
+            metadata: {
+              date: week_start_date,
+              remaining_calories,
+              remaining_protein,
+              locked_meal_types,
+              items_generated: enrichedItems.length,
+            },
+          })
+          .abortSignal(signal),
+      );
+
+      if (behaviorError) {
+        console.warn("Could not record daily plan behavior event:", behaviorError.code);
+      }
+
+      budget.check("daily.serialize_response");
       
       return new Response(
         JSON.stringify({
@@ -665,8 +860,10 @@ serve(async (req) => {
     const variations: WeeklyPlan[] = [];
     
     for (let i = 0; i < generate_variations; i++) {
-      // Shuffle meals slightly for variation
-      const shuffledMeals = [...meals].sort(() => Math.random() - 0.5);
+      budget.check("weekly.variation");
+
+      // Shuffle meals slightly for variation without an uninterruptible native sort.
+      const shuffledMeals = shuffleMeals(meals, budget);
       
       const plan = await generateWeeklyPlan(
         user_id,
@@ -679,7 +876,8 @@ serve(async (req) => {
           fats: profile.fat_target_g,
         },
         userPrefs,
-        supabaseClient
+        supabaseClient,
+        budget,
       );
       
       variations.push(plan);
@@ -691,10 +889,16 @@ serve(async (req) => {
     );
     
     // Create a meals map for quick lookup
-    const weeklyMealsMap = new Map(meals.map((m: Meal) => [m.id, m]));
+    const weeklyMealsMap = new Map<string, Meal>();
+    for (let index = 0; index < meals.length; index += 1) {
+      if (index % BUDGET_CHECK_INTERVAL === 0) budget.check("weekly.map_meals");
+      const meal = meals[index] as Meal;
+      weeklyMealsMap.set(meal.id, meal);
+    }
     
     // Enrich plan items with restaurant and meal data
-    const enrichedItems = bestPlan.plan_items.map(item => {
+    const enrichedItems = bestPlan.plan_items.map((item) => {
+      budget.check("weekly.enrich_response");
       const scheduledDate = new Date(new Date(week_start_date).getTime() + item.day * 24 * 60 * 60 * 1000)
         .toISOString()
         .split("T")[0];
@@ -720,8 +924,10 @@ serve(async (req) => {
     let planId: string | null = null;
     // Note: weekly_meal_plans table doesn't exist, skipping database save
     // if (save_to_database) {
-    //   planId = await saveWeeklyPlan(user_id, week_start_date, bestPlan, supabaseClient);
+    //   planId = await saveWeeklyPlan(user_id, week_start_date, bestPlan, supabaseClient, budget);
     // }
+
+    budget.check("weekly.serialize_response");
 
     return new Response(
       JSON.stringify({
@@ -742,13 +948,6 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error("Error in smart-meal-allocator:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: "An unexpected error occurred", 
-        details: error?.message || String(error),
-        stack: error?.stack || undefined
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(req, error);
   }
 });

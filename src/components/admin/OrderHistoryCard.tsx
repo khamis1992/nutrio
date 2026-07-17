@@ -1,17 +1,22 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
+import {
+  AdminEmptyState,
+  AdminListSkeleton,
+  AdminPanel,
+  AdminPanelHeader,
+} from "@/components/admin/AdminPrimitives";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
+import {
   Calendar,
   CheckCircle2,
   Clock,
@@ -23,11 +28,11 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
-  Loader2,
-  UtensilsCrossed
+  UtensilsCrossed,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { UserOrder, OrderStats, OrderFilters } from "@/hooks/useUserOrders";
+import { downloadCsv } from "@/lib/csv";
 
 interface OrderHistoryCardProps {
   orders: UserOrder[];
@@ -39,10 +44,10 @@ interface OrderHistoryCardProps {
 }
 
 const MEAL_TYPES = [
-  { value: "breakfast", label: "Breakfast", icon: "☕" },
-  { value: "lunch", label: "Lunch", icon: "☀️" },
-  { value: "dinner", label: "Dinner", icon: "🌙" },
-  { value: "snack", label: "Snack", icon: "🍎" },
+  { value: "breakfast", label: "Breakfast", icon: "B" },
+  { value: "lunch", label: "Lunch", icon: "L" },
+  { value: "dinner", label: "Dinner", icon: "D" },
+  { value: "snack", label: "Snack", icon: "S" },
 ];
 
 export const OrderHistoryCard = ({
@@ -79,49 +84,39 @@ export const OrderHistoryCard = ({
       order.is_completed ? "Completed" : "Pending",
     ]);
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.join(",")),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `user-orders-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    downloadCsv(
+      [headers, ...rows],
+      `user-orders-${format(new Date(), "yyyy-MM-dd")}.csv`,
+    );
   };
 
   const hasActiveFilters =
     filters.mealType || filters.status || filters.dateFrom || filters.dateTo;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-lg">Order History</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              {stats?.total_orders || 0} total orders
-              {stats && stats.total_orders > 0 && (
-                <>
-                  {" "}
-                  · {stats.completed_orders} completed · {stats.pending_orders}{" "}
-                  pending
-                </>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+    <AdminPanel>
+      <AdminPanelHeader
+        eyebrow="Customer timeline"
+        title="Order History"
+        description={
+          <>
+            {stats?.total_orders || 0} total orders
+            {stats && stats.total_orders > 0 && (
+              <>
+                {" "}
+                / {stats.completed_orders} completed / {stats.pending_orders}{" "}
+                pending
+              </>
+            )}
+          </>
+        }
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
             {orders.length > 0 && (
               <Button
                 variant="outline"
-                size="sm"
                 onClick={exportToCSV}
-                className="hidden sm:flex"
+                className="hidden h-11 rounded-2xl border-[#E5EAF1] bg-white font-bold text-[#020617] sm:flex"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export CSV
@@ -129,35 +124,38 @@ export const OrderHistoryCard = ({
             )}
             <Button
               variant="outline"
-              size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className={hasActiveFilters ? "border-primary text-primary" : ""}
+              className={`h-11 rounded-2xl bg-white font-bold ${hasActiveFilters ? "border-[#22C7A1] text-[#22C7A1]" : "border-[#E5EAF1] text-[#020617]"}`}
             >
               <Filter className="w-4 h-4 mr-2" />
               Filters
               {hasActiveFilters && (
-                <Badge variant="secondary" className="ml-2 text-xs">
+                <Badge
+                  variant="secondary"
+                  className="ml-2 bg-[#22C7A1]/10 text-xs text-[#22C7A1]"
+                >
                   Active
                 </Badge>
               )}
             </Button>
           </div>
-        </div>
+        }
+      />
 
-        {/* Filters */}
-        <AnimatePresence>
-          {showFilters && (
+      <AnimatePresence>
+        {showFilters && (
+          <div className="border-b border-[#E5EAF1] px-5 py-4">
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <div className="pt-4 space-y-3 border-t mt-4">
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {/* Meal Type Filter */}
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                    <label className="mb-1.5 block text-xs font-black text-[#94A3B8]">
                       Meal Type
                     </label>
                     <Select
@@ -168,10 +166,10 @@ export const OrderHistoryCard = ({
                         })
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617]">
                         <SelectValue placeholder="All types" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                         <SelectItem value="all">All types</SelectItem>
                         {MEAL_TYPES.map((type) => (
                           <SelectItem key={type.value} value={type.value}>
@@ -184,7 +182,7 @@ export const OrderHistoryCard = ({
 
                   {/* Status Filter */}
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                    <label className="mb-1.5 block text-xs font-black text-[#94A3B8]">
                       Status
                     </label>
                     <Select
@@ -198,10 +196,10 @@ export const OrderHistoryCard = ({
                         })
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617]">
                         <SelectValue placeholder="All statuses" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                         <SelectItem value="all">All statuses</SelectItem>
                         <SelectItem value="completed">Completed</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
@@ -211,11 +209,12 @@ export const OrderHistoryCard = ({
 
                   {/* Date From */}
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                    <label className="mb-1.5 block text-xs font-black text-[#94A3B8]">
                       From Date
                     </label>
                     <Input
                       type="date"
+                      className="h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617]"
                       value={
                         filters.dateFrom
                           ? filters.dateFrom.toISOString().split("T")[0]
@@ -233,11 +232,12 @@ export const OrderHistoryCard = ({
 
                   {/* Date To */}
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                    <label className="mb-1.5 block text-xs font-black text-[#94A3B8]">
                       To Date
                     </label>
                     <Input
                       type="date"
+                      className="h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617]"
                       value={
                         filters.dateTo
                           ? filters.dateTo.toISOString().split("T")[0]
@@ -259,7 +259,7 @@ export const OrderHistoryCard = ({
                     variant="ghost"
                     size="sm"
                     onClick={onClearFilters}
-                    className="text-muted-foreground"
+                    className="min-h-11 rounded-2xl font-bold text-[#94A3B8] hover:text-[#020617]"
                   >
                     <X className="w-4 h-4 mr-2" />
                     Clear all filters
@@ -267,58 +267,61 @@ export const OrderHistoryCard = ({
                 )}
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </CardHeader>
+          </div>
+        )}
+      </AnimatePresence>
 
-      <CardContent className="p-0">
+      <div className="p-0">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <AdminListSkeleton rows={5} />
         ) : orders.length === 0 ? (
-          <div className="text-center py-12 px-6">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-              <Calendar className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <p className="text-muted-foreground">
-              {hasActiveFilters
-                ? "No orders match your filters"
-                : "No orders found for this user"}
-            </p>
-            {hasActiveFilters && (
-              <Button
-                variant="link"
-                onClick={onClearFilters}
-                className="mt-2"
-              >
-                Clear filters
-              </Button>
-            )}
-          </div>
+          <AdminEmptyState
+            icon={Calendar}
+            title={
+              hasActiveFilters
+                ? "No orders match these filters"
+                : "No orders found"
+            }
+            description={
+              hasActiveFilters
+                ? "Adjust the filters to review a wider customer order history."
+                : "When this user schedules meals, their order history will appear here."
+            }
+            action={
+              hasActiveFilters ? (
+                <Button
+                  variant="outline"
+                  onClick={onClearFilters}
+                  className="h-11 rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617]"
+                >
+                  Clear filters
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
-          <div className="divide-y">
+          <div className="divide-y divide-[#E5EAF1]">
             {orders.map((order, index) => (
               <motion.div
                 key={order.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="p-4 hover:bg-muted/50 transition-colors"
+                className="p-4 transition-colors hover:bg-[#F6F8FB]"
               >
-                <div className="flex items-start gap-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                   {/* Date Column */}
-                  <div className="text-center min-w-[60px]">
-                    <p className="text-2xl font-bold text-primary">
+                  <div className="flex min-w-[60px] items-center gap-3 text-left sm:block sm:text-center">
+                    <p className="text-2xl font-black text-[#020617]">
                       {format(parseISO(order.scheduled_date), "d")}
                     </p>
-                    <p className="text-xs text-muted-foreground uppercase">
+                    <p className="text-xs font-black uppercase text-[#94A3B8]">
                       {format(parseISO(order.scheduled_date), "MMM")}
                     </p>
                   </div>
 
                   {/* Meal Image */}
-                  <div className="w-16 h-16 rounded-xl bg-muted overflow-hidden shrink-0">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
                     {order.meal_image_url ? (
                       <img
                         src={order.meal_image_url}
@@ -326,26 +329,32 @@ export const OrderHistoryCard = ({
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl">
-                        🍽️
+                      <div className="flex h-full w-full items-center justify-center text-[#94A3B8]">
+                        <UtensilsCrossed className="h-6 w-6" />
                       </div>
                     )}
                   </div>
 
                   {/* Order Details */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h4 className="font-semibold truncate">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
+                        <h4 className="truncate font-black text-[#020617]">
                           {order.meal_name}
                         </h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs capitalize">
-                            {MEAL_TYPES.find((t) => t.value === order.meal_type)
-                              ?.icon || "🍽️"}{" "}
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className="rounded-full border-[#E5EAF1] bg-white text-xs capitalize text-[#94A3B8]"
+                          >
+                            <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#F6F8FB] text-[9px] font-black text-[#94A3B8]">
+                              {MEAL_TYPES.find(
+                                (t) => t.value === order.meal_type,
+                              )?.icon || "M"}
+                            </span>
                             {order.meal_type}
                           </Badge>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <span className="flex items-center gap-1 text-xs font-semibold text-[#94A3B8]">
                             <Store className="w-3 h-3" />
                             {order.restaurant_name}
                           </span>
@@ -355,8 +364,8 @@ export const OrderHistoryCard = ({
                         variant={order.is_completed ? "default" : "secondary"}
                         className={`text-xs ${
                           order.is_completed
-                            ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
-                            : ""
+                            ? "border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#22C7A1] hover:bg-[#22C7A1]/20"
+                            : "border-[#E5EAF1] bg-[#F6F8FB] text-[#94A3B8]"
                         }`}
                       >
                         {order.is_completed ? (
@@ -374,13 +383,13 @@ export const OrderHistoryCard = ({
                     </div>
 
                     {/* Nutrition Info */}
-                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-[#94A3B8]">
                       <span className="flex items-center gap-1">
-                        <Flame className="w-3 h-3 text-orange-500" />
+                        <Flame className="h-3 w-3 text-[#22C7A1]" />
                         {order.calories} cal
                       </span>
                       <span className="flex items-center gap-1">
-                        <Beef className="w-3 h-3 text-red-500" />
+                        <Beef className="h-3 w-3 text-[#7C83F6]" />
                         {order.protein_g}g protein
                       </span>
                       {order.delivery_fee !== null && (
@@ -397,10 +406,10 @@ export const OrderHistoryCard = ({
                         <button
                           onClick={() =>
                             setExpandedOrder(
-                              expandedOrder === order.id ? null : order.id
+                              expandedOrder === order.id ? null : order.id,
                             )
                           }
-                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                          className="flex min-h-11 items-center gap-1 rounded-2xl px-1 text-xs font-bold text-[#94A3B8] hover:text-[#020617]"
                         >
                           {expandedOrder === order.id ? (
                             <>
@@ -418,7 +427,7 @@ export const OrderHistoryCard = ({
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: "auto", opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
-                              className="text-xs text-muted-foreground mt-2 overflow-hidden"
+                              className="mt-2 overflow-hidden text-xs font-semibold text-[#94A3B8]"
                             >
                               {order.meal_description}
                             </motion.p>
@@ -432,8 +441,8 @@ export const OrderHistoryCard = ({
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </AdminPanel>
   );
 };
 

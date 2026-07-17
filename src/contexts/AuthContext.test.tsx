@@ -6,7 +6,9 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
-      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+      onAuthStateChange: vi
+        .fn()
+        .mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
       signUp: vi.fn(),
       signInWithPassword: vi.fn(),
       signOut: vi.fn(),
@@ -28,7 +30,7 @@ vi.mock("@capacitor/core", () => ({
 }));
 
 import { supabase } from "@/integrations/supabase/client";
-import { checkIPLocation } from "@/lib/ipCheck";
+import { checkIPLocation, logUserIP } from "@/lib/ipCheck";
 import { clearRoleCache } from "@/components/ProtectedRoute";
 
 const createWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -41,19 +43,34 @@ describe("AuthContext", () => {
     const store: Record<string, string> = {};
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, value: string) => { store[key] = value; },
-      removeItem: (key: string) => { delete store[key]; },
-      clear: () => { Object.keys(store).forEach(k => delete store[k]); },
-      get length() { return Object.keys(store).length; },
+      setItem: (key: string, value: string) => {
+        store[key] = value;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
+      clear: () => {
+        Object.keys(store).forEach((k) => delete store[k]);
+      },
+      get length() {
+        return Object.keys(store).length;
+      },
       key: (i: number) => Object.keys(store)[i] ?? null,
     });
-    (supabase.auth.getSession as any).mockResolvedValue({ data: { session: null } });
-    (supabase.auth.onAuthStateChange as any).mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
+    (supabase.auth.getSession as any).mockResolvedValue({
+      data: { session: null },
+    });
+    (supabase.auth.onAuthStateChange as any).mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    });
     (supabase.auth.signUp as any).mockResolvedValue({
       data: { user: null, session: null },
       error: null,
     });
-    (supabase.auth.signInWithPassword as any).mockResolvedValue({ error: null });
+    (supabase.auth.signInWithPassword as any).mockResolvedValue({
+      data: { session: { access_token: "fresh-signin-token" } },
+      error: null,
+    });
     (supabase.auth.signOut as any).mockResolvedValue({ error: null });
   });
 
@@ -73,7 +90,11 @@ describe("AuthContext", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     const res = await act(async () => {
-      return result.current.signUp("test@example.com", "password123", "Test User");
+      return result.current.signUp(
+        "test@example.com",
+        "password123",
+        "Test User",
+      );
     });
 
     expect(supabase.auth.signUp).toHaveBeenCalledWith({
@@ -102,7 +123,10 @@ describe("AuthContext", () => {
   });
 
   it("signIn checks IP and signs in", async () => {
-    (checkIPLocation as any).mockResolvedValue({ allowed: true, blocked: false });
+    (checkIPLocation as any).mockResolvedValue({
+      allowed: true,
+      blocked: false,
+    });
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -116,11 +140,15 @@ describe("AuthContext", () => {
       email: "test@example.com",
       password: "password123",
     });
+    expect(logUserIP).toHaveBeenCalledWith("login", "fresh-signin-token");
     expect(res.error).toBeNull();
   });
 
   it("signIn blocks when IP is blocked", async () => {
-    (checkIPLocation as any).mockResolvedValue({ allowed: false, blocked: true });
+    (checkIPLocation as any).mockResolvedValue({
+      allowed: false,
+      blocked: true,
+    });
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -164,10 +192,12 @@ describe("AuthContext", () => {
     const mockUser = { id: "user-1", email: "test@example.com" };
     const mockSession = { access_token: "token", user: mockUser };
 
-    (supabase.auth.onAuthStateChange as any).mockImplementation((callback: any) => {
-      setTimeout(() => callback("SIGNED_IN", mockSession), 0);
-      return { data: { subscription: { unsubscribe: vi.fn() } } };
-    });
+    (supabase.auth.onAuthStateChange as any).mockImplementation(
+      (callback: any) => {
+        setTimeout(() => callback("SIGNED_IN", mockSession), 0);
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      },
+    );
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper });
 

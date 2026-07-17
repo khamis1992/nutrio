@@ -62,6 +62,24 @@ describe("sadadService", () => {
     })).rejects.toThrow("COACH_PRICING_NOT_FOUND");
   });
 
+  it("surfaces the structured error returned by a non-2xx edge function response", async () => {
+    const context = {
+      clone: () => ({
+        json: async () => ({ error: "SADAD_SERVER_CONFIGURATION_MISSING" }),
+      }),
+    };
+    invoke.mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error("Edge Function returned a non-2xx status code"), { context }),
+    });
+
+    await expect(sadadService.createPayment({
+      paymentType: "wallet_topup",
+      referenceId: "package-1",
+      mobileNumber: "50000000",
+    })).rejects.toThrow("SADAD_SERVER_CONFIGURATION_MISSING");
+  });
+
   it("reads payment status from the authenticated server function", async () => {
     invoke.mockResolvedValue({
       data: {

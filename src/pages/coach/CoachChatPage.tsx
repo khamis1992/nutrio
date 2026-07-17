@@ -306,7 +306,7 @@ export default function CoachChatPage() {
           ref={fileInputRef}
           onChange={handleFileUpload}
           className="hidden"
-          accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          accept="image/png,image/jpeg,image/webp,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         />
         <button
           onClick={() => fileInputRef.current?.click()}

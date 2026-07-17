@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -542,6 +543,7 @@ export function PremiumAnalyticsDashboard({
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
 <title>Premium Insights Report — ${restaurantName || "Restaurant"}</title>
 <style>
   @page { size: A4; margin: 18mm 16mm; }
@@ -858,13 +860,22 @@ export function PremiumAnalyticsDashboard({
 </body>
 </html>`;
 
-    const blob = new Blob([html], { type: "text/html" });
+    const safeHtml = DOMPurify.sanitize(html, {
+      WHOLE_DOCUMENT: true,
+      FORBID_TAGS: ["script", "iframe", "object", "embed"],
+      FORBID_ATTR: ["onerror", "onload", "onclick"],
+    });
+    const blob = new Blob([safeHtml], { type: "text/html" });
     const url = URL.createObjectURL(blob);
-    const printWindow = window.open(url, "_blank");
+    const printWindow = window.open(url, "_blank", "noopener,noreferrer");
     if (printWindow) {
+      printWindow.opener = null;
       printWindow.onload = () => {
         printWindow.print();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       };
+    } else {
+      URL.revokeObjectURL(url);
     }
   };
 

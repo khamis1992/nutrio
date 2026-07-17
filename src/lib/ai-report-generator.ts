@@ -1,5 +1,6 @@
 import type { WeeklyReportData } from "./professional-weekly-report-pdf";
 import { supabase } from "@/integrations/supabase/client";
+import { runAiTask } from "@/lib/ai-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { format, startOfWeek } from "date-fns";
 
@@ -282,14 +283,18 @@ class AIReportGenerator {
   }
 
   private async callOpenRouter(systemPrompt: string, userPrompt: string): Promise<string> {
-    const { data, error } = await supabase.functions.invoke("proxy-openrouter", {
-      body: { systemPrompt, userPrompt },
-    });
-    if (error || !data?.content) {
+    try {
+      const result = await runAiTask({
+        task: "weekly_report",
+        systemPrompt,
+        userPrompt,
+        retrievalQuery: "healthy adult nutrition calories protein carbohydrates fat hydration weekly guidance",
+      });
+      return result.content;
+    } catch (error) {
       console.warn("OpenRouter API not available, using fallback content");
       return "";
     }
-    return data.content;
   }
 
   private cleanText(text: string): string {

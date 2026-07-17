@@ -1,86 +1,108 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  authenticateRequest,
+  enforceRateLimit,
+  errorResponse,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  requirePost,
+} from "../_shared/security.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    requirePost(req);
+    const principal = await authenticateRequest(req);
+    await enforceRateLimit(req, "similar-meals", principal.user.id, 90, 60 * 60);
+
+    const body = await readJsonBody<{ meal_id?: unknown; limit?: unknown }>(req, 2 * 1024);
+    const mealId = typeof body.meal_id === "string" ? body.meal_id.trim() : "";
+    if (!UUID_PATTERN.test(mealId)) throw new HttpError(400, "invalid_meal_id");
+
+    const requestedLimit = body.limit === undefined ? 6 : Number(body.limit);
+    if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 20) {
+      throw new HttpError(400, "invalid_limit");
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
+    const supabaseClient = getServiceClient();
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const { meal_id, limit: reqLimit } = await req.json().catch(() => ({}));
-    if (!meal_id) {
-      return new Response(JSON.stringify({ error: "meal_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const { data: meal } = await supabaseClient
+    const { data: meal, error: mealError } = await supabaseClient
       .from("meals")
       .select("id, name, meal_type, restaurant_id, calories, protein_g, carbs_g, fat_g, fiber_g")
-      .eq("id", meal_id)
-      .single();
+      .eq("id", mealId)
+      .eq("is_available", true)
+      .maybeSingle();
+    if (mealError) throw mealError;
 
     if (!meal) {
-      return new Response(JSON.stringify({ error: "Meal not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      throw new HttpError(404, "meal_not_found");
     }
 
-    const { data: mealDietTags } = await supabaseClient
+    const { data: mealDietTags, error: tagError } = await supabaseClient
       .from("meal_diet_tags")
       .select("diet_tag_id")
-      .eq("meal_id", meal_id);
+      .eq("meal_id", mealId);
+    if (tagError) throw tagError;
 
     const tagIds = (mealDietTags || []).map((t) => t.diet_tag_id);
 
-    const { data: similarTagMeals } = await supabaseClient
-      .from("meal_diet_tags")
-      .select("meal_id")
-      .in("diet_tag_id", tagIds);
+    let similarTagMeals: Array<{ meal_id: string }> = [];
+    if (tagIds.length > 0) {
+      const { data, error } = await supabaseClient
+        .from("meal_diet_tags")
+        .select("meal_id")
+        .in("diet_tag_id", tagIds);
+      if (error) throw error;
+      similarTagMeals = data || [];
+    }
 
-    const similarMealIds = [...new Set((similarTagMeals || []).map((m) => m.meal_id).filter((id) => id !== meal_id))];
+    const similarMealIds = [...new Set(similarTagMeals.map((m) => m.meal_id).filter((id) => id !== mealId))];
 
     const maxCalDiff = meal.calories * 0.3;
-    const { data: similarMeals } = await supabaseClient
-      .from("meals")
-      .select("id, name, description, calories, protein_g, carbs_g, fat_g, fiber_g, image_url, meal_type, restaurants:restaurant_id(name)")
-      .eq("is_available", true)
-      .neq("id", meal_id)
-      .gte("calories", Math.max(0, meal.calories - maxCalDiff))
-      .lte("calories", meal.calories + maxCalDiff)
-      .in("id", similarMealIds.length > 0 ? similarMealIds : [])
-      .order("created_at", { ascending: false })
-      .limit(reqLimit || 6);
+    let similarMeals: any[] = [];
+    if (similarMealIds.length > 0) {
+      const { data, error } = await supabaseClient
+        .from("meals")
+        .select("id, name, description, calories, protein_g, carbs_g, fat_g, fiber_g, image_url, meal_type, restaurants:restaurant_id(name)")
+        .eq("is_available", true)
+        .neq("id", mealId)
+        .gte("calories", Math.max(0, meal.calories - maxCalDiff))
+        .lte("calories", meal.calories + maxCalDiff)
+        .in("id", similarMealIds)
+        .order("created_at", { ascending: false })
+        .limit(requestedLimit);
+      if (error) throw error;
+      similarMeals = data || [];
+    }
 
-    const fetchedIds = new Set((similarMeals || []).map((m: any) => m.id));
+    const fetchedIds = new Set(similarMeals.map((m: any) => m.id));
+    const remaining = requestedLimit - similarMeals.length;
 
-    const { data: extraMeals } = await supabaseClient
-      .from("meals")
-      .select("id, name, description, calories, protein_g, carbs_g, fat_g, fiber_g, image_url, meal_type, restaurants:restaurant_id(name)")
-      .eq("is_available", true)
-      .neq("id", meal_id)
-      .not("id", "in", `(${[...fetchedIds].join(",")})`)
-      .order("created_at", { ascending: false })
-      .limit(Math.max(0, (reqLimit || 6) - (similarMeals || []).length));
+    let extraMeals: any[] = [];
+    if (remaining > 0) {
+      let extraQuery = supabaseClient
+        .from("meals")
+        .select("id, name, description, calories, protein_g, carbs_g, fat_g, fiber_g, image_url, meal_type, restaurants:restaurant_id(name)")
+        .eq("is_available", true)
+        .neq("id", mealId);
+      if (fetchedIds.size > 0) {
+        extraQuery = extraQuery.not("id", "in", `(${[...fetchedIds].join(",")})`);
+      }
+      const { data, error } = await extraQuery
+        .order("created_at", { ascending: false })
+        .limit(remaining);
+      if (error) throw error;
+      extraMeals = data || [];
+    }
 
-    const all = [...(similarMeals || []), ...(extraMeals || [])].map((m: any) => ({
+    const all = [...similarMeals, ...extraMeals].map((m: any) => ({
       meal_id: m.id,
       name: m.name,
       description: m.description,
@@ -94,14 +116,8 @@ serve(async (req) => {
       meal_type: m.meal_type,
     }));
 
-    return new Response(JSON.stringify({ meals: all, total: all.length }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse(req, { meals: all, total: all.length });
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Internal error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return errorResponse(req, err);
   }
 });

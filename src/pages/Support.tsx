@@ -34,7 +34,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
-import { createPrivateStorageUrl } from "@/lib/private-storage";
+import {
+  createPrivateStorageUrl,
+  uploadSensitiveFile,
+  validatePrivateStorageFile,
+} from "@/lib/private-storage";
 
 type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
@@ -107,6 +111,15 @@ const categories = [
   { value: "billing" },
   { value: "feedback" },
 ];
+
+const SUPPORT_ATTACHMENT_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "text/plain",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+] as const;
 
 export default function Support() {
   const navigate = useNavigate();
@@ -199,12 +212,13 @@ export default function Support() {
   const uploadFiles = async (files: File[], ticketId: string, messageId?: string) => {
     const uploadedAttachments = [];
     for (const file of files) {
-      const fileExt = file.name.split(".").pop();
-      const filePath = `${ticketId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from("ticket-attachments")
-        .upload(filePath, file);
-      if (uploadError) throw uploadError;
+      const fileExt = validatePrivateStorageFile(
+        file,
+        SUPPORT_ATTACHMENT_TYPES,
+        10 * 1024 * 1024,
+      );
+      const filePath = `${ticketId}/${crypto.randomUUID()}.${fileExt}`;
+      await uploadSensitiveFile("ticket-attachments", filePath, file);
 
       uploadedAttachments.push({
         ticket_id: ticketId,
@@ -281,9 +295,14 @@ export default function Support() {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, isMessage: boolean) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter((file) => file.size <= 10 * 1024 * 1024);
+    const validFiles = files.filter(
+      (file) =>
+        file.size > 0 &&
+        file.size <= 10 * 1024 * 1024 &&
+        SUPPORT_ATTACHMENT_TYPES.includes(file.type as (typeof SUPPORT_ATTACHMENT_TYPES)[number]),
+    );
     if (validFiles.length !== files.length) {
-      toast.error("Some files exceeded 10MB limit");
+      toast.error("Some files were too large or had an unsupported type");
     }
     if (isMessage) {
       setMessageAttachments((prev) => [...prev, ...validFiles]);
@@ -443,7 +462,7 @@ export default function Support() {
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept="image/*,.pdf,.doc,.docx,.txt"
+                  accept="image/jpeg,image/png,image/webp,.pdf,.docx,.txt"
                   className="hidden"
                   onChange={(e) => handleFileSelect(e, false)}
                 />
@@ -671,7 +690,7 @@ export default function Support() {
                             ref={messageFileInputRef}
                             type="file"
                             multiple
-                            accept="image/*,.pdf,.doc,.docx,.txt"
+                            accept="image/jpeg,image/png,image/webp,.pdf,.docx,.txt"
                             className="hidden"
                             onChange={(e) => handleFileSelect(e, true)}
                           />

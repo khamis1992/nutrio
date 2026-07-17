@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +78,7 @@ export function PartnerDeliveryHandoff({
   const [deliveryJob, setDeliveryJob] = useState<DeliveryJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const qrContainerRef = useRef<HTMLDivElement>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [showOverrideDialog, setShowOverrideDialog] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
@@ -315,69 +316,44 @@ export function PartnerDeliveryHandoff({
   }, [deliveryJob?.id, deliveryJob?.status]);
 
   const handlePrintQR = () => {
+    if (!deliveryJob) return;
+    const sourceQr = qrContainerRef.current?.querySelector("svg");
+    if (!sourceQr) return;
+
     const printWindow = window.open("", "_blank");
-    if (printWindow && deliveryJob) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Delivery QR Code</title>
-            <style>
-              body {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                min-height: 100vh;
-                margin: 0;
-                font-family: Arial, sans-serif;
-                text-align: center;
-              }
-              .qr-container {
-                padding: 40px;
-                border: 2px dashed #ccc;
-                border-radius: 10px;
-              }
-              h1 {
-                margin-bottom: 10px;
-                color: #333;
-              }
-              .order-id {
-                font-size: 24px;
-                font-weight: bold;
-                color: #666;
-                margin-bottom: 30px;
-              }
-              .instructions {
-                margin-top: 30px;
-                color: #666;
-                font-size: 14px;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="qr-container">
-              <h1>${restaurantName}</h1>
-              <p class="order-id">Order #${scheduleId.slice(0, 8)}</p>
-              <div id="qr-code"></div>
-              <p class="instructions">
-                Scan this QR code with the driver app<br>
-                when handing over the order
-              </p>
-            </div>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-            <script>
-              new QRCode(document.getElementById("qr-code"), {
-                text: "${qrCode || deliveryJob.id}",
-                width: 256,
-                height: 256,
-              });
-              setTimeout(() => window.print(), 100);
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-    }
+    if (!printWindow) return;
+    printWindow.opener = null;
+
+    const { document } = printWindow;
+    document.title = "Delivery QR Code";
+    const style = document.createElement("style");
+    style.textContent = `
+      body { display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; font-family:Arial,sans-serif; text-align:center; color:#111827; }
+      .qr-container { padding:40px; border:2px dashed #cbd5e1; border-radius:16px; }
+      h1 { margin:0 0 10px; font-size:28px; }
+      .order-id { margin:0 0 30px; color:#475569; font-size:22px; font-weight:700; }
+      .instructions { margin:28px 0 0; color:#64748b; font-size:14px; line-height:1.5; }
+      svg { width:256px; height:256px; }
+    `;
+    document.head.appendChild(style);
+
+    const container = document.createElement("main");
+    container.className = "qr-container";
+    const heading = document.createElement("h1");
+    heading.textContent = restaurantName;
+    const order = document.createElement("p");
+    order.className = "order-id";
+    order.textContent = `Order #${scheduleId.slice(0, 8)}`;
+    const instructions = document.createElement("p");
+    instructions.className = "instructions";
+    instructions.textContent = "Scan this QR code with the driver app when handing over the order.";
+    container.append(heading, order, sourceQr.cloneNode(true), instructions);
+    document.body.replaceChildren(container);
+
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 100);
   };
 
   if (loading) {
@@ -455,7 +431,7 @@ export function PartnerDeliveryHandoff({
         {/* QR Code Section - Show until picked up */}
         {!['picked_up', 'delivered'].includes(deliveryJob.status) && (
           <div className="text-center space-y-3 p-4 bg-muted/50 rounded-lg">
-            <div className="inline-block p-4 bg-white rounded-lg shadow-sm">
+            <div ref={qrContainerRef} className="inline-block p-4 bg-white rounded-lg shadow-sm">
               <QRCodeSVG 
                 value={qrCode || deliveryJob.id} 
                 size={200}

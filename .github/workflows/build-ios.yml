@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'Build type'
+        description: Build type
         required: true
-        default: 'debug'
+        default: debug
         type: choice
         options:
           - debug
@@ -23,27 +23,33 @@ on:
 env:
   NODE_VERSION: '22'
 
+permissions:
+  contents: read
+
 jobs:
-  build:
-    name: Build iOS IPA
+  debug:
+    name: Build iOS Debug
+    if: github.event_name != 'workflow_dispatch' || inputs.build_type != 'release'
     runs-on: macos-latest
-    permissions:
-      contents: write
+    timeout-minutes: 40
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify dependencies and repository guardrails
+        run: |
+          npm audit --audit-level=high
+          npm run security:scan
 
       - name: Build web app
         run: npm run build
@@ -52,44 +58,15 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
       - name: Sync Capacitor iOS project
-        run: npx @capacitor/cli sync ios
+        run: npx --no-install cap sync ios
 
       - name: Select Xcode version
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-      # ── Signed release build ──────────────────────────────────────────────
-      - name: Import Apple Distribution Certificate
-        if: github.event.inputs.build_type == 'release'
-        env:
-          CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-        run: |
-          # Create a temporary keychain
-          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
-          KEYCHAIN_PASSWORD=temppassword
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          # Import certificate directly from the repo
-          security import ios/Certificates.p12 \
-            -k "$KEYCHAIN_PATH" \
-            -P "$CERTIFICATE_PASSWORD" \
-            -A -t cert -f pkcs12
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
-
-      - name: Install Provisioning Profile
-        if: github.event.inputs.build_type == 'release'
-        run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp ios/NutriFuel_App_Store.mobileprovision \
-            ~/Library/MobileDevice/Provisioning\ Profiles/nutrio.mobileprovision
-
-      # ── Debug (unsigned) build ────────────────────────────────────────────
-      - name: Build iOS (Debug – unsigned)
-        if: github.event.inputs.build_type != 'release' || github.event.inputs.build_type == ''
+      - name: Build iOS Debug simulator app
         run: |
           xcodebuild \
-            -workspace ios/App/App.xcworkspace \
+            -project ios/App/App.xcodeproj \
             -scheme App \
             -configuration Debug \
             -sdk iphonesimulator \
@@ -98,14 +75,114 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      # ── Release (signed) build → export IPA ──────────────────────────────
-      - name: Build iOS (Release – signed)
-        if: github.event.inputs.build_type == 'release'
+      - name: Build summary
+        run: |
+          echo "## iOS debug build complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Build signed iOS release
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.build_type == 'release' &&
+      github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    environment: Mobile Signing
+    concurrency:
+      group: ios-signing-${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout trusted release commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify trusted release commit
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          if [[ "$GITHUB_SHA" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error title=Unapproved release commit::The signing target must be the current origin/main commit."
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify dependencies and repository guardrails
+        run: |
+          npm audit --audit-level=high
+          npm run security:scan
+
+      - name: Build web app
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
+      - name: Sync Capacitor iOS project
+        run: npx --no-install cap sync ios
+
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Revalidate release commit before signing
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          if [[ "$GITHUB_SHA" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error title=Stale release commit::origin/main changed before signing assets were opened. Start a new release from current main."
+            exit 1
+          fi
+
+      - name: Import Apple signing assets
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          test -n "$CERTIFICATE_BASE64"
+          test -n "$CERTIFICATE_PASSWORD"
+          test -n "$PROFILE_BASE64"
+
+          CERTIFICATE_PATH="$RUNNER_TEMP/distribution.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/nutrio-build.keychain-db"
+          PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/nutrio.mobileprovision"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 32)"
+
+          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          mkdir -p "$(dirname "$PROFILE_PATH")"
+          printf '%s' "$PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -t cert -f pkcs12
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+      - name: Archive signed iOS release
         env:
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          test -n "$TEAM_ID"
           xcodebuild \
-            -workspace ios/App/App.xcworkspace \
+            -project ios/App/App.xcodeproj \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
@@ -113,76 +190,69 @@ jobs:
             DEVELOPMENT_TEAM="$TEAM_ID" \
             archive
 
-      - name: Export IPA
-        if: github.event.inputs.build_type == 'release'
+      - name: Export signed IPA
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          cat > /tmp/ExportOptions.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>teamID</key>
-            <string>${{ secrets.APPLE_TEAM_ID }}</string>
-            <key>compileBitcode</key>
-            <false/>
-          </dict>
-          </plist>
-          EOF
+          EXPORT_OPTIONS="$RUNNER_TEMP/ExportOptions.plist"
+          /usr/libexec/PlistBuddy -c "Add :method string app-store-connect" "$EXPORT_OPTIONS"
+          /usr/libexec/PlistBuddy -c "Add :teamID string $TEAM_ID" "$EXPORT_OPTIONS"
+          /usr/libexec/PlistBuddy -c "Add :compileBitcode bool false" "$EXPORT_OPTIONS"
 
           xcodebuild -exportArchive \
             -archivePath ios/App/build/Nutrio.xcarchive \
-            -exportOptionsPlist /tmp/ExportOptions.plist \
+            -exportOptionsPlist "$EXPORT_OPTIONS" \
             -exportPath ios/App/build/export
 
-      # ── Publish ───────────────────────────────────────────────────────────
-      - name: Publish Debug build as GitHub Release
-        if: github.event.inputs.build_type != 'release' || github.event.inputs.build_type == ''
-        uses: softprops/action-gh-release@v2
+      - name: Upload Release IPA
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          tag_name: latest-ios-debug
-          name: "Latest iOS Debug Build"
-          body: |
-            Latest iOS debug build (simulator) — auto-updated on every push.
-            - **Branch:** ${{ github.ref_name }}
-            - **Commit:** ${{ github.sha }}
-            - **Built:** ${{ github.run_id }}
-          prerelease: true
-          make_latest: false
-
-      - name: Upload Release IPA as artifact
-        if: github.event.inputs.build_type == 'release'
-        uses: actions/upload-artifact@v4
-        with:
-          name: nutrio-fuel-ios-release
+          name: nutrio-ios-release
           path: ios/App/build/export/*.ipa
+          if-no-files-found: error
           retention-days: 14
 
-      - name: Publish Release IPA as GitHub Release
-        if: github.event.inputs.build_type == 'release'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest-ios-release
-          name: "Latest iOS Release IPA"
-          body: |
-            Latest iOS release IPA — auto-updated on every release build.
-            - **Branch:** ${{ github.ref_name }}
-            - **Commit:** ${{ github.sha }}
-            - **Built:** ${{ github.run_id }}
-          prerelease: false
-          make_latest: false
-          files: ios/App/build/export/*.ipa
+      - name: Remove temporary signing assets
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/nutrio-build.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/distribution.p12"
+          rm -f "$RUNNER_TEMP/ExportOptions.plist"
+          rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/nutrio.mobileprovision"
 
       - name: Build summary
         run: |
-          BUILD_TYPE="${{ github.event.inputs.build_type || 'debug' }}"
-          echo "## iOS Build Complete!" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build Type:** $BUILD_TYPE" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          if [ "$BUILD_TYPE" = "release" ]; then
-            echo "- **IPA:** Download from GitHub Releases or the Artifacts tab below" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Note:** Debug build targets the iOS Simulator (unsigned)" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "## Signed iOS release complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: Publish iOS IPA
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.build_type == 'release' &&
+      github.ref == 'refs/heads/main'
+    needs: release
+    runs-on: ubuntu-latest
+    environment: Mobile Signing
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download signed IPA
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nutrio-ios-release
+          path: release-files
+
+      - name: Publish IPA as GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: latest-ios-release
+          name: Latest iOS Release IPA
+          body: |
+            Latest signed iOS release from a protected manual build.
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+          prerelease: false
+          make_latest: false
+          files: release-files/*.ipa

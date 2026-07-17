@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { uploadSensitiveFile, validatePrivateStorageFile } from "@/lib/private-storage";
 import { Upload, Car } from "lucide-react";
 import type { VehicleType } from "@/fleet/types/fleet";
 
@@ -29,49 +30,69 @@ export function AddVehicleModal({ isOpen, onClose, onSuccess, cityId }: AddVehic
   });
   const [vehiclePhoto, setVehiclePhoto] = useState<File | null>(null);
   const [registrationDoc, setRegistrationDoc] = useState<File | null>(null);
+  const [cities, setCities] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedCityId, setSelectedCityId] = useState(cityId || "");
+
+  useEffect(() => {
+    setSelectedCityId(cityId || "");
+    if (!isOpen || cityId) return;
+
+    void supabase
+      .from("cities")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name")
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error loading fleet cities:", error);
+          return;
+        }
+        setCities(data || []);
+      });
+  }, [cityId, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    const uploadedPaths: string[] = [];
 
     try {
+      if (!selectedCityId) throw new Error("Select a city before adding a vehicle");
+      const vehicleId = crypto.randomUUID();
       let vehiclePhotoUrl = null;
       let registrationDocUrl = null;
 
       // Upload vehicle photo if provided
       if (vehiclePhoto) {
-        const fileExt = vehiclePhoto.name.split('.').pop();
-        const fileName = `vehicles/${Date.now()}_photo.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('fleet-documents')
-          .upload(fileName, vehiclePhoto);
+        const fileExt = validatePrivateStorageFile(
+          vehiclePhoto,
+          ["image/jpeg", "image/png", "image/webp"],
+          10 * 1024 * 1024,
+        );
+        const fileName = `cities/${selectedCityId}/vehicles/${vehicleId}/${crypto.randomUUID()}_photo.${fileExt}`;
+        await uploadSensitiveFile("fleet-documents", fileName, vehiclePhoto);
         
-        if (uploadError) throw uploadError;
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('fleet-documents')
-          .getPublicUrl(fileName);
-        vehiclePhotoUrl = publicUrl;
+        uploadedPaths.push(fileName);
+        vehiclePhotoUrl = fileName;
       }
 
       // Upload registration document if provided
       if (registrationDoc) {
-        const fileExt = registrationDoc.name.split('.').pop();
-        const fileName = `vehicles/${Date.now()}_reg.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('fleet-documents')
-          .upload(fileName, registrationDoc);
+        const fileExt = validatePrivateStorageFile(
+          registrationDoc,
+          ["application/pdf", "image/jpeg", "image/png", "image/webp"],
+          10 * 1024 * 1024,
+        );
+        const fileName = `cities/${selectedCityId}/vehicles/${vehicleId}/${crypto.randomUUID()}_registration.${fileExt}`;
+        await uploadSensitiveFile("fleet-documents", fileName, registrationDoc);
         
-        if (uploadError) throw uploadError;
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('fleet-documents')
-          .getPublicUrl(fileName);
-        registrationDocUrl = publicUrl;
+        uploadedPaths.push(fileName);
+        registrationDocUrl = fileName;
       }
 
       // Create vehicle record
       const insertData = {
+        id: vehicleId,
         type: formData.type,
         make: formData.make || null,
         model: formData.model || null,
@@ -82,7 +103,7 @@ export function AddVehicleModal({ isOpen, onClose, onSuccess, cityId }: AddVehic
         vehicle_photo_url: vehiclePhotoUrl,
         registration_document_url: registrationDocUrl,
         status: 'available',
-        ...(cityId ? { city_id: cityId } : {}),
+        city_id: selectedCityId,
       };
       
       const { error } = await supabase.from('vehicles').insert(insertData);
@@ -98,6 +119,10 @@ export function AddVehicleModal({ isOpen, onClose, onSuccess, cityId }: AddVehic
       onClose();
       resetForm();
     } catch (error) {
+      if (uploadedPaths.length > 0) {
+        const { error: cleanupError } = await supabase.storage.from("fleet-documents").remove(uploadedPaths);
+        if (cleanupError) console.error("Failed to remove orphaned vehicle files:", cleanupError);
+      }
       console.error("Error adding vehicle:", error);
       toast({
         title: "Error",
@@ -121,6 +146,7 @@ export function AddVehicleModal({ isOpen, onClose, onSuccess, cityId }: AddVehic
     });
     setVehiclePhoto(null);
     setRegistrationDoc(null);
+    setSelectedCityId(cityId || "");
   };
 
   return (
@@ -134,6 +160,22 @@ export function AddVehicleModal({ isOpen, onClose, onSuccess, cityId }: AddVehic
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {!cityId && (
+            <div className="space-y-2">
+              <Label htmlFor="city">City *</Label>
+              <Select value={selectedCityId} onValueChange={setSelectedCityId}>
+                <SelectTrigger id="city">
+                  <SelectValue placeholder="Select city" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cities.map((city) => (
+                    <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Vehicle Type */}
           <div className="space-y-2">
             <Label htmlFor="type">Vehicle Type *</Label>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/Logo";
+import { AnimatedNutrioLogo } from "@/components/motion/AnimatedNutrioLogo";
 import { animate, motion, useReducedMotion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Flame, HeartPulse, Lock, UtensilsCrossed, UserPlus } from "lucide-react";
@@ -231,7 +231,7 @@ export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
             transition={{ duration: 0.4, delay: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
             className="flex h-28 w-28 items-center justify-center max-[380px]:h-24 max-[380px]:w-24"
           >
-            <Logo size="xl" className="!h-28 max-[380px]:!h-24" />
+            <AnimatedNutrioLogo className="h-28 w-28 max-[380px]:h-24 max-[380px]:w-24" />
           </motion.div>
         </div>
       </motion.header>

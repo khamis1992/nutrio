@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AdminMetricTile,
+  AdminPanel,
+  AdminWorkbenchHeader,
+} from "@/components/admin/AdminPrimitives";
 import { Badge } from "@/components/ui/badge";
 import {
   Store,
@@ -206,7 +210,13 @@ const AdminDashboard = () => {
       supabase
         .from("delivery_jobs")
         .select("id", { count: "exact" })
-        .in("status", ["assigned", "accepted", "picked_up", "in_transit", "on_the_way"]),
+        .in("status", [
+          "assigned",
+          "accepted",
+          "picked_up",
+          "in_transit",
+          "on_the_way",
+        ]),
       supabase
         .from("delivery_jobs")
         .select("id", { count: "exact" })
@@ -276,7 +286,10 @@ const AdminDashboard = () => {
     const { data: weeklyOrders } = await supabase
       .from("orders")
       .select("created_at, total_amount")
-      .gte("created_at", `${weekAgo.toISOString().split("T")[0]}T00:00:00+03:00`)
+      .gte(
+        "created_at",
+        `${weekAgo.toISOString().split("T")[0]}T00:00:00+03:00`,
+      )
       .neq("status", "cancelled");
 
     const { data: allMeals } = await supabase.from("meals").select("id, price");
@@ -339,7 +352,9 @@ const AdminDashboard = () => {
 
     const { data: recentSchedules } = await supabase
       .from("meal_schedules")
-      .select("id, created_at, order_status, meals:meals!meal_schedules_meal_id_fkey(name)")
+      .select(
+        "id, created_at, order_status, meals:meals!meal_schedules_meal_id_fkey(name)",
+      )
       .order("created_at", { ascending: false })
       .neq("order_status", "cancelled")
       .limit(3);
@@ -355,7 +370,10 @@ const AdminDashboard = () => {
       .map((order) => order.meal_id)
       .filter(Boolean) as string[];
     const { data: recentOrderMeals } = recentOrderMealIds.length
-      ? await supabase.from("meals").select("id, name").in("id", recentOrderMealIds)
+      ? await supabase
+          .from("meals")
+          .select("id, name")
+          .in("id", recentOrderMealIds)
       : { data: [] as { id: string; name: string }[] };
     const recentOrderMealMap = new Map(
       (recentOrderMeals || []).map((meal) => [meal.id, meal.name]),
@@ -376,26 +394,26 @@ const AdminDashboard = () => {
       });
     });
 
-    (recentSchedules || []).forEach(
-      (s) => {
-        activities.push({
-          id: s.id,
-          type: "order",
-          title: s.meals?.name || "Meal Order",
-          description:
-            s.order_status === "completed"
-              ? "Meal completed"
-              : "New meal scheduled",
-          time: new Date(s.created_at || 0).toLocaleString(),
-        });
-      },
-    );
+    (recentSchedules || []).forEach((s) => {
+      activities.push({
+        id: s.id,
+        type: "order",
+        title: s.meals?.name || "Meal Order",
+        description:
+          s.order_status === "completed"
+            ? "Meal completed"
+            : "New meal scheduled",
+        time: new Date(s.created_at || 0).toLocaleString(),
+      });
+    });
 
     (recentOrders || []).forEach((order) => {
       activities.push({
         id: order.id,
         type: "order",
-        title: (order.meal_id && recentOrderMealMap.get(order.meal_id)) || "Direct order",
+        title:
+          (order.meal_id && recentOrderMealMap.get(order.meal_id)) ||
+          "Direct order",
         description:
           order.status === "completed" || order.status === "delivered"
             ? "Order completed"
@@ -520,98 +538,304 @@ const AdminDashboard = () => {
     },
   ];
 
+  const priorityActions = [
+    {
+      show: stats.pendingApprovals > 0,
+      to: "/admin/restaurants",
+      icon: Clock,
+      title: "Review restaurant applications",
+      detail: `${stats.pendingApprovals} partner ${stats.pendingApprovals === 1 ? "application" : "applications"} waiting`,
+      action: "Open queue",
+      color: "#F97316",
+    },
+    {
+      show: stats.pendingPayouts > 0,
+      to: "/admin/payouts",
+      icon: Wallet,
+      title: "Release partner payouts",
+      detail: `${stats.pendingPayouts} payout ${stats.pendingPayouts === 1 ? "request" : "requests"} worth ${formatCurrency(stats.pendingPayoutsAmount)}`,
+      action: "Process",
+      color: "#22C7A1",
+    },
+    {
+      show: stats.pendingAffiliatePayouts > 0,
+      to: "/admin/affiliate-payouts",
+      icon: UserCheck,
+      title: "Approve affiliate earnings",
+      detail: `${stats.pendingAffiliatePayouts} affiliate ${stats.pendingAffiliatePayouts === 1 ? "payout" : "payouts"} pending`,
+      action: "Review",
+      color: "#38BDF8",
+    },
+  ].filter((item) => item.show);
+
+  const operatingBrief = [
+    {
+      label: "Restaurants",
+      value: `${stats.approvedRestaurants}/${stats.totalRestaurants}`,
+      helper: "approved network",
+      color: "#22C7A1",
+    },
+    {
+      label: "Orders today",
+      value: stats.todayOrders.toLocaleString(),
+      helper: "active demand",
+      color: "#F97316",
+    },
+    {
+      label: "Drivers online",
+      value: stats.fleetOnlineDrivers.toLocaleString(),
+      helper: "fleet capacity",
+      color: "#38BDF8",
+    },
+    {
+      label: "Revenue week",
+      value: formatCurrency(stats.weeklyRevenue),
+      helper: "scheduled + direct",
+      color: "#7C83F6",
+    },
+  ];
+
   return (
     <AdminLayout title="Admin Dashboard" subtitle="Platform operations">
-      <div className="space-y-6 bg-[#F6F8FB] text-[#020617]">
-        <section className="overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white p-5 text-[#020617] shadow-[0_18px_44px_rgba(2,6,23,0.06)] sm:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#22C7A1]/10 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#22C7A1]">
-                <Shield className="h-4 w-4" />
-                Admin command center
+      <div className="space-y-5 bg-[#F6F8FB] text-[#020617]">
+        <AdminWorkbenchHeader
+          eyebrow="Operating cockpit"
+          title="Admin operations workbench"
+          icon={Shield}
+          accent="#22C7A1"
+          description="One workspace for queues, money movement, partner supply, customer activity, and fleet readiness across the Nutrio platform."
+          meta={[
+            {
+              label: "Restaurants",
+              value: `${stats.approvedRestaurants}/${stats.totalRestaurants}`,
+            },
+            {
+              label: "Today orders",
+              value: stats.todayOrders.toLocaleString(),
+            },
+            {
+              label: "Weekly revenue",
+              value: formatCurrency(stats.weeklyRevenue),
+            },
+          ]}
+          actions={
+            <Link
+              to="/admin/orders"
+              className="inline-flex h-11 items-center rounded-[14px] border border-[#22C7A1]/30 bg-[#22C7A1]/10 px-4 text-sm font-black text-[#020617] hover:bg-[#22C7A1]/15"
+            >
+              Open operations
+            </Link>
+          }
+        />
+
+        <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_420px]">
+          <div className="rounded-[20px] border border-[#E5EAF1] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+            <div className="border-b border-[#E5EAF1] px-5 py-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#22C7A1]/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">
+                    <Shield className="h-3.5 w-3.5" />
+                    Operating cockpit
+                  </div>
+                  <h2 className="text-2xl font-black tracking-tight text-[#020617]">
+                    What needs attention now
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-sm font-semibold text-[#94A3B8]">
+                    One workspace for queues, money movement, partner supply,
+                    and fleet readiness.
+                  </p>
+                </div>
+                <Link
+                  to="/admin/orders"
+                  className="hidden h-10 shrink-0 items-center rounded-[14px] border border-[#E5EAF1] bg-[#F6F8FB] px-4 text-xs font-black text-[#020617] hover:bg-white lg:inline-flex"
+                >
+                  Open operations
+                </Link>
               </div>
-              <h1 className="max-w-2xl text-3xl font-black tracking-tight sm:text-4xl">
-                Live platform control for restaurants, orders, payouts, and
-                fleet.
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[#94A3B8]">
-                Monitor priority work, review pending actions, and jump into the
-                operational surfaces that need attention.
-              </p>
             </div>
-            <div className="grid grid-cols-3 gap-2 lg:w-[360px]">
-              <div className="rounded-3xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
-                <p className="text-2xl font-black text-[#020617]">{stats.pendingApprovals}</p>
-                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">
-                  approvals
-                </p>
+
+            <div className="grid gap-4 p-5 lg:grid-cols-[1fr_320px]">
+              <div className="space-y-2">
+                {priorityActions.length > 0 ? (
+                  priorityActions.map((item) => (
+                    <Link key={item.title} to={item.to} className="block">
+                      <div className="flex items-center justify-between gap-4 rounded-[16px] border border-[#E5EAF1] bg-[#F6F8FB] p-3 transition hover:border-[#020617]/20 hover:bg-white">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div
+                            className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-white ring-1 ring-[#E5EAF1]"
+                            style={{ color: item.color }}
+                          >
+                            <item.icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-[#020617]">
+                              {item.title}
+                            </p>
+                            <p className="truncate text-xs font-semibold text-[#94A3B8]">
+                              {item.detail}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-[#E5EAF1] bg-white px-3 py-1 text-xs font-black text-[#020617]">
+                          {item.action}
+                        </span>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="rounded-[16px] border border-[#E5EAF1] bg-[#F6F8FB] p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-black text-[#020617]">
+                          No urgent queues
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-[#94A3B8]">
+                          Restaurant approvals, payouts, and affiliate queues
+                          are clear.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#22C7A1]/10 px-3 py-1 text-xs font-black text-[#22C7A1]">
+                        Clear
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      {[
+                        {
+                          label: "Check live orders",
+                          to: "/admin/orders",
+                          color: "#F97316",
+                        },
+                        {
+                          label: "Review finance",
+                          to: "/admin/profit",
+                          color: "#22C7A1",
+                        },
+                        {
+                          label: "Scan support",
+                          to: "/admin/support",
+                          color: "#7C83F6",
+                        },
+                      ].map((item) => (
+                        <Link
+                          key={item.label}
+                          to={item.to}
+                          className="rounded-[14px] border border-[#E5EAF1] bg-white p-3 transition hover:bg-[#F6F8FB]"
+                        >
+                          <span
+                            className="mb-2 block h-1.5 w-7 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="text-xs font-black text-[#020617]">
+                            {item.label}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="rounded-3xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
-                <p className="text-2xl font-black text-[#020617]">{stats.pendingPayouts}</p>
-                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">
-                  payouts
+
+              <div className="rounded-[16px] border border-[#E5EAF1] bg-white p-4">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                  Today's operating brief
                 </p>
-              </div>
-              <div className="rounded-3xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
-                <p className="text-2xl font-black text-[#020617]">
-                  {stats.fleetOnlineDrivers}
-                </p>
-                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">
-                  drivers
-                </p>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  {operatingBrief.map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-[14px] border border-[#E5EAF1] bg-[#F6F8FB] p-3"
+                    >
+                      <span
+                        className="mb-2 block h-1.5 w-8 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <p className="truncate text-lg font-black text-[#020617]">
+                        {item.value}
+                      </p>
+                      <p className="mt-1 truncate text-[11px] font-black uppercase tracking-[0.1em] text-[#94A3B8]">
+                        {item.label}
+                      </p>
+                      <p className="truncate text-[11px] font-semibold text-[#94A3B8]">
+                        {item.helper}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
+
+          <AdminPanel>
+            <div className="border-b border-[#E5EAF1] px-5 py-4">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                Work lanes
+              </p>
+              <h2 className="mt-1 text-xl font-black text-[#020617]">
+                Jump into a workflow
+              </h2>
+            </div>
+            <div className="grid gap-2 p-4">
+              {navItems.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="group flex items-center justify-between gap-3 rounded-[16px] border border-[#E5EAF1] bg-[#F6F8FB] p-3 transition hover:bg-white"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-white ring-1 ring-[#E5EAF1]"
+                      style={{ color: item.color }}
+                    >
+                      <item.icon className="h-4 w-4" />
+                    </span>
+                    <span className="truncate text-sm font-black text-[#020617]">
+                      {item.label}
+                    </span>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-[#94A3B8] ring-1 ring-[#E5EAF1]">
+                    {item.count && item.count > 0 ? item.count : "Open"}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </AdminPanel>
         </section>
 
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {metricCards.map((metric) => (
-            <Card
+            <AdminMetricTile
               key={metric.label}
-              className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm"
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">
-                      {metric.label}
-                    </p>
-                    <p className="mt-3 text-3xl font-black tracking-tight text-[#020617]">
-                      {metric.value}
-                    </p>
-                    <p className="mt-1 text-xs font-bold text-[#94A3B8]">
-                      {metric.sub}
-                    </p>
-                  </div>
-                  <div
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl"
-                    style={{ backgroundColor: `${metric.color}18` }}
-                  >
-                    <metric.icon
-                      className="h-5 w-5"
-                      style={{ color: metric.color }}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              label={metric.label}
+              value={metric.value}
+              subValue={metric.sub}
+              icon={metric.icon}
+              accent={
+                metric.color as
+                  | "#22C7A1"
+                  | "#7C83F6"
+                  | "#38BDF8"
+                  | "#FB6B7A"
+                  | "#F97316"
+              }
+              className="bg-white transition hover:-translate-y-0.5 hover:shadow-[0_18px_44px_rgba(2,6,23,0.075)]"
+            />
           ))}
         </section>
 
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <Card className="rounded-[28px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
+          <AdminPanel>
+            <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+              <h2 className="flex items-center gap-2 text-lg font-black text-[#020617]">
                 <Truck className="h-5 w-5 text-[#7C83F6]" />
                 Fleet operations
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </h2>
+            </div>
+            <div className="p-5 pt-4">
               <div className="grid grid-cols-3 gap-3">
                 {fleetCards.map((item) => (
                   <div
                     key={item.label}
-                    className="rounded-3xl border border-[#E5EAF1] bg-[#F6F8FB] p-4"
+                    className="rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-4"
                   >
                     <div
                       className="mb-3 grid h-10 w-10 place-items-center rounded-2xl bg-white"
@@ -628,94 +852,84 @@ const AdminDashboard = () => {
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </AdminPanel>
 
-          <Card className="rounded-[28px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-black text-[#020617]">
-                Priority actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <AdminPanel>
+            <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+              <h2 className="text-lg font-black text-[#020617]">
+                Platform health
+              </h2>
+            </div>
+            <div className="grid gap-3 p-5 pt-4">
               {[
                 {
-                  show: stats.pendingApprovals > 0,
-                  to: "/admin/restaurants",
-                  icon: Clock,
-                  title: "Restaurant approvals",
-                  detail: `${stats.pendingApprovals} waiting for review`,
-                  action: "Review",
-                  color: "#F97316",
-                },
-                {
-                  show: stats.pendingPayouts > 0,
-                  to: "/admin/payouts",
-                  icon: Wallet,
-                  title: "Partner payouts",
-                  detail: `${stats.pendingPayouts} worth ${formatCurrency(stats.pendingPayoutsAmount)}`,
-                  action: "Process",
+                  label: "Supply coverage",
+                  value: `${stats.approvedRestaurants}/${stats.totalRestaurants}`,
+                  helper: "approved restaurants",
+                  icon: Store,
                   color: "#22C7A1",
                 },
                 {
-                  show: stats.pendingAffiliatePayouts > 0,
-                  to: "/admin/affiliate-payouts",
-                  icon: UserCheck,
-                  title: "Affiliate payouts",
-                  detail: `${stats.pendingAffiliatePayouts} awaiting approval`,
-                  action: "Review",
+                  label: "Fleet load",
+                  value: `${stats.fleetOrdersInProgress}`,
+                  helper: "deliveries in progress",
+                  icon: Truck,
                   color: "#38BDF8",
                 },
-              ]
-                .filter((item) => item.show)
-                .map((item) => (
-                  <Link key={item.title} to={item.to} className="block">
-                    <div className="flex items-center justify-between gap-3 rounded-3xl border border-[#E5EAF1] bg-[#F6F8FB] p-3 transition hover:border-[#020617]/20">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div
-                          className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white"
-                          style={{ color: item.color }}
-                        >
-                          <item.icon className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-black text-[#020617]">
-                            {item.title}
-                          </p>
-                          <p className="truncate text-xs font-bold text-[#94A3B8]">
-                            {item.detail}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge className="rounded-full bg-[#020617] px-3 py-1 text-white hover:bg-[#020617]">
-                        {item.action}
-                      </Badge>
+                {
+                  label: "Money queue",
+                  value: formatCurrency(stats.pendingPayoutsAmount),
+                  helper: `${stats.pendingPayouts} payout requests`,
+                  icon: Wallet,
+                  color: "#F97316",
+                },
+                {
+                  label: "Customer base",
+                  value: stats.totalUsers.toLocaleString(),
+                  helper: "registered profiles",
+                  icon: Users,
+                  color: "#7C83F6",
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center gap-3 rounded-[16px] border border-[#E5EAF1] bg-[#F6F8FB] p-3"
+                >
+                  <div
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-white ring-1 ring-[#E5EAF1]"
+                    style={{ color: item.color }}
+                  >
+                    <item.icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="truncate text-sm font-black text-[#020617]">
+                        {item.label}
+                      </p>
+                      <p className="shrink-0 text-sm font-black text-[#020617]">
+                        {item.value}
+                      </p>
                     </div>
-                  </Link>
-                ))}
-              {stats.pendingApprovals === 0 &&
-                stats.pendingPayouts === 0 &&
-                stats.pendingAffiliatePayouts === 0 && (
-                  <div className="rounded-3xl bg-[#F6F8FB] p-5 text-center">
-                    <p className="font-black text-[#020617]">No urgent work</p>
-                    <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
-                      All review queues are clear.
+                    <p className="mt-1 truncate text-xs font-semibold text-[#94A3B8]">
+                      {item.helper}
                     </p>
                   </div>
-                )}
-            </CardContent>
-          </Card>
+                </div>
+              ))}
+            </div>
+          </AdminPanel>
         </section>
 
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <Card className="rounded-[28px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
+          <AdminPanel>
+            <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+              <h2 className="flex items-center gap-2 text-lg font-black text-[#020617]">
                 <TrendingUp className="h-5 w-5 text-[#22C7A1]" />
                 Orders this week
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </h2>
+            </div>
+            <div className="p-5 pt-4">
               <div className="h-56 sm:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={dailyData}>
@@ -733,7 +947,7 @@ const AdminDashboard = () => {
                     />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#ffffff",
+                        backgroundColor: "white",
                         border: "1px solid #E5EAF1",
                         borderRadius: "16px",
                         color: "#020617",
@@ -749,22 +963,22 @@ const AdminDashboard = () => {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </AdminPanel>
 
-          <Card className="rounded-[28px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardHeader>
+          <AdminPanel>
+            <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
               <div className="flex items-center justify-between gap-3">
-                <CardTitle className="flex items-center gap-2 text-lg font-black text-[#020617]">
+                <h2 className="flex items-center gap-2 text-lg font-black text-[#020617]">
                   <UserCheck className="h-5 w-5 text-[#38BDF8]" />
                   Affiliate commissions
-                </CardTitle>
+                </h2>
                 <Badge className="rounded-full border border-[#E5EAF1] bg-[#F6F8FB] px-3 py-1 font-black text-[#020617] hover:bg-[#F6F8FB]">
                   {formatCurrency(stats.totalCommissionsPaid)} paid
                 </Badge>
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-5 pt-4">
               <div className="h-56 sm:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={commissionData}>
@@ -784,7 +998,7 @@ const AdminDashboard = () => {
                     />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#ffffff",
+                        backgroundColor: "white",
                         border: "1px solid #E5EAF1",
                         borderRadius: "16px",
                         color: "#020617",
@@ -824,20 +1038,20 @@ const AdminDashboard = () => {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </AdminPanel>
         </section>
 
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.85fr_1.15fr]">
-          <Card className="rounded-[28px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg font-black text-[#020617]">
+          <AdminPanel>
+            <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+              <h2 className="text-lg font-black text-[#020617]">
                 Recent activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+              </h2>
+            </div>
+            <div className="space-y-3 p-5 pt-4">
               {recentActivity.length === 0 ? (
-                <p className="rounded-3xl bg-[#F6F8FB] py-6 text-center text-sm font-semibold text-[#94A3B8]">
+                <p className="rounded-[22px] bg-[#F6F8FB] py-6 text-center text-sm font-semibold text-[#94A3B8] ring-1 ring-[#E5EAF1]">
                   No recent activity
                 </p>
               ) : (
@@ -852,7 +1066,7 @@ const AdminDashboard = () => {
                   return (
                     <div
                       key={activity.id}
-                      className="flex items-start gap-3 rounded-3xl border border-[#E5EAF1] bg-[#F6F8FB] p-3"
+                      className="flex items-start gap-3 rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-3"
                     >
                       <div
                         className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white"
@@ -880,49 +1094,73 @@ const AdminDashboard = () => {
                   );
                 })
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </AdminPanel>
 
-          <Card className="rounded-[28px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg font-black text-[#020617]">
-                Quick navigation
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {navItems.map((item) => (
-                  <Link key={item.to} to={item.to}>
-                    <div className="relative h-full rounded-3xl border border-[#E5EAF1] bg-[#F6F8FB] p-4 transition hover:border-[#020617]/20 hover:bg-white">
+          <AdminPanel>
+            <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+              <h2 className="text-lg font-black text-[#020617]">
+                Review cadence
+              </h2>
+            </div>
+            <div className="p-5 pt-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  {
+                    label: "Morning queue",
+                    detail: "Approvals, orders, and blocked deliveries",
+                    to: "/admin/orders",
+                    icon: ShoppingBag,
+                    color: "#22C7A1",
+                  },
+                  {
+                    label: "Finance close",
+                    detail: "Payouts, wallets, and commissions",
+                    to: "/admin/profit",
+                    icon: Wallet,
+                    color: "#F97316",
+                  },
+                  {
+                    label: "Growth review",
+                    detail: "Featured partners, promos, challenges",
+                    to: "/admin/featured",
+                    icon: TrendingUp,
+                    color: "#7C83F6",
+                  },
+                ].map((item) => (
+                  <Link
+                    key={item.label}
+                    to={item.to}
+                    className="block h-full rounded-[16px] outline-none focus-visible:ring-2 focus-visible:ring-[#7C83F6]/35"
+                  >
+                    <div className="relative h-full rounded-[16px] border border-[#E5EAF1] bg-[#F6F8FB] p-4 transition hover:border-[#020617]/20 hover:bg-white hover:shadow-[0_12px_28px_rgba(2,6,23,0.06)]">
                       <div
-                        className="mb-4 grid h-11 w-11 place-items-center rounded-2xl bg-white"
+                        className="mb-4 grid h-10 w-10 place-items-center rounded-[14px] bg-white ring-1 ring-[#E5EAF1]"
                         style={{ color: item.color }}
                       >
-                        <item.icon className="h-5 w-5" />
+                        <item.icon className="h-4 w-4" />
                       </div>
-                      {item.count && item.count > 0 && (
-                        <Badge className="absolute right-3 top-3 grid h-6 min-w-6 place-items-center rounded-full bg-[#020617] px-2 text-xs text-white hover:bg-[#020617]">
-                          {item.count}
-                        </Badge>
-                      )}
                       <p className="text-sm font-black text-[#020617]">
                         {item.label}
+                      </p>
+                      <p className="mt-2 text-xs font-semibold leading-5 text-[#94A3B8]">
+                        {item.detail}
                       </p>
                     </div>
                   </Link>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </AdminPanel>
         </section>
 
-        <Card className="rounded-[28px] border-[#E5EAF1] bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-black text-[#020617]">
+        <AdminPanel>
+          <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+            <h2 className="text-lg font-black text-[#020617]">
               Platform overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+            </h2>
+          </div>
+          <div className="p-5 pt-4">
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {[
                 ["Total restaurants", stats.totalRestaurants],
@@ -932,7 +1170,7 @@ const AdminDashboard = () => {
               ].map(([label, value]) => (
                 <div
                   key={label}
-                  className="rounded-3xl border border-[#E5EAF1] bg-[#F6F8FB] p-4 text-center"
+                  className="rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-4 text-center"
                 >
                   <p className="text-3xl font-black text-[#020617]">{value}</p>
                   <p className="mt-2 text-xs font-bold text-[#94A3B8]">
@@ -941,8 +1179,8 @@ const AdminDashboard = () => {
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </AdminPanel>
       </div>
     </AdminLayout>
   );

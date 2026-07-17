@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { ReactNode, useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { AdminMfaGate } from "@/components/admin/AdminMfaGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -202,6 +203,11 @@ export const ProtectedRoute = ({
   const requiredRolesKey = requiredRole
     ? (Array.isArray(requiredRole) ? requiredRole : [requiredRole]).join("|")
     : "";
+  const requiresAdminMfa = requiredRole
+    ? (Array.isArray(requiredRole) ? requiredRole : [requiredRole]).includes(
+        "admin",
+      )
+    : false;
   const authorizationKey =
     user && requiredRole
       ? `${user.id}:${requiredRolesKey}:${requireApproval}`
@@ -401,6 +407,10 @@ export const ProtectedRoute = ({
   if (requireApproval && !isApproved) {
     if (samePath(location.pathname, "/partner/pending-approval")) return null;
     return <Navigate to="/partner/pending-approval" replace />;
+  }
+
+  if (requiresAdminMfa) {
+    return <AdminMfaGate>{children}</AdminMfaGate>;
   }
 
   return <>{children}</>;

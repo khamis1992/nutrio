@@ -16,13 +16,21 @@ import {
 import { toast } from "sonner";
 
 import { AdminLayout } from "@/components/AdminLayout";
+import {
+  AdminDialogContent,
+  AdminEmptyState,
+  AdminFilterBar,
+  AdminKpiStrip,
+  AdminPanel,
+  AdminPanelHeader,
+  AdminSheetContent,
+  AdminWorkbenchHeader,
+} from "@/components/admin/AdminPrimitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -31,7 +39,6 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
-  SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
@@ -41,6 +48,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
+import { downloadCsv } from "@/lib/csv";
 import { transitionAffiliatePayout } from "@/lib/payouts";
 
 interface AffiliatePayout {
@@ -87,7 +95,10 @@ const C = {
 function statusBadge(status: AffiliatePayout["status"]) {
   if (status === "pending") {
     return (
-      <Badge variant="outline" className="border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#F97316]">
+      <Badge
+        variant="outline"
+        className="border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#F97316]"
+      >
         <Clock className="mr-1 h-3 w-3" />
         Pending
       </Badge>
@@ -95,7 +106,10 @@ function statusBadge(status: AffiliatePayout["status"]) {
   }
   if (status === "processing") {
     return (
-      <Badge variant="outline" className="border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#0369A1]">
+      <Badge
+        variant="outline"
+        className="border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]"
+      >
         <Clock className="mr-1 h-3 w-3" />
         Processing
       </Badge>
@@ -103,14 +117,20 @@ function statusBadge(status: AffiliatePayout["status"]) {
   }
   if (status === "completed") {
     return (
-      <Badge variant="outline" className="border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]">
+      <Badge
+        variant="outline"
+        className="border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#22C7A1]"
+      >
         <CheckCircle className="mr-1 h-3 w-3" />
         Completed
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#BE123C]">
+    <Badge
+      variant="outline"
+      className="border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#FB6B7A]"
+    >
       <XCircle className="mr-1 h-3 w-3" />
       Rejected
     </Badge>
@@ -121,14 +141,17 @@ function tierBadge(tier: string | null) {
   const normalized = tier || "bronze";
   const classNameByTier: Record<string, string> = {
     bronze: "border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#F97316]",
-    silver: "border-[#E5EAF1] bg-[#F6F8FB] text-[#64748B]",
-    gold: "border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#047857]",
-    platinum: "border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#0369A1]",
-    diamond: "border-[#7C83F6]/25 bg-[#7C83F6]/10 text-[#4F46E5]",
+    silver: "border-[#E5EAF1] bg-[#F6F8FB] text-[#94A3B8]",
+    gold: "border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#22C7A1]",
+    platinum: "border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]",
+    diamond: "border-[#7C83F6]/25 bg-[#7C83F6]/10 text-[#7C83F6]",
   };
 
   return (
-    <Badge variant="outline" className={classNameByTier[normalized] || classNameByTier.bronze}>
+    <Badge
+      variant="outline"
+      className={classNameByTier[normalized] || classNameByTier.bronze}
+    >
       <Star className="mr-1 h-3 w-3" />
       {normalized.charAt(0).toUpperCase() + normalized.slice(1)}
     </Badge>
@@ -152,18 +175,27 @@ export default function AdminAffiliatePayouts() {
     rejectedCount: 0,
     uniqueAffiliates: 0,
   });
-  const [selectedPayout, setSelectedPayout] = useState<AffiliatePayout | null>(null);
+  const [selectedPayout, setSelectedPayout] = useState<AffiliatePayout | null>(
+    null,
+  );
   const [detailOpen, setDetailOpen] = useState(false);
-  const [actionType, setActionType] = useState<"approve" | "reject" | "complete" | null>(null);
+  const [actionType, setActionType] = useState<
+    "approve" | "reject" | "complete" | null
+  >(null);
   const [actionNotes, setActionNotes] = useState("");
   const [transferReference, setTransferReference] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [selectedPayouts, setSelectedPayouts] = useState<Set<string>>(new Set());
+  const [selectedPayouts, setSelectedPayouts] = useState<Set<string>>(
+    new Set(),
+  );
 
   const sendPayoutEmailQuietly = async (payoutId: string) => {
-    const { error } = await supabase.functions.invoke("send-payout-notification", {
-      body: { payout_id: payoutId },
-    });
+    const { error } = await supabase.functions.invoke(
+      "send-payout-notification",
+      {
+        body: { payout_id: payoutId },
+      },
+    );
     if (error) console.warn("Payout status email was not sent:", error);
   };
 
@@ -185,37 +217,65 @@ export default function AdminAffiliatePayouts() {
             .eq("user_id", payout.user_id)
             .single();
 
-          const status = ["pending", "processing", "completed", "rejected"].includes(payout.status)
-            ? payout.status as AffiliatePayout["status"]
+          const status = [
+            "pending",
+            "processing",
+            "completed",
+            "rejected",
+          ].includes(payout.status)
+            ? (payout.status as AffiliatePayout["status"])
             : "pending";
 
           return {
             ...payout,
             status,
             payout_method: payout.payout_method || "bank_transfer",
-            payout_details: (payout.payout_details as Record<string, string>) || {},
+            payout_details:
+              (payout.payout_details as Record<string, string>) || {},
             user_profile: profile || undefined,
           };
-        })
+        }),
       );
 
       setPayouts(payoutsWithProfiles);
 
-      const pending = payoutsWithProfiles.filter((payout) => payout.status === "pending");
-      const processingRows = payoutsWithProfiles.filter((payout) => payout.status === "processing");
-      const completed = payoutsWithProfiles.filter((payout) => payout.status === "completed");
-      const rejected = payoutsWithProfiles.filter((payout) => payout.status === "rejected");
+      const pending = payoutsWithProfiles.filter(
+        (payout) => payout.status === "pending",
+      );
+      const processingRows = payoutsWithProfiles.filter(
+        (payout) => payout.status === "processing",
+      );
+      const completed = payoutsWithProfiles.filter(
+        (payout) => payout.status === "completed",
+      );
+      const rejected = payoutsWithProfiles.filter(
+        (payout) => payout.status === "rejected",
+      );
 
       setStats({
-        totalPending: pending.reduce((sum, payout) => sum + Number(payout.amount), 0),
-        totalProcessing: processingRows.reduce((sum, payout) => sum + Number(payout.amount), 0),
-        totalCompleted: completed.reduce((sum, payout) => sum + Number(payout.amount), 0),
-        totalRejected: rejected.reduce((sum, payout) => sum + Number(payout.amount), 0),
+        totalPending: pending.reduce(
+          (sum, payout) => sum + Number(payout.amount),
+          0,
+        ),
+        totalProcessing: processingRows.reduce(
+          (sum, payout) => sum + Number(payout.amount),
+          0,
+        ),
+        totalCompleted: completed.reduce(
+          (sum, payout) => sum + Number(payout.amount),
+          0,
+        ),
+        totalRejected: rejected.reduce(
+          (sum, payout) => sum + Number(payout.amount),
+          0,
+        ),
         pendingCount: pending.length,
         processingCount: processingRows.length,
         completedCount: completed.length,
         rejectedCount: rejected.length,
-        uniqueAffiliates: new Set(payoutsWithProfiles.map((payout) => payout.user_id)).size,
+        uniqueAffiliates: new Set(
+          payoutsWithProfiles.map((payout) => payout.user_id),
+        ).size,
       });
     } catch (error) {
       console.error("Error fetching payouts:", error);
@@ -290,9 +350,13 @@ export default function AdminAffiliatePayouts() {
           transitionAffiliatePayout(payoutId, action),
         ),
       );
-      await Promise.all(Array.from(selectedPayouts).map(sendPayoutEmailQuietly));
+      await Promise.all(
+        Array.from(selectedPayouts).map(sendPayoutEmailQuietly),
+      );
 
-      toast.success(`${selectedPayouts.size} payout(s) ${action === "approve" ? "approved" : "rejected"}`);
+      toast.success(
+        `${selectedPayouts.size} payout(s) ${action === "approve" ? "approved" : "rejected"}`,
+      );
       setSelectedPayouts(new Set());
       fetchPayouts();
     } catch (error) {
@@ -305,7 +369,17 @@ export default function AdminAffiliatePayouts() {
 
   const handleExportCSV = () => {
     const csvRows = [
-      ["ID", "Affiliate", "Tier", "Amount", "Method", "Status", "Requested At", "Processed At", "Notes"],
+      [
+        "ID",
+        "Affiliate",
+        "Tier",
+        "Amount",
+        "Method",
+        "Status",
+        "Requested At",
+        "Processed At",
+        "Notes",
+      ],
       ...filteredPayouts.map((payout) => [
         payout.id,
         payout.user_profile?.full_name || "Unknown",
@@ -314,21 +388,17 @@ export default function AdminAffiliatePayouts() {
         payout.payout_method.replace("_", " "),
         payout.status,
         format(new Date(payout.requested_at), "yyyy-MM-dd HH:mm"),
-        payout.processed_at ? format(new Date(payout.processed_at), "yyyy-MM-dd HH:mm") : "-",
+        payout.processed_at
+          ? format(new Date(payout.processed_at), "yyyy-MM-dd HH:mm")
+          : "-",
         payout.notes || "",
       ]),
     ];
 
-    const csvContent = csvRows.map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `affiliate-payouts-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadCsv(
+      csvRows,
+      `affiliate-payouts-${format(new Date(), "yyyy-MM-dd")}.csv`,
+    );
     toast.success("Payouts exported to CSV");
   };
 
@@ -354,7 +424,10 @@ export default function AdminAffiliatePayouts() {
 
   if (loading) {
     return (
-      <AdminLayout title="Affiliate Payouts" subtitle="Manage affiliate payout requests">
+      <AdminLayout
+        title="Affiliate Payouts"
+        subtitle="Manage affiliate payout requests"
+      >
         <div className="space-y-5 bg-[#F6F8FB]">
           <Skeleton className="h-36 rounded-[28px]" />
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
@@ -369,97 +442,128 @@ export default function AdminAffiliatePayouts() {
   }
 
   return (
-    <AdminLayout title="Affiliate Payouts" subtitle="Manage affiliate payout requests">
+    <AdminLayout
+      title="Affiliate Payouts"
+      subtitle="Manage affiliate payout requests"
+    >
       <div className="space-y-5 bg-[#F6F8FB] pb-8 text-[#020617]">
-        <div className="overflow-hidden rounded-[28px] bg-white p-5 ring-1 ring-[#E5EAF1]">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#F6F8FB] px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-[#7C83F6]">
-                <span className="h-2 w-2 rounded-full bg-[#22C7A1]" />
-                Affiliate finance
-              </div>
-              <h1 className="mt-3 text-[28px] font-black leading-tight text-[#020617]">Affiliate payouts</h1>
-              <p className="mt-1 max-w-[42rem] text-sm font-semibold leading-6 text-[#64748B]">
-                Review affiliate payout requests, verify payment details, and process approvals with a clean operations queue.
-              </p>
-            </div>
+        <AdminWorkbenchHeader
+          eyebrow="Affiliate finance"
+          title="Payout command center"
+          icon={Wallet}
+          accent="#7C83F6"
+          description="Review payout requests, validate payment methods, and move affiliates through pending, processing, completed, or rejected states."
+          meta={[
+            {
+              label: "Pending liability",
+              value: formatCurrency(stats.totalPending),
+            },
+            { label: "Selected", value: selectedPayouts.size },
+            { label: "Affiliates", value: stats.uniqueAffiliates },
+          ]}
+          actions={
             <Button
               variant="outline"
               onClick={handleExportCSV}
-              className="min-h-12 rounded-full border-[#E5EAF1] bg-white px-5 font-black text-[#020617] shadow-none"
+              className="min-h-11 rounded-[14px] border-[#7C83F6]/30 bg-[#7C83F6]/10 px-4 font-black text-[#020617] shadow-none hover:bg-[#7C83F6]/15"
             >
-              <Download className="mr-2 h-4 w-4" />
+              <Download className="mr-2 h-4 w-4 text-[#7C83F6]" />
               Export CSV
             </Button>
-          </div>
-        </div>
+          }
+        />
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: "Pending", value: formatCurrency(stats.totalPending), note: `${stats.pendingCount} waiting`, icon: Clock, color: C.fat },
-            { label: "Processing", value: formatCurrency(stats.totalProcessing), note: `${stats.processingCount} awaiting transfer`, icon: Clock, color: C.water },
-            { label: "Completed", value: formatCurrency(stats.totalCompleted), note: `${stats.completedCount} transferred`, icon: CheckCircle, color: C.progress },
-            { label: "Rejected", value: formatCurrency(stats.totalRejected), note: `${stats.rejectedCount} declined`, icon: XCircle, color: C.water },
-            { label: "Affiliates", value: stats.uniqueAffiliates, note: "Active partners", icon: Users, color: C.protein },
-          ].map(({ label, value, note, icon: Icon, color }) => (
-            <div key={label} className="rounded-[24px] bg-white p-4 ring-1 ring-[#E5EAF1]">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-[#94A3B8]">{label}</p>
-                  <p className="mt-1 truncate text-2xl font-black text-[#020617]">{value}</p>
-                  <p className="mt-1 text-xs font-bold text-[#94A3B8]">{note}</p>
-                </div>
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}18`, color }}>
-                  <Icon className="h-6 w-6" />
-                </div>
-              </div>
+        <AdminKpiStrip
+          className="2xl:grid-cols-5"
+          items={[
+            {
+              label: "Pending",
+              value: formatCurrency(stats.totalPending),
+              helper: `${stats.pendingCount} waiting`,
+              icon: Clock,
+              accent: "#FB6B7A" as const,
+            },
+            {
+              label: "Processing",
+              value: formatCurrency(stats.totalProcessing),
+              helper: `${stats.processingCount} awaiting transfer`,
+              icon: Clock,
+              accent: "#38BDF8" as const,
+            },
+            {
+              label: "Completed",
+              value: formatCurrency(stats.totalCompleted),
+              helper: `${stats.completedCount} transferred`,
+              icon: CheckCircle,
+              accent: "#22C7A1" as const,
+            },
+            {
+              label: "Rejected",
+              value: formatCurrency(stats.totalRejected),
+              helper: `${stats.rejectedCount} declined`,
+              icon: XCircle,
+              accent: "#F97316" as const,
+            },
+            {
+              label: "Affiliates",
+              value: stats.uniqueAffiliates,
+              helper: "Active partners",
+              icon: Users,
+              accent: "#7C83F6" as const,
+            },
+          ]}
+        />
+
+        <AdminFilterBar title="Queue controls">
+          <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+              <Input
+                placeholder="Search by name, method, or ID..."
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="min-h-12 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] pl-11 font-semibold text-[#020617] placeholder:text-[#94A3B8]"
+              />
             </div>
-          ))}
-        </div>
-
-        <Card className="rounded-[26px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-3">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
-                <Input
-                  placeholder="Search by name, method, or ID..."
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  className="min-h-12 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] pl-11 font-semibold text-[#020617] placeholder:text-[#94A3B8]"
-                />
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {tabs.map((tab) => {
-                  const active = activeTab === tab.value;
-                  return (
-                    <button
-                      key={tab.value}
-                      type="button"
-                      onClick={() => setActiveTab(tab.value)}
-                      className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-black transition-colors ${
-                        active ? "bg-[#020617] text-white" : "bg-[#F6F8FB] text-[#64748B] ring-1 ring-[#E5EAF1]"
-                      }`}
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {tabs.map((tab) => {
+                const active = activeTab === tab.value;
+                return (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    onClick={() => setActiveTab(tab.value)}
+                    className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-black transition-colors ${
+                      active
+                        ? "border border-[#22C7A1]/30 bg-[#22C7A1]/10 text-[#020617]"
+                        : "bg-[#F6F8FB] text-[#94A3B8] ring-1 ring-[#E5EAF1]"
+                    }`}
+                  >
+                    {tab.label}{" "}
+                    <span
+                      className={active ? "text-[#22C7A1]" : "text-[#94A3B8]"}
                     >
-                      {tab.label} <span className={active ? "text-white/70" : "text-[#94A3B8]"}>{tab.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </AdminFilterBar>
 
         {selectedPayouts.size > 0 && (
           <div className="flex flex-col gap-3 rounded-[24px] bg-white p-3 ring-1 ring-[#E5EAF1] sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-sm font-black text-[#020617]">{selectedPayouts.size} selected</span>
+            <span className="text-sm font-black text-[#020617]">
+              {selectedPayouts.size} selected
+            </span>
             <div className="grid grid-cols-2 gap-2 sm:flex">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => handleBulkAction("approve")}
                 disabled={processing}
-                className="rounded-full border-[#22C7A1]/25 bg-[#22C7A1]/10 font-black text-[#047857] shadow-none"
+                className="rounded-full border-[#22C7A1]/25 bg-[#22C7A1]/10 font-black text-[#22C7A1] shadow-none"
               >
                 <CheckCircle className="mr-1 h-4 w-4" />
                 Approve All
@@ -469,7 +573,7 @@ export default function AdminAffiliatePayouts() {
                 variant="outline"
                 onClick={() => handleBulkAction("reject")}
                 disabled={processing}
-                className="rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#BE123C] shadow-none"
+                className="rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#FB6B7A] shadow-none"
               >
                 <XCircle className="mr-1 h-4 w-4" />
                 Reject All
@@ -478,36 +582,38 @@ export default function AdminAffiliatePayouts() {
           </div>
         )}
 
-        <Card className="rounded-[28px] border-0 bg-white shadow-none ring-1 ring-[#E5EAF1]">
-          <CardContent className="p-4">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#94A3B8]">Requests</p>
-                <h2 className="text-xl font-black text-[#020617]">Payout queue</h2>
-              </div>
-              <label className="flex items-center gap-2 rounded-full bg-[#F6F8FB] px-3 py-2 text-xs font-black text-[#64748B]">
+        <AdminPanel>
+          <AdminPanelHeader
+            eyebrow="Requests"
+            title="Payout queue"
+            actions={
+              <label className="flex items-center gap-2 rounded-full bg-[#F6F8FB] px-3 py-2 text-xs font-black text-[#94A3B8]">
                 <Checkbox
-                  checked={filteredPayouts.length > 0 && selectedPayouts.size === filteredPayouts.length}
+                  checked={
+                    filteredPayouts.length > 0 &&
+                    selectedPayouts.size === filteredPayouts.length
+                  }
                   onCheckedChange={toggleAllSelection}
                 />
                 Select all
               </label>
-            </div>
+            }
+          />
 
+          <div className="p-4">
             {filteredPayouts.length === 0 ? (
-              <div className="rounded-[24px] border border-dashed border-[#CBD5E1] bg-[#F6F8FB] px-6 py-14 text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-[#7C83F6] ring-1 ring-[#E5EAF1]">
-                  <Wallet className="h-8 w-8" />
-                </div>
-                <p className="font-black text-[#020617]">No payout requests found</p>
-                <p className="mt-1 text-sm font-semibold text-[#94A3B8]">Try another tab or search term.</p>
-              </div>
+              <AdminEmptyState
+                icon={Wallet}
+                title="No payout requests found"
+                description="Try another tab or search term."
+                className="rounded-[24px] border border-dashed border-[#E5EAF1] bg-[#F6F8FB]"
+              />
             ) : (
               <div className="grid gap-4 xl:grid-cols-2">
                 {filteredPayouts.map((payout) => (
                   <div
                     key={payout.id}
-                    className="rounded-[26px] bg-[#F6F8FB] p-4 ring-1 ring-[#E5EAF1] transition hover:ring-[#CBD5E1]"
+                    className="rounded-[26px] bg-[#F6F8FB] p-4 ring-1 ring-[#E5EAF1] transition hover:ring-[#E5EAF1]"
                   >
                     <div className="flex items-start gap-3">
                       <Checkbox
@@ -517,6 +623,7 @@ export default function AdminAffiliatePayouts() {
                       />
                       <button
                         type="button"
+                        aria-label={`Open payout request for ${payout.user_profile?.full_name || "affiliate"}`}
                         className="min-w-0 flex-1 text-left"
                         onClick={() => {
                           setSelectedPayout(payout);
@@ -530,49 +637,71 @@ export default function AdminAffiliatePayouts() {
                             </div>
                             <div className="min-w-0">
                               <p className="truncate text-base font-black text-[#020617]">
-                                {payout.user_profile?.full_name || "Unknown User"}
+                                {payout.user_profile?.full_name ||
+                                  "Unknown User"}
                               </p>
                               <p className="truncate text-xs font-semibold text-[#94A3B8]">
-                                Balance: {formatCurrency(payout.user_profile?.affiliate_balance || 0)}
+                                Balance:{" "}
+                                {formatCurrency(
+                                  payout.user_profile?.affiliate_balance || 0,
+                                )}
                               </p>
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2 sm:justify-end">
-                            {tierBadge(payout.user_profile?.affiliate_tier || null)}
+                            {tierBadge(
+                              payout.user_profile?.affiliate_tier || null,
+                            )}
                             {statusBadge(payout.status)}
                           </div>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+                        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
                           <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
                             <Wallet className="mb-2 h-4 w-4 text-[#22C7A1]" />
-                            <p className="text-sm font-black text-[#020617]">{formatCurrency(payout.amount)}</p>
-                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">Amount</p>
+                            <p className="text-sm font-black text-[#020617]">
+                              {formatCurrency(payout.amount)}
+                            </p>
+                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">
+                              Amount
+                            </p>
                           </div>
                           <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
                             <CreditCard className="mb-2 h-4 w-4 text-[#38BDF8]" />
-                            <p className="truncate text-sm font-black capitalize text-[#020617]">{payout.payout_method.replace("_", " ")}</p>
-                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">Method</p>
+                            <p className="truncate text-sm font-black capitalize text-[#020617]">
+                              {payout.payout_method.replace("_", " ")}
+                            </p>
+                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">
+                              Method
+                            </p>
                           </div>
                           <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
                             <Calendar className="mb-2 h-4 w-4 text-[#7C83F6]" />
-                            <p className="text-sm font-black text-[#020617]">{format(new Date(payout.requested_at), "MMM d")}</p>
-                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">Requested</p>
+                            <p className="text-sm font-black text-[#020617]">
+                              {format(new Date(payout.requested_at), "MMM d")}
+                            </p>
+                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">
+                              Requested
+                            </p>
                           </div>
                           <div className="rounded-2xl bg-white p-3 ring-1 ring-[#E5EAF1]">
                             <Star className="mb-2 h-4 w-4 fill-[#FB6B7A] text-[#FB6B7A]" />
-                            <p className="truncate text-sm font-black text-[#020617]">#{payout.id.slice(0, 6)}</p>
-                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">Request</p>
+                            <p className="truncate text-sm font-black text-[#020617]">
+                              #{payout.id.slice(0, 6)}
+                            </p>
+                            <p className="text-[10px] font-black uppercase text-[#94A3B8]">
+                              Request
+                            </p>
                           </div>
                         </div>
                       </button>
                     </div>
 
                     {payout.status === "pending" && (
-                      <div className="mt-4 grid grid-cols-2 gap-2 border-t border-[#E5EAF1] pt-4">
+                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 border-t border-[#E5EAF1] pt-4">
                         <Button
                           variant="outline"
-                          className="min-h-10 rounded-full border-[#22C7A1]/25 bg-[#22C7A1]/10 font-black text-[#047857] shadow-none"
+                          className="min-h-11 rounded-full border-[#22C7A1]/25 bg-[#22C7A1]/10 font-black text-[#22C7A1] shadow-none"
                           onClick={() => {
                             setSelectedPayout(payout);
                             setActionType("approve");
@@ -583,7 +712,7 @@ export default function AdminAffiliatePayouts() {
                         </Button>
                         <Button
                           variant="outline"
-                          className="min-h-10 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#BE123C] shadow-none"
+                          className="min-h-11 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#FB6B7A] shadow-none"
                           onClick={() => {
                             setSelectedPayout(payout);
                             setActionType("reject");
@@ -598,86 +727,154 @@ export default function AdminAffiliatePayouts() {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </AdminPanel>
       </div>
 
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle className="text-2xl font-black text-[#020617]">Payout Request Details</SheetTitle>
+        <AdminSheetContent size="lg">
+          <SheetHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left shadow-[0_12px_30px_rgba(2,6,23,0.05)]">
+            <SheetTitle className="text-2xl font-black text-[#020617]">
+              Payout Request Details
+            </SheetTitle>
             <SheetDescription className="font-semibold text-[#94A3B8]">
               View complete payout information.
             </SheetDescription>
           </SheetHeader>
 
           {selectedPayout && (
-            <div className="mt-6 space-y-5">
+            <div className="space-y-5 p-5">
               <div className="rounded-[24px] bg-[#22C7A1]/10 p-4 ring-1 ring-[#22C7A1]/20">
-                <p className="text-sm font-black text-[#047857]">Payout Amount</p>
-                <p className="mt-1 text-3xl font-black text-[#020617]">{formatCurrency(selectedPayout.amount)}</p>
+                <p className="text-sm font-black text-[#22C7A1]">
+                  Payout Amount
+                </p>
+                <p className="mt-1 text-3xl font-black text-[#020617]">
+                  {formatCurrency(selectedPayout.amount)}
+                </p>
               </div>
 
               <div className="grid gap-3">
                 {[
-                  { label: "Affiliate", value: selectedPayout.user_profile?.full_name || "Unknown", icon: User, color: C.protein },
-                  { label: "Payout Method", value: selectedPayout.payout_method.replace("_", " "), icon: CreditCard, color: C.water },
-                  { label: "Requested At", value: format(new Date(selectedPayout.requested_at), "MMMM d, yyyy 'at' h:mm a"), icon: Calendar, color: C.fat },
+                  {
+                    label: "Affiliate",
+                    value: selectedPayout.user_profile?.full_name || "Unknown",
+                    icon: User,
+                    color: C.protein,
+                  },
+                  {
+                    label: "Payout Method",
+                    value: selectedPayout.payout_method.replace("_", " "),
+                    icon: CreditCard,
+                    color: C.water,
+                  },
+                  {
+                    label: "Requested At",
+                    value: format(
+                      new Date(selectedPayout.requested_at),
+                      "MMMM d, yyyy 'at' h:mm a",
+                    ),
+                    icon: Calendar,
+                    color: C.fat,
+                  },
                   ...(selectedPayout.processed_at
-                    ? [{ label: "Processed At", value: format(new Date(selectedPayout.processed_at), "MMMM d, yyyy 'at' h:mm a"), icon: CheckCircle, color: C.progress }]
+                    ? [
+                        {
+                          label: "Processed At",
+                          value: format(
+                            new Date(selectedPayout.processed_at),
+                            "MMMM d, yyyy 'at' h:mm a",
+                          ),
+                          icon: CheckCircle,
+                          color: C.progress,
+                        },
+                      ]
                     : []),
                 ].map(({ label, value, icon: Icon, color }) => (
-                  <div key={label} className="flex items-start gap-3 rounded-2xl bg-[#F6F8FB] p-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white" style={{ color }}>
+                  <div
+                    key={label}
+                    className="flex items-start gap-3 rounded-2xl bg-[#F6F8FB] p-3"
+                  >
+                    <div
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white ring-1 ring-[#E5EAF1]"
+                      style={{ color }}
+                    >
                       <Icon className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-[#94A3B8]">{label}</p>
-                      <p className="font-black capitalize text-[#020617]">{value}</p>
+                      <p className="text-xs font-bold text-[#94A3B8]">
+                        {label}
+                      </p>
+                      <p className="font-black capitalize text-[#020617]">
+                        {value}
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {selectedPayout.payout_details && Object.keys(selectedPayout.payout_details).length > 0 && (
-                <div className="border-t border-[#E5EAF1] pt-4">
-                  <h4 className="mb-3 font-black text-[#020617]">Payment Details</h4>
-                  <div className="space-y-2 rounded-2xl bg-[#F6F8FB] p-4">
-                    {Object.entries(selectedPayout.payout_details).map(([key, value]) => (
-                      <div key={key} className="flex justify-between gap-3 text-sm">
-                        <span className="font-semibold capitalize text-[#94A3B8]">{key.replace("_", " ")}</span>
-                        <span className="text-right font-black text-[#020617]">
-                          {key === "account_number" ? `****${value.slice(-4)}` : value}
-                        </span>
-                      </div>
-                    ))}
+              {selectedPayout.payout_details &&
+                Object.keys(selectedPayout.payout_details).length > 0 && (
+                  <div className="border-t border-[#E5EAF1] pt-4">
+                    <h4 className="mb-3 font-black text-[#020617]">
+                      Payment Details
+                    </h4>
+                    <div className="space-y-2 rounded-2xl bg-[#F6F8FB] p-4">
+                      {Object.entries(selectedPayout.payout_details).map(
+                        ([key, value]) => (
+                          <div
+                            key={key}
+                            className="flex justify-between gap-3 text-sm"
+                          >
+                            <span className="font-semibold capitalize text-[#94A3B8]">
+                              {key.replace("_", " ")}
+                            </span>
+                            <span className="text-right font-black text-[#020617]">
+                              {key === "account_number"
+                                ? `****${value.slice(-4)}`
+                                : value}
+                            </span>
+                          </div>
+                        ),
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               <div className="border-t border-[#E5EAF1] pt-4">
-                <h4 className="mb-3 font-black text-[#020617]">Status Information</h4>
+                <h4 className="mb-3 font-black text-[#020617]">
+                  Status Information
+                </h4>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-[#94A3B8]">Current Status:</span>
+                  <span className="font-semibold text-[#94A3B8]">
+                    Current Status:
+                  </span>
                   {statusBadge(selectedPayout.status)}
                 </div>
                 {selectedPayout.notes && (
                   <div className="mt-3 rounded-2xl bg-[#F6F8FB] p-3">
-                    <p className="mb-1 text-sm font-bold text-[#94A3B8]">Notes:</p>
-                    <p className="text-sm font-semibold text-[#020617]">{selectedPayout.notes}</p>
+                    <p className="mb-1 text-sm font-bold text-[#94A3B8]">
+                      Notes:
+                    </p>
+                    <p className="text-sm font-semibold text-[#020617]">
+                      {selectedPayout.notes}
+                    </p>
                   </div>
                 )}
               </div>
 
               {selectedPayout.status === "pending" && (
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  <Button className="min-h-11 rounded-full bg-[#020617] font-black text-white shadow-none" onClick={() => setActionType("approve")}>
+                <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
+                  <Button
+                    variant="outline"
+                    className="min-h-11 rounded-full border-[#22C7A1]/30 bg-[#22C7A1]/10 font-black text-[#020617] shadow-none hover:bg-[#22C7A1]/15"
+                    onClick={() => setActionType("approve")}
+                  >
                     <CheckCircle className="mr-2 h-4 w-4" />
                     Approve
                   </Button>
                   <Button
                     variant="outline"
-                    className="min-h-11 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#BE123C] shadow-none"
+                    className="min-h-11 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#FB6B7A] shadow-none"
                     onClick={() => setActionType("reject")}
                   >
                     <XCircle className="mr-2 h-4 w-4" />
@@ -687,14 +884,18 @@ export default function AdminAffiliatePayouts() {
               )}
 
               {selectedPayout.status === "processing" && (
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  <Button className="min-h-11 rounded-full bg-[#020617] font-black text-white shadow-none" onClick={() => setActionType("complete")}>
+                <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
+                  <Button
+                    variant="outline"
+                    className="min-h-11 rounded-full border-[#22C7A1]/30 bg-[#22C7A1]/10 font-black text-[#020617] shadow-none hover:bg-[#22C7A1]/15"
+                    onClick={() => setActionType("complete")}
+                  >
                     <CheckCircle className="mr-2 h-4 w-4" />
                     Complete Transfer
                   </Button>
                   <Button
                     variant="outline"
-                    className="min-h-11 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#BE123C] shadow-none"
+                    className="min-h-11 rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#FB6B7A] shadow-none"
                     onClick={() => setActionType("reject")}
                   >
                     <XCircle className="mr-2 h-4 w-4" />
@@ -704,7 +905,7 @@ export default function AdminAffiliatePayouts() {
               )}
             </div>
           )}
-        </SheetContent>
+        </AdminSheetContent>
       </Sheet>
 
       <Dialog
@@ -717,8 +918,8 @@ export default function AdminAffiliatePayouts() {
           setTransferReference("");
         }}
       >
-        <DialogContent className="rounded-[28px]">
-          <DialogHeader>
+        <AdminDialogContent size="md">
+          <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4 text-left">
             <DialogTitle className="text-2xl font-black text-[#020617]">
               {actionType === "approve"
                 ? "Approve Payout"
@@ -736,19 +937,27 @@ export default function AdminAffiliatePayouts() {
           </DialogHeader>
 
           {selectedPayout && (
-            <div className="space-y-4">
+            <div className="space-y-4 px-5 py-4">
               <div className="rounded-2xl bg-[#F6F8FB] p-4">
                 <div className="flex justify-between gap-3">
-                  <span className="font-semibold text-[#94A3B8]">Affiliate</span>
-                  <span className="font-black text-[#020617]">{selectedPayout.user_profile?.full_name || "Unknown"}</span>
+                  <span className="font-semibold text-[#94A3B8]">
+                    Affiliate
+                  </span>
+                  <span className="font-black text-[#020617]">
+                    {selectedPayout.user_profile?.full_name || "Unknown"}
+                  </span>
                 </div>
                 <div className="mt-2 flex justify-between gap-3">
                   <span className="font-semibold text-[#94A3B8]">Amount</span>
-                  <span className="text-lg font-black text-[#047857]">{formatCurrency(selectedPayout.amount)}</span>
+                  <span className="text-lg font-black text-[#22C7A1]">
+                    {formatCurrency(selectedPayout.amount)}
+                  </span>
                 </div>
                 <div className="mt-2 flex justify-between gap-3">
                   <span className="font-semibold text-[#94A3B8]">Method</span>
-                  <span className="font-black capitalize text-[#020617]">{selectedPayout.payout_method.replace("_", " ")}</span>
+                  <span className="font-black capitalize text-[#020617]">
+                    {selectedPayout.payout_method.replace("_", " ")}
+                  </span>
                 </div>
               </div>
 
@@ -757,7 +966,11 @@ export default function AdminAffiliatePayouts() {
                   Notes {actionType === "reject" && "(required)"}
                 </label>
                 <Textarea
-                  placeholder={actionType === "approve" ? "Add payout notes (optional)" : "Explain why this payout is being rejected..."}
+                  placeholder={
+                    actionType === "approve"
+                      ? "Add payout notes (optional)"
+                      : "Explain why this payout is being rejected..."
+                  }
                   value={actionNotes}
                   onChange={(event) => setActionNotes(event.target.value)}
                   className="rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
@@ -766,13 +979,18 @@ export default function AdminAffiliatePayouts() {
 
               {actionType === "complete" && (
                 <div className="space-y-2">
-                  <label htmlFor="transfer-reference" className="text-sm font-black text-[#020617]">
+                  <label
+                    htmlFor="transfer-reference"
+                    className="text-sm font-black text-[#020617]"
+                  >
                     Transfer reference
                   </label>
                   <Input
                     id="transfer-reference"
                     value={transferReference}
-                    onChange={(event) => setTransferReference(event.target.value)}
+                    onChange={(event) =>
+                      setTransferReference(event.target.value)
+                    }
                     placeholder="Bank or provider reference"
                     className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
                   />
@@ -781,7 +999,7 @@ export default function AdminAffiliatePayouts() {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
             <Button
               variant="outline"
               className="rounded-full border-[#E5EAF1] bg-white font-black text-[#020617] shadow-none"
@@ -794,11 +1012,21 @@ export default function AdminAffiliatePayouts() {
               Cancel
             </Button>
             <Button
-              className={actionType === "reject" ? "rounded-full bg-[#FB6B7A] font-black text-white shadow-none" : "rounded-full bg-[#020617] font-black text-white shadow-none"}
+              className={
+                actionType === "reject"
+                  ? "rounded-full bg-[#FB6B7A] font-black text-white shadow-none"
+                  : "rounded-full border border-[#22C7A1]/30 bg-[#22C7A1]/10 font-black text-[#020617] shadow-none hover:bg-[#22C7A1]/15"
+              }
               onClick={handleAction}
-              disabled={processing || (actionType === "reject" && !actionNotes.trim()) || (actionType === "complete" && !transferReference.trim())}
+              disabled={
+                processing ||
+                (actionType === "reject" && !actionNotes.trim()) ||
+                (actionType === "complete" && !transferReference.trim())
+              }
             >
-              {processing && <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />}
+              {processing && (
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              )}
               {actionType === "approve"
                 ? "Confirm Approval"
                 : actionType === "complete"
@@ -806,7 +1034,7 @@ export default function AdminAffiliatePayouts() {
                   : "Confirm Rejection"}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
     </AdminLayout>
   );

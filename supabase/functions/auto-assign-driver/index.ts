@@ -1,27 +1,39 @@
-// Supabase Edge Function: Auto Assign Driver
-// Automatically assigns the best available driver to a delivery order
+// Trusted automatic dispatch using the database's atomic assignment primitive.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
 
-// Environment variables
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+import {
+  enforceRateLimit,
+  getClientIp,
+  getCorsHeaders,
+  getServiceClient,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requireAdminOrInternal,
+  type SecurityPrincipal,
+} from "../_shared/security.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CORS_METHODS = "POST, OPTIONS";
+const ACTIVE_DRIVER_LOCATION_MS = 10 * 60 * 1000;
+
+interface AssignmentActor {
+  principal: SecurityPrincipal | null;
+  actorUserId: string | null;
+  actorType: "admin" | "service";
+}
 
 interface DeliveryJob {
-  delivery_id: string;
-  schedule_id: string;
-  pickup_lat: number;
-  pickup_lng: number;
-  delivery_lat: number;
-  delivery_lng: number;
-  restaurant_id: string;
-  user_id: string;
+  id: string;
+  order_id: string | null;
+  schedule_id: string | null;
+  restaurant_id: string | null;
+  status: string | null;
+  driver_id: string | null;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
 }
 
 interface Driver {
@@ -29,311 +41,339 @@ interface Driver {
   user_id: string;
   current_lat: number | null;
   current_lng: number | null;
-  rating: number;
-  total_deliveries: number;
-  is_online: boolean;
+  rating: number | null;
+  total_deliveries: number | null;
 }
 
 interface ScoredDriver extends Driver {
-  current_orders: number;
   score: number;
-  distance_km: number;
+  distanceKm: number;
 }
 
-// Create Supabase client with service role
-const createSupabaseClient = () => {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("Supabase credentials not configured");
-  }
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-};
+function respond(
+  req: Request,
+  body: unknown,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+): Response {
+  return jsonResponse(req, body, status, {
+    "Access-Control-Allow-Methods": CORS_METHODS,
+    ...extraHeaders,
+  });
+}
 
-// Haversine formula for calculating distance between two points
+function preflight(req: Request): Response | null {
+  if (req.method !== "OPTIONS") return null;
+  return new Response(null, {
+    status: 204,
+    headers: { ...getCorsHeaders(req), "Access-Control-Allow-Methods": CORS_METHODS },
+  });
+}
+
+function safeError(req: Request, error: unknown): Response {
+  if (error instanceof HttpError) return respond(req, { error: error.code }, error.status);
+  console.error("auto-assign-driver failed:", error);
+  return respond(req, { error: "internal_error" }, 500);
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new HttpError(400, "invalid_request_body");
+  }
+  return value as Record<string, unknown>;
+}
+
+function assertAllowedKeys(body: Record<string, unknown>, allowed: string[]): void {
+  const allowedSet = new Set(allowed);
+  if (Object.keys(body).some((key) => !allowedSet.has(key))) {
+    throw new HttpError(400, "unexpected_request_field");
+  }
+}
+
+function requireUuid(value: unknown, code: string): string {
+  if (typeof value !== "string" || !UUID_PATTERN.test(value)) throw new HttpError(400, code);
+  return value;
+}
+
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  const radiusKm = 6371;
+  const latDelta = (lat2 - lat1) * Math.PI / 180;
+  const lngDelta = (lng2 - lng1) * Math.PI / 180;
+  const value =
+    Math.sin(latDelta / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) *
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(lngDelta / 2) ** 2;
+  return radiusKm * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 }
 
-// Score driver based on distance, capacity, and rating
-function scoreDriver(driver: Driver, currentOrders: number, job: DeliveryJob): { score: number; distance: number } {
-  // Default max orders per driver
-  const maxOrders = 3;
-  
-  // If driver has no location, use a default far distance
-  let pickupDistance = 100; // Default 100km if no location
-  
-  if (driver.current_lat && driver.current_lng) {
-    pickupDistance = calculateDistance(
-      driver.current_lat, driver.current_lng,
-      job.pickup_lat, job.pickup_lng
-    );
+function scoreDriver(driver: Driver, pickupLat: number, pickupLng: number): ScoredDriver {
+  const hasLocation = driver.current_lat !== null && driver.current_lng !== null;
+  const distanceKm = hasLocation
+    ? calculateDistance(driver.current_lat as number, driver.current_lng as number, pickupLat, pickupLng)
+    : 100;
+  const distanceScore = Math.max(0, 100 * Math.exp(-distanceKm / 5));
+  const ratingScore = Math.min(100, Math.max(0, Number(driver.rating || 0) * 20));
+  const experienceScore = Math.min(100, Number(driver.total_deliveries || 0));
+  return {
+    ...driver,
+    distanceKm,
+    score: Math.round(distanceScore * 0.7 + ratingScore * 0.25 + experienceScore * 0.05),
+  };
+}
+
+async function authenticateAssignmentActor(req: Request): Promise<AssignmentActor> {
+  const principal = await requireAdminOrInternal(req);
+  return principal
+    ? { principal, actorUserId: principal.user.id, actorType: "admin" }
+    : { principal: null, actorUserId: null, actorType: "service" };
+}
+
+async function loadDeliveryJob(
+  deliveryId: string | null,
+  orderId: string | null,
+): Promise<DeliveryJob> {
+  const service = getServiceClient();
+  let query = service
+    .from("delivery_jobs")
+    .select("id, order_id, schedule_id, restaurant_id, status, driver_id, delivery_lat, delivery_lng");
+  query = deliveryId ? query.eq("id", deliveryId) : query.eq("order_id", orderId as string);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new HttpError(500, "delivery_lookup_failed");
+  if (!data) throw new HttpError(404, "delivery_not_found");
+  return data as DeliveryJob;
+}
+
+async function loadPickup(job: DeliveryJob): Promise<{ latitude: number; longitude: number }> {
+  if (!job.restaurant_id) throw new HttpError(409, "pickup_location_unavailable");
+  const service = getServiceClient();
+  const { data: restaurant, error } = await service
+    .from("restaurants")
+    .select("latitude, longitude, is_active")
+    .eq("id", job.restaurant_id)
+    .maybeSingle();
+  if (error) throw new HttpError(500, "restaurant_lookup_failed");
+  if (
+    !restaurant ||
+    restaurant.is_active !== true ||
+    typeof restaurant.latitude !== "number" ||
+    typeof restaurant.longitude !== "number" ||
+    restaurant.latitude < -90 ||
+    restaurant.latitude > 90 ||
+    restaurant.longitude < -180 ||
+    restaurant.longitude > 180
+  ) {
+    throw new HttpError(409, "pickup_location_unavailable");
   }
-
-  // Score components (0-100 scale each)
-  // Distance score: closer = higher score (exponential decay)
-  const distanceScore = Math.max(0, 100 * Math.exp(-pickupDistance / 5)); // 5km half-life
-  
-  // Capacity score: more available capacity = higher score
-  const availableCapacity = Math.max(0, maxOrders - currentOrders);
-  const capacityScore = (availableCapacity / maxOrders) * 100;
-  
-  // Rating score: higher rating = higher score
-  const ratingScore = (driver.rating || 0) * 20; // 5 * 20 = 100 max
-  
-  // Experience bonus: drivers with more deliveries get a small boost
-  const experienceScore = Math.min(10, (driver.total_deliveries || 0) / 10); // Max 10 points
-  
-  // Weighted total score
-  const totalScore = (distanceScore * 0.5) + (capacityScore * 0.3) + (ratingScore * 0.15) + (experienceScore * 0.05);
-  
-  return { score: Math.round(totalScore), distance: pickupDistance };
+  return { latitude: restaurant.latitude, longitude: restaurant.longitude };
 }
 
-// Send notification to driver
-const notifyDriver = async (supabase: any, driverId: string, deliveryId: string): Promise<void> => {
+async function resolveCityId(
+  requestedCityId: string | null,
+  pickup: { latitude: number; longitude: number },
+): Promise<string> {
+  const service = getServiceClient();
+  const { data: cities, error } = await service
+    .from("cities")
+    .select("id, latitude, longitude")
+    .eq("is_active", true)
+    .not("latitude", "is", null)
+    .not("longitude", "is", null);
+  if (error) throw new HttpError(500, "city_lookup_failed");
+  const ranked = (cities || [])
+    .filter((city) => typeof city.latitude === "number" && typeof city.longitude === "number")
+    .map((city) => ({
+      id: city.id,
+      distanceKm: calculateDistance(
+        pickup.latitude,
+        pickup.longitude,
+        city.latitude as number,
+        city.longitude as number,
+      ),
+    }))
+    .sort((left, right) => left.distanceKm - right.distanceKm);
+  if (ranked.length === 0 || ranked[0].distanceKm > 150) {
+    throw new HttpError(409, "delivery_city_unresolved");
+  }
+  if (requestedCityId && requestedCityId !== ranked[0].id) {
+    throw new HttpError(409, "delivery_city_mismatch");
+  }
+  return ranked[0].id;
+}
+
+async function notifyDriver(driverUserId: string, deliveryId: string): Promise<void> {
   try {
-    // Get driver user_id
-    const { data: driver, error: driverError } = await supabase
-      .from("drivers")
-      .select("user_id")
-      .eq("id", driverId)
-      .single();
-
-    if (driverError || !driver) {
-      console.error("Failed to get driver for notification:", driverError);
-      return;
-    }
-
-    // Invoke notification function
-    await supabase.functions.invoke("send-notification", {
+    const service = getServiceClient();
+    const { error } = await service.functions.invoke("send-notification", {
       body: {
-        userId: driver.user_id,
+        userId: driverUserId,
         type: "new_delivery",
         title: "New Delivery Assignment",
         body: "You have been assigned a new delivery order",
         data: { deliveryId },
       },
     });
+    if (error) console.error("Driver assignment notification failed:", error.message);
   } catch (error) {
-    console.error("Error sending driver notification:", error);
-    // Non-blocking - don't fail assignment if notification fails
+    console.error("Driver assignment notification unavailable:", error);
   }
-};
+}
 
-// Main assignment logic
-const assignDriver = async (deliveryId: string): Promise<{
-  success: boolean;
-  driverId?: string;
-  score?: number;
-  message?: string;
-  queued?: boolean;
-}> => {
-  const supabase = createSupabaseClient();
-
-  // Get delivery details with restaurant location
-  const { data: delivery, error: deliveryError } = await supabase
-    .from("deliveries")
-    .select(`
-      id,
-      schedule_id,
-      restaurant_id,
-      user_id,
-      delivery_lat,
-      delivery_lng,
-      status,
-      driver_id,
-      restaurants:restaurant_id (latitude, longitude, address)
-    `)
-    .eq("id", deliveryId)
-    .single();
-
-  if (deliveryError || !delivery) {
-    throw new Error(`Delivery not found: ${deliveryError?.message || "Unknown error"}`);
+async function assignDriver(
+  req: Request,
+  actor: AssignmentActor,
+  job: DeliveryJob,
+  cityId: string,
+  pickup: { latitude: number; longitude: number },
+): Promise<Response> {
+  if (job.driver_id) {
+    return respond(req, {
+      success: true,
+      driverId: job.driver_id,
+      message: "driver_already_assigned",
+    });
   }
+  if (job.status !== "pending") throw new HttpError(409, "delivery_not_assignable");
 
-  // Check if already assigned
-  if (delivery.driver_id) {
-    return { success: true, message: "Driver already assigned", driverId: delivery.driver_id };
-  }
-
-  // Check if status allows assignment
-  if (delivery.status !== "pending") {
-    return { success: false, message: `Delivery status is ${delivery.status}, cannot assign` };
-  }
-
-  // For pickup location, use restaurant coordinates if available, otherwise default to Doha center
-  const pickupLat = delivery.restaurants?.latitude || 25.2854;
-  const pickupLng = delivery.restaurants?.longitude || 51.5310;
-
-  const job: DeliveryJob = {
-    delivery_id: deliveryId,
-    schedule_id: delivery.schedule_id,
-    pickup_lat: pickupLat,
-    pickup_lng: pickupLng,
-    delivery_lat: delivery.delivery_lat || 25.2854,
-    delivery_lng: delivery.delivery_lng || 51.5310,
-    restaurant_id: delivery.restaurant_id,
-    user_id: delivery.user_id,
-  };
-
-  // Get available drivers (online and approved)
-  const { data: drivers, error: driversError } = await supabase
+  const service = getServiceClient();
+  const recent = new Date(Date.now() - ACTIVE_DRIVER_LOCATION_MS).toISOString();
+  const { data: drivers, error } = await service
     .from("drivers")
-    .select("id, user_id, current_lat, current_lng, rating, total_deliveries, is_online, approval_status")
+    .select("id, user_id, current_lat, current_lng, rating, total_deliveries")
+    .eq("city_id", cityId)
     .eq("is_online", true)
-    .eq("approval_status", "approved");
+    .eq("is_active", true)
+    .eq("approval_status", "approved")
+    .is("current_job_id", null)
+    .or(`last_location_at.gte.${recent},last_location_update.gte.${recent}`)
+    .limit(100);
+  if (error) throw new HttpError(500, "driver_lookup_failed");
 
-  if (driversError) {
-    throw new Error(`Failed to fetch drivers: ${driversError.message}`);
+  const candidates = (drivers || [])
+    .map((driver) => scoreDriver(driver as Driver, pickup.latitude, pickup.longitude))
+    .sort((left, right) => right.score - left.score || left.distanceKm - right.distanceKm);
+  if (candidates.length === 0) {
+    await recordSecurityEvent(req, {
+      eventType: "fleet.auto_assignment_unavailable",
+      category: "edge_function",
+      severity: "low",
+      outcome: "failure",
+      principal: actor.principal,
+      actorUserId: actor.actorUserId,
+      actorType: actor.actorType,
+      action: "auto_assign_driver",
+      resourceType: "delivery_job",
+      resourceId: job.id,
+      metadata: { city_id: cityId, reason: "no_available_drivers" },
+    });
+    return respond(req, {
+      success: false,
+      queued: true,
+      message: "no_available_drivers",
+    }, 202);
   }
 
-  if (!drivers || drivers.length === 0) {
-    // No drivers available - queue for manual assignment
-    await supabase
-      .from("deliveries")
-      .update({ 
-        status: "pending",
-        assignment_notes: "Auto-assignment failed: No drivers available"
-      })
-      .eq("id", deliveryId);
-    
-    return { success: false, message: "No drivers available, queued for manual assignment", queued: true };
+  for (const candidate of candidates) {
+    const { data, error: assignmentError } = await service.rpc("assign_driver_with_lock", {
+      p_job_id: job.id,
+      p_driver_id: candidate.id,
+    });
+    if (assignmentError) {
+      console.error("Atomic driver assignment RPC failed:", assignmentError.message);
+      throw new HttpError(500, "assignment_failed");
+    }
+    const result = data && typeof data === "object" && !Array.isArray(data)
+      ? data as Record<string, unknown>
+      : {};
+    if (result.success === true) {
+      await recordSecurityEvent(req, {
+        eventType: "fleet.driver_auto_assigned",
+        category: "data_change",
+        severity: "info",
+        outcome: "success",
+        principal: actor.principal,
+        actorUserId: actor.actorUserId,
+        actorType: actor.actorType,
+        action: "auto_assign_driver",
+        resourceType: "delivery_job",
+        resourceId: job.id,
+        metadata: {
+          city_id: cityId,
+          driver_id: candidate.id,
+          assignment_score: candidate.score,
+        },
+      });
+      await notifyDriver(candidate.user_id, job.id);
+      return respond(req, {
+        success: true,
+        driverId: candidate.id,
+        score: candidate.score,
+        message: "driver_assigned",
+      });
+    }
+
+    const code = typeof result.code === "string" ? result.code : "ASSIGNMENT_FAILED";
+    if (code === "ALREADY_ASSIGNED" && typeof result.assigned_driver_id === "string") {
+      return respond(req, {
+        success: true,
+        driverId: result.assigned_driver_id,
+        message: "driver_already_assigned",
+      });
+    }
+    if (code === "DRIVER_BUSY" || code === "DRIVER_UNAVAILABLE") continue;
+    if (code === "LOCKED") throw new HttpError(409, "assignment_in_progress");
+    if (code === "INVALID_STATE") throw new HttpError(409, "delivery_not_assignable");
+    if (code === "NOT_FOUND") throw new HttpError(404, "delivery_not_found");
+    throw new HttpError(409, "assignment_failed");
   }
 
-  // Get current active deliveries for each driver
-  const driverIds = drivers.map((d: Driver) => d.id);
-  const { data: activeDeliveries } = await supabase
-    .from("deliveries")
-    .select("driver_id, status")
-    .in("driver_id", driverIds)
-    .in("status", ["claimed", "picked_up", "on_the_way"]);
-
-  // Count active orders per driver
-  const orderCounts: Record<string, number> = {};
-  (activeDeliveries || []).forEach((d: any) => {
-    orderCounts[d.driver_id] = (orderCounts[d.driver_id] || 0) + 1;
-  });
-
-  // Score and rank drivers
-  const maxOrders = 3;
-  const scoredDrivers: ScoredDriver[] = drivers
-    .filter((d: Driver) => (orderCounts[d.id] || 0) < maxOrders)
-    .map((d: Driver) => {
-      const currentOrders = orderCounts[d.id] || 0;
-      const { score, distance } = scoreDriver(d, currentOrders, job);
-      return {
-        ...d,
-        current_orders: currentOrders,
-        score,
-        distance_km: distance,
-      };
-    })
-    .sort((a: ScoredDriver, b: ScoredDriver) => b.score - a.score);
-
-  if (scoredDrivers.length === 0) {
-    // All drivers at capacity
-    await supabase
-      .from("deliveries")
-      .update({ 
-        status: "pending",
-        assignment_notes: "Auto-assignment failed: All drivers at capacity"
-      })
-      .eq("id", deliveryId);
-    
-    return { success: false, message: "All drivers at capacity, queued for manual assignment", queued: true };
-  }
-
-  const bestDriver = scoredDrivers[0];
-
-  // Assign driver to delivery
-  const { error: updateError } = await supabase
-    .from("deliveries")
-    .update({
-      driver_id: bestDriver.id,
-      status: "claimed",
-      claimed_at: new Date().toISOString(),
-      assignment_method: "auto",
-      assignment_score: bestDriver.score,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", deliveryId);
-
-  if (updateError) {
-    throw new Error(`Failed to assign driver: ${updateError.message}`);
-  }
-
-  // Update meal_schedule order status
-  await supabase
-    .from("meal_schedules")
-    .update({ order_status: "out_for_delivery" })
-    .eq("id", delivery.schedule_id);
-
-  // Send notification to driver (non-blocking)
-  await notifyDriver(supabase, bestDriver.id, deliveryId);
-
-  return {
-    success: true,
-    driverId: bestDriver.id,
-    score: bestDriver.score,
-    message: `Driver assigned successfully (score: ${bestDriver.score}, distance: ${bestDriver.distance_km.toFixed(1)}km)`,
-  };
-};
+  return respond(req, {
+    success: false,
+    queued: true,
+    message: "no_available_drivers",
+  }, 202);
+}
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+  const cors = preflight(req);
+  if (cors) return cors;
   try {
-    // Verify credentials
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Supabase credentials not configured");
-      return new Response(
-        JSON.stringify({
-          error: "Service not configured",
-          details: "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set",
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Parse request body
-    const { deliveryId, orderId } = await req.json();
-
-    // Support both deliveryId and orderId (for backwards compatibility)
-    const targetDeliveryId = deliveryId || orderId;
-
-    if (!targetDeliveryId) {
-      return new Response(
-        JSON.stringify({ error: "Missing required field: deliveryId or orderId" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Execute assignment
-    const result = await assignDriver(targetDeliveryId);
-
-    return new Response(
-      JSON.stringify(result),
-      { status: result.success ? 200 : 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    if (req.method !== "POST") throw new HttpError(405, "method_not_allowed");
+    const ip = getClientIp(req) || "unknown";
+    await enforceRateLimit(req, "auto-assign-driver:ip", ip, 60, 60);
+    const actor = await authenticateAssignmentActor(req);
+    await enforceRateLimit(
+      req,
+      "auto-assign-driver:actor",
+      actor.actorUserId || `internal:${ip}`,
+      30,
+      60,
     );
 
+    const body = asObject(await readJsonBody<unknown>(req, 8 * 1024));
+    assertAllowedKeys(body, ["deliveryId", "orderId", "cityId"]);
+    const deliveryId = body.deliveryId === undefined ? null : requireUuid(body.deliveryId, "invalid_delivery_id");
+    const orderId = body.orderId === undefined ? null : requireUuid(body.orderId, "invalid_order_id");
+    if ((deliveryId ? 1 : 0) + (orderId ? 1 : 0) !== 1) {
+      throw new HttpError(400, "exactly_one_delivery_identifier_required");
+    }
+    const requestedCityId = body.cityId === undefined ? null : requireUuid(body.cityId, "invalid_city_id");
+    const job = await loadDeliveryJob(deliveryId, orderId);
+    const pickup = await loadPickup(job);
+    const cityId = await resolveCityId(requestedCityId, pickup);
+    return await assignDriver(req, actor, job, cityId, pickup);
   } catch (error) {
-    console.error("Error in auto-assign-driver:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    if (error instanceof HttpError && (error.status === 401 || error.status === 403)) {
+      await recordSecurityEvent(req, {
+        eventType: "authorization.auto_assignment_denied",
+        category: "authorization",
+        severity: "high",
+        outcome: "denied",
+        actorType: "anonymous",
+        action: "auto_assign_driver",
+        metadata: { reason: error.code },
+      });
+    }
+    return safeError(req, error);
   }
 });

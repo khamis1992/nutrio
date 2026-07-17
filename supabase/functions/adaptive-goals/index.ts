@@ -1,11 +1,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// CORS headers
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  enforceRateLimit,
+  errorResponse,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requireInternalSecret,
+  requirePost,
+  requireSelfOrAdmin,
+  type SecurityPrincipal,
+} from "../_shared/security.ts";
 
 interface ProgressData {
   body_measurements: Array<{ date: string; weight: number }>;
@@ -323,25 +330,36 @@ async function storeWeeklyAdherence(
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-  
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    const { user_id, dry_run = false } = await req.json();
-    
-    if (!user_id) {
-      return new Response(
-        JSON.stringify({ error: "User ID required" }), 
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    requirePost(req);
+    const { user_id, dry_run = false } = await readJsonBody<{
+      user_id?: string;
+      dry_run?: boolean;
+    }>(req, 8 * 1024);
+
+    if (!user_id || !/^[0-9a-f-]{36}$/i.test(user_id)) {
+      throw new HttpError(400, "valid_user_id_required");
     }
+
+    let principal: SecurityPrincipal | null = null;
+    if (req.headers.has("x-internal-secret")) {
+      await requireInternalSecret(req, "ADAPTIVE_GOALS_CRON_SECRET");
+    } else {
+      principal = await requireSelfOrAdmin(req, user_id);
+    }
+
+    await enforceRateLimit(
+      req,
+      "adaptive-goals",
+      principal?.user.id || user_id,
+      principal ? 12 : 4,
+      3600,
+    );
+
+    const supabase = getServiceClient();
 
     // Check if user has adaptive goals enabled
     const { data: settings } = await supabase
@@ -351,13 +369,10 @@ serve(async (req) => {
       .maybeSingle();
     
     if (!settings || !settings.auto_adjust_enabled) {
-      return new Response(
-        JSON.stringify({ 
-          message: "Adaptive goals not enabled for this user",
-          recommendation: null 
-        }), 
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse(req, {
+        message: "Adaptive goals not enabled for this user",
+        recommendation: null,
+      });
     }
 
     // Fetch user's profile data
@@ -368,10 +383,7 @@ serve(async (req) => {
       .single();
 
     if (profileError || !profile) {
-      return new Response(
-        JSON.stringify({ error: "Profile not found" }), 
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      throw new HttpError(404, "profile_not_found");
     }
 
     // Fetch canonical body measurements (last 12 weeks)
@@ -497,34 +509,43 @@ serve(async (req) => {
         });
       }
 
-      return new Response(
-        JSON.stringify({
-          recommendation,
-          predictions,
-          adjustment_id: adjustmentRecord?.id,
-          should_notify: recommendation.plateau_detected || recommendation.confidence > 0.8,
-          message: "Analysis complete. Recommendation saved."
-        }), 
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      await recordSecurityEvent(req, {
+        eventType: "nutrition.adaptive_goal.recommendation_created",
+        category: "data_change",
+        severity: "medium",
+        outcome: "success",
+        principal,
+        actorType: principal ? undefined : "system",
+        action: "create_goal_adjustment",
+        resourceType: "auth.user",
+        resourceId: user_id,
+        metadata: {
+          plateau_detected: recommendation.plateau_detected,
+          confidence: recommendation.confidence,
+        },
+      });
+
+      return jsonResponse(req, {
+        recommendation,
+        predictions,
+        adjustment_id: adjustmentRecord?.id,
+        should_notify: recommendation.plateau_detected || recommendation.confidence > 0.8,
+        message: "Analysis complete. Recommendation saved.",
+      });
     }
 
     // Dry run or no change needed
-    return new Response(
-      JSON.stringify({
-        recommendation,
-        predictions,
-        should_notify: false,
-        message: dry_run ? "Analysis complete (dry run - no changes saved)" : "No adjustment needed at this time."
-      }), 
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse(req, {
+      recommendation,
+      predictions,
+      should_notify: false,
+      message: dry_run
+        ? "Analysis complete (dry run - no changes saved)"
+        : "No adjustment needed at this time.",
+    });
 
   } catch (error) {
     console.error("Error in adaptive goals function:", error);
-    return new Response(
-      JSON.stringify({ error: (error as Error).message }), 
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(req, error);
   }
 });

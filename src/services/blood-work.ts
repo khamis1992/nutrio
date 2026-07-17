@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { BloodMarkerDefinition, BloodWorkRecord, BloodMarker } from "@/lib/blood-markers";
+import { uploadSensitiveFile } from "@/lib/private-storage";
 
 const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 
@@ -123,13 +124,7 @@ export async function uploadBloodReport(file: File, userId: string): Promise<str
   }
 
   const path = `${userId}/${Date.now()}-blood-report.pdf`;
-  const { error } = await supabase.storage
-    .from("blood-reports")
-    .upload(path, file, {
-      contentType: "application/pdf",
-      upsert: false,
-    });
-  if (error) throw error;
+  await uploadSensitiveFile("blood-reports", path, file);
 
   return path;
 }

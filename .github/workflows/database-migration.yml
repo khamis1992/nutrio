@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       migration_file:
-        description: 'Migration file name (e.g., 20260318_new_feature.sql)'
+        description: 'Required release marker. All pending migrations are previewed/applied.'
         required: true
         type: string
       environment:
@@ -20,52 +20,89 @@ on:
         required: false
         type: boolean
         default: false
+      deploy_edge_functions:
+        description: 'Deploy Edge functions after migrations succeed'
+        required: false
+        type: boolean
+        default: true
 
 env:
   NODE_VERSION: '22'
+  SUPABASE_CLI_VERSION: '2.109.1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-migration-${{ inputs.environment }}
+  cancel-in-progress: false
 
 jobs:
   migrate:
     name: Run Migration on ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
     permissions:
       contents: read
+    env:
+      MIGRATION_FILE: ${{ inputs.migration_file }}
+      TARGET_ENVIRONMENT: ${{ inputs.environment }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install Supabase CLI
-        run: npm install -g supabase
+        run: npm install --no-save "supabase@${SUPABASE_CLI_VERSION}"
 
       - name: Verify migration file exists
         id: check_file
         run: |
-          if [ -f "supabase/migrations/${{ github.event.inputs.migration_file }}" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Migration file not found: supabase/migrations/${{ github.event.inputs.migration_file }}"
+          if [[ ! "$MIGRATION_FILE" =~ ^[0-9]{8,14}_[A-Za-z0-9_]+\.sql$ ]]; then
+            echo "Migration file must be a base filename with a timestamp and .sql suffix."
             exit 1
           fi
+
+          MIGRATION_PATH="supabase/migrations/$MIGRATION_FILE"
+          if [ ! -f "$MIGRATION_PATH" ]; then
+            echo "Migration file not found: $MIGRATION_PATH"
+            exit 1
+          fi
+
+          git ls-files --error-unmatch "$MIGRATION_PATH" >/dev/null
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "$MIGRATION_PATH" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Preview Migration (Dry Run)
         if: github.event.inputs.dry_run == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          ENVIRONMENT: ${{ github.event.inputs.environment }}
+          DB_URL_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
+          DB_URL_PRODUCTION: ${{ secrets.SUPABASE_DB_URL_PRODUCTION }}
         run: |
-          echo "## Dry Run Preview" >> $GITHUB_STEP_SUMMARY
-          echo "Migration: ${{ github.event.inputs.migration_file }}" >> $GITHUB_STEP_SUMMARY
-          echo "Environment: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          cat "supabase/migrations/${{ github.event.inputs.migration_file }}" >> $GITHUB_STEP_SUMMARY
+          if [ "$TARGET_ENVIRONMENT" = "production" ]; then
+            DB_URL="$DB_URL_PRODUCTION"
+          else
+            DB_URL="$DB_URL_STAGING"
+          fi
+          test -n "$DB_URL"
+
+          npx supabase db push --dry-run --db-url "$DB_URL"
+
+          {
+            echo "## Database dry run"
+            echo "- Release marker: \`$MIGRATION_FILE\`"
+            echo "- Marker SHA-256: \`${{ steps.check_file.outputs.sha256 }}\`"
+            echo "- Environment: \`$TARGET_ENVIRONMENT\`"
+            echo "- Scope: all pending migrations shown in the dry-run output"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Apply Migration
         if: github.event.inputs.dry_run != 'true'
@@ -75,25 +112,64 @@ jobs:
           DB_URL_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
           DB_URL_PRODUCTION: ${{ secrets.SUPABASE_DB_URL_PRODUCTION }}
         run: |
-          echo "Applying migration: ${{ github.event.inputs.migration_file }}"
+          echo "Applying all pending migrations approved by marker: $MIGRATION_FILE"
 
-          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+          if [ "$TARGET_ENVIRONMENT" = "production" ]; then
             DB_URL="$DB_URL_PRODUCTION"
           else
             DB_URL="$DB_URL_STAGING"
           fi
+          test -n "$DB_URL"
 
-          supabase db push \
-            --db-url "$DB_URL" \
-            --project-ref "$SUPABASE_PROJECT_ID"
+          npx supabase db push --db-url "$DB_URL"
+
+      - name: Verify notification runtime contract after migration
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_RUNTIME_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          test -n "$SUPABASE_PROJECT_ID"
+          test -n "$SUPABASE_RUNTIME_SECRET_KEY"
+
+          auth_headers=(-H "apikey: ${SUPABASE_RUNTIME_SECRET_KEY}")
+          if [[ "$SUPABASE_RUNTIME_SECRET_KEY" == eyJ* ]]; then
+            auth_headers+=(-H "Authorization: Bearer ${SUPABASE_RUNTIME_SECRET_KEY}")
+          fi
+
+          runtime_version=$(curl --silent --show-error --fail \
+            "https://${SUPABASE_PROJECT_ID}.supabase.co/rest/v1/rpc/notification_delivery_runtime_version" \
+            -X POST \
+            "${auth_headers[@]}" \
+            -H "Content-Type: application/json" \
+            --data '{}')
+
+          if [ "$runtime_version" != '"20260717090000"' ]; then
+            echo "Database migration completed but the notification runtime contract is not active."
+            exit 1
+          fi
+
+      - name: Deploy Edge functions after database migration
+        if: github.event.inputs.dry_run != 'true' && github.event.inputs.deploy_edge_functions == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: |
+          for dir in supabase/functions/*/; do
+            function_name=$(basename "$dir")
+            if [[ "$function_name" == _* ]]; then
+              continue
+            fi
+            npx supabase functions deploy "$function_name" --project-ref "$SUPABASE_PROJECT_ID"
+          done
 
       - name: Summary
         run: |
-          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
-            echo "## Dry Run Complete" >> $GITHUB_STEP_SUMMARY
-            echo "No changes applied. Run again with Dry Run disabled to apply." >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "## Dry Run Complete" >> "$GITHUB_STEP_SUMMARY"
+            echo "No changes applied. Run again with Dry Run disabled to apply all pending migrations." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "## Migration Applied" >> $GITHUB_STEP_SUMMARY
-            echo "- File: ${{ github.event.inputs.migration_file }}" >> $GITHUB_STEP_SUMMARY
-            echo "- Environment: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+            echo "## Pending Migrations Applied" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Release marker: \`$MIGRATION_FILE\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Environment: \`$TARGET_ENVIRONMENT\`" >> "$GITHUB_STEP_SUMMARY"
           fi

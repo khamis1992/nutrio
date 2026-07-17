@@ -1,13 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import {
+  errorResponse,
+  escapeHtml,
+  getCorsHeaders,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  readJsonBody,
+  requireAdminOrInternal,
+  requirePost,
+} from "../_shared/security.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 interface TierUpgradeRequest {
   user_id: string;
@@ -51,16 +56,20 @@ const tierConfig: Record<string, { color: string; gradient: string; icon: string
 const handler = async (req: Request): Promise<Response> => {
   console.log("Tier upgrade notification function called");
 
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    requirePost(req);
+    await requireAdminOrInternal(req, "AFFILIATE_NOTIFICATION_SECRET");
+    const supabase = getServiceClient();
 
-    const { user_id, old_tier, new_tier }: TierUpgradeRequest = await req.json();
+    const { user_id, old_tier, new_tier } = await readJsonBody<TierUpgradeRequest>(req, 8 * 1024);
+    const allowedTiers = Object.keys(tierConfig);
+    if (!user_id || !allowedTiers.includes(old_tier) || !allowedTiers.includes(new_tier)) {
+      throw new HttpError(400, "invalid_notification_request");
+    }
 
     console.log(`Processing tier upgrade for user ${user_id}: ${old_tier} → ${new_tier}`);
 
@@ -84,7 +93,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("user_id", user_id)
       .single();
 
-    const userName = profile?.full_name || "Affiliate Partner";
+    const userName = escapeHtml(profile?.full_name || "Affiliate Partner");
     const newTierLower = new_tier.toLowerCase();
     const oldTierLower = old_tier.toLowerCase();
     const newTierConfig = tierConfig[newTierLower] || tierConfig.bronze;
@@ -163,7 +172,7 @@ const handler = async (req: Request): Promise<Response> => {
       type: "tier_upgrade",
       title: `${newTierConfig.icon} Tier Upgrade!`,
       message: `Congratulations! You've been promoted from ${old_tier} to ${new_tier} tier.`,
-      metadata: { old_tier, new_tier },
+      data: { old_tier, new_tier },
     });
 
     return new Response(
@@ -175,13 +184,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("Error in send-tier-upgrade-notification function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return errorResponse(req, error);
   }
 };
 

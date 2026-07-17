@@ -3,11 +3,16 @@
 // Calculation source marked as "nutrio-ml-v1" for UX
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  enforceRateLimit,
+  errorResponse,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  requirePost,
+  authenticateRequest,
+} from "../_shared/security.ts";
 
 interface PredictionInput {
   weight_kg: number;
@@ -89,28 +94,44 @@ function calculateMacros(
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    const { weight_kg, height_cm, age, gender, activity_level, goal_type } = await req.json();
+    requirePost(req);
+    const principal = await authenticateRequest(req);
+    await enforceRateLimit(req, "predict-nutrition", principal.user.id, 20, 60);
 
-    // Validate required fields
-    const errors: string[] = [];
-    if (!weight_kg) errors.push("weight_kg");
-    if (!height_cm) errors.push("height_cm");
-    if (!age) errors.push("age");
-    if (!gender) errors.push("gender");
-    if (!activity_level) errors.push("activity_level");
-    if (!goal_type) errors.push("goal_type");
+    const {
+      weight_kg,
+      height_cm,
+      age,
+      gender,
+      activity_level,
+      goal_type,
+    } = await readJsonBody<PredictionInput>(req, 4 * 1024);
 
-    if (errors.length > 0) {
-      return new Response(
-        JSON.stringify({ error: `Missing required fields: ${errors.join(", ")}` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    const finiteRange = (value: unknown, minimum: number, maximum: number) =>
+      typeof value === "number" &&
+      Number.isFinite(value) &&
+      value >= minimum &&
+      value <= maximum;
+
+    if (
+      !finiteRange(weight_kg, 20, 400) ||
+      !finiteRange(height_cm, 80, 260) ||
+      !Number.isInteger(age) ||
+      age < 13 ||
+      age > 120 ||
+      !["male", "female"].includes(gender) ||
+      !["sedentary", "light", "moderate", "active", "very_active"].includes(
+        activity_level,
+      ) ||
+      !["weight_loss", "muscle_gain", "maintenance", "general_health"].includes(
+        goal_type,
+      )
+    ) {
+      throw new HttpError(400, "invalid_nutrition_profile");
     }
 
     // Calculate
@@ -136,14 +157,8 @@ serve(async (req) => {
       tdee,
     };
 
-    return new Response(
-      JSON.stringify(result),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return jsonResponse(req, result);
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Internal error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return errorResponse(req, err);
   }
 });

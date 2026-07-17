@@ -243,7 +243,12 @@ export default function DriverOrderDetail() {
 
   const openMaps = (address: string) => {
     const encoded = encodeURIComponent(address);
-    window.open(`https://www.google.com/maps/search/?api=1&query=${encoded}`, "_blank");
+    const mapsWindow = window.open(
+      `https://www.google.com/maps/search/?api=1&query=${encoded}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+    if (mapsWindow) mapsWindow.opener = null;
   };
 
   const handleQRScan = async (qrData: string) => {

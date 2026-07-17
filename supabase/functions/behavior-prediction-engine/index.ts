@@ -3,12 +3,19 @@
 // Implements weighted scoring algorithms for proactive retention
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  enforceRateLimit,
+  errorResponse,
+  getCorsHeaders,
+  getServiceClient,
+  hasAdminAssurance,
+  handlePreflight,
+  HttpError,
+  readJsonBody,
+  recordSecurityEvent,
+  requirePost,
+  requireSelfOrAdmin,
+} from "../_shared/security.ts";
 
 interface BehaviorMetrics {
   user_id: string;
@@ -304,21 +311,29 @@ async function executeRetentionAction(
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    requirePost(req);
+    const supabaseClient = getServiceClient();
 
     const { 
       user_id, 
       analyze_period_days = 30,
       auto_execute = false 
-    } = await req.json();
+    } = await readJsonBody<{
+      user_id: string;
+      analyze_period_days?: number;
+      auto_execute?: boolean;
+    }>(req, 16 * 1024);
+
+    const principal = await requireSelfOrAdmin(req, user_id);
+    if (auto_execute && !hasAdminAssurance(principal)) {
+      throw new HttpError(403, "admin_required_for_auto_execute");
+    }
+    await enforceRateLimit(req, "behavior-prediction", principal.user.id, 12, 60 * 60);
 
     if (!user_id) {
       return new Response(
@@ -481,6 +496,18 @@ serve(async (req) => {
       }
     }
 
+    await recordSecurityEvent(req, {
+      eventType: auto_execute ? "edge.retention_actions_executed" : "edge.behavior_analysis_completed",
+      category: auto_execute ? "admin" : "edge_function",
+      severity: auto_execute ? "high" : "info",
+      outcome: "success",
+      principal,
+      action: auto_execute ? "execute_retention_actions" : "analyze_behavior",
+      resourceType: "profile",
+      resourceId: user_id,
+      metadata: { auto_execute, executed_action_count: executedActions.length },
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -504,9 +531,6 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in behavior-prediction-engine:", error);
-    return new Response(
-      JSON.stringify({ error: "An unexpected error occurred" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(req, error);
   }
 });

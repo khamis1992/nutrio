@@ -1,17 +1,31 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  authenticateRequest,
+  enforceRateLimit,
+  getClientIp,
+  getCorsHeaders,
+  getServiceClient,
+  hasAdminAssurance,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requirePost,
+  type SecurityPrincipal,
+} from "../_shared/security.ts";
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EXPORT_WINDOW_SECONDS = 24 * 60 * 60;
 
 /**
  * GDPR Data Export Edge Function
- * 
+ *
  * Exports all user data in a structured JSON format for GDPR compliance.
  * Includes: profile, orders, addresses, meal history, subscriptions, etc.
- * 
+ *
  * Rate Limit: 1 export per 24 hours per user
  * Access: User can export own data, admins can export any user data
  */
@@ -21,64 +35,98 @@ interface ExportRequest {
   format?: "json" | "csv";
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+function exportRateLimitResponse(req: Request): Response {
+  return jsonResponse(
+    req,
+    {
+      error: "Rate limit exceeded",
+      message:
+        "You can only export your data once per 24 hours. Please try again later.",
+    },
+    429,
+  );
+}
+
+function exportErrorResponse(req: Request, error: unknown): Response {
+  if (error instanceof HttpError) {
+    if (error.status === 401) {
+      return jsonResponse(req, { error: "Invalid or expired token" }, 401);
+    }
+    if (error.status === 429) return exportRateLimitResponse(req);
+    return jsonResponse(
+      req,
+      {
+        error: error.status >= 500 ? "Export failed" : error.code,
+      },
+      error.status,
+    );
   }
 
+  console.error("Unexpected GDPR export failure");
+  return jsonResponse(req, { error: "Export failed" }, 500);
+}
+
+serve(async (req) => {
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+
+  let principal: SecurityPrincipal | null = null;
+  let targetUserId: string | null = null;
+
   try {
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const adminSupabase = createClient(supabaseUrl, serviceKey);
+    requirePost(req);
+    principal = await authenticateRequest(req);
+    const requesterId = principal.user.id;
+    const parsedBody: unknown = req.body &&
+        req.headers.get("content-length") !== "0"
+      ? await readJsonBody<unknown>(req, 2 * 1024)
+      : {};
+    if (
+      !parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)
+    ) {
+      return jsonResponse(req, { error: "Invalid request body" }, 400);
+    }
+    const requestBody = parsedBody as ExportRequest;
 
-    // Get JWT from Authorization header
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing Authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (
+      requestBody.user_id !== undefined &&
+      (typeof requestBody.user_id !== "string" ||
+        !UUID_PATTERN.test(requestBody.user_id))
+    ) {
+      return jsonResponse(req, { error: "Invalid user ID" }, 400);
+    }
+    if (
+      requestBody.format !== undefined &&
+      requestBody.format !== "json" &&
+      requestBody.format !== "csv"
+    ) {
+      return jsonResponse(req, { error: "Invalid export format" }, 400);
     }
 
-    const token = authHeader.replace("Bearer ", "").trim();
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    targetUserId = requestBody.user_id || requesterId;
+    if (targetUserId !== requesterId && !hasAdminAssurance(principal)) {
+      await recordSecurityEvent(req, {
+        eventType: "authorization.user_data_export_denied",
+        category: "authorization",
+        severity: "high",
+        outcome: "denied",
+        principal,
+        action: "export_user_data",
+        resourceType: "auth.user",
+        resourceId: targetUserId,
+      });
+      return jsonResponse(req, {
+        error: "Unauthorized to export other users' data",
+      }, 403);
     }
 
-    const requesterId = user.id;
-    const requestBody: ExportRequest = await req.json().catch(() => ({}));
-    const targetUserId = requestBody.user_id || requesterId;
+    const isAdmin = targetUserId !== requesterId && hasAdminAssurance(principal);
+    const adminSupabase = getServiceClient();
 
-    // Check if requester is admin (for exporting other users' data)
-    let isAdmin = false;
-    if (targetUserId !== requesterId) {
-      const { data: roleData } = await adminSupabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", requesterId)
-        .eq("role", "admin")
-        .maybeSingle();
-      
-      if (!roleData) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized to export other users' data" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      isAdmin = true;
-    }
-
-    // Check rate limit (1 export per 24 hours)
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    // Preserve the historical log-based window during rollout, then atomically
+    // claim the current window before doing any expensive export work.
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      .toISOString();
     const { count, error: rateLimitError } = await adminSupabase
       .from("gdpr_export_logs")
       .select("*", { count: "exact", head: true })
@@ -86,19 +134,36 @@ serve(async (req) => {
       .gte("created_at", twentyFourHoursAgo);
 
     if (rateLimitError) {
-      console.error("Rate limit check error:", rateLimitError);
+      console.error(
+        "Historical export throttle lookup failed:",
+        rateLimitError.message,
+      );
     } else if (count && count >= 1 && !isAdmin) {
-      return new Response(
-        JSON.stringify({ 
-          error: "Rate limit exceeded",
-          message: "You can only export your data once per 24 hours. Please try again later."
-        }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      await recordSecurityEvent(req, {
+        eventType: "api.user_data_export_rate_limited",
+        category: "api",
+        severity: "medium",
+        outcome: "blocked",
+        principal,
+        action: "export_user_data",
+        resourceType: "auth.user",
+        resourceId: targetUserId,
+      });
+      return exportRateLimitResponse(req);
+    }
+
+    if (!isAdmin) {
+      await enforceRateLimit(
+        req,
+        "export-user-data",
+        targetUserId,
+        1,
+        EXPORT_WINDOW_SECONDS,
       );
     }
 
     // Collect all user data
-    const exportData: any = {
+    const exportData: Record<string, unknown> = {
       export_metadata: {
         user_id: targetUserId,
         exported_at: new Date().toISOString(),
@@ -108,7 +173,9 @@ serve(async (req) => {
     };
 
     // 1. Auth user data
-    const { data: authUser } = await adminSupabase.auth.admin.getUserById(targetUserId);
+    const { data: authUser } = await adminSupabase.auth.admin.getUserById(
+      targetUserId,
+    );
     if (authUser?.user) {
       exportData.auth = {
         id: authUser.user.id,
@@ -138,7 +205,7 @@ serve(async (req) => {
       exportData.restaurants = restaurants;
 
       // 4. Meals for each restaurant
-      const restaurantIds = restaurants.map(r => r.id);
+      const restaurantIds = restaurants.map((r) => r.id);
       const { data: meals } = await adminSupabase
         .from("meals")
         .select("*")
@@ -182,7 +249,7 @@ serve(async (req) => {
       .maybeSingle();
     if (wallet) {
       exportData.wallet = wallet;
-      
+
       const { data: transactions } = await adminSupabase
         .from("wallet_transactions")
         .select("*")
@@ -283,37 +350,72 @@ serve(async (req) => {
       .limit(1000);
     if (auditLogs?.length) exportData.activity_log = auditLogs;
 
-    // Log the export
-    await adminSupabase.from("gdpr_export_logs").insert({
+    const serializedExport = JSON.stringify(exportData, null, 2);
+    const dataSizeBytes = new TextEncoder().encode(serializedExport).byteLength;
+
+    // Do not release personal data unless the compliance record is durable.
+    const { error: exportLogError } = await adminSupabase.from(
+      "gdpr_export_logs",
+    ).insert({
       user_id: targetUserId,
       exported_by: requesterId,
       is_admin_export: isAdmin,
-      data_size_bytes: JSON.stringify(exportData).length,
+      data_size_bytes: dataSizeBytes,
+      ip_address: getClientIp(req),
+      user_agent: (req.headers.get("user-agent") || "unknown").slice(0, 1000),
+    });
+    if (exportLogError) {
+      console.error(
+        "GDPR export compliance log failed:",
+        exportLogError.message,
+      );
+      throw new HttpError(503, "export_logging_unavailable");
+    }
+
+    await recordSecurityEvent(req, {
+      eventType: "data_change.user_data_exported",
+      category: isAdmin ? "admin" : "data_change",
+      severity: "high",
+      outcome: "success",
+      principal,
+      action: "export_user_data",
+      resourceType: "auth.user",
+      resourceId: targetUserId,
+      metadata: {
+        is_admin_export: isAdmin,
+        data_size_bytes: dataSizeBytes,
+        format: requestBody.format || "json",
+      },
     });
 
     // Return the export
     return new Response(
-      JSON.stringify(exportData, null, 2),
+      serializedExport,
       {
         headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-          "Content-Disposition": `attachment; filename="gdpr-export-${targetUserId}-${Date.now()}.json"`,
+          ...getCorsHeaders(req),
+          "Content-Type": "application/json; charset=utf-8",
+          "Content-Disposition":
+            `attachment; filename="gdpr-export-${targetUserId}-${Date.now()}.json"`,
         },
-      }
+      },
     );
-
   } catch (error) {
-    console.error("GDPR export error:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: "Export failed", 
-        details: (error as Error).message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
-    );
+    if (
+      principal && targetUserId &&
+      !(error instanceof HttpError && error.status < 500)
+    ) {
+      await recordSecurityEvent(req, {
+        eventType: "edge.user_data_export_failed",
+        category: "edge_function",
+        severity: "high",
+        outcome: "failure",
+        principal,
+        action: "export_user_data",
+        resourceType: "auth.user",
+        resourceId: targetUserId,
+      });
+    }
+    return exportErrorResponse(req, error);
   }
 });

@@ -6,6 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import {
+  createPrivateStorageUrl,
+  uploadSensitiveFile,
+  validatePrivateStorageFile,
+} from "@/lib/private-storage";
 import { Upload, Car, User } from "lucide-react";
 import type { Vehicle, VehicleType, VehicleStatus, Driver } from "@/fleet/types/fleet";
 
@@ -32,6 +37,8 @@ export function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle, availabl
   });
   const [vehiclePhoto, setVehiclePhoto] = useState<File | null>(null);
   const [registrationDoc, setRegistrationDoc] = useState<File | null>(null);
+  const [vehiclePhotoPreview, setVehiclePhotoPreview] = useState<string | null>(null);
+  const [registrationDocPreview, setRegistrationDocPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (vehicle) {
@@ -46,6 +53,27 @@ export function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle, availabl
         status: vehicle.status,
         assignedDriverId: vehicle.assignedDriverId || "",
       });
+
+      void Promise.all([
+        vehicle.vehiclePhotoUrl
+          ? createPrivateStorageUrl("fleet-documents", vehicle.vehiclePhotoUrl, 300)
+          : Promise.resolve(null),
+        vehicle.registrationDocumentUrl
+          ? createPrivateStorageUrl("fleet-documents", vehicle.registrationDocumentUrl, 300)
+          : Promise.resolve(null),
+      ])
+        .then(([photoUrl, documentUrl]) => {
+          setVehiclePhotoPreview(photoUrl);
+          setRegistrationDocPreview(documentUrl);
+        })
+        .catch((error) => {
+          console.error("Failed to create private vehicle document URL:", error);
+          setVehiclePhotoPreview(null);
+          setRegistrationDocPreview(null);
+        });
+    } else {
+      setVehiclePhotoPreview(null);
+      setRegistrationDocPreview(null);
     }
   }, [vehicle]);
 
@@ -54,6 +82,7 @@ export function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle, availabl
     if (!vehicle) return;
 
     setIsLoading(true);
+    const uploadedPaths: string[] = [];
 
     try {
       let vehiclePhotoUrl = vehicle.vehiclePhotoUrl;
@@ -61,34 +90,32 @@ export function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle, availabl
 
       // Upload new vehicle photo if provided
       if (vehiclePhoto) {
-        const fileExt = vehiclePhoto.name.split('.').pop();
-        const fileName = `vehicles/${Date.now()}_photo.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('fleet-documents')
-          .upload(fileName, vehiclePhoto);
+        if (!vehicle.cityId) throw new Error("Vehicle city is required before uploading files");
+        const fileExt = validatePrivateStorageFile(
+          vehiclePhoto,
+          ["image/jpeg", "image/png", "image/webp"],
+          10 * 1024 * 1024,
+        );
+        const fileName = `cities/${vehicle.cityId}/vehicles/${vehicle.id}/${crypto.randomUUID()}_photo.${fileExt}`;
+        await uploadSensitiveFile("fleet-documents", fileName, vehiclePhoto);
         
-        if (uploadError) throw uploadError;
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('fleet-documents')
-          .getPublicUrl(fileName);
-        vehiclePhotoUrl = publicUrl;
+        uploadedPaths.push(fileName);
+        vehiclePhotoUrl = fileName;
       }
 
       // Upload new registration document if provided
       if (registrationDoc) {
-        const fileExt = registrationDoc.name.split('.').pop();
-        const fileName = `vehicles/${Date.now()}_reg.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('fleet-documents')
-          .upload(fileName, registrationDoc);
+        if (!vehicle.cityId) throw new Error("Vehicle city is required before uploading files");
+        const fileExt = validatePrivateStorageFile(
+          registrationDoc,
+          ["application/pdf", "image/jpeg", "image/png", "image/webp"],
+          10 * 1024 * 1024,
+        );
+        const fileName = `cities/${vehicle.cityId}/vehicles/${vehicle.id}/${crypto.randomUUID()}_registration.${fileExt}`;
+        await uploadSensitiveFile("fleet-documents", fileName, registrationDoc);
         
-        if (uploadError) throw uploadError;
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('fleet-documents')
-          .getPublicUrl(fileName);
-        registrationDocUrl = publicUrl;
+        uploadedPaths.push(fileName);
+        registrationDocUrl = fileName;
       }
 
       // Update vehicle record
@@ -119,6 +146,10 @@ export function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle, availabl
       onSuccess();
       onClose();
     } catch (error) {
+      if (uploadedPaths.length > 0) {
+        const { error: cleanupError } = await supabase.storage.from("fleet-documents").remove(uploadedPaths);
+        if (cleanupError) console.error("Failed to remove orphaned vehicle files:", cleanupError);
+      }
       console.error("Error updating vehicle:", error);
       toast({
         title: "Error",
@@ -308,10 +339,10 @@ export function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle, availabl
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Vehicle Photo</Label>
-              {vehicle.vehiclePhotoUrl && (
+              {vehiclePhotoPreview && (
                 <div className="mb-2">
                   <img 
-                    src={vehicle.vehiclePhotoUrl} 
+                    src={vehiclePhotoPreview} 
                     alt="Current vehicle" 
                     className="h-32 w-auto rounded-lg object-cover"
                   />
@@ -336,10 +367,10 @@ export function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle, availabl
 
             <div className="space-y-2">
               <Label>Registration Document</Label>
-              {vehicle.registrationDocumentUrl && (
+              {registrationDocPreview && (
                 <div className="mb-2">
                   <a 
-                    href={vehicle.registrationDocumentUrl} 
+                    href={registrationDocPreview} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-blue-500 hover:underline text-sm"

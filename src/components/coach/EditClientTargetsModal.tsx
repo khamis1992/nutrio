@@ -105,12 +105,12 @@ export function EditClientTargetsModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center p-0 sm:items-center sm:p-4">
       {/* Overlay */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-[#08162f]/60 backdrop-blur-sm"
         onClick={onClose}
       />
 
@@ -119,7 +119,7 @@ export function EditClientTargetsModal({
         initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 300, damping: 28 }}
-        className="relative z-10 w-full max-w-[400px] bg-white rounded-3xl shadow-xl border border-gray-100 flex flex-col"
+        className="relative z-10 w-full max-w-[400px] bg-white rounded-t-[28px] sm:rounded-[28px] shadow-xl border border-gray-100 flex flex-col pb-[env(safe-area-inset-bottom)]"
         style={{ maxHeight: "calc(100dvh - 100px - env(safe-area-inset-bottom, 16px) - 32px)" }}
       >
         {/* Fixed header */}
@@ -130,6 +130,7 @@ export function EditClientTargetsModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close target editor"
             className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
           >
             <X className="w-4 h-4 text-gray-500" />

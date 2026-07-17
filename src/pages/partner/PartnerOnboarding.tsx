@@ -27,6 +27,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import {
+  completePartnerOnboarding,
+  isAtomicPartnerOnboardingUnavailable,
+  isPartnerOnboardingOutcomeAmbiguous,
+  savePartnerBankingInfo,
+} from "@/lib/partner-banking";
 
 // Available cuisine types
 const CUISINE_TYPES = [
@@ -122,6 +128,51 @@ const defaultOperatingHours: Record<string, OperatingHours> = {
   saturday: { is_open: true, open: "09:00", close: "22:00" },
   sunday: { is_open: true, open: "09:00", close: "22:00" },
 };
+
+const onboardingRequestStorageKey = (userId: string) =>
+  `nutrio:partner-onboarding:${userId}`;
+
+const getOnboardingRequestKey = (userId: string): string => {
+  const storageKey = onboardingRequestStorageKey(userId);
+
+  try {
+    const existing = window.sessionStorage.getItem(storageKey);
+    if (
+      existing &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        existing,
+      )
+    ) {
+      return existing;
+    }
+
+    const requestKey = crypto.randomUUID();
+    window.sessionStorage.setItem(storageKey, requestKey);
+    return requestKey;
+  } catch {
+    return crypto.randomUUID();
+  }
+};
+
+const clearOnboardingRequestKey = (userId: string) => {
+  try {
+    window.sessionStorage.removeItem(onboardingRequestStorageKey(userId));
+  } catch {
+    // A blocked sessionStorage must not turn a completed registration into a failure.
+  }
+};
+
+interface UploadedRestaurantAsset {
+  bucket: "restaurant-logos" | "restaurant-photos";
+  path: string;
+}
+
+class UncertainPartnerOnboardingStateError extends Error {
+  constructor() {
+    super("Partner onboarding result could not be confirmed");
+    this.name = "UncertainPartnerOnboardingStateError";
+  }
+}
 
 const PartnerOnboarding = () => {
   const navigate = useNavigate();
@@ -250,9 +301,9 @@ const PartnerOnboarding = () => {
         return (
           data.avg_prep_time_minutes > 0 &&
           data.max_meals_per_day > 0 &&
-          data.bank_name.trim().length > 0 &&
-          data.bank_account_name.trim().length > 0 &&
-          data.bank_account_number.trim().length > 0
+          data.bank_name.trim().length >= 2 &&
+          data.bank_account_name.trim().length >= 2 &&
+          data.bank_account_number.trim().length >= 4
         );
       case 5:
         return data.terms_accepted;
@@ -261,14 +312,127 @@ const PartnerOnboarding = () => {
     }
   };
 
+  const completeLegacyOnboarding = async (
+    logoUrl: string | null,
+  ): Promise<string> => {
+    if (!user) throw new Error("Authentication required");
+
+    let createdRestaurantId: string | null = null;
+
+    try {
+      const { data: restaurant, error: restaurantError } = await supabase
+        .from("restaurants")
+        .insert({
+          owner_id: user.id,
+          name: data.name,
+          description: data.description,
+          address: data.address,
+          phone: data.phone,
+          email: data.email,
+          logo_url: logoUrl,
+          approval_status: "pending",
+          is_active: false,
+          cuisine_types: data.cuisine_types,
+          operating_hours: data.operating_hours as unknown as Json,
+          avg_prep_time_minutes: data.avg_prep_time_minutes,
+          max_meals_per_day: data.max_meals_per_day,
+        })
+        .select("id")
+        .single();
+
+      if (restaurantError) throw restaurantError;
+      createdRestaurantId = restaurant.id;
+
+      const { error: detailsError } = await supabase
+        .from("restaurant_details")
+        .insert({
+          restaurant_id: createdRestaurantId,
+          cuisine_type: data.cuisine_types,
+          dietary_tags: data.dietary_tags,
+          website_url: data.website,
+          operating_hours: data.operating_hours as unknown as Json,
+          avg_prep_time_minutes: data.avg_prep_time_minutes,
+          max_meals_per_day: data.max_meals_per_day,
+          onboarding_completed: false,
+          terms_accepted: true,
+          terms_accepted_at: new Date().toISOString(),
+        });
+
+      if (detailsError) throw detailsError;
+
+      await savePartnerBankingInfo({
+        restaurantId: createdRestaurantId,
+        bankName: data.bank_name,
+        accountName: data.bank_account_name,
+        accountNumber: data.bank_account_number,
+        iban: data.bank_iban,
+        swiftCode: null,
+        payoutFrequency: "weekly",
+      });
+
+      const { error: completionError } = await supabase
+        .from("restaurant_details")
+        .update({ onboarding_completed: true, onboarding_step: 5 })
+        .eq("restaurant_id", createdRestaurantId);
+
+      if (completionError) throw completionError;
+
+      // Older deployments may still rely on the restaurant role. A partner
+      // role is already sufficient for the hardened policies, so this remains
+      // a best-effort compatibility write rather than risking an orphan.
+      const { data: existingRole, error: roleLookupError } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("role", "restaurant")
+        .maybeSingle();
+
+      if (!roleLookupError && !existingRole) {
+        const { error: roleError } = await supabase.from("user_roles").insert({
+          user_id: user.id,
+          role: "restaurant",
+        });
+        if (roleError) {
+          console.warn("Legacy partner role compatibility write was denied");
+        }
+      }
+
+      return createdRestaurantId;
+    } catch (error) {
+      if (!createdRestaurantId) throw error;
+
+      // Compensate only the row created by this attempt. The ownership and
+      // pending/inactive predicates prevent deletion of another restaurant.
+      const { data: removed, error: rollbackError } = await supabase
+        .from("restaurants")
+        .delete()
+        .eq("id", createdRestaurantId)
+        .eq("owner_id", user.id)
+        .eq("approval_status", "pending")
+        .eq("is_active", false)
+        .select("id")
+        .maybeSingle();
+
+      if (rollbackError || !removed) {
+        console.error("Legacy partner onboarding rollback could not be verified");
+        throw new UncertainPartnerOnboardingStateError();
+      }
+
+      throw error;
+    }
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
+
+    const uploadedAssets: UploadedRestaurantAsset[] = [];
+    let registrationCommitted = false;
+    let onboardingOutcomeAmbiguous = false;
 
     try {
       setSubmitting(true);
 
       let logoUrl: string | null = null;
-      const photoUrls: string[] = [];
 
       // Upload logo if provided
       if (data.logoFile) {
@@ -281,6 +445,7 @@ const PartnerOnboarding = () => {
           .upload(filePath, data.logoFile);
 
         if (uploadError) throw uploadError;
+        uploadedAssets.push({ bucket: "restaurant-logos", path: filePath });
 
         const { data: urlData } = supabase.storage
           .from("restaurant-logos")
@@ -300,72 +465,71 @@ const PartnerOnboarding = () => {
           .upload(filePath, photo);
 
         if (uploadError) throw uploadError;
+        uploadedAssets.push({ bucket: "restaurant-photos", path: filePath });
 
-        const { data: urlData } = supabase.storage
-          .from("restaurant-photos")
-          .getPublicUrl(filePath);
-
-        photoUrls.push(urlData.publicUrl);
+        // Photo records are managed by the existing media workflow. Tracking
+        // the object path here lets us remove it if registration fails.
       }
 
-      // Create restaurant
-      const { data: restaurant, error: restaurantError } = await supabase
-        .from("restaurants")
-        .insert({
-          owner_id: user.id,
+      const requestKey = getOnboardingRequestKey(user.id);
+      const submitAtomically = () =>
+        completePartnerOnboarding({
+          requestKey,
           name: data.name,
           description: data.description,
           address: data.address,
           phone: data.phone,
           email: data.email,
-          logo_url: logoUrl,
-          approval_status: "pending",
-          cuisine_types: data.cuisine_types,
-          operating_hours: data.operating_hours as unknown as Json,
-          avg_prep_time_minutes: data.avg_prep_time_minutes,
-          max_meals_per_day: data.max_meals_per_day,
-        })
-        .select()
-        .single();
-
-      if (restaurantError) throw restaurantError;
-
-      // Create restaurant details
-      const { error: detailsError } = await supabase
-        .from("restaurant_details")
-        .insert({
-          restaurant_id: restaurant.id,
-          cuisine_type: data.cuisine_types,
-          dietary_tags: data.dietary_tags,
-          website_url: data.website,
-          operating_hours: data.operating_hours as unknown as Json,
-          avg_prep_time_minutes: data.avg_prep_time_minutes,
-          max_meals_per_day: data.max_meals_per_day,
-          bank_name: data.bank_name,
-          bank_account_name: data.bank_account_name,
-          bank_account_number: data.bank_account_number,
-          bank_iban: data.bank_iban,
-          onboarding_completed: true,
-          terms_accepted: true,
-          terms_accepted_at: new Date().toISOString(),
+          websiteUrl: data.website,
+          logoUrl,
+          cuisineTypes: data.cuisine_types,
+          dietaryTags: data.dietary_tags,
+          operatingHours: data.operating_hours,
+          averagePreparationMinutes: data.avg_prep_time_minutes,
+          maximumMealsPerDay: data.max_meals_per_day,
+          bankName: data.bank_name,
+          accountName: data.bank_account_name,
+          accountNumber: data.bank_account_number,
+          iban: data.bank_iban,
+          swiftCode: null,
+          payoutFrequency: "weekly",
+          termsAccepted: data.terms_accepted,
         });
 
-      if (detailsError) throw detailsError;
-
-      // Add partner role if not already present
-      const { data: existingRole } = await supabase
-        .from("user_roles")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("role", "restaurant")
-        .maybeSingle();
-
-      if (!existingRole) {
-        await supabase.from("user_roles").insert({
-          user_id: user.id,
-          role: "restaurant",
-        });
+      try {
+        await submitAtomically();
+      } catch (error) {
+        if (isAtomicPartnerOnboardingUnavailable(error)) {
+          await completeLegacyOnboarding(logoUrl);
+        } else if (isPartnerOnboardingOutcomeAmbiguous(error)) {
+          try {
+            // The same request key makes this a read-after-uncertain-write
+            // confirmation rather than a second restaurant creation.
+            await submitAtomically();
+          } catch (retryError) {
+            if (
+              isPartnerOnboardingOutcomeAmbiguous(retryError) ||
+              isAtomicPartnerOnboardingUnavailable(retryError)
+            ) {
+              onboardingOutcomeAmbiguous = true;
+              throw new UncertainPartnerOnboardingStateError();
+            }
+            throw retryError;
+          }
+        } else {
+          throw error;
+        }
       }
+
+      registrationCommitted = true;
+      clearOnboardingRequestKey(user.id);
+      setData((current) => ({
+        ...current,
+        bank_name: "",
+        bank_account_name: "",
+        bank_account_number: "",
+        bank_iban: "",
+      }));
 
       toast({
         title: "Restaurant registered!",
@@ -374,10 +538,44 @@ const PartnerOnboarding = () => {
 
       navigate("/partner");
     } catch (error) {
-      console.error("Error creating restaurant:", error);
+      if (
+        !registrationCommitted &&
+        !onboardingOutcomeAmbiguous &&
+        !(error instanceof UncertainPartnerOnboardingStateError) &&
+        uploadedAssets.length > 0
+      ) {
+        const assetsByBucket = uploadedAssets.reduce<
+          Record<UploadedRestaurantAsset["bucket"], string[]>
+        >(
+          (grouped, asset) => {
+            grouped[asset.bucket].push(asset.path);
+            return grouped;
+          },
+          { "restaurant-logos": [], "restaurant-photos": [] },
+        );
+
+        for (const [bucket, paths] of Object.entries(assetsByBucket)) {
+          if (paths.length === 0) continue;
+          const { error: cleanupError } = await supabase.storage
+            .from(bucket)
+            .remove(paths);
+          if (cleanupError) {
+            console.error("Failed to clean up an uncommitted onboarding upload");
+          }
+        }
+      }
+
+      console.error(
+        "Error creating restaurant:",
+        error instanceof Error ? error.message : "Unknown registration error",
+      );
       toast({
         title: "Error",
-        description: "Failed to register restaurant. Please try again.",
+        description:
+          onboardingOutcomeAmbiguous ||
+          error instanceof UncertainPartnerOnboardingStateError
+            ? "We could not confirm the result. Try again safely; the same request will not create a duplicate."
+            : "Failed to register restaurant. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -742,6 +940,8 @@ const PartnerOnboarding = () => {
                       value={data.bank_name}
                       onChange={(e) => updateData("bank_name", e.target.value)}
                       placeholder="e.g., Qatar National Bank"
+                      autoComplete="off"
+                      spellCheck={false}
                     />
                   </div>
 
@@ -752,6 +952,8 @@ const PartnerOnboarding = () => {
                       value={data.bank_account_name}
                       onChange={(e) => updateData("bank_account_name", e.target.value)}
                       placeholder="Full name as on bank account"
+                      autoComplete="off"
+                      spellCheck={false}
                     />
                   </div>
 
@@ -762,6 +964,8 @@ const PartnerOnboarding = () => {
                       value={data.bank_account_number}
                       onChange={(e) => updateData("bank_account_number", e.target.value)}
                       placeholder="Bank account number"
+                      autoComplete="off"
+                      spellCheck={false}
                     />
                   </div>
 
@@ -772,6 +976,9 @@ const PartnerOnboarding = () => {
                       value={data.bank_iban}
                       onChange={(e) => updateData("bank_iban", e.target.value)}
                       placeholder="QA00XXXXXXXXXXXXXXXXXXXXXXXX"
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
                     />
                   </div>
                 </div>

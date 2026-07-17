@@ -9,7 +9,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 
-import { Logo } from "@/components/Logo";
+import { AnimatedNutrioLogo } from "@/components/motion/AnimatedNutrioLogo";
 import { assetPath } from "@/lib/asset-path";
 
 const C = {
@@ -147,7 +147,7 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
           className="fixed inset-0 z-50 mx-auto flex h-[100dvh] max-w-[430px] flex-col overflow-hidden bg-[#F6F8FB] text-[#020617]"
         >
           <header className="relative z-10 flex h-[calc(74px+env(safe-area-inset-top))] shrink-0 items-center justify-between px-5 pt-[env(safe-area-inset-top)]">
-            <Logo size="xl" className="!h-16 max-[380px]:!h-14" />
+            <AnimatedNutrioLogo className="h-16 w-16 max-[380px]:h-14 max-[380px]:w-14" />
             <button
               type="button"
               onClick={finish}

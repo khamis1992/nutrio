@@ -1,6 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type User } from "https://esm.sh/@supabase/supabase-js@2";
 
+import {
+  enforceRateLimit,
+  getClientIp,
+  getCorsHeaders,
+  getServiceClient,
+  getSupabasePublishableKey,
+  HttpError,
+  readJsonBody,
+  recordSecurityEvent,
+} from "../_shared/security.ts";
+
 const SADAD_CHECKOUT_URL = "https://sadadqa.com/webpurchase";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -47,35 +58,9 @@ interface PaymentRecord {
 }
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 function corsHeaders(req: Request): Record<string, string> {
-  const requestOrigin = req.headers.get("Origin");
-  const configuredOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-  const appUrl = Deno.env.get("APP_URL");
-
-  if (appUrl) {
-    try {
-      configuredOrigins.push(new URL(appUrl).origin);
-    } catch {
-      // A malformed APP_URL is handled when a callback redirect is needed.
-    }
-  }
-
-  const allowOrigin = requestOrigin && configuredOrigins.includes(requestOrigin)
-    ? requestOrigin
-    : configuredOrigins[0] ?? "*";
-
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Vary": "Origin",
-  };
+  return getCorsHeaders(req);
 }
 
 function jsonResponse(
@@ -94,7 +79,13 @@ function serverConfig() {
   const secretKey = Deno.env.get("SADAD_SECRET_KEY")?.trim();
   const website = Deno.env.get("SADAD_WEBSITE")?.trim();
 
-  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+  if (!supabaseUrl) {
+    throw new Error("SUPABASE_SERVER_CONFIGURATION_MISSING");
+  }
+  try {
+    getSupabasePublishableKey();
+    getServiceClient();
+  } catch {
     throw new Error("SUPABASE_SERVER_CONFIGURATION_MISSING");
   }
   if (!merchantId || !secretKey || !website) {
@@ -105,20 +96,21 @@ function serverConfig() {
 }
 
 function adminClient() {
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("SUPABASE_SERVER_CONFIGURATION_MISSING");
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  return getServiceClient();
 }
 
 async function authenticate(req: Request): Promise<User | null> {
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader || !supabaseUrl || !anonKey) return null;
+  if (!authHeader || !supabaseUrl) return null;
 
-  const client = createClient(supabaseUrl, anonKey, {
+  let publishableKey: string;
+  try {
+    publishableKey = getSupabasePublishableKey();
+  } catch {
+    return null;
+  }
+
+  const client = createClient(supabaseUrl, publishableKey, {
     global: { headers: { Authorization: authHeader } },
     auth: { autoRefreshToken: false, persistSession: false },
   });
@@ -193,17 +185,65 @@ function scalarRecord(value: Record<string, unknown>): ScalarRecord {
   );
 }
 
-function parseFormPayload(form: FormData): ScalarRecord {
-  const result: ScalarRecord = {};
-  for (const [key, value] of form.entries()) {
-    if (typeof value === "string") result[key] = value;
+async function readCallbackPayload(req: Request): Promise<ScalarRecord> {
+  const contentType = (req.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("application/x-www-form-urlencoded")) {
+    throw new HttpError(415, "CALLBACK_CONTENT_TYPE_INVALID");
   }
-  return result;
+
+  const declaredLength = Number(req.headers.get("content-length") || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > 32 * 1024) {
+    throw new HttpError(413, "CALLBACK_TOO_LARGE");
+  }
+
+  const raw = await req.text();
+  if (new TextEncoder().encode(raw).byteLength > 32 * 1024) {
+    throw new HttpError(413, "CALLBACK_TOO_LARGE");
+  }
+
+  const payload: ScalarRecord = {};
+  for (const [key, value] of new URLSearchParams(raw)) {
+    if (key.length <= 100 && value.length <= 4096) payload[key] = value;
+  }
+  return payload;
+}
+
+async function sanitizeProviderPayload(payload: ScalarRecord): Promise<ScalarRecord> {
+  const canonical = JSON.stringify(
+    Object.fromEntries(Object.entries(payload).sort(([left], [right]) => left.localeCompare(right))),
+  );
+  const allowedKeys = new Set([
+    "ORDERID",
+    "websiteRefNo",
+    "transaction_number",
+    "transactionNumber",
+    "transaction_status",
+    "transactionStatus",
+    "TXNAMOUNT",
+    "txnAmount",
+    "MID",
+    "merchantId",
+    "RESPCODE",
+    "RESPMSG",
+  ]);
+  const sanitized: ScalarRecord = {
+    evidence_sha256: (await sha256(canonical)).toLowerCase(),
+  };
+  for (const [key, value] of Object.entries(payload)) {
+    if (allowedKeys.has(key)) sanitized[key] = value;
+  }
+  return sanitized;
 }
 
 function callbackUrl(): string {
   const configured = Deno.env.get("SADAD_CALLBACK_URL")?.trim();
-  if (configured) return configured;
+  if (configured) {
+    const url = new URL(configured);
+    if (url.protocol !== "https:" || url.username || url.password) {
+      throw new Error("SADAD_CALLBACK_URL_INVALID");
+    }
+    return url.toString();
+  }
   if (!supabaseUrl) throw new Error("SUPABASE_SERVER_CONFIGURATION_MISSING");
   return `${supabaseUrl}/functions/v1/sadad-payment?source=callback`;
 }
@@ -214,6 +254,7 @@ function resultRedirect(paymentId: string): string | null {
 
   try {
     const url = new URL(appUrl);
+    if (url.protocol !== "https:" || url.username || url.password) return null;
     const basePath = url.pathname.replace(/\/$/, "");
     url.pathname = `${basePath}/payment/result`;
     url.searchParams.set("paymentId", paymentId);
@@ -342,7 +383,7 @@ async function handleCreate(
   if (!mobileNumber) {
     return jsonResponse(req, { error: "QATAR_MOBILE_NUMBER_REQUIRED" }, 400);
   }
-  if (!user.email) {
+  if (!user.email || !user.email_confirmed_at) {
     return jsonResponse(req, { error: "CUSTOMER_EMAIL_REQUIRED" }, 400);
   }
 
@@ -448,7 +489,15 @@ async function handleStatus(
 
 async function handleCallback(req: Request): Promise<Response> {
   const { merchantId, secretKey } = serverConfig();
-  const payload = parseFormPayload(await req.formData());
+  await enforceRateLimit(
+    req,
+    "sadad-callback",
+    getClientIp(req) || "unknown",
+    60,
+    10 * 60,
+  );
+  const payload = await readCallbackPayload(req);
+  const evidencePayload = await sanitizeProviderPayload(payload);
   const paymentId = String(payload.ORDERID ?? "");
   const transactionId = String(payload.transaction_number ?? "");
   const providerStatus = String(payload.transaction_status ?? "");
@@ -459,10 +508,21 @@ async function handleCallback(req: Request): Promise<Response> {
     transactionId: transactionId || null,
     providerStatus: providerStatus || null,
     checksumValid,
-    payload,
+    payload: evidencePayload,
   });
 
   if (!checksumValid) {
+    await recordSecurityEvent(req, {
+      eventType: "payment.sadad.invalid_callback_signature",
+      category: "payment",
+      severity: "critical",
+      outcome: "blocked",
+      actorType: "anonymous",
+      action: "verify_provider_callback",
+      resourceType: "public.payments",
+      resourceId: UUID_PATTERN.test(paymentId) ? paymentId : undefined,
+      metadata: { evidence_sha256: evidencePayload.evidence_sha256 },
+    });
     await finishProviderEvent(eventId, "INVALID_CHECKSUM");
     return new Response("INVALID CHECKSUM", { status: 400 });
   }
@@ -483,8 +543,29 @@ async function handleCallback(req: Request): Promise<Response> {
     return new Response("INVALID PAYMENT STATUS", { status: 400 });
   }
 
-  const result = await applyProviderStatus({ payment, transactionId, status, payload });
+  const result = await applyProviderStatus({
+    payment,
+    transactionId,
+    status,
+    payload: evidencePayload,
+  });
   await finishProviderEvent(eventId, result.error);
+
+  await recordSecurityEvent(req, {
+    eventType: "payment.sadad.callback_processed",
+    category: "payment",
+    severity: "medium",
+    outcome: result.success ? "success" : "failure",
+    actorType: "service",
+    actorRole: "sadad",
+    action: "apply_provider_status",
+    resourceType: "public.payments",
+    resourceId: payment.id,
+    metadata: {
+      provider_status: status,
+      evidence_sha256: evidencePayload.evidence_sha256,
+    },
+  });
 
   const redirect = resultRedirect(payment.id);
   if (redirect) {
@@ -504,9 +585,17 @@ async function handleWebhook(req: Request): Promise<Response> {
   let eventId: string | null = null;
 
   try {
+    await enforceRateLimit(
+      req,
+      "sadad-webhook",
+      getClientIp(req) || "unknown",
+      300,
+      10 * 60,
+    );
     const { merchantId, secretKey } = serverConfig();
-    const raw = await req.json() as Record<string, unknown>;
+    const raw = await readJsonBody<Record<string, unknown>>(req, 32 * 1024);
     const payload = scalarRecord(raw);
+    const evidencePayload = await sanitizeProviderPayload(payload);
     const paymentId = String(payload.websiteRefNo ?? "");
     const transactionId = String(payload.transactionNumber ?? "");
     const providerStatus = String(payload.transactionStatus ?? "");
@@ -518,10 +607,23 @@ async function handleWebhook(req: Request): Promise<Response> {
       transactionId: transactionId || null,
       providerStatus: providerStatus || null,
       checksumValid,
-      payload,
+      payload: evidencePayload,
     });
 
-    if (!checksumValid) throw new Error("INVALID_CHECKSUM");
+    if (!checksumValid) {
+      await recordSecurityEvent(req, {
+        eventType: "payment.sadad.invalid_webhook_signature",
+        category: "payment",
+        severity: "critical",
+        outcome: "blocked",
+        actorType: "anonymous",
+        action: "verify_provider_webhook",
+        resourceType: "public.payments",
+        resourceId: UUID_PATTERN.test(paymentId) ? paymentId : undefined,
+        metadata: { evidence_sha256: evidencePayload.evidence_sha256 },
+      });
+      throw new Error("INVALID_CHECKSUM");
+    }
     if (!UUID_PATTERN.test(paymentId) || String(payload.merchantId ?? "") !== merchantId) {
       throw new Error("PAYMENT_REFERENCE_MISMATCH");
     }
@@ -536,8 +638,28 @@ async function handleWebhook(req: Request): Promise<Response> {
       throw new Error("PAYMENT_STATUS_INVALID");
     }
 
-    const result = await applyProviderStatus({ payment, transactionId, status, payload });
+    const result = await applyProviderStatus({
+      payment,
+      transactionId,
+      status,
+      payload: evidencePayload,
+    });
     await finishProviderEvent(eventId, result.error);
+    await recordSecurityEvent(req, {
+      eventType: "payment.sadad.webhook_processed",
+      category: "payment",
+      severity: "medium",
+      outcome: result.success ? "success" : "failure",
+      actorType: "service",
+      actorRole: "sadad",
+      action: "apply_provider_status",
+      resourceType: "public.payments",
+      resourceId: payment.id,
+      metadata: {
+        provider_status: status,
+        evidence_sha256: evidencePayload.evidence_sha256,
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "WEBHOOK_PROCESSING_FAILED";
     console.error("SADAD webhook rejected", message);
@@ -565,7 +687,9 @@ serve(async (req: Request) => {
     const user = await authenticate(req);
     if (!user) return jsonResponse(req, { error: "UNAUTHORIZED" }, 401);
 
-    const body = await req.json().catch(() => null) as AuthenticatedOperation | null;
+    await enforceRateLimit(req, "sadad-customer", user.id, 120, 10 * 60);
+
+    const body = await readJsonBody<AuthenticatedOperation>(req, 16 * 1024);
     if (!body || typeof body.op !== "string" || !body.payload) {
       return jsonResponse(req, { error: "INVALID_REQUEST" }, 400);
     }
@@ -584,6 +708,9 @@ serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "INTERNAL_SERVER_ERROR";
     console.error("sadad-payment error", message);
+    if (error instanceof HttpError) {
+      return jsonResponse(req, { error: error.code }, error.status);
+    }
     const isConfigError = message.endsWith("CONFIGURATION_MISSING");
     return jsonResponse(
       req,

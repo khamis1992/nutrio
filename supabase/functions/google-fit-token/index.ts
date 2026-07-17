@@ -1,66 +1,68 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+import { saveGoogleFitCredentials } from "../_shared/googleFit.ts";
+import {
+  authenticateRequest,
+  enforceRateLimit,
+  errorResponse,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requirePost,
+} from "../_shared/security.ts";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const ALLOWED_REDIRECT_URIS = [
-  "http://localhost:5173/auth/google-fit/callback",
-  "https://nutrio.app/auth/google-fit/callback",
-];
 
-interface TokenRequest {
-  code: string;
-  codeVerifier: string;
-  redirectUri: string;
+function allowedRedirectUris(): Set<string> {
+  const configured = (Deno.env.get("GOOGLE_FIT_REDIRECT_URIS") || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return new Set([
+    "http://localhost:5173/auth/google-fit/callback",
+    "http://localhost:5173/nutrio/auth/google-fit/callback",
+    "https://nutrio.me/nutrio/auth/google-fit/callback",
+    "https://www.nutrio.me/nutrio/auth/google-fit/callback",
+    ...configured,
+  ]);
 }
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  if (req.method !== "POST") {
-    return Response.json({ error: "Method not allowed" }, { status: 405, headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    const body: TokenRequest = await req.json();
-    const { code, codeVerifier, redirectUri } = body;
+    requirePost(req);
+    const principal = await authenticateRequest(req);
+    await enforceRateLimit(req, "google-fit-token", principal.user.id, 10, 60 * 60);
 
-    if (!code || !codeVerifier || !redirectUri) {
-      return Response.json({ error: "Missing required fields" }, { status: 400, headers: corsHeaders });
+    const { code, codeVerifier, redirectUri } = await readJsonBody<{
+      code?: unknown;
+      codeVerifier?: unknown;
+      redirectUri?: unknown;
+    }>(req, 8 * 1024);
+
+    if (typeof code !== "string" || code.length < 8 || code.length > 4096) {
+      throw new HttpError(400, "invalid_authorization_code");
     }
-
-    if (!ALLOWED_REDIRECT_URIS.includes(redirectUri)) {
-      return Response.json({ error: "Invalid redirect URI" }, { status: 400, headers: corsHeaders });
+    if (
+      typeof codeVerifier !== "string" ||
+      codeVerifier.length < 43 ||
+      codeVerifier.length > 128 ||
+      !/^[A-Za-z0-9._~-]+$/.test(codeVerifier)
+    ) {
+      throw new HttpError(400, "invalid_code_verifier");
     }
-
-    const authorization = req.headers.get("Authorization");
-    if (!authorization) {
-      return Response.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const authClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authorization } },
-    });
-    const { data: { user }, error: authError } = await authClient.auth.getUser();
-    if (authError || !user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+    if (typeof redirectUri !== "string" || !allowedRedirectUris().has(redirectUri)) {
+      throw new HttpError(400, "invalid_redirect_uri");
     }
 
     const clientId = Deno.env.get("GOOGLE_FIT_CLIENT_ID");
     const clientSecret = Deno.env.get("GOOGLE_FIT_CLIENT_SECRET");
-
-    if (!clientId || !clientSecret) {
-      console.error("Google Fit credentials not configured");
-      return Response.json({ error: "Server configuration error" }, { status: 500, headers: corsHeaders });
-    }
+    if (!clientId || !clientSecret) throw new HttpError(503, "google_fit_not_configured");
 
     const response = await fetch(GOOGLE_TOKEN_URL, {
       method: "POST",
@@ -73,43 +75,55 @@ serve(async (req: Request) => {
         grant_type: "authorization_code",
         code_verifier: codeVerifier,
       }),
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Google token exchange failed:", errorText);
-      return Response.json({ error: "Token exchange failed" }, { status: 401, headers: corsHeaders });
+      console.error("Google Fit token exchange rejected with status", response.status);
+      await recordSecurityEvent(req, {
+        eventType: "integration.google_fit_connection_failed",
+        category: "authorization",
+        severity: "medium",
+        outcome: "failure",
+        principal,
+        action: "connect_google_fit",
+        resourceType: "integration",
+        resourceId: "google_fit",
+        metadata: { provider_status: response.status },
+      });
+      throw new HttpError(502, "google_fit_exchange_failed");
     }
 
-    const data = await response.json();
+    const data = await response.json() as Record<string, unknown>;
+    const accessToken = typeof data.access_token === "string" ? data.access_token : "";
+    const refreshToken = typeof data.refresh_token === "string" ? data.refresh_token : null;
+    const expiresIn = Number(data.expires_in || 0);
+    if (!accessToken || !Number.isFinite(expiresIn) || expiresIn <= 0) {
+      throw new HttpError(502, "google_fit_invalid_response");
+    }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    const expiresAt = Math.floor(Date.now() / 1000) + Math.floor(expiresIn);
+    await saveGoogleFitCredentials(
+      getServiceClient(),
+      principal.user.id,
+      { accessToken, refreshToken, expiresAt },
+      typeof data.scope === "string" ? data.scope : null,
     );
 
-    const { error: dbError } = await supabase
-      .from("user_integrations")
-      .upsert({
-        user_id: user.id,
-        provider: "google_fit",
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        expires_at: Math.floor((Date.now() + data.expires_in * 1000) / 1000),
-        updated_at: new Date().toISOString(),
-      });
+    await recordSecurityEvent(req, {
+      eventType: "integration.google_fit_connected",
+      category: "authorization",
+      severity: "info",
+      outcome: "success",
+      principal,
+      action: "connect_google_fit",
+      resourceType: "integration",
+      resourceId: "google_fit",
+      metadata: { expires_at: expiresAt },
+    });
 
-    if (dbError) {
-      console.error("Failed to store token:", dbError);
-      return Response.json({ error: "Database error" }, { status: 500, headers: corsHeaders });
-    }
-
-    return Response.json({
-      success: true,
-      expires_in: data.expires_in,
-    }, { headers: corsHeaders });
-  } catch (err) {
-    console.error("Token exchange error:", err);
-    return Response.json({ error: "Internal server error" }, { status: 500, headers: corsHeaders });
+    return jsonResponse(req, { success: true, expires_at: expiresAt });
+  } catch (error) {
+    return errorResponse(req, error);
   }
 });

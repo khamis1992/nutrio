@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
+import {
+  AdminDialogContent,
+  AdminAlertDialogContent,
+  AdminFilterBar,
+  AdminKpiStrip,
+  AdminWorkbenchHeader,
+} from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +15,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
-  DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -32,7 +38,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -111,9 +116,13 @@ export default function AdminPromotions() {
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
+  const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(
+    null,
+  );
   const [formData, setFormData] = useState<PromotionFormData>(initialFormData);
-  const [deletePromotion, setDeletePromotion] = useState<Promotion | null>(null);
+  const [deletePromotion, setDeletePromotion] = useState<Promotion | null>(
+    null,
+  );
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -155,13 +164,23 @@ export default function AdminPromotions() {
 
       const now = new Date();
       const total = promotionsData?.length || 0;
-      const active = promotionsData?.filter((promotion) =>
-        promotion.is_active &&
-        new Date(promotion.valid_from) <= now &&
-        (!promotion.valid_until || new Date(promotion.valid_until) > now)
-      ).length || 0;
-      const totalRedemptions = promotionsData?.reduce((sum, promotion) => sum + (promotion.uses_count || 0), 0) || 0;
-      const totalDiscount = usageData?.reduce((sum, usage) => sum + Number(usage.discount_applied), 0) || 0;
+      const active =
+        promotionsData?.filter(
+          (promotion) =>
+            promotion.is_active &&
+            new Date(promotion.valid_from) <= now &&
+            (!promotion.valid_until || new Date(promotion.valid_until) > now),
+        ).length || 0;
+      const totalRedemptions =
+        promotionsData?.reduce(
+          (sum, promotion) => sum + (promotion.uses_count || 0),
+          0,
+        ) || 0;
+      const totalDiscount =
+        usageData?.reduce(
+          (sum, usage) => sum + Number(usage.discount_applied),
+          0,
+        ) || 0;
 
       setStats({ total, active, totalRedemptions, totalDiscount });
     } catch (error) {
@@ -210,7 +229,9 @@ export default function AdminPromotions() {
         discount_type: formData.discount_type,
         discount_value: parseFloat(formData.discount_value),
         min_order_amount: parseFloat(formData.min_order_amount) || 0,
-        max_discount_amount: formData.max_discount_amount ? parseFloat(formData.max_discount_amount) : null,
+        max_discount_amount: formData.max_discount_amount
+          ? parseFloat(formData.max_discount_amount)
+          : null,
         max_uses: formData.max_uses ? parseInt(formData.max_uses) : null,
         max_uses_per_user: parseInt(formData.max_uses_per_user) || 1,
         valid_from: formData.valid_from,
@@ -225,14 +246,20 @@ export default function AdminPromotions() {
           .eq("id", editingPromotion.id);
 
         if (error) throw error;
-        toast({ title: "Success", description: "Promotion updated successfully" });
+        toast({
+          title: "Success",
+          description: "Promotion updated successfully",
+        });
       } else {
         const { error } = await supabase
           .from("promotions")
           .insert(promotionData);
 
         if (error) throw error;
-        toast({ title: "Success", description: "Promotion created successfully" });
+        toast({
+          title: "Success",
+          description: "Promotion created successfully",
+        });
       }
 
       setIsDialogOpen(false);
@@ -244,7 +271,8 @@ export default function AdminPromotions() {
       console.error("Error saving promotion:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save promotion",
+        description:
+          error instanceof Error ? error.message : "Failed to save promotion",
         variant: "destructive",
       });
     } finally {
@@ -282,7 +310,10 @@ export default function AdminPromotions() {
 
       if (error) throw error;
 
-      toast({ title: "Success", description: "Promotion deleted successfully" });
+      toast({
+        title: "Success",
+        description: "Promotion deleted successfully",
+      });
       setDeletePromotion(null);
       fetchPromotions();
       fetchStats();
@@ -298,81 +329,135 @@ export default function AdminPromotions() {
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
-    toast({ title: "Copied", description: `Code "${code}" copied to clipboard` });
+    toast({
+      title: "Copied",
+      description: `Code "${code}" copied to clipboard`,
+    });
   };
 
   const getStatusBadge = (promotion: Promotion) => {
     const now = new Date();
     const validFrom = new Date(promotion.valid_from);
-    const validUntil = promotion.valid_until ? new Date(promotion.valid_until) : null;
+    const validUntil = promotion.valid_until
+      ? new Date(promotion.valid_until)
+      : null;
 
     if (!promotion.is_active) {
-      return <Badge variant="outline" className="border-[#E5EAF1] bg-[#F6F8FB] font-black text-[#94A3B8]">Inactive</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-[#E5EAF1] bg-[#F6F8FB] font-black text-[#94A3B8]"
+        >
+          Inactive
+        </Badge>
+      );
     }
     if (validFrom > now) {
-      return <Badge variant="outline" className="border-[#38BDF8]/20 bg-[#EFF9FF] font-black text-[#38BDF8]">Scheduled</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-[#38BDF8]/20 bg-[#38BDF8]/10 font-black text-[#38BDF8]"
+        >
+          Scheduled
+        </Badge>
+      );
     }
     if (validUntil && validUntil < now) {
-      return <Badge variant="outline" className="border-[#FB6B7A]/20 bg-[#FFF0F2] font-black text-[#FB6B7A]">Expired</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-[#FB6B7A]/20 bg-[#FB6B7A]/10 font-black text-[#FB6B7A]"
+        >
+          Expired
+        </Badge>
+      );
     }
     if (promotion.max_uses && promotion.uses_count >= promotion.max_uses) {
-      return <Badge variant="outline" className="border-[#F97316]/25 bg-[#FFF7ED] font-black text-[#F97316]">Exhausted</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-[#F97316]/25 bg-[#F97316]/10 font-black text-[#F97316]"
+        >
+          Exhausted
+        </Badge>
+      );
     }
-    return <Badge variant="outline" className="border-[#22C7A1]/20 bg-[#EFFFFA] font-black text-[#22C7A1]">Active</Badge>;
+    return (
+      <Badge
+        variant="outline"
+        className="border-[#22C7A1]/20 bg-[#22C7A1]/10 font-black text-[#22C7A1]"
+      >
+        Active
+      </Badge>
+    );
   };
 
-  const filteredPromotions = promotions.filter((promotion) =>
-    promotion.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    promotion.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredPromotions = promotions.filter(
+    (promotion) =>
+      promotion.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      promotion.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
     <AdminLayout title="Promotions" subtitle="Create and manage discount codes">
       <div className="space-y-5 text-[#020617]">
-        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_18px_42px_rgba(2,6,23,0.07)] ring-1 ring-[#E5EAF1]">
-          <div className="flex flex-col gap-4 border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#020617] text-white">
-                <Ticket className="h-6 w-6" />
-              </span>
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">Growth Tools</p>
-                <h1 className="mt-1 text-2xl font-black tracking-tight text-[#020617]">Promotions & Coupons</h1>
-                <p className="mt-1 text-sm font-semibold text-[#94A3B8]">Create, schedule, and monitor discount campaigns.</p>
-              </div>
-            </div>
+        <AdminWorkbenchHeader
+          eyebrow="Growth tools"
+          title="Promotion control desk"
+          icon={Ticket}
+          accent="#22C7A1"
+          description="Create campaigns, monitor active coupons, track redemptions, and understand the discount cost of each growth push."
+          meta={[
+            { label: "Active now", value: stats.active },
+            { label: "Redemptions", value: stats.totalRedemptions },
+            { label: "Discounts", value: formatCurrency(stats.totalDiscount) },
+          ]}
+          actions={
             <Button
               onClick={openCreateDialog}
-              className="h-11 gap-2 rounded-[14px] bg-[#020617] px-4 font-black text-white hover:bg-[#020617]/90"
+              variant="outline"
+              className="h-11 gap-2 rounded-[14px] border-[#22C7A1]/30 bg-[#22C7A1]/10 px-4 font-black text-[#020617] hover:bg-[#22C7A1]/15"
             >
               <Plus className="h-4 w-4" />
               Create Promotion
             </Button>
-          </div>
+          }
+        />
 
-          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              { label: "Total Promotions", value: stats.total, Icon: Ticket, bg: "bg-[#F6F8FB]", color: "text-[#020617]", ring: "ring-[#E5EAF1]" },
-              { label: "Active Now", value: stats.active, Icon: TrendingUp, bg: "bg-[#EFFFFA]", color: "text-[#22C7A1]", ring: "ring-[#22C7A1]/20" },
-              { label: "Redemptions", value: stats.totalRedemptions, Icon: Users, bg: "bg-[#F3F4FF]", color: "text-[#7C83F6]", ring: "ring-[#7C83F6]/20" },
-              { label: "Discounts Given", value: formatCurrency(stats.totalDiscount), Icon: DollarSign, bg: "bg-[#EFF9FF]", color: "text-[#38BDF8]", ring: "ring-[#38BDF8]/20" },
-            ].map(({ label, value, Icon, bg, color, ring }) => (
-              <div key={label} className={`rounded-[20px] ${bg} p-4 ring-1 ${ring}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-3xl font-black leading-none text-[#020617]">{value}</p>
-                    <p className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
-                  </div>
-                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-white ${color} shadow-sm ring-1 ring-white/80`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <AdminKpiStrip
+          items={[
+            {
+              label: "Total promotions",
+              value: stats.total,
+              helper: "Campaign library",
+              icon: Ticket,
+              accent: "#7C83F6",
+            },
+            {
+              label: "Active now",
+              value: stats.active,
+              helper: "Currently live",
+              icon: TrendingUp,
+              accent: "#22C7A1",
+            },
+            {
+              label: "Redemptions",
+              value: stats.totalRedemptions,
+              helper: "Customer usage",
+              icon: Users,
+              accent: "#F97316",
+            },
+            {
+              label: "Discounts given",
+              value: formatCurrency(stats.totalDiscount),
+              helper: "Growth cost",
+              icon: DollarSign,
+              accent: "#38BDF8",
+            },
+          ]}
+        />
 
-        <section className="rounded-[24px] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+        <AdminFilterBar title="Campaign search">
           <div className="relative max-w-md">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
             <Input
@@ -382,29 +467,174 @@ export default function AdminPromotions() {
               className="h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] pl-10 font-semibold text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#020617]"
             />
           </div>
-        </section>
+        </AdminFilterBar>
 
         <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
           <div className="flex items-center justify-between gap-3 border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
             <div>
-              <h2 className="text-lg font-black text-[#020617]">Promotion Directory</h2>
-              <p className="text-xs font-bold text-[#94A3B8]">{filteredPromotions.length} visible from {promotions.length} total</p>
+              <h2 className="text-lg font-black text-[#020617]">
+                Promotion Directory
+              </h2>
+              <p className="text-xs font-bold text-[#94A3B8]">
+                {filteredPromotions.length} visible from {promotions.length}{" "}
+                total
+              </p>
             </div>
-            <Badge variant="outline" className="border-[#38BDF8]/20 bg-[#EFF9FF] text-[#38BDF8]">
+            <Badge
+              variant="outline"
+              className="border-[#38BDF8]/20 bg-[#38BDF8]/10 text-[#38BDF8]"
+            >
               Coupon engine
             </Badge>
           </div>
-          <div className="overflow-x-auto">
+          <div className="grid gap-3 p-4 md:hidden">
+            {loading ? (
+              <div className="flex flex-col items-center gap-3 rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-[#020617]" />
+                <p className="text-sm font-semibold text-[#94A3B8]">
+                  Loading promotions...
+                </p>
+              </div>
+            ) : filteredPromotions.length === 0 ? (
+              <div className="rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-8 text-center">
+                <p className="font-black text-[#020617]">No promotions found</p>
+                <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                  Try adjusting your search.
+                </p>
+              </div>
+            ) : (
+              filteredPromotions.map((promotion) => (
+                <div
+                  key={promotion.id}
+                  className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_30px_rgba(2,6,23,0.05)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <code className="rounded-[10px] bg-[#F6F8FB] px-2 py-1 font-mono text-sm font-black text-[#020617] ring-1 ring-[#E5EAF1]">
+                          {promotion.code}
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="min-h-[44px] min-w-[44px] rounded-2xl text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]"
+                          onClick={() => copyCode(promotion.code)}
+                          aria-label={`Copy promotion code ${promotion.code}`}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <p className="mt-2 truncate text-base font-black text-[#020617]">
+                        {promotion.name}
+                      </p>
+                      {promotion.description && (
+                        <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#94A3B8]">
+                          {promotion.description}
+                        </p>
+                      )}
+                    </div>
+                    {getStatusBadge(promotion)}
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                        Discount
+                      </p>
+                      <p className="mt-1 text-lg font-black text-[#020617]">
+                        {promotion.discount_type === "percentage"
+                          ? `${promotion.discount_value}%`
+                          : formatCurrency(promotion.discount_value)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                        Usage
+                      </p>
+                      <p className="mt-1 text-lg font-black text-[#020617]">
+                        {promotion.uses_count}
+                        {promotion.max_uses && ` / ${promotion.max_uses}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 rounded-2xl bg-[#F6F8FB] p-3">
+                    <div className="flex items-start gap-2 text-sm font-semibold text-[#020617]">
+                      <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-[#38BDF8]" />
+                      <div>
+                        <p>
+                          Starts{" "}
+                          {format(
+                            new Date(promotion.valid_from),
+                            "MMM d, yyyy",
+                          )}
+                        </p>
+                        {promotion.valid_until && (
+                          <p className="mt-1 text-xs text-[#94A3B8]">
+                            Until{" "}
+                            {format(
+                              new Date(promotion.valid_until),
+                              "MMM d, yyyy",
+                            )}
+                          </p>
+                        )}
+                        {promotion.min_order_amount > 0 && (
+                          <p className="mt-1 text-xs text-[#94A3B8]">
+                            Minimum order:{" "}
+                            {formatCurrency(promotion.min_order_amount)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Button
+                      variant="outline"
+                      className="min-h-[44px] rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
+                      onClick={() => handleEdit(promotion)}
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="min-h-[44px] rounded-2xl border-[#FB6B7A]/20 bg-[#FB6B7A]/10 font-black text-[#FB6B7A] hover:bg-[#FB6B7A]/15"
+                      onClick={() => setDeletePromotion(promotion)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-[#F6F8FB]">
                 <TableRow className="border-[#E5EAF1] hover:bg-transparent">
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Discount</TableHead>
-                  <TableHead>Usage</TableHead>
-                  <TableHead>Validity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    Code
+                  </TableHead>
+                  <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    Name
+                  </TableHead>
+                  <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    Discount
+                  </TableHead>
+                  <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    Usage
+                  </TableHead>
+                  <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    Validity
+                  </TableHead>
+                  <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -413,20 +643,29 @@ export default function AdminPromotions() {
                     <TableCell colSpan={7} className="py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <Loader2 className="h-8 w-8 animate-spin text-[#020617]" />
-                        <p className="text-sm font-semibold text-[#94A3B8]">Loading promotions...</p>
+                        <p className="text-sm font-semibold text-[#94A3B8]">
+                          Loading promotions...
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : filteredPromotions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="py-12 text-center">
-                      <p className="font-black text-[#020617]">No promotions found</p>
-                      <p className="mt-1 text-sm font-semibold text-[#94A3B8]">Try adjusting your search.</p>
+                      <p className="font-black text-[#020617]">
+                        No promotions found
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                        Try adjusting your search.
+                      </p>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredPromotions.map((promotion) => (
-                    <TableRow key={promotion.id} className="border-[#E5EAF1] transition-colors hover:bg-[#F6F8FB]">
+                    <TableRow
+                      key={promotion.id}
+                      className="border-[#E5EAF1] transition-colors hover:bg-[#F6F8FB]/70"
+                    >
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <code className="rounded-[10px] bg-[#F6F8FB] px-2 py-1 font-mono text-sm font-black text-[#020617] ring-1 ring-[#E5EAF1]">
@@ -437,6 +676,7 @@ export default function AdminPromotions() {
                             size="icon"
                             className="min-h-[44px] min-w-[44px] text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]"
                             onClick={() => copyCode(promotion.code)}
+                            aria-label={`Copy promotion code ${promotion.code}`}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
@@ -444,7 +684,9 @@ export default function AdminPromotions() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-black text-[#020617]">{promotion.name}</p>
+                          <p className="font-black text-[#020617]">
+                            {promotion.name}
+                          </p>
                           {promotion.description && (
                             <p className="max-w-[200px] truncate text-sm font-semibold text-[#94A3B8]">
                               {promotion.description}
@@ -473,11 +715,20 @@ export default function AdminPromotions() {
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm font-semibold text-[#020617]">
                           <Calendar className="h-3 w-3 text-[#38BDF8]" />
-                          <span>{format(new Date(promotion.valid_from), "MMM d, yyyy")}</span>
+                          <span>
+                            {format(
+                              new Date(promotion.valid_from),
+                              "MMM d, yyyy",
+                            )}
+                          </span>
                         </div>
                         {promotion.valid_until && (
                           <p className="text-xs font-semibold text-[#94A3B8]">
-                            Until {format(new Date(promotion.valid_until), "MMM d, yyyy")}
+                            Until{" "}
+                            {format(
+                              new Date(promotion.valid_until),
+                              "MMM d, yyyy",
+                            )}
                           </p>
                         )}
                       </TableCell>
@@ -489,14 +740,16 @@ export default function AdminPromotions() {
                             size="icon"
                             className="min-h-[44px] min-w-[44px] text-[#020617] hover:bg-[#F6F8FB]"
                             onClick={() => handleEdit(promotion)}
+                            aria-label={`Edit promotion ${promotion.code}`}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="min-h-[44px] min-w-[44px] text-[#FB6B7A] hover:bg-[#FFF0F2] hover:text-[#FB6B7A]"
+                            className="min-h-[44px] min-w-[44px] text-[#FB6B7A] hover:bg-[#FB6B7A]/10 hover:text-[#FB6B7A]"
                             onClick={() => setDeletePromotion(promotion)}
+                            aria-label={`Delete promotion ${promotion.code}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -527,28 +780,36 @@ export default function AdminPromotions() {
           saving={saving}
         />
 
-        <AlertDialog open={!!deletePromotion} onOpenChange={() => setDeletePromotion(null)}>
-          <AlertDialogContent className="border-[#E5EAF1] bg-white p-0 shadow-[0_24px_60px_rgba(2,6,23,0.18)]">
+        <AlertDialog
+          open={!!deletePromotion}
+          onOpenChange={() => setDeletePromotion(null)}
+        >
+          <AdminAlertDialogContent>
             <AlertDialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
               <AlertDialogTitle className="flex items-center gap-3 text-xl font-black text-[#020617]">
-                <span className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#FFF0F2] text-[#FB6B7A] ring-1 ring-[#FB6B7A]/20">
+                <span className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#FB6B7A]/10 text-[#FB6B7A] ring-1 ring-[#FB6B7A]/20">
                   <AlertTriangle className="h-5 w-5" />
                 </span>
                 Delete Promotion
               </AlertDialogTitle>
               <AlertDialogDescription className="font-semibold text-[#94A3B8]">
-                Are you sure you want to delete the promotion "{deletePromotion?.name}"? This will also delete all usage history. This action cannot be undone.
+                Are you sure you want to delete the promotion "
+                {deletePromotion?.name}"? This will also delete all usage
+                history. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+            <AlertDialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
               <AlertDialogCancel className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white">
                 Cancel
               </AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="h-11 rounded-[14px] bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90">
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="h-11 rounded-[14px] bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90"
+              >
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
-          </AlertDialogContent>
+          </AdminAlertDialogContent>
         </AlertDialog>
       </div>
     </AdminLayout>
@@ -574,12 +835,13 @@ function PromotionDialog({
   handleSubmit: (event: React.FormEvent) => void;
   saving: boolean;
 }) {
-  const inputClass = "h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]";
+  const inputClass =
+    "h-11 rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]";
   const labelClass = "font-black text-[#020617]";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-[95vw] overflow-y-auto border-[#E5EAF1] bg-white p-0 shadow-[0_24px_60px_rgba(2,6,23,0.18)] sm:max-w-2xl">
+      <AdminDialogContent size="lg">
         <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
           <DialogTitle className="text-xl font-black text-[#020617]">
             {editingPromotion ? "Edit Promotion" : "Create New Promotion"}
@@ -589,26 +851,45 @@ function PromotionDialog({
           <div className="space-y-4 p-5">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="space-y-2">
-                <Label htmlFor="code" className={labelClass}>Promo Code *</Label>
+                <Label htmlFor="code" className={labelClass}>
+                  Promo Code *
+                </Label>
                 <div className="flex gap-2">
                   <Input
                     id="code"
                     value={formData.code}
-                    onChange={(event) => setFormData((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        code: event.target.value.toUpperCase(),
+                      }))
+                    }
                     placeholder="SAVE20"
                     className={`${inputClass} uppercase`}
                   />
-                  <Button type="button" variant="outline" onClick={generateCode} className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={generateCode}
+                    className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
+                  >
                     Generate
                   </Button>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="name" className={labelClass}>Name *</Label>
+                <Label htmlFor="name" className={labelClass}>
+                  Name *
+                </Label>
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      name: event.target.value,
+                    }))
+                  }
                   placeholder="Summer Sale 20% Off"
                   className={inputClass}
                 />
@@ -616,11 +897,18 @@ function PromotionDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description" className={labelClass}>Description</Label>
+              <Label htmlFor="description" className={labelClass}>
+                Description
+              </Label>
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))}
+                onChange={(event) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    description: event.target.value,
+                  }))
+                }
                 placeholder="Get 20% off on all orders this summer"
                 className="min-h-[100px] rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-semibold text-[#020617] focus-visible:ring-[#020617]"
               />
@@ -638,25 +926,43 @@ function PromotionDialog({
                   <SelectTrigger className={inputClass}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                     <SelectItem value="percentage">Percentage (%)</SelectItem>
-                    <SelectItem value="fixed">Fixed Amount ({CURRENCY.symbol})</SelectItem>
+                    <SelectItem value="fixed">
+                      Fixed Amount ({CURRENCY.symbol})
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="discount_value" className={labelClass}>
-                  Discount Value * {formData.discount_type === "percentage" ? "(%)" : `(${CURRENCY.symbol})`}
+                  Discount Value *{" "}
+                  {formData.discount_type === "percentage"
+                    ? "(%)"
+                    : `(${CURRENCY.symbol})`}
                 </Label>
                 <Input
                   id="discount_value"
                   type="number"
-                  inputMode={formData.discount_type === "percentage" ? "numeric" : "decimal"}
+                  inputMode={
+                    formData.discount_type === "percentage"
+                      ? "numeric"
+                      : "decimal"
+                  }
                   min="0"
-                  max={formData.discount_type === "percentage" ? 100 : undefined}
+                  max={
+                    formData.discount_type === "percentage" ? 100 : undefined
+                  }
                   value={formData.discount_value}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, discount_value: event.target.value }))}
-                  placeholder={formData.discount_type === "percentage" ? "20" : "10.00"}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      discount_value: event.target.value,
+                    }))
+                  }
+                  placeholder={
+                    formData.discount_type === "percentage" ? "20" : "10.00"
+                  }
                   className={inputClass}
                 />
               </div>
@@ -664,27 +970,41 @@ function PromotionDialog({
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="space-y-2">
-                <Label htmlFor="min_order_amount" className={labelClass}>Minimum Order Amount ({CURRENCY.symbol})</Label>
+                <Label htmlFor="min_order_amount" className={labelClass}>
+                  Minimum Order Amount ({CURRENCY.symbol})
+                </Label>
                 <Input
                   id="min_order_amount"
                   type="number"
                   inputMode="decimal"
                   min="0"
                   value={formData.min_order_amount}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, min_order_amount: event.target.value }))}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      min_order_amount: event.target.value,
+                    }))
+                  }
                   placeholder="0"
                   className={inputClass}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="max_discount_amount" className={labelClass}>Max Discount Amount ({CURRENCY.symbol})</Label>
+                <Label htmlFor="max_discount_amount" className={labelClass}>
+                  Max Discount Amount ({CURRENCY.symbol})
+                </Label>
                 <Input
                   id="max_discount_amount"
                   type="number"
                   inputMode="decimal"
                   min="0"
                   value={formData.max_discount_amount}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, max_discount_amount: event.target.value }))}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      max_discount_amount: event.target.value,
+                    }))
+                  }
                   placeholder="No limit"
                   className={inputClass}
                 />
@@ -693,27 +1013,41 @@ function PromotionDialog({
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="space-y-2">
-                <Label htmlFor="max_uses" className={labelClass}>Total Usage Limit</Label>
+                <Label htmlFor="max_uses" className={labelClass}>
+                  Total Usage Limit
+                </Label>
                 <Input
                   id="max_uses"
                   type="number"
                   inputMode="numeric"
                   min="1"
                   value={formData.max_uses}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, max_uses: event.target.value }))}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      max_uses: event.target.value,
+                    }))
+                  }
                   placeholder="Unlimited"
                   className={inputClass}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="max_uses_per_user" className={labelClass}>Uses Per Customer</Label>
+                <Label htmlFor="max_uses_per_user" className={labelClass}>
+                  Uses Per Customer
+                </Label>
                 <Input
                   id="max_uses_per_user"
                   type="number"
                   inputMode="numeric"
                   min="1"
                   value={formData.max_uses_per_user}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, max_uses_per_user: event.target.value }))}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      max_uses_per_user: event.target.value,
+                    }))
+                  }
                   placeholder="1"
                   className={inputClass}
                 />
@@ -722,48 +1056,77 @@ function PromotionDialog({
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="space-y-2">
-                <Label htmlFor="valid_from" className={labelClass}>Valid From *</Label>
+                <Label htmlFor="valid_from" className={labelClass}>
+                  Valid From *
+                </Label>
                 <Input
                   id="valid_from"
                   type="datetime-local"
                   value={formData.valid_from}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, valid_from: event.target.value }))}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      valid_from: event.target.value,
+                    }))
+                  }
                   className={inputClass}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="valid_until" className={labelClass}>Valid Until</Label>
+                <Label htmlFor="valid_until" className={labelClass}>
+                  Valid Until
+                </Label>
                 <Input
                   id="valid_until"
                   type="datetime-local"
                   value={formData.valid_until}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, valid_until: event.target.value }))}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      valid_until: event.target.value,
+                    }))
+                  }
                   className={inputClass}
                 />
               </div>
             </div>
 
             <div className="flex items-center justify-between rounded-[18px] bg-[#F6F8FB] p-4 ring-1 ring-[#E5EAF1]">
-              <Label htmlFor="is_active" className="font-black text-[#020617]">Active</Label>
+              <Label htmlFor="is_active" className="font-black text-[#020617]">
+                Active
+              </Label>
               <Switch
                 id="is_active"
                 checked={formData.is_active}
-                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_active: checked }))}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, is_active: checked }))
+                }
               />
             </div>
           </div>
 
-          <DialogFooter className="border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white">
+          <DialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={saving}
+              className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white"
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving} className="h-11 rounded-[14px] bg-[#020617] font-black text-white hover:bg-[#020617]/90">
+            <Button
+              type="submit"
+              disabled={saving}
+              variant="outline"
+              className="h-11 rounded-[14px] border-[#22C7A1]/30 bg-[#22C7A1]/10 font-black text-[#020617] hover:bg-[#22C7A1]/15"
+            >
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editingPromotion ? "Update" : "Create"} Promotion
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </AdminDialogContent>
     </Dialog>
   );
 }

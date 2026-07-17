@@ -63,18 +63,18 @@ async function fetchSub(userId: string): Promise<Subscription | null> {
   // also allows the client to work while newer subscription migrations roll out.
   const cols = "id, plan, status, start_date, end_date, meals_per_month, meals_used_this_month, month_start_date, meals_per_week, meals_used_this_week, week_start_date, tier, active, snacks_per_month, snacks_used_this_month, price, billing_interval, auto_renew";
 
-  const { data: activeOrPending, error: activeError } = await supabase
+  const { data: activeData, error: activeError } = await supabase
     .from("subscriptions")
     .select(cols)
     .eq("user_id", userId)
-    .in("status", ["active", "pending", "expired"])
+    .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (activeError) throw activeError;
 
-  let data = activeOrPending;
+  let data = activeData;
 
   if (!data) {
     const { data: cancelledData, error: cancelledError } = await supabase
@@ -89,6 +89,20 @@ async function fetchSub(userId: string): Promise<Subscription | null> {
 
     if (cancelledError) throw cancelledError;
     data = cancelledData;
+  }
+
+  if (!data) {
+    const { data: inactiveData, error: inactiveError } = await supabase
+      .from("subscriptions")
+      .select(cols)
+      .eq("user_id", userId)
+      .in("status", ["pending", "expired"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (inactiveError) throw inactiveError;
+    data = inactiveData;
   }
 
   if (!data) return null;

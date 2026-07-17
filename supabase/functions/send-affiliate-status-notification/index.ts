@@ -1,14 +1,19 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import {
+  errorResponse,
+  escapeHtml,
+  getCorsHeaders,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  readJsonBody,
+  recordSecurityEvent,
+  requireAdmin,
+  requirePost,
+} from "../_shared/security.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 interface NotificationRequest {
   user_id: string;
@@ -17,20 +22,21 @@ interface NotificationRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
-    const { user_id, status, rejection_reason }: NotificationRequest = await req.json();
+    requirePost(req);
+    const principal = await requireAdmin(req);
+    const { user_id, status, rejection_reason } = await readJsonBody<NotificationRequest>(req, 16 * 1024);
+    if (!user_id || !["approved", "rejected"].includes(status)) {
+      throw new HttpError(400, "invalid_notification_request");
+    }
 
     console.log(`Sending affiliate ${status} notification to user: ${user_id}`);
 
-    // Create Supabase client to fetch user details
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getServiceClient();
 
     // Get user email from auth
     const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user_id);
@@ -52,8 +58,9 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("id", user_id)
       .single();
 
-    const userName = profile?.full_name || "there";
-    const referralCode = profile?.referral_code || "";
+    const userName = escapeHtml(profile?.full_name || "there");
+    const referralCode = escapeHtml(profile?.referral_code || "");
+    const safeRejectionReason = rejection_reason ? escapeHtml(rejection_reason).slice(0, 1000) : "";
 
     let subject: string;
     let htmlContent: string;
@@ -128,9 +135,9 @@ const handler = async (req: Request): Promise<Response> => {
             
             <p>Thank you for your interest in our affiliate program. After careful review, we were unable to approve your application at this time.</p>
             
-            ${rejection_reason ? `
+            ${safeRejectionReason ? `
               <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-                <p style="margin: 0; color: #991b1b;"><strong>Reason:</strong> ${rejection_reason}</p>
+                <p style="margin: 0; color: #991b1b;"><strong>Reason:</strong> ${safeRejectionReason}</p>
               </div>
             ` : ""}
             
@@ -156,18 +163,27 @@ const handler = async (req: Request): Promise<Response> => {
       html: htmlContent,
     });
 
-    console.log(`Email sent successfully to ${userEmail}:`, emailResponse);
+    console.log(`Affiliate status email sent to user ${user_id}`);
 
-    return new Response(JSON.stringify({ success: true, emailResponse }), {
+    await recordSecurityEvent(req, {
+      eventType: "admin.affiliate_status_notification_sent",
+      category: "admin",
+      severity: "medium",
+      outcome: "success",
+      principal,
+      action: `notify_${status}`,
+      resourceType: "auth.user",
+      resourceId: user_id,
+      metadata: { status, provider_id: emailResponse?.data?.id || null },
+    });
+
+    return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error in send-affiliate-status-notification:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+    return errorResponse(req, error);
   }
 };
 

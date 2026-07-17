@@ -3,6 +3,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
 
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({
+        data: { session: { access_token: "session-token" } },
+      }),
+    },
+  },
+}));
+
 import { checkIPLocation, logUserIP } from "./ipCheck";
 
 describe("ipCheck", () => {
@@ -32,16 +42,45 @@ describe("ipCheck", () => {
   });
 
   describe("logUserIP", () => {
-    it("does not call fetch in dev mode", async () => {
+    it("logs through the edge function when a session token is available", async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true });
+
       await logUserIP("signup");
 
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/functions/v1/log-user-ip"),
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            Authorization: "Bearer session-token",
+          }),
+        }),
+      );
+    });
+
+    it("uses the explicit auth token when provided", async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true });
+
+      await logUserIP("login", "fresh-token");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/functions/v1/log-user-ip"),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: "Bearer fresh-token",
+          }),
+        }),
+      );
     });
   });
 
   describe("when not in dev mode (unit tests of fetch behavior)", () => {
     it("calls fetch with POST method and apikey header in production mode", async () => {
-      vi.stubGlobal("import_meta_env", { DEV: false, VITE_SUPABASE_URL: "https://test.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "test-key" });
+      vi.stubGlobal("import_meta_env", {
+        DEV: false,
+        VITE_SUPABASE_URL: "https://test.supabase.co",
+        VITE_SUPABASE_PUBLISHABLE_KEY: "test-key",
+      });
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -65,7 +104,7 @@ describe("ipCheck", () => {
             headers: expect.objectContaining({
               "Content-Type": "application/json",
             }),
-          })
+          }),
         );
       }
     });

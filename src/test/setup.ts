@@ -1,6 +1,16 @@
 import "@testing-library/jest-dom";
 import { beforeEach, vi } from "vitest";
 
+vi.mock("lottie-web/build/player/lottie_light", () => ({
+  default: {
+    loadAnimation: vi.fn(() => ({
+      destroy: vi.fn(),
+      goToAndStop: vi.fn(),
+      totalFrames: 1,
+    })),
+  },
+}));
+
 function createMemoryStorage(): Storage {
   let values: Record<string, string> = {};
 

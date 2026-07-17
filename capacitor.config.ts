@@ -4,16 +4,19 @@ const config: CapacitorConfig = {
   appId: 'com.nutriofuel.app',
   appName: 'Nutrio',
   webDir: 'dist',
+  loggingBehavior: 'none',
+  android: {
+    allowMixedContent: false,
+    minWebViewVersion: 149,
+    webContentsDebuggingEnabled: false,
+  },
+  ios: {
+    webContentsDebuggingEnabled: false,
+  },
   server: {
-    // In development, you can proxy to your Vite dev server
-    // In production, it serves the built files
     androidScheme: 'https',
-    cleartext: true,
-    // Allow navigation to Supabase and other external services
-    allowNavigation: [
-      'supabase.co',
-      '*.supabase.co',
-    ],
+    cleartext: false,
+    errorPath: 'unsupported-webview.html',
   },
   // Plugins configuration
   plugins: {

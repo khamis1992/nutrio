@@ -19,21 +19,23 @@ export default defineConfig({
   retries: 0,
   timeout: 180_000,
   expect: { timeout: 15_000 },
-  reporter: [
-    ["list"],
-    ["json", { outputFile: "test-results/launch-results.json" }],
-    ["junit", { outputFile: "test-results/launch-results.xml" }],
-  ],
+  reporter: "line",
   use: {
     baseURL: `${TEST_BASE_URL}/`,
-    trace: "on",
-    screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    trace: "off",
+    screenshot: "off",
+    video: "off",
   },
   projects: [
     {
       name: "launch-chromium",
+      testIgnore: /session-revocation\.spec\.ts/,
+      teardown: "session-revocation",
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "session-revocation",
+      testMatch: /session-revocation\.spec\.ts/,
     },
   ],
 });

@@ -2,6 +2,18 @@ type PostHogClient = typeof import("posthog-js").default;
 
 let posthogClient: PostHogClient | null = null;
 let posthogLoader: Promise<PostHogClient> | null = null;
+let posthogInitialization: Promise<void> | null = null;
+
+const ANALYTICS_CONSENT_KEY = "nutrio.analytics.consent.v1";
+
+export function hasAnalyticsConsent(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(ANALYTICS_CONSENT_KEY) === "granted";
+  } catch {
+    return false;
+  }
+}
 
 function loadPostHog() {
   posthogLoader ??= import("posthog-js").then((module) => module.default);
@@ -9,9 +21,9 @@ function loadPostHog() {
 }
 
 export async function initPostHog() {
-  if (import.meta.env.DEV) {
-    return;
-  }
+  if (import.meta.env.DEV || !hasAnalyticsConsent()) return;
+  if (posthogClient?.__loaded) return;
+  if (posthogInitialization) return posthogInitialization;
 
   const apiKey = import.meta.env.VITE_POSTHOG_KEY;
   const apiHost =
@@ -24,41 +36,68 @@ export async function initPostHog() {
     return;
   }
 
-  const posthog = await loadPostHog();
-  posthogClient = posthog;
+  posthogInitialization = (async () => {
+    const posthog = await loadPostHog();
+    posthogClient = posthog;
 
-  posthog.init(apiKey, {
-    api_host: apiHost,
-    person_profiles: "identified_only", // Only track identified users
-    capture_pageview: true,
-    capture_pageleave: true,
-    autocapture: true,
-    session_recording: {
-      maskAllInputs: true,
-      maskInputOptions: {
-        password: true,
-        email: true,
-      },
-    },
-    // Disable in development
-    loaded: (posthog) => {
-      if (import.meta.env.DEV) posthog.opt_out_capturing();
-    },
+    if (!posthog.__loaded) {
+      posthog.init(apiKey, {
+        api_host: apiHost,
+        person_profiles: "identified_only",
+        capture_pageview: false,
+        capture_pageleave: false,
+        autocapture: false,
+        disable_session_recording: true,
+        opt_out_capturing_by_default: true,
+        respect_dnt: true,
+        loaded: (client) => {
+          if (hasAnalyticsConsent()) client.opt_in_capturing();
+          else client.opt_out_capturing();
+        },
+      });
+    } else if (hasAnalyticsConsent()) {
+      posthog.opt_in_capturing();
+    }
+  })().finally(() => {
+    posthogInitialization = null;
   });
+
+  return posthogInitialization;
+}
+
+export async function setAnalyticsConsent(allowed: boolean): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      ANALYTICS_CONSENT_KEY,
+      allowed ? "granted" : "denied",
+    );
+  } catch {
+    return;
+  }
+
+  if (allowed) {
+    await initPostHog();
+    posthogClient?.opt_in_capturing();
+    return;
+  }
+
+  if (posthogClient?.__loaded) {
+    posthogClient.opt_out_capturing();
+    posthogClient.reset();
+  }
 }
 
 // User identification
 export function identifyUser(userId: string, traits?: Record<string, unknown>) {
-  if (import.meta.env.DEV) return;
+  if (import.meta.env.DEV || !hasAnalyticsConsent()) return;
 
   void loadPostHog().then((posthog) => {
     posthogClient = posthog;
     if (!posthog.__loaded) return;
 
     posthog.identify(userId, {
-      ...traits,
-      email: undefined,
-      phone: undefined,
+      ...sanitizeProperties(traits),
     });
   });
 }
@@ -74,9 +113,7 @@ export function trackEvent(
   eventName: string,
   properties?: Record<string, unknown>,
 ) {
-  if (import.meta.env.DEV) {
-    return;
-  }
+  if (import.meta.env.DEV || !hasAnalyticsConsent()) return;
 
   if (!posthogClient?.__loaded) return;
 
@@ -175,23 +212,27 @@ export function sanitizeProperties(
 ): Record<string, unknown> {
   if (!props) return {};
 
-  const sensitiveKeys = [
-    "email",
-    "phone",
-    "password",
-    "token",
-    "secret",
-    "credit_card",
-  ];
-  const sanitized = { ...props };
-
-  for (const key of Object.keys(sanitized)) {
-    if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk))) {
-      sanitized[key] = "[REDACTED]";
+  const sensitiveKey = /(email|phone|address|password|passcode|token|secret|authorization|cookie|api[_-]?key|card|cvv|cvc|iban|swift|account|latitude|longitude|location|blood|medical|health|diagnos|weight|height|bmi|calorie|protein|carb|fat|water|step|document|file|content|message|notes?|reason_details|(^|_)(full|first|last|customer|driver|recipient)_?name$|^name$|(user|order|subscription|schedule|payment|ticket|driver|restaurant)_?id$)/i;
+  const sanitizeValue = (value: unknown, depth: number): unknown => {
+    if (depth > 4) return "[TRUNCATED]";
+    if (Array.isArray(value)) {
+      return value.slice(0, 50).map((item) => sanitizeValue(item, depth + 1));
     }
-  }
+    if (value && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>)
+          .slice(0, 100)
+          .map(([key, nested]) => [
+            key,
+            sensitiveKey.test(key) ? "[REDACTED]" : sanitizeValue(nested, depth + 1),
+          ]),
+      );
+    }
+    if (typeof value === "string") return value.slice(0, 500);
+    return value;
+  };
 
-  return sanitized;
+  return sanitizeValue(props, 0) as Record<string, unknown>;
 }
 
 // Feature flags (for future use)
@@ -226,6 +267,7 @@ let scrollDepthFired: Set<number> | null = null;
 let scrollDepthTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function trackScrollDepthStart(container?: HTMLElement) {
+  if (!hasAnalyticsConsent()) return () => undefined;
   scrollDepthFired = new Set();
 
   const target = container || document.documentElement;
@@ -306,6 +348,7 @@ let rageClickTracker: {
 } | null = null;
 
 export function installRageClickDetector() {
+  if (!hasAnalyticsConsent()) return () => undefined;
   const handler = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
     const id =

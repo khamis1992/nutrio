@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
+import { AdminDialogContent } from "@/components/admin/AdminPrimitives";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -10,12 +10,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Loader2, User, ShieldAlert, Bike, Store, Dumbbell, Users } from "lucide-react";
+import {
+  Shield,
+  Loader2,
+  User,
+  ShieldAlert,
+  Bike,
+  Store,
+  Dumbbell,
+  Users,
+} from "lucide-react";
 
 // Roles stored in user_roles table (fleet_manager is handled separately in fleet_managers table)
-type DBUserRole = "user" | "admin" | "gym_owner" | "staff" | "restaurant" | "driver" | "partner";
+type DBUserRole =
+  | "user"
+  | "admin"
+  | "gym_owner"
+  | "staff"
+  | "restaurant"
+  | "driver"
+  | "partner";
 type UserRole = DBUserRole | "fleet_manager";
 
 interface ManageRolesDialogProps {
@@ -27,48 +44,57 @@ interface ManageRolesDialogProps {
   onRolesUpdated: (newRoles: UserRole[]) => void;
 }
 
-const availableRoles: { value: UserRole; label: string; description: string; icon: React.ElementType }[] = [
-  { 
-    value: "user", 
-    label: "User", 
-    description: "Standard customer account with access to meals, orders, and tracking",
-    icon: User 
+const availableRoles: {
+  value: UserRole;
+  label: string;
+  description: string;
+  icon: React.ElementType;
+}[] = [
+  {
+    value: "user",
+    label: "User",
+    description:
+      "Standard customer account with access to meals, orders, and tracking",
+    icon: User,
   },
-  { 
-    value: "admin", 
-    label: "Admin", 
-    description: "Full platform access including user management, settings, and analytics",
-    icon: ShieldAlert 
+  {
+    value: "admin",
+    label: "Admin",
+    description:
+      "Full platform access including user management, settings, and analytics",
+    icon: ShieldAlert,
   },
-  { 
-    value: "staff", 
-    label: "Staff", 
+  {
+    value: "staff",
+    label: "Staff",
     description: "Internal team member with elevated permissions",
-    icon: Shield 
+    icon: Shield,
   },
-  { 
-    value: "restaurant", 
-    label: "Restaurant Partner", 
-    description: "Partner account for restaurant owners to manage menu and orders",
-    icon: Store 
+  {
+    value: "restaurant",
+    label: "Restaurant Partner",
+    description:
+      "Partner account for restaurant owners to manage menu and orders",
+    icon: Store,
   },
-  { 
-    value: "driver", 
-    label: "Driver", 
-    description: "Delivery driver account for accepting and completing deliveries",
-    icon: Bike 
+  {
+    value: "driver",
+    label: "Driver",
+    description:
+      "Delivery driver account for accepting and completing deliveries",
+    icon: Bike,
   },
-  { 
-    value: "fleet_manager", 
-    label: "Fleet Manager", 
+  {
+    value: "fleet_manager",
+    label: "Fleet Manager",
     description: "Manages a fleet of drivers and oversees delivery operations",
-    icon: Users 
+    icon: Users,
   },
-  { 
-    value: "gym_owner", 
-    label: "Gym Owner", 
+  {
+    value: "gym_owner",
+    label: "Gym Owner",
     description: "Gym/fitness center owner with special pricing and features",
-    icon: Dumbbell 
+    icon: Dumbbell,
   },
 ];
 
@@ -104,7 +130,7 @@ export function ManageRolesDialog({
       if (error) throw error;
 
       const userRoles = roles?.map((r) => r.role as UserRole) || ["user"];
-      
+
       // Also check fleet_managers table
       const { data: fleetManager } = await supabase
         .from("fleet_managers")
@@ -151,19 +177,20 @@ export function ManageRolesDialog({
 
       if (fetchError) throw fetchError;
 
-      const currentDbRoles: DBUserRole[] = existingRoles?.map((r) => r.role as DBUserRole) || [];
+      const currentDbRoles: DBUserRole[] =
+        existingRoles?.map((r) => r.role as DBUserRole) || [];
 
       // Roles to add (exclude fleet_manager as it's in separate table, and user is default)
       const dbRolesToAdd = selectedRoles.filter(
-        (r): r is DBUserRole => 
-          r !== "fleet_manager" && 
-          r !== "user" && 
-          !currentDbRoles.includes(r as DBUserRole)
+        (r): r is DBUserRole =>
+          r !== "fleet_manager" &&
+          r !== "user" &&
+          !currentDbRoles.includes(r as DBUserRole),
       );
-      
+
       // Roles to remove
       const dbRolesToRemove: DBUserRole[] = currentDbRoles.filter(
-        (r) => !selectedRoles.includes(r as UserRole)
+        (r) => !selectedRoles.includes(r as UserRole),
       );
 
       // Add new roles
@@ -172,7 +199,7 @@ export function ManageRolesDialog({
           dbRolesToAdd.map((role) => ({
             user_id: userId,
             role: role,
-          }))
+          })),
         );
         if (addError) throw addError;
       }
@@ -199,12 +226,16 @@ export function ManageRolesDialog({
         // Need to create fleet manager record - this requires additional info
         toast({
           title: "Fleet Manager Role",
-          description: "To fully assign fleet manager role, please use the 'Create Fleet Manager' button",
+          description:
+            "To fully assign fleet manager role, please use the 'Create Fleet Manager' button",
           variant: "default",
         });
       } else if (!isFleetManager && existingFleetManager) {
         // Remove from fleet_managers
-        await supabase.from("fleet_managers").delete().eq("auth_user_id", userId);
+        await supabase
+          .from("fleet_managers")
+          .delete()
+          .eq("auth_user_id", userId);
       }
 
       toast({
@@ -228,33 +259,42 @@ export function ManageRolesDialog({
 
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {
-      case "admin": return "bg-red-500/10 text-red-600 border-red-500/20";
-      case "fleet_manager": return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20";
-      case "restaurant": return "bg-orange-500/10 text-orange-600 border-orange-500/20";
-      case "driver": return "bg-blue-500/10 text-blue-600 border-blue-500/20";
-      case "gym_owner": return "bg-purple-500/10 text-purple-600 border-purple-500/20";
-      case "staff": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
-      default: return "bg-slate-500/10 text-slate-600 border-slate-500/20";
+      case "admin":
+        return "border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#FB6B7A]";
+      case "fleet_manager":
+        return "border-[#7C83F6]/25 bg-[#7C83F6]/10 text-[#7C83F6]";
+      case "restaurant":
+        return "border-[#F97316]/25 bg-[#F97316]/10 text-[#F97316]";
+      case "driver":
+        return "border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]";
+      case "gym_owner":
+        return "border-[#7C83F6]/25 bg-[#7C83F6]/10 text-[#7C83F6]";
+      case "staff":
+        return "border-[#F97316]/25 bg-[#F97316]/10 text-[#F97316]";
+      default:
+        return "border-[#E5EAF1] bg-[#F6F8FB] text-[#94A3B8]";
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
+      <AdminDialogContent size="md">
+        <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4 text-left">
+          <DialogTitle className="flex items-center gap-2 text-xl font-black text-[#020617]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#020617] text-white">
+              <Shield className="h-5 w-5" />
+            </span>
             Manage Roles
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="font-semibold text-[#94A3B8]">
             Update roles for {userName || "Unnamed User"}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 bg-[#F6F8FB] px-5 py-4">
           {fetchingRoles ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <Loader2 className="h-6 w-6 animate-spin text-[#22C7A1]" />
             </div>
           ) : (
             <div className="space-y-3">
@@ -262,59 +302,75 @@ export function ManageRolesDialog({
                 const Icon = role.icon;
                 const isSelected = selectedRoles.includes(role.value);
                 const isUserRole = role.value === "user";
+                const roleInputId = `admin-role-${role.value}`;
 
                 return (
                   <div
                     key={role.value}
-                    className={`flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
+                    className={`flex items-start gap-3 rounded-[20px] border p-3 transition-all ${
                       isSelected
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
+                        ? "border-[#22C7A1]/45 bg-[#22C7A1]/10"
+                        : "border-[#E5EAF1] bg-white hover:border-[#22C7A1]/35"
                     } ${isUserRole && selectedRoles.length === 1 ? "opacity-50" : ""}`}
-                    onClick={() => !isUserRole && handleRoleToggle(role.value)}
                   >
                     <Checkbox
+                      id={roleInputId}
                       checked={isSelected}
                       onCheckedChange={() => handleRoleToggle(role.value)}
                       disabled={isUserRole && selectedRoles.length === 1}
-                      className="mt-1"
+                      className="mt-1 border-[#E5EAF1] data-[state=checked]:border-[#22C7A1] data-[state=checked]:bg-[#22C7A1]"
                     />
-                    <div className="flex-1">
+                    <Label
+                      htmlFor={roleInputId}
+                      className="flex-1 cursor-pointer"
+                    >
                       <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">{role.label}</span>
+                        <Icon className="h-4 w-4 text-[#94A3B8]" />
+                        <span className="font-black text-[#020617]">
+                          {role.label}
+                        </span>
                         {isSelected && (
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className={`text-xs ${getRoleBadgeColor(role.value)}`}
                           >
                             Active
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
                         {role.description}
                       </p>
-                    </div>
+                    </Label>
                   </div>
                 );
               })}
             </div>
           )}
 
-          <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+          <div className="rounded-[18px] border border-[#E5EAF1] bg-white p-3 text-sm font-semibold text-[#94A3B8]">
             <p>
-              <strong>Note:</strong> Users must have at least one role. The "User" role 
-              provides basic customer access and cannot be removed unless other roles are assigned.
+              <strong>Note:</strong> Users must have at least one role. The
+              "User" role provides basic customer access and cannot be removed
+              unless other roles are assigned.
             </p>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+        <DialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
+            className="h-11 rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617]"
+          >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={loading || fetchingRoles}>
+          <Button
+            onClick={handleSave}
+            disabled={loading || fetchingRoles}
+            className="h-11 rounded-2xl bg-[#020617] font-black text-white hover:bg-[#020617]/90"
+          >
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -325,7 +381,7 @@ export function ManageRolesDialog({
             )}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AdminDialogContent>
     </Dialog>
   );
 }

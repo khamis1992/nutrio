@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "حفظ مخالفات المركبات PDF",
+  "version": "0.2.1",
+  "description": "يحفظ مخالفات جميع مركبات المنشأة كملفات PDF بمقاس A4 باستخدام جلسة Chrome الحالية.",
+  "minimum_chrome_version": "118",
+  "permissions": [
+    "debugger",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://fees2.moi.gov.qa/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "حفظ مخالفات جميع المركبات PDF"
+  }
+}

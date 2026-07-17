@@ -1,49 +1,50 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
+import { getAdminClient } from "../_shared/sporthub.ts";
 import {
-  corsHeaders,
-  getAdminClient,
-  getAuthenticatedUser,
+  authenticateRequest,
+  enforceRateLimit,
+  errorResponse,
+  handlePreflight,
   jsonResponse,
-} from "../_shared/sporthub.ts";
+  readJsonBody,
+  recordSecurityEvent,
+  requirePost,
+} from "../_shared/security.ts";
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405);
+serve(async (req: Request): Promise<Response> => {
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    const user = await getAuthenticatedUser(req);
-    if (!user) return jsonResponse({ error: "unauthorized" }, 401);
+    requirePost(req);
+    const principal = await authenticateRequest(req);
+    await enforceRateLimit(req, "sporthub-unlink", principal.user.id, 5, 60 * 60);
+    await readJsonBody<Record<string, never>>(req, 1024);
+
     const admin = getAdminClient();
-    const { data: integration, error } = await admin.from("partner_integrations")
-      .select("id,external_user_id")
-      .eq("user_id", user.id)
-      .eq("partner", "sporthub")
-      .maybeSingle();
+    const { data, error } = await admin.rpc("unlink_sporthub_integration", {
+      p_user_id: principal.user.id,
+    });
     if (error) throw error;
 
-    if (integration) {
-      await admin.from("partner_credentials").delete().eq("integration_id", integration.id);
-      const now = new Date().toISOString();
-      const { error: updateError } = await admin.from("partner_integrations").update({
-        consent_status: "revoked",
-        unlinked_at: now,
-        updated_at: now,
-        metadata: { revoked_by: "user", revoked_at: now },
-      }).eq("id", integration.id);
-      if (updateError) throw updateError;
+    await recordSecurityEvent(req, {
+      eventType: "integration.sporthub.unlinked",
+      category: "authorization",
+      severity: "medium",
+      outcome: "success",
+      principal,
+      action: "revoke_partner_consent",
+      resourceType: "public.partner_integrations",
+      resourceId: "sporthub",
+      metadata: { integration_existed: data === true },
+    });
 
-      await admin.from("partner_events").insert({
-        user_id: user.id,
-        partner: "sporthub",
-        event_type: "sporthub.account.unlinked",
-        payload: { external_user_id: integration.external_user_id },
-      });
-    }
-
-    return jsonResponse({ ok: true });
+    return jsonResponse(req, { ok: true });
   } catch (error) {
-    console.error("SportHub unlink failed", error);
-    return jsonResponse({ error: "unlink_failed" }, 500);
+    console.error("SportHub unlink failed", {
+      code: error instanceof Error ? error.name : "unknown",
+    });
+    return errorResponse(req, error);
   }
 });

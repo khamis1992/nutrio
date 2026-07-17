@@ -1,11 +1,10 @@
 import * as pdfjsLib from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?worker&url";
 
 import type { BloodMarkerDefinition } from "@/lib/blood-markers";
+import { detectUnit, normalizeHealthMarker } from "@/services/health-document-normalizer";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.js",
-  import.meta.url,
-).toString();
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const FALLBACK_DEFINITIONS: BloodMarkerDefinition[] = [
   { id: "fallback-hemoglobin", marker_name: "Hemoglobin", marker_name_ar: null, unit: "g/dL", normal_min: 13.5, normal_max: 17.5, category: "blood", description: "Blood hemoglobin" },
@@ -31,6 +30,8 @@ export interface ExtractedBloodMarker {
   value: string;
   confidence: "high" | "medium";
   sourceLine: string;
+  normalizedValue: number;
+  normalizedUnit: string;
 }
 
 function escapeRegExp(value: string) {
@@ -110,11 +111,19 @@ function extractMarkersFromLines(
       const value = extractValueFromLine(line, aliases);
       if (!value) continue;
 
+      const normalized = normalizeHealthMarker({
+        name: definition.marker_name,
+        value,
+        unit: detectUnit(line, definition.unit),
+        source: line,
+      });
       foundByMarkerName.set(markerKey(definition.marker_name), {
         definition,
         value,
         confidence: line.toLowerCase().includes(definition.marker_name.toLowerCase()) ? "high" : "medium",
         sourceLine: line,
+        normalizedValue: normalized.value,
+        normalizedUnit: normalized.unit,
       });
       break;
     }
@@ -172,6 +181,7 @@ async function extractPdfOcrText(file: File) {
       canvas.height = Math.ceil(viewport.height);
 
       await page.render({
+        canvas,
         canvasContext: context,
         viewport,
       }).promise;

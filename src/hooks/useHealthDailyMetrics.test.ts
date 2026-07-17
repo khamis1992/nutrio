@@ -100,6 +100,7 @@ const dailyMetric = (metricDate: string, syncedAt: string, userId = "user-a"): H
 describe("useHealthDailyMetrics", () => {
   beforeEach(() => {
     vi.stubGlobal("localStorage", createMemoryStorage());
+    vi.stubGlobal("sessionStorage", createMemoryStorage());
     vi.mocked(supabase.from).mockReset();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
   });
@@ -195,6 +196,11 @@ describe("useHealthDailyMetrics", () => {
   });
 
   it("rejects a daily response belonging to another account", async () => {
+    setCachedHealthData(
+      syncedHealthData("2026-07-12T07:00:00.000Z"),
+      "user-a",
+      "2026-07-12",
+    );
     const otherUsersMetric = dailyMetric(
       "2026-07-12",
       "2026-07-12T08:00:00.000Z",
@@ -207,6 +213,24 @@ describe("useHealthDailyMetrics", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.metrics).toBeNull();
     expect(getCachedHealthData("user-a", "2026-07-12")).toBeNull();
+  });
+
+  it("rejects the full range when any row is outside the requested account", async () => {
+    const validMetric = dailyMetric("2026-07-12", "2026-07-12T08:00:00.000Z");
+    const otherUsersMetric = dailyMetric(
+      "2026-07-11",
+      "2026-07-11T08:00:00.000Z",
+      "user-b",
+    );
+    mockQueries(
+      { data: validMetric, error: null },
+      { data: [validMetric, otherUsersMetric], error: null },
+    );
+
+    const { result } = renderHook(() => useHealthDailyMetrics("user-a", "2026-07-12"));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.rangeMetrics).toEqual([]);
   });
 
   it("returns no cached health data without an authenticated user", () => {

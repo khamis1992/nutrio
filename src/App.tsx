@@ -68,6 +68,7 @@ const AdminNotifications = lazy(() => import("./pages/admin/AdminNotifications")
 const AdminDrivers = lazy(() => import("./pages/admin/AdminDrivers"));
 const AdminDeliveries = lazy(() => import("./pages/admin/AdminDeliveries"));
 const AdminIPManagement = lazy(() => import("./pages/admin/AdminIPManagement"));
+const AdminSecurityCenter = lazy(() => import("./pages/admin/AdminSecurityCenter"));
 const AdminFreezeManagement = lazy(() => import("./pages/admin/AdminFreezeManagement"));
 const AdminRetentionAnalytics = lazy(() => import("./pages/admin/AdminRetentionAnalytics"));
 const AdminStreakRewards = lazy(() => import("./pages/admin/AdminStreakRewards"));
@@ -336,6 +337,14 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route
+              path="/admin/users/:userId"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminUsers />
+                </ProtectedRoute>
+              }
+            />
             <Route 
               path="/admin/orders" 
               element={
@@ -362,11 +371,7 @@ const App = () => (
             />
             <Route 
               path="/admin/income" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminProfitDashboard />
-                </ProtectedRoute>
-              } 
+              element={<Navigate to="/admin/profit" replace />}
             />
             <Route 
               path="/admin/profit" 
@@ -523,6 +528,14 @@ const App = () => (
       <AdminIPManagement />
     </ProtectedRoute>
   } 
+/>
+<Route
+  path="/admin/security"
+  element={
+    <ProtectedRoute requiredRole="admin">
+      <AdminSecurityCenter />
+    </ProtectedRoute>
+  }
 />
 <Route 
   path="/admin/freeze-management" 

@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import type { ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react-swc";
-import legacy from "@vitejs/plugin-legacy";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
@@ -17,7 +16,15 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: true,
     port: 5173,
-    allowedHosts: true,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      '.local',
+      ...(process.env.VITE_DEV_ALLOWED_HOSTS || '')
+        .split(',')
+        .map((host) => host.trim())
+        .filter(Boolean),
+    ],
     // Allow access from local network for mobile testing
     strictPort: true,
     // Improve HMR reliability
@@ -60,18 +67,6 @@ export default defineConfig(({ mode }) => ({
     react({
       devTarget: 'es2020',
     }),
-    // Transpile modern JS for older Android WebViews.
-    // Without this, Capacitor APKs can show a white screen on devices
-    // whose WebView doesn't support optional chaining, nullish coalescing,
-    // or dynamic import (common on Samsung / older Android).
-    // NOTE: Do NOT set build.target alongside this plugin — the legacy plugin
-    // controls the output target automatically. Setting 'esnext' in build.target
-    // causes a conflict warning and may produce incorrect bundles.
-    legacy({
-      targets: ['chrome >= 52', 'android >= 5'],
-      additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
-      modernPolyfills: true,
-    }),
     mode === "development" && componentTagger(),
     // Sentry plugin for source maps (only in production AND only when auth token is available)
     // Without this guard, the build fails silently when SENTRY_AUTH_TOKEN is not set
@@ -79,6 +74,11 @@ export default defineConfig(({ mode }) => ({
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,
       authToken: process.env.SENTRY_AUTH_TOKEN,
+      sourcemaps: {
+        // Source maps are uploaded for debugging, then removed from the public
+        // deployment so application internals are not exposed to attackers.
+        filesToDeleteAfterUpload: ['./dist/**/*.map'],
+      },
       // Don't fail the build if Sentry upload fails
       errorHandler: (err) => { console.warn('[Sentry] Source map upload failed:', err.message); },
     }),
@@ -97,15 +97,22 @@ export default defineConfig(({ mode }) => ({
       'tesseract.js',
     ],
   },
+  worker: {
+    format: 'es',
+  },
   // Optimizations for mobile
   build: {
     outDir: 'dist',
     chunkSizeWarningLimit: 1000,
-    // NOTE: Do NOT set build.target here — @vitejs/plugin-legacy controls the
-    // target automatically. Setting 'esnext' here causes the legacy plugin to
-    // emit a warning and may produce incorrect output for older Android WebViews.
-    // Enable sourcemaps for error tracking (Sentry needs these)
-    sourcemap: true,
+    target: 'es2020',
+    // Capacitor rejects obsolete Android WebViews before loading the app. This
+    // target still down-levels app code without shipping unsupported legacy bundles.
+    // Hidden maps are built only when Sentry can receive them. The plugin
+    // removes them after upload, so Vercel never serves source code maps.
+    sourcemap:
+      mode === 'production' && !!process.env.SENTRY_AUTH_TOKEN
+        ? 'hidden'
+        : false,
     // Optimize for mobile
     minify: 'terser',
     terserOptions: {

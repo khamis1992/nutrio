@@ -3,17 +3,33 @@
 // Called by: Cron job (weekly), Manual trigger after body metrics logging
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  enforceRateLimit,
+  errorResponse,
+  escapeHtml,
+  getClientIp,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requireAdmin,
+  requireInternalSecret,
+  requirePost,
+  requireSelfOrAdmin,
+  type SecurityPrincipal,
+} from "../_shared/security.ts";
 
 interface HealthScoreInput {
-  user_id?: string; // If specific user, else calculate for all
+  user_id?: string; // If specific user, otherwise calculate a bounded page
   week_start?: string; // YYYY-MM-DD format, defaults to current week
+  limit?: number;
+  after_user_id?: string;
 }
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface HealthScoreResult {
   user_id: string;
@@ -30,61 +46,55 @@ interface HealthScoreResult {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    // Create Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
+    requirePost(req);
+    const { user_id, week_start, limit = 3, after_user_id } =
+      await readJsonBody<HealthScoreInput>(
+        req,
+        8 * 1024,
+      );
+
+    if (user_id && !UUID_PATTERN.test(user_id)) {
+      throw new HttpError(400, "invalid_user_id");
+    }
+    if (after_user_id && !UUID_PATTERN.test(after_user_id)) {
+      throw new HttpError(400, "invalid_health_score_cursor");
+    }
+    if (!Number.isInteger(limit) || limit < 1 || limit > 3) {
+      throw new HttpError(400, "invalid_batch_limit");
+    }
+
+    let principal: SecurityPrincipal | null = null;
+    if (req.headers.has("x-internal-secret")) {
+      await requireInternalSecret(req, "HEALTH_SCORE_CRON_SECRET");
+    } else if (user_id) {
+      principal = await requireSelfOrAdmin(req, user_id);
+    } else {
+      principal = await requireAdmin(req);
+    }
+
+    await enforceRateLimit(
+      req,
+      "health-score",
+      principal?.user.id || getClientIp(req) || "internal",
+      user_id ? 20 : 12,
+      3600,
     );
 
-    // Parse request body
-    const { user_id, week_start }: HealthScoreInput = await req.json().catch(() => ({}));
+    const supabaseClient = getServiceClient();
 
     // Determine the week to calculate for
-    const targetWeekStart = week_start 
-      ? new Date(week_start)
+    if (week_start && !/^\d{4}-\d{2}-\d{2}$/.test(week_start)) {
+      throw new HttpError(400, "invalid_week_start");
+    }
+    const targetWeekStart = week_start
+      ? new Date(`${week_start}T00:00:00.000Z`)
       : getWeekStart(new Date());
-
-    // Validate JWT if specific user requested (optional for cron jobs)
-    let requestingUserId: string | null = null;
-    let isAdmin = false;
-
-    const authHeader = req.headers.get("authorization");
-    if (authHeader) {
-      const jwt = authHeader.replace("Bearer ", "");
-      const { data: { user }, error: authError } = await supabaseClient.auth.getUser(jwt);
-
-      if (!authError && user) {
-        requestingUserId = user.id;
-
-        // Check if admin
-        const { data: profile } = await supabaseClient
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-
-        isAdmin = profile?.role === "admin";
-
-        // If specific user requested, verify permissions
-        if (user_id && user_id !== user.id && !isAdmin) {
-          return new Response(
-            JSON.stringify({ error: "Forbidden: Can only calculate own health score" }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      }
+    if (Number.isNaN(targetWeekStart.getTime())) {
+      throw new HttpError(400, "invalid_week_start");
     }
 
     // Build query to get users
@@ -95,6 +105,11 @@ serve(async (req) => {
 
     if (user_id) {
       userQuery = userQuery.eq("user_id", user_id);
+    } else {
+      userQuery = userQuery.order("user_id", { ascending: true }).limit(limit);
+      if (after_user_id) {
+        userQuery = userQuery.gt("user_id", after_user_id);
+      }
     }
 
     const { data: activeSubscriptions, error: usersError } = await userQuery;
@@ -104,18 +119,20 @@ serve(async (req) => {
     }
 
     if (!activeSubscriptions || activeSubscriptions.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          message: "No active subscriptions found",
-          calculated: 0,
-          results: []
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse(req, {
+        message: "No active subscriptions found",
+        calculated: 0,
+        batch_limit: user_id ? 1 : limit,
+        next_cursor: null,
+        results: [],
+      });
     }
 
     // Get unique user IDs
     const userIds = [...new Set(activeSubscriptions.map((s) => s.user_id))];
+    const nextCursor = !user_id && activeSubscriptions.length === limit
+      ? userIds[userIds.length - 1] ?? null
+      : null;
     const results: HealthScoreResult[] = [];
 
     // Calculate health score for each user
@@ -162,25 +179,35 @@ serve(async (req) => {
 
         // Send notification if score calculated successfully
         if (result.success) {
-          // Get user's email preference
-          const { data: userPrefs } = await supabaseClient
-            .from("user_preferences")
-            .select("email_notifications")
-            .eq("user_id", uid)
-            .single();
-
-          if (userPrefs?.email_notifications !== false) {
-            await supabaseClient.functions.invoke("send-email", {
-              body: {
-                to: uid,
-                template: "health-score-calculated",
-                data: {
-                  week_start: targetWeekStart.toISOString().split("T")[0],
-                  overall_score: result.overall_score,
-                  category: result.category,
-                  breakdown: result.breakdown,
+          try {
+            const downstreamSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET") || "";
+            if (downstreamSecret) {
+              const week = targetWeekStart.toISOString().split("T")[0];
+              const subject = "Your Nutrio weekly health score is ready";
+              const message = `Your health score for the week of ${week} is ${result.overall_score} (${result.category}).`;
+              const { data: notificationData, error: notificationError } = await supabaseClient.functions.invoke(
+                "send-email",
+                {
+                  headers: { "x-internal-secret": downstreamSecret },
+                  body: {
+                    user_id: uid,
+                    preference: "health_insights",
+                    subject,
+                    text: message,
+                    html: `<p>${escapeHtml(message)}</p>`,
+                    idempotency_key: `health-score:${uid}:${week}`,
+                  },
                 },
-              },
+              );
+              if (notificationError || notificationData?.success !== true) {
+                console.error("Health score notification failed", {
+                  code: notificationError?.name || "delivery_rejected",
+                });
+              }
+            }
+          } catch (notificationError) {
+            console.error("Health score notification unavailable", {
+              name: notificationError instanceof Error ? notificationError.name : "unknown",
             });
           }
         }
@@ -193,27 +220,36 @@ serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        message: "Health scores calculated",
-        week_start: targetWeekStart.toISOString().split("T")[0],
-        calculated: results.length,
-        successful: results.filter((r) => r.success).length,
-        failed: results.filter((r) => !r.success).length,
-        results,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const successful = results.filter((result) => result.success).length;
+    const failed = results.length - successful;
+    await recordSecurityEvent(req, {
+      eventType: user_id
+        ? "health.score.calculated"
+        : "system.health_score.batch_completed",
+      category: "data_change",
+      severity: failed ? "medium" : "info",
+      outcome: failed ? "failure" : "success",
+      principal,
+      actorType: principal ? undefined : "system",
+      action: user_id ? "calculate_health_score" : "calculate_health_scores_batch",
+      resourceType: user_id ? "auth.user" : "system.batch",
+      resourceId: user_id || "health-scores",
+      metadata: { calculated: results.length, successful, failed },
+    });
+
+    return jsonResponse(req, {
+      message: "Health scores calculated",
+      week_start: targetWeekStart.toISOString().split("T")[0],
+      calculated: results.length,
+      successful,
+      failed,
+      batch_limit: user_id ? 1 : limit,
+      next_cursor: nextCursor,
+      results,
+    });
   } catch (error) {
     console.error("Error calculating health scores:", error);
-    
-    return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(req, error);
   }
 });
 

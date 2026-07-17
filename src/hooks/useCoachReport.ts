@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import DOMPurify from "dompurify";
 import { supabase } from "@/integrations/supabase/client";
 
 export function useCoachReport() {
@@ -15,7 +16,12 @@ export function useCoachReport() {
         if (error) throw new Error(error.message || "Edge function returned an error");
 
         const htmlString = typeof data === "string" ? data : JSON.stringify(data);
-        const blob = new Blob([htmlString], { type: "text/html" });
+        const safeHtml = DOMPurify.sanitize(htmlString, {
+          WHOLE_DOCUMENT: true,
+          FORBID_TAGS: ["script", "iframe", "object", "embed"],
+          FORBID_ATTR: ["onerror", "onload", "onclick"],
+        });
+        const blob = new Blob([safeHtml], { type: "text/html" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;

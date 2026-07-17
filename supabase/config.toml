@@ -4,12 +4,30 @@ project_id = "loepcagitrijlfksawfm"
 verify_jwt = false
 
 [functions.analyze-meal-image]
-verify_jwt = false
+verify_jwt = true
+
+[functions.translate-meal]
+verify_jwt = true
+
+[functions.lookup-barcode]
+verify_jwt = true
+
+[functions.export-user-data]
+verify_jwt = true
+
+[functions.zhipu-test]
+verify_jwt = true
 
 [functions.send-commission-notification]
 verify_jwt = false
 
 [functions.send-payout-notification]
+verify_jwt = true
+
+[functions.simulate-payment]
+verify_jwt = true
+
+[functions.upgrade-subscription]
 verify_jwt = true
 
 [functions.send-milestone-notification]
@@ -25,7 +43,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-affiliate-status-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.check-ip-location]
 verify_jwt = false
@@ -44,26 +62,62 @@ verify_jwt = false
 [functions.handle-freeze-request]
 verify_jwt = true
 
-[functions.nutrition-profile-engine]
+[functions.adaptive-goals]
 verify_jwt = false
+
+[functions.adaptive-goals-batch]
+verify_jwt = false
+
+[functions.calculate-health-score]
+verify_jwt = true
+
+[functions.generate-coach-report]
+verify_jwt = true
+
+[functions.generate-ai-insight]
+verify_jwt = true
+
+[functions.nutrition-profile-engine]
+verify_jwt = true
 
 [functions.smart-meal-allocator]
-verify_jwt = false
+verify_jwt = true
 
 [functions.dynamic-adjustment-engine]
-verify_jwt = false
+verify_jwt = true
 
 [functions.behavior-prediction-engine]
-verify_jwt = false
+verify_jwt = true
 
 [functions.restaurant-intelligence-engine]
-verify_jwt = false
+verify_jwt = true
 
 [functions.qnas-proxy]
 verify_jwt = true
 
 [functions.proxy-openrouter]
+verify_jwt = true
+
+[functions.ai-router]
 verify_jwt = false
+
+[functions.nutrio-mcp]
+verify_jwt = false
+
+[functions.recommend-meals]
+verify_jwt = true
+
+[functions.similar-meals]
+verify_jwt = true
+
+[functions.google-fit-token]
+verify_jwt = true
+
+[functions.google-fit-token-refresh]
+verify_jwt = true
+
+[functions.google-fit-sync]
+verify_jwt = true
 
 [functions.sporthub-webhook]
 verify_jwt = false
@@ -76,3 +130,59 @@ verify_jwt = false
 # SADAD checksum for provider-originated requests.
 [functions.sadad-payment]
 verify_jwt = false
+
+# These notification functions authenticate customer/admin JWTs or a scoped
+# internal secret inside the handler so scheduled calls can omit a JWT.
+[functions.send-push-notification]
+verify_jwt = false
+
+[functions.send-whatsapp-proxy]
+verify_jwt = false
+
+[functions.process-whatsapp-notifications]
+verify_jwt = false
+
+[functions.subscription-recovery-cron]
+verify_jwt = false
+
+[functions.send-invoice-email]
+verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+# Uses only Supabase sessions. Driver ownership, manager role, MFA for admins,
+# and city scope are validated again inside the function.
+[functions.fleet-tracking]
+verify_jwt = true
+
+[functions.fleet-drivers]
+verify_jwt = true
+
+# Legacy custom fleet endpoints are intentionally retired. Requiring a valid
+# Supabase JWT prevents anonymous probing before the handler returns 410.
+[functions.fleet-auth]
+verify_jwt = true
+
+[functions.fleet-dashboard]
+verify_jwt = true
+
+[functions.fleet-vehicles]
+verify_jwt = true
+
+# Internal automation may authenticate with x-internal-secret; admin requests
+# are authenticated in-function before atomic assignment is attempted.
+[functions.auto-assign-driver]
+verify_jwt = false
+
+# Uses the caller's verified Supabase session for role-scoped atomic payout RPCs.
+[functions.fleet-payouts]
+verify_jwt = false
+
+# Scheduled daily. The handler requires SECURITY_LOG_CRON_SECRET or an admin
+# JWT, creates an append-only range anchor, and optionally exports it off-site.
+[functions.security-log-maintenance]
+verify_jwt = false
+
+[functions.secure-sensitive-upload]
+verify_jwt = true

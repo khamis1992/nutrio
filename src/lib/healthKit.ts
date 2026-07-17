@@ -10,7 +10,7 @@
  * - Sync Heart Rate
  * - Sync Workouts
  * - Poll/sync at configurable intervals
- * - Store synced data in Supabase + localStorage
+ * - Store synced data in Supabase + an ephemeral browser-session cache
  */
 
 import { isNative, isIOS, isAndroid } from "@/lib/capacitor";
@@ -105,7 +105,7 @@ function defaultConfig(): HealthSyncConfig {
 }
 
 function removeInvalidCachedRecord(storageKey: string): null {
-  localStorage.removeItem(storageKey);
+  sessionStorage.removeItem(storageKey);
   return null;
 }
 
@@ -168,12 +168,15 @@ export function updateConfigToggle(dataType: SyncDataType, enabled: boolean, use
 }
 
 export function getCachedHealthData(userId?: string, sourceDate?: string): SyncedHealthData | null {
-  // An unscoped legacy record has no provable owner and must never be reused.
+  // Health measurements are deliberately session-only. Remove historical
+  // persistent records so a shared browser profile cannot retain them.
   localStorage.removeItem(DATA_STORAGE_KEY);
+  sessionStorage.removeItem(DATA_STORAGE_KEY);
   if (!isValidUserId(userId)) return null;
 
   const storageKey = getDataStorageKey(userId);
-  const stored = localStorage.getItem(storageKey);
+  localStorage.removeItem(storageKey);
+  const stored = sessionStorage.getItem(storageKey);
   if (!stored) return null;
 
   try {
@@ -210,8 +213,10 @@ export function getCachedHealthData(userId?: string, sourceDate?: string): Synce
 }
 
 export function setCachedHealthData(data: SyncedHealthData, userId?: string, sourceDate?: string): void {
-  // Clear the old shared slot, but never guess which user an unscoped write belongs to.
+  // Clear persistent legacy slots, but never guess which user an unscoped
+  // write belongs to.
   localStorage.removeItem(DATA_STORAGE_KEY);
+  sessionStorage.removeItem(DATA_STORAGE_KEY);
   if (!isValidUserId(userId)) return;
 
   const syncedQatarDate = qatarDateFromSyncedAt(data.syncedAt);
@@ -232,7 +237,18 @@ export function setCachedHealthData(data: SyncedHealthData, userId?: string, sou
     syncedAt: data.syncedAt,
     data,
   };
-  localStorage.setItem(getDataStorageKey(userId), JSON.stringify(record));
+  localStorage.removeItem(getDataStorageKey(userId));
+  sessionStorage.setItem(getDataStorageKey(userId), JSON.stringify(record));
+}
+
+export function clearCachedHealthData(userId?: string): void {
+  localStorage.removeItem(DATA_STORAGE_KEY);
+  sessionStorage.removeItem(DATA_STORAGE_KEY);
+  if (!isValidUserId(userId)) return;
+
+  const storageKey = getDataStorageKey(userId);
+  localStorage.removeItem(storageKey);
+  sessionStorage.removeItem(storageKey);
 }
 
 export function shouldSync(config: HealthSyncConfig): boolean {
@@ -255,16 +271,20 @@ export function disconnectAll(userId?: string): void {
   config.lastSyncTimestamp = null;
   saveConfig(config, userId);
   localStorage.removeItem(DATA_STORAGE_KEY);
+  sessionStorage.removeItem(DATA_STORAGE_KEY);
 
   if (isValidUserId(userId)) {
     localStorage.removeItem(getDataStorageKey(userId));
+    sessionStorage.removeItem(getDataStorageKey(userId));
     return;
   }
 
-  for (let index = localStorage.length - 1; index >= 0; index -= 1) {
-    const key = localStorage.key(index);
-    if (key?.startsWith(DATA_STORAGE_PREFIX) || key?.startsWith(CONFIG_STORAGE_PREFIX)) {
-      localStorage.removeItem(key);
+  for (const storage of [localStorage, sessionStorage]) {
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (key?.startsWith(DATA_STORAGE_PREFIX) || key?.startsWith(CONFIG_STORAGE_PREFIX)) {
+        storage.removeItem(key);
+      }
     }
   }
 }

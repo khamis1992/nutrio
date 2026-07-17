@@ -14,6 +14,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { isNative } from "@/lib/capacitor";
 import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 import { syncWorkoutSessionsToHealthDailyMetrics } from "@/lib/health-daily-metrics";
+import { isGoogleFitConnected } from "@/lib/google-fit-workout-service";
+import { getAuthUrl, getGoogleFitRedirectUri } from "@/services/health/googleFit";
 
 // ─── Activity Database ───────────────────────────────────────────────────────
 interface Activity {
@@ -171,10 +173,17 @@ export default function LogActivity() {
   }, [user, todayStr]);
 
   useEffect(() => {
-    loadSessions();
-    const storedToken = localStorage.getItem("google_fit_access_token");
-    setGoogleFitConnected(!!storedToken);
-  }, [loadSessions]);
+    void loadSessions();
+    let cancelled = false;
+    if (user) {
+      void isGoogleFitConnected(user.id).then((connected) => {
+        if (!cancelled) setGoogleFitConnected(connected);
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [loadSessions, user]);
 
   const filtered = ACTIVITIES.filter((a) => {
     const matchesCategory = category === "All" || a.category === category;
@@ -364,14 +373,9 @@ export default function LogActivity() {
                     }
                     const clientId = import.meta.env.VITE_GOOGLE_FIT_CLIENT_ID;
                     if (clientId) {
-                      const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
-                      const params = new URLSearchParams({
-                        client_id: clientId, redirect_uri: redirectUri,
-                        response_type: "code",
-                        scope: "https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.body.read",
-                        access_type: "offline", prompt: "consent",
+                      void getAuthUrl(clientId, getGoogleFitRedirectUri()).then((url) => {
+                        window.location.assign(url);
                       });
-                      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
                     }
                   }}
                   className="flex h-11 flex-1 items-center justify-center gap-2 rounded-[16px] border border-[#CDEBE0] bg-white text-[14px] font-bold text-[#10A86C]"

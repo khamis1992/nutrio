@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
+import {
+  AdminFilterBar,
+  AdminKpiStrip,
+  AdminSheetContent,
+  AdminWorkbenchHeader,
+} from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +20,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Sheet,
-  SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
@@ -46,6 +51,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { downloadCsv } from "@/lib/csv";
 import { format } from "date-fns";
 
 interface Application {
@@ -67,10 +73,17 @@ const AdminAffiliateApplications = () => {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
-  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
-  const [activeTab, setActiveTab] = useState<"all" | "pending" | "approved" | "rejected">("pending");
-  const [sortField, setSortField] = useState<"applied_at" | "full_name">("applied_at");
+  const [selectedApplications, setSelectedApplications] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectedApplication, setSelectedApplication] =
+    useState<Application | null>(null);
+  const [activeTab, setActiveTab] = useState<
+    "all" | "pending" | "approved" | "rejected"
+  >("pending");
+  const [sortField, setSortField] = useState<"applied_at" | "full_name">(
+    "applied_at",
+  );
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
@@ -93,9 +106,15 @@ const AdminAffiliateApplications = () => {
 
       if (appsError) throw appsError;
 
-      const userIds = [...new Set((appsData || []).map((app) => app.user_id).filter(Boolean))];
-      
-      let profilesData: { user_id: string; full_name: string | null; email: string | null }[] = [];
+      const userIds = [
+        ...new Set((appsData || []).map((app) => app.user_id).filter(Boolean)),
+      ];
+
+      let profilesData: {
+        user_id: string;
+        full_name: string | null;
+        email: string | null;
+      }[] = [];
       if (userIds.length > 0) {
         const { data } = await supabase
           .from("profiles")
@@ -143,7 +162,7 @@ const AdminAffiliateApplications = () => {
 
       // Generate referral code
       const referralCode = `REF${application.user_id.slice(0, 6).toUpperCase()}${Date.now().toString(36).slice(-4).toUpperCase()}`;
-      
+
       await supabase
         .from("profiles")
         .update({ referral_code: referralCode })
@@ -165,14 +184,19 @@ const AdminAffiliateApplications = () => {
       setApplications((prev) =>
         prev.map((app) =>
           app.id === application.id
-            ? { ...app, status: "approved", reviewed_at: new Date().toISOString() }
-            : app
-        )
+            ? {
+                ...app,
+                status: "approved",
+                reviewed_at: new Date().toISOString(),
+              }
+            : app,
+        ),
       );
 
       toast({
         title: "Application Approved",
-        description: "The user has been approved as an affiliate and notified via email.",
+        description:
+          "The user has been approved as an affiliate and notified via email.",
       });
     } catch (err) {
       console.error("Error approving application:", err);
@@ -218,9 +242,14 @@ const AdminAffiliateApplications = () => {
       setApplications((prev) =>
         prev.map((app) =>
           app.id === selectedApplication.id
-            ? { ...app, status: "rejected", rejection_reason: rejectionReason, reviewed_at: new Date().toISOString() }
-            : app
-        )
+            ? {
+                ...app,
+                status: "rejected",
+                rejection_reason: rejectionReason,
+                reviewed_at: new Date().toISOString(),
+              }
+            : app,
+        ),
       );
 
       toast({
@@ -281,12 +310,15 @@ const AdminAffiliateApplications = () => {
 
         // Send approval email (fire and forget)
         try {
-          await supabase.functions.invoke("send-affiliate-status-notification", {
-            body: {
-              user_id: application.user_id,
-              status: "approved",
+          await supabase.functions.invoke(
+            "send-affiliate-status-notification",
+            {
+              body: {
+                user_id: application.user_id,
+                status: "approved",
+              },
             },
-          });
+          );
         } catch (emailError) {
           console.error("Error sending approval email:", emailError);
         }
@@ -298,9 +330,13 @@ const AdminAffiliateApplications = () => {
       setApplications((prev) =>
         prev.map((app) =>
           selectedApplications.has(app.id) && app.status === "pending"
-            ? { ...app, status: "approved", reviewed_at: new Date().toISOString() }
-            : app
-        )
+            ? {
+                ...app,
+                status: "approved",
+                reviewed_at: new Date().toISOString(),
+              }
+            : app,
+        ),
       );
 
       toast({
@@ -358,13 +394,16 @@ const AdminAffiliateApplications = () => {
 
         // Send rejection email (fire and forget)
         try {
-          await supabase.functions.invoke("send-affiliate-status-notification", {
-            body: {
-              user_id: application.user_id,
-              status: "rejected",
-              rejection_reason: rejectionReason || undefined,
+          await supabase.functions.invoke(
+            "send-affiliate-status-notification",
+            {
+              body: {
+                user_id: application.user_id,
+                status: "rejected",
+                rejection_reason: rejectionReason || undefined,
+              },
             },
-          });
+          );
         } catch (emailError) {
           console.error("Error sending rejection email:", emailError);
         }
@@ -376,9 +415,14 @@ const AdminAffiliateApplications = () => {
       setApplications((prev) =>
         prev.map((app) =>
           selectedApplications.has(app.id) && app.status === "pending"
-            ? { ...app, status: "rejected", rejection_reason: rejectionReason, reviewed_at: new Date().toISOString() }
-            : app
-        )
+            ? {
+                ...app,
+                status: "rejected",
+                rejection_reason: rejectionReason,
+                reviewed_at: new Date().toISOString(),
+              }
+            : app,
+        ),
       );
 
       toast({
@@ -424,7 +468,9 @@ const AdminAffiliateApplications = () => {
     if (selectedApplications.size === filteredApplications.length) {
       setSelectedApplications(new Set());
     } else {
-      setSelectedApplications(new Set(filteredApplications.map((app) => app.id)));
+      setSelectedApplications(
+        new Set(filteredApplications.map((app) => app.id)),
+      );
     }
   };
 
@@ -438,33 +484,43 @@ const AdminAffiliateApplications = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ["Name", "Email", "Status", "Applied At", "Reviewed At", "Rejection Reason"];
+    const headers = [
+      "Name",
+      "Email",
+      "Status",
+      "Applied At",
+      "Reviewed At",
+      "Rejection Reason",
+    ];
     const rows = filteredApplications.map((app) => [
       app.profile?.full_name || "Anonymous",
       app.profile?.email || "N/A",
       app.status,
       format(new Date(app.applied_at), "yyyy-MM-dd HH:mm"),
-      app.reviewed_at ? format(new Date(app.reviewed_at), "yyyy-MM-dd HH:mm") : "Not reviewed",
+      app.reviewed_at
+        ? format(new Date(app.reviewed_at), "yyyy-MM-dd HH:mm")
+        : "Not reviewed",
       app.rejection_reason || "N/A",
     ]);
-    
-    const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `affiliate-applications-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
 
-    toast({ title: "Export Complete", description: `${rows.length} applications exported to CSV.` });
+    downloadCsv(
+      [headers, ...rows],
+      `affiliate-applications-export-${format(new Date(), "yyyy-MM-dd")}.csv`,
+    );
+
+    toast({
+      title: "Export Complete",
+      description: `${rows.length} applications exported to CSV.`,
+    });
   };
 
   const filteredApplications = applications
     .filter((app) => {
       const matchesSearch =
         !searchQuery ||
-        app.profile?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        app.profile?.full_name
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
         app.profile?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         app.user_id.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesTab = activeTab === "all" || app.status === activeTab;
@@ -473,9 +529,12 @@ const AdminAffiliateApplications = () => {
     .sort((a, b) => {
       let comparison = 0;
       if (sortField === "applied_at") {
-        comparison = new Date(a.applied_at).getTime() - new Date(b.applied_at).getTime();
+        comparison =
+          new Date(a.applied_at).getTime() - new Date(b.applied_at).getTime();
       } else if (sortField === "full_name") {
-        comparison = (a.profile?.full_name || "").localeCompare(b.profile?.full_name || "");
+        comparison = (a.profile?.full_name || "").localeCompare(
+          b.profile?.full_name || "",
+        );
       }
       return sortDirection === "asc" ? comparison : -comparison;
     });
@@ -484,21 +543,30 @@ const AdminAffiliateApplications = () => {
     switch (status) {
       case "pending":
         return (
-          <Badge variant="outline" className="border-[#FDBA74]/40 bg-[#FFF7ED] text-[#F97316]">
+          <Badge
+            variant="outline"
+            className="border-[#F97316]/40 bg-[#F97316]/10 text-[#F97316]"
+          >
             <Clock className="h-3 w-3 mr-1" />
             Pending
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="outline" className="border-[#22C7A1]/20 bg-[#EFFFFA] text-[#22C7A1]">
+          <Badge
+            variant="outline"
+            className="border-[#22C7A1]/20 bg-[#22C7A1]/10 text-[#22C7A1]"
+          >
             <CheckCircle className="h-3 w-3 mr-1" />
             Approved
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="outline" className="border-[#FB6B7A]/20 bg-[#FFF0F2] text-[#FB6B7A]">
+          <Badge
+            variant="outline"
+            className="border-[#FB6B7A]/20 bg-[#FB6B7A]/10 text-[#FB6B7A]"
+          >
             <XCircle className="h-3 w-3 mr-1" />
             Rejected
           </Badge>
@@ -517,22 +585,28 @@ const AdminAffiliateApplications = () => {
   };
 
   return (
-    <AdminLayout title="Affiliate Applications" subtitle={`${stats.pending} pending review`}>
+    <AdminLayout
+      title="Affiliate Applications"
+      subtitle={`${stats.pending} pending review`}
+    >
       <div className="space-y-5 text-[#020617]">
-        <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_18px_42px_rgba(2,6,23,0.07)] ring-1 ring-[#E5EAF1]">
-          <div className="flex flex-col gap-4 border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">Affiliate Review</p>
-              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#020617]">Applications</h2>
-              <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
-                Review applicants, approve referral access, and manage rejection notes.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+        <AdminWorkbenchHeader
+          eyebrow="Affiliate review"
+          title="Application intake desk"
+          icon={Users}
+          accent="#22C7A1"
+          description="Review new applicants, grant referral access, reject incomplete requests, and keep the affiliate pipeline moving."
+          meta={[
+            { label: "Pending", value: stats.pending },
+            { label: "Approved", value: stats.approved },
+            { label: "Selected", value: selectedApplications.size },
+          ]}
+          actions={
+            <>
               <Button
                 variant="outline"
                 onClick={exportToCSV}
-                className="h-11 gap-2 rounded-[14px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
+                className="h-11 gap-2 rounded-[14px] border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 font-black text-[#020617] hover:bg-[#38BDF8]/15"
               >
                 <Download className="h-4 w-4 text-[#38BDF8]" />
                 Export
@@ -542,36 +616,51 @@ const AdminAffiliateApplications = () => {
                 size="icon"
                 onClick={fetchApplications}
                 disabled={loading}
+                aria-label="Refresh affiliate applications"
                 className="h-11 w-11 rounded-[14px] border-[#E5EAF1] bg-white text-[#020617] hover:bg-[#F6F8FB]"
               >
-                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                />
               </Button>
-            </div>
-          </div>
+            </>
+          }
+        />
 
-          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              { label: "Total Applications", value: stats.total, Icon: Users, bg: "bg-[#F6F8FB]", color: "text-[#020617]", ring: "ring-[#E5EAF1]" },
-              { label: "Pending Review", value: stats.pending, Icon: Clock, bg: "bg-[#FFF7ED]", color: "text-[#F97316]", ring: "ring-[#FDBA74]/35" },
-              { label: "Approved", value: stats.approved, Icon: CheckCircle, bg: "bg-[#EFFFFA]", color: "text-[#22C7A1]", ring: "ring-[#22C7A1]/20" },
-              { label: "Rejected", value: stats.rejected, Icon: XCircle, bg: "bg-[#FFF0F2]", color: "text-[#FB6B7A]", ring: "ring-[#FB6B7A]/20" },
-            ].map(({ label, value, Icon, bg, color, ring }) => (
-              <div key={label} className={`rounded-[20px] ${bg} p-4 ring-1 ${ring}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-3xl font-black leading-none text-[#020617]">{value}</p>
-                    <p className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
-                  </div>
-                  <div className={`flex h-11 w-11 items-center justify-center rounded-[16px] bg-white ${color} shadow-sm ring-1 ring-white/80`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <AdminKpiStrip
+          items={[
+            {
+              label: "Total applications",
+              value: stats.total,
+              helper: "All submissions",
+              icon: Users,
+              accent: "#7C83F6",
+            },
+            {
+              label: "Pending review",
+              value: stats.pending,
+              helper: "Needs action",
+              icon: Clock,
+              accent: "#F97316",
+            },
+            {
+              label: "Approved",
+              value: stats.approved,
+              helper: "Referral enabled",
+              icon: CheckCircle,
+              accent: "#22C7A1",
+            },
+            {
+              label: "Rejected",
+              value: stats.rejected,
+              helper: "Declined",
+              icon: XCircle,
+              accent: "#FB6B7A",
+            },
+          ]}
+        />
 
-        <section className="rounded-[24px] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+        <AdminFilterBar title="Review queue">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap gap-2">
               {[
@@ -582,15 +671,21 @@ const AdminAffiliateApplications = () => {
               ].map((tab) => (
                 <button
                   key={tab.value}
-                  onClick={() => setActiveTab(tab.value as "all" | "pending" | "approved" | "rejected")}
-                  className={`min-h-10 rounded-[14px] px-4 text-sm font-black transition ${
+                  onClick={() =>
+                    setActiveTab(
+                      tab.value as "all" | "pending" | "approved" | "rejected",
+                    )
+                  }
+                  className={`min-h-11 rounded-[14px] px-4 text-sm font-black transition ${
                     activeTab === tab.value
-                      ? "bg-[#020617] text-white shadow-[0_10px_20px_rgba(2,6,23,0.14)]"
-                      : "bg-[#F6F8FB] text-[#64748B] ring-1 ring-[#E5EAF1] hover:text-[#020617]"
+                      ? "border border-[#7C83F6]/30 bg-[#7C83F6]/10 text-[#020617]"
+                      : "bg-[#F6F8FB] text-[#94A3B8] ring-1 ring-[#E5EAF1] hover:text-[#020617]"
                   }`}
                 >
                   {tab.label}
-                  <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] ${activeTab === tab.value ? "bg-white/10 text-white" : "bg-white text-[#94A3B8]"}`}>
+                  <span
+                    className={`ml-2 rounded-full px-2 py-0.5 text-[11px] ${activeTab === tab.value ? "bg-[#7C83F6]/15 text-[#7C83F6]" : "bg-white text-[#94A3B8]"}`}
+                  >
                     {tab.count}
                   </span>
                 </button>
@@ -607,18 +702,31 @@ const AdminAffiliateApplications = () => {
               />
             </div>
           </div>
-        </section>
+        </AdminFilterBar>
 
         {selectedApplications.size > 0 && (
-          <div className="flex flex-col gap-3 rounded-[18px] border border-[#7C83F6]/20 bg-[#F3F4FF] p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-[18px] border border-[#7C83F6]/20 bg-[#7C83F6]/10 p-3 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-sm font-black text-[#020617]">
-              {selectedApplications.size} application{selectedApplications.size > 1 ? "s" : ""} selected
+              {selectedApplications.size} application
+              {selectedApplications.size > 1 ? "s" : ""} selected
             </span>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={handleBulkApprove} disabled={isBulkProcessing} className="rounded-[12px] border-[#22C7A1]/20 bg-white text-[#22C7A1]">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkApprove}
+                disabled={isBulkProcessing}
+                className="min-h-11 rounded-[12px] border-[#22C7A1]/20 bg-white text-[#22C7A1]"
+              >
                 Approve Selected
               </Button>
-              <Button variant="outline" size="sm" className="rounded-[12px] border-[#FB6B7A]/20 bg-white text-[#FB6B7A] hover:bg-[#FFF0F2]" onClick={openBulkRejectDialog} disabled={isBulkProcessing}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-11 rounded-[12px] border-[#FB6B7A]/20 bg-white text-[#FB6B7A] hover:bg-[#FB6B7A]/10"
+                onClick={openBulkRejectDialog}
+                disabled={isBulkProcessing}
+              >
                 Reject Selected
               </Button>
             </div>
@@ -628,33 +736,199 @@ const AdminAffiliateApplications = () => {
         <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
           <div className="flex items-center justify-between gap-3 border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
             <div>
-              <h3 className="text-lg font-black text-[#020617]">Application Queue</h3>
-              <p className="text-xs font-bold text-[#94A3B8]">{filteredApplications.length} visible from {applications.length} total</p>
+              <h3 className="text-lg font-black text-[#020617]">
+                Application Queue
+              </h3>
+              <p className="text-xs font-bold text-[#94A3B8]">
+                {filteredApplications.length} visible from {applications.length}{" "}
+                total
+              </p>
             </div>
-            <Badge variant="outline" className="border-[#38BDF8]/20 bg-[#EFF9FF] text-[#38BDF8]">
+            <Badge
+              variant="outline"
+              className="border-[#38BDF8]/20 bg-[#38BDF8]/10 text-[#38BDF8]"
+            >
               Review center
             </Badge>
           </div>
-          <div className="overflow-x-auto">
+          <div className="grid gap-3 p-4 md:hidden">
+            {loading ? (
+              <div className="flex flex-col items-center gap-3 rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-[#020617]" />
+                <p className="text-sm font-semibold text-[#94A3B8]">
+                  Loading applications...
+                </p>
+              </div>
+            ) : filteredApplications.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-8 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-white ring-1 ring-[#E5EAF1]">
+                  <Users className="h-6 w-6 text-[#94A3B8]" />
+                </div>
+                <p className="font-black text-[#020617]">
+                  No applications found
+                </p>
+                <p className="text-sm font-semibold text-[#94A3B8]">
+                  Try adjusting your filters
+                </p>
+              </div>
+            ) : (
+              filteredApplications.map((application) => (
+                <div
+                  key={application.id}
+                  className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_30px_rgba(2,6,23,0.05)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <Checkbox
+                        checked={selectedApplications.has(application.id)}
+                        onCheckedChange={() =>
+                          toggleApplicationSelection(application.id)
+                        }
+                        className="mt-3"
+                      />
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
+                        <User className="h-5 w-5 text-[#7C83F6]" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-black text-[#020617]">
+                          {application.profile?.full_name || "Anonymous User"}
+                        </p>
+                        <p className="mt-1 truncate text-xs font-semibold text-[#94A3B8]">
+                          {application.profile?.email || "No email"}
+                        </p>
+                      </div>
+                    </div>
+                    {getStatusBadge(application.status)}
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                        Applied
+                      </p>
+                      <p className="mt-1 text-sm font-black text-[#020617]">
+                        {format(
+                          new Date(application.applied_at),
+                          "MMM d, yyyy",
+                        )}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                        User ID
+                      </p>
+                      <p className="mt-1 truncate font-mono text-sm font-black text-[#020617]">
+                        {application.user_id.slice(0, 8)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 rounded-2xl bg-[#F6F8FB] p-3">
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                      Note
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#020617]">
+                      {application.application_note || "No note provided"}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {application.status === "pending" ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="min-h-[44px] rounded-2xl border-[#22C7A1]/20 bg-[#22C7A1]/10 font-black text-[#22C7A1] hover:bg-[#22C7A1]/15"
+                          onClick={() => handleApprove(application)}
+                          disabled={processingId === application.id}
+                        >
+                          {processingId === application.id ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                          )}
+                          Approve
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="min-h-[44px] rounded-2xl border-[#FB6B7A]/20 bg-[#FB6B7A]/10 font-black text-[#FB6B7A] hover:bg-[#FB6B7A]/15"
+                          onClick={() => openRejectDialog(application)}
+                          disabled={processingId === application.id}
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Reject
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="col-span-2 min-h-[44px] rounded-2xl border-[#7C83F6]/25 bg-[#7C83F6]/10 font-black text-[#020617] hover:bg-[#7C83F6]/15"
+                        onClick={() => {
+                          setSelectedApplication(application);
+                          setIsDetailOpen(true);
+                        }}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        View details
+                      </Button>
+                    )}
+                  </div>
+                  {application.status === "pending" && (
+                    <Button
+                      variant="ghost"
+                      className="mt-2 min-h-[44px] w-full rounded-2xl font-black text-[#020617] hover:bg-[#F6F8FB]"
+                      onClick={() => {
+                        setSelectedApplication(application);
+                        setIsDetailOpen(true);
+                      }}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View details
+                    </Button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-[#F6F8FB]">
                 <TableRow className="border-[#E5EAF1] hover:bg-transparent">
                   <TableHead className="w-10 pl-6">
                     <Checkbox
-                      checked={selectedApplications.size === filteredApplications.length && filteredApplications.length > 0}
+                      checked={
+                        selectedApplications.size ===
+                          filteredApplications.length &&
+                        filteredApplications.length > 0
+                      }
                       onCheckedChange={selectAllApplications}
                     />
                   </TableHead>
-                  <TableHead>Applicant</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>
-                    <button onClick={() => handleSort("applied_at")} className="flex items-center gap-1 transition-colors hover:text-[#020617]">
+                  <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    Applicant
+                  </TableHead>
+                  <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    <button
+                      onClick={() => handleSort("applied_at")}
+                      className="flex min-h-11 items-center gap-1 rounded-2xl px-2 text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8] transition-colors hover:text-[#020617]"
+                    >
                       Applied Date
-                      {sortField === "applied_at" && (sortDirection === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                      {sortField === "applied_at" &&
+                        (sortDirection === "asc" ? (
+                          <ChevronUp className="w-3 h-3" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3" />
+                        ))}
                     </button>
                   </TableHead>
-                  <TableHead>Note</TableHead>
-                  <TableHead className="w-20">Actions</TableHead>
+                  <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    Note
+                  </TableHead>
+                  <TableHead className="w-20 text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -663,7 +937,9 @@ const AdminAffiliateApplications = () => {
                     <TableCell colSpan={6} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
                         <Loader2 className="w-8 h-8 animate-spin text-[#020617]" />
-                        <p className="text-sm font-semibold text-[#94A3B8]">Loading applications...</p>
+                        <p className="text-sm font-semibold text-[#94A3B8]">
+                          Loading applications...
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -674,18 +950,27 @@ const AdminAffiliateApplications = () => {
                         <div className="w-12 h-12 rounded-[18px] bg-[#F6F8FB] flex items-center justify-center ring-1 ring-[#E5EAF1]">
                           <Users className="w-6 h-6 text-[#94A3B8]" />
                         </div>
-                        <p className="font-black text-[#020617]">No applications found</p>
-                        <p className="text-sm font-semibold text-[#94A3B8]">Try adjusting your filters</p>
+                        <p className="font-black text-[#020617]">
+                          No applications found
+                        </p>
+                        <p className="text-sm font-semibold text-[#94A3B8]">
+                          Try adjusting your filters
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredApplications.map((application) => (
-                    <TableRow key={application.id} className="border-[#E5EAF1] transition-colors hover:bg-[#F6F8FB]">
+                    <TableRow
+                      key={application.id}
+                      className="border-[#E5EAF1] transition-colors hover:bg-[#F6F8FB]/70"
+                    >
                       <TableCell className="pl-6">
                         <Checkbox
                           checked={selectedApplications.has(application.id)}
-                          onCheckedChange={() => toggleApplicationSelection(application.id)}
+                          onCheckedChange={() =>
+                            toggleApplicationSelection(application.id)
+                          }
                         />
                       </TableCell>
                       <TableCell>
@@ -694,36 +979,51 @@ const AdminAffiliateApplications = () => {
                             <User className="w-5 h-5 text-[#7C83F6]" />
                           </div>
                           <div>
-                            <p className="font-black text-[#020617]">{application.profile?.full_name || "Anonymous User"}</p>
-                            <p className="text-xs font-semibold text-[#94A3B8]">{application.profile?.email || "No email"}</p>
+                            <p className="font-black text-[#020617]">
+                              {application.profile?.full_name ||
+                                "Anonymous User"}
+                            </p>
+                            <p className="text-xs font-semibold text-[#94A3B8]">
+                              {application.profile?.email || "No email"}
+                            </p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{getStatusBadge(application.status)}</TableCell>
+                      <TableCell>
+                        {getStatusBadge(application.status)}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm font-semibold text-[#94A3B8]">
                           <Calendar className="w-3 h-3 text-[#38BDF8]" />
-                          {format(new Date(application.applied_at), "MMM d, yyyy")}
+                          {format(
+                            new Date(application.applied_at),
+                            "MMM d, yyyy",
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
                         {application.application_note ? (
                           <div className="flex items-center gap-1 text-sm font-semibold text-[#94A3B8]">
                             <FileText className="w-3 h-3 text-[#7C83F6]" />
-                            <span className="truncate max-w-[150px]">{application.application_note}</span>
+                            <span className="truncate max-w-[150px]">
+                              {application.application_note}
+                            </span>
                           </div>
                         ) : (
-                          <span className="text-sm font-semibold text-[#94A3B8]">-</span>
+                          <span className="text-sm font-semibold text-[#94A3B8]">
+                            -
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-2">
                           {application.status === "pending" && (
                             <>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-[#22C7A1] hover:bg-[#EFFFFA] hover:text-[#22C7A1]"
+                                className="h-11 w-11 rounded-2xl text-[#22C7A1] hover:bg-[#22C7A1]/10 hover:text-[#22C7A1]"
+                                aria-label="Approve affiliate application"
                                 onClick={() => handleApprove(application)}
                                 disabled={processingId === application.id}
                               >
@@ -736,7 +1036,8 @@ const AdminAffiliateApplications = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-[#FB6B7A] hover:bg-[#FFF0F2] hover:text-[#FB6B7A]"
+                                className="h-11 w-11 rounded-2xl text-[#FB6B7A] hover:bg-[#FB6B7A]/10 hover:text-[#FB6B7A]"
+                                aria-label="Reject affiliate application"
                                 onClick={() => openRejectDialog(application)}
                                 disabled={processingId === application.id}
                               >
@@ -746,11 +1047,19 @@ const AdminAffiliateApplications = () => {
                           )}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-[#020617] hover:bg-[#F6F8FB]">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-11 w-11 rounded-2xl text-[#020617] hover:bg-[#F6F8FB]"
+                                aria-label="Open affiliate application actions"
+                              >
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent
+                              align="end"
+                              className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]"
+                            >
                               <DropdownMenuItem
                                 onClick={() => {
                                   setSelectedApplication(application);
@@ -764,7 +1073,7 @@ const AdminAffiliateApplications = () => {
                               {application.status !== "approved" && (
                                 <DropdownMenuItem
                                   onClick={() => handleApprove(application)}
-                                  className="text-[#22C7A1] focus:bg-[#EFFFFA] focus:text-[#22C7A1]"
+                                  className="text-[#22C7A1] focus:bg-[#22C7A1]/10 focus:text-[#22C7A1]"
                                 >
                                   <CheckCircle className="w-4 h-4 mr-2" />
                                   Approve
@@ -773,7 +1082,7 @@ const AdminAffiliateApplications = () => {
                               {application.status !== "rejected" && (
                                 <DropdownMenuItem
                                   onClick={() => openRejectDialog(application)}
-                                  className="text-[#FB6B7A] focus:bg-[#FFF0F2] focus:text-[#FB6B7A]"
+                                  className="text-[#FB6B7A] focus:bg-[#FB6B7A]/10 focus:text-[#FB6B7A]"
                                 >
                                   <XCircle className="w-4 h-4 mr-2" />
                                   Reject
@@ -793,19 +1102,22 @@ const AdminAffiliateApplications = () => {
 
         {/* Application Detail Sheet */}
         <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <SheetContent className="w-full border-l border-[#E5EAF1] bg-[#F6F8FB] p-0 sm:max-w-xl">
+          <AdminSheetContent size="xl">
             {selectedApplication && (
               <>
-                <SheetHeader className="border-b border-[#E5EAF1] bg-white p-5 text-left">
+                <SheetHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#7C83F6]/15">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-[#7C83F6]/10 text-[#7C83F6] ring-1 ring-[#7C83F6]/15">
                       <User className="h-8 w-8" />
                     </div>
                     <div>
                       <SheetTitle className="text-xl font-black text-[#020617]">
-                        {selectedApplication.profile?.full_name || "Anonymous User"}
+                        {selectedApplication.profile?.full_name ||
+                          "Anonymous User"}
                       </SheetTitle>
-                      <SheetDescription className="mt-2">{getStatusBadge(selectedApplication.status)}</SheetDescription>
+                      <SheetDescription className="mt-2">
+                        {getStatusBadge(selectedApplication.status)}
+                      </SheetDescription>
                     </div>
                   </div>
                 </SheetHeader>
@@ -816,37 +1128,61 @@ const AdminAffiliateApplications = () => {
                     <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
                       Application Details
                     </p>
-                      <div className="mt-4 grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">User ID</p>
-                          <code className="text-sm font-bold text-[#020617]">{selectedApplication.user_id.substring(0, 16)}...</code>
-                        </div>
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">Email</p>
-                          <p className="text-sm font-bold text-[#020617]">{selectedApplication.profile?.email || "N/A"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">Applied</p>
-                          <p className="text-sm font-bold text-[#020617]">{format(new Date(selectedApplication.applied_at), "MMM d, yyyy HH:mm")}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">Reviewed</p>
-                          <p className="text-sm font-bold text-[#020617]">
-                            {selectedApplication.reviewed_at
-                              ? format(new Date(selectedApplication.reviewed_at), "MMM d, yyyy HH:mm")
-                              : "Not reviewed"}
-                          </p>
-                        </div>
+                    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">
+                          User ID
+                        </p>
+                        <code className="text-sm font-bold text-[#020617]">
+                          {selectedApplication.user_id.substring(0, 16)}...
+                        </code>
                       </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">
+                          Email
+                        </p>
+                        <p className="text-sm font-bold text-[#020617]">
+                          {selectedApplication.profile?.email || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">
+                          Applied
+                        </p>
+                        <p className="text-sm font-bold text-[#020617]">
+                          {format(
+                            new Date(selectedApplication.applied_at),
+                            "MMM d, yyyy HH:mm",
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.08em] text-[#94A3B8]">
+                          Reviewed
+                        </p>
+                        <p className="text-sm font-bold text-[#020617]">
+                          {selectedApplication.reviewed_at
+                            ? format(
+                                new Date(selectedApplication.reviewed_at),
+                                "MMM d, yyyy HH:mm",
+                              )
+                            : "Not reviewed"}
+                        </p>
+                      </div>
+                    </div>
                   </section>
 
                   {/* Application Note */}
                   {selectedApplication.application_note && (
                     <section className="rounded-[22px] bg-white p-4 shadow-[0_12px_28px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
-                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Application Note</p>
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                        Application Note
+                      </p>
                       <div className="mt-3 flex items-start gap-3 rounded-[16px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
                         <FileText className="mt-0.5 h-4 w-4 text-[#7C83F6]" />
-                        <p className="text-sm font-semibold leading-6 text-[#64748B]">{selectedApplication.application_note}</p>
+                        <p className="text-sm font-semibold leading-6 text-[#94A3B8]">
+                          {selectedApplication.application_note}
+                        </p>
                       </div>
                     </section>
                   )}
@@ -854,10 +1190,14 @@ const AdminAffiliateApplications = () => {
                   {/* Rejection Reason */}
                   {selectedApplication.rejection_reason && (
                     <section className="rounded-[22px] bg-white p-4 shadow-[0_12px_28px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
-                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Rejection Reason</p>
-                      <div className="mt-3 flex items-start gap-3 rounded-[16px] border border-[#FB6B7A]/20 bg-[#FFF0F2] p-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                        Rejection Reason
+                      </p>
+                      <div className="mt-3 flex items-start gap-3 rounded-[16px] border border-[#FB6B7A]/20 bg-[#FB6B7A]/10 p-3">
                         <XCircle className="mt-0.5 h-4 w-4 text-[#FB6B7A]" />
-                        <p className="text-sm font-semibold leading-6 text-[#FB6B7A]">{selectedApplication.rejection_reason}</p>
+                        <p className="text-sm font-semibold leading-6 text-[#FB6B7A]">
+                          {selectedApplication.rejection_reason}
+                        </p>
                       </div>
                     </section>
                   )}
@@ -866,7 +1206,8 @@ const AdminAffiliateApplications = () => {
                   {selectedApplication.status === "pending" && (
                     <div className="grid gap-2 sm:grid-cols-2">
                       <Button
-                        className="h-12 rounded-[16px] bg-[#020617] font-black text-white hover:bg-[#020617]/90"
+                        variant="outline"
+                        className="h-12 rounded-[16px] border-[#22C7A1]/30 bg-[#22C7A1]/10 font-black text-[#020617] hover:bg-[#22C7A1]/15"
                         onClick={() => {
                           handleApprove(selectedApplication);
                           setIsDetailOpen(false);
@@ -878,7 +1219,7 @@ const AdminAffiliateApplications = () => {
                       </Button>
                       <Button
                         variant="outline"
-                        className="h-12 rounded-[16px] border-[#FB6B7A]/25 bg-white font-black text-[#FB6B7A] hover:bg-[#FFF0F2] hover:text-[#FB6B7A]"
+                        className="h-12 rounded-[16px] border-[#FB6B7A]/25 bg-white font-black text-[#FB6B7A] hover:bg-[#FB6B7A]/10 hover:text-[#FB6B7A]"
                         onClick={() => {
                           openRejectDialog(selectedApplication);
                           setIsDetailOpen(false);
@@ -893,21 +1234,27 @@ const AdminAffiliateApplications = () => {
                 </div>
               </>
             )}
-          </SheetContent>
+          </AdminSheetContent>
         </Sheet>
 
         {/* Reject Dialog */}
         <Sheet open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-          <SheetContent className="w-full border-l border-[#E5EAF1] bg-[#F6F8FB] p-0 sm:max-w-md">
-            <SheetHeader className="border-b border-[#E5EAF1] bg-white p-5 text-left">
+          <AdminSheetContent size="md">
+            <SheetHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
               <div className="flex items-start gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#FFF0F2] text-[#FB6B7A] ring-1 ring-[#FB6B7A]/20">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#FB6B7A]/10 text-[#FB6B7A] ring-1 ring-[#FB6B7A]/20">
                   <XCircle className="h-5 w-5" />
                 </span>
                 <div>
-                  <SheetTitle className="text-xl font-black text-[#020617]">{selectedApplications.size > 0 ? `Reject ${selectedApplications.size} Applications` : "Reject Application"}</SheetTitle>
+                  <SheetTitle className="text-xl font-black text-[#020617]">
+                    {selectedApplications.size > 0
+                      ? `Reject ${selectedApplications.size} Applications`
+                      : "Reject Application"}
+                  </SheetTitle>
                   <SheetDescription className="mt-1 font-semibold text-[#94A3B8]">
-                {selectedApplications.size > 0 ? `Provide a reason for rejecting these ${selectedApplications.size} applications (optional). This reason will be sent to all selected applicants.` : `Provide a reason for rejecting ${selectedApplication?.profile?.full_name || "this application"} (optional).`}
+                    {selectedApplications.size > 0
+                      ? `Provide a reason for rejecting these ${selectedApplications.size} applications (optional). This reason will be sent to all selected applicants.`
+                      : `Provide a reason for rejecting ${selectedApplication?.profile?.full_name || "this application"} (optional).`}
                   </SheetDescription>
                 </div>
               </div>
@@ -929,7 +1276,11 @@ const AdminAffiliateApplications = () => {
                   Cancel
                 </Button>
                 <Button
-                  onClick={selectedApplications.size > 0 ? handleBulkReject : handleReject}
+                  onClick={
+                    selectedApplications.size > 0
+                      ? handleBulkReject
+                      : handleReject
+                  }
                   disabled={processingId !== null || isBulkProcessing}
                   className="h-12 rounded-[16px] bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90"
                 >
@@ -938,11 +1289,13 @@ const AdminAffiliateApplications = () => {
                   ) : (
                     <XCircle className="w-4 h-4 mr-2" />
                   )}
-                  {selectedApplications.size > 0 ? `Reject ${selectedApplications.size} Applications` : "Reject Application"}
+                  {selectedApplications.size > 0
+                    ? `Reject ${selectedApplications.size} Applications`
+                    : "Reject Application"}
                 </Button>
               </div>
             </div>
-          </SheetContent>
+          </AdminSheetContent>
         </Sheet>
       </div>
     </AdminLayout>

@@ -48,6 +48,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { formatCurrency } from "@/lib/currency";
+import {
+  getPartnerBankingSummary,
+  savePartnerBankingInfo,
+  type PartnerBankingSummary,
+} from "@/lib/partner-banking";
 import { requestPartnerPayout } from "@/lib/payouts";
 
 /**
@@ -288,6 +293,8 @@ const PartnerPayouts = () => {
     swift_code: "",
     payout_frequency: "weekly",
   });
+  const [bankSummary, setBankSummary] =
+    useState<PartnerBankingSummary | null>(null);
   const [bankEditing, setBankEditing] = useState(false);
   const [bankSaving, setBankSaving] = useState(false);
 
@@ -347,18 +354,20 @@ const PartnerPayouts = () => {
   const fetchPayoutData = async () => {
     if (!user) return;
     try {
-      const { data: restaurant } = await supabase
+      const { data: restaurant, error: restaurantError } = await supabase
         .from("restaurants")
         .select("id, commission_rate")
         .eq("owner_id", user.id)
         .maybeSingle();
+
+      if (restaurantError) throw restaurantError;
 
       if (!restaurant) return;
       setRestaurantId(restaurant.id);
       const commissionRate = restaurant.commission_rate ?? 18;
       setPlatformRate(commissionRate / 100);
 
-      const [earningsRes, payoutsRes, bankRes] = await Promise.all([
+      const [earningsRes, payoutsRes, bankingSummary] = await Promise.all([
         supabase
           .from("partner_earnings")
           .select(
@@ -373,31 +382,19 @@ const PartnerPayouts = () => {
           )
           .eq("restaurant_id", restaurant.id)
           .order("created_at", { ascending: false }),
-        // payout_frequency added via migration — select * to include it without type errors
-        supabase
-          .from("restaurant_details")
-          .select("*")
-          .eq("restaurant_id", restaurant.id)
-          .maybeSingle() as unknown as Promise<{
-          data: Record<string, unknown> | null;
-          error: unknown;
-        }>,
+        getPartnerBankingSummary(restaurant.id),
       ]);
+
+      if (earningsRes.error) throw earningsRes.error;
+      if (payoutsRes.error) throw payoutsRes.error;
 
       setRawEarnings(earningsRes.data || []);
       setPayouts((payoutsRes.data || []) as PartnerPayout[]);
 
-      const bankRow = bankRes.data as Record<string, unknown> | null;
-      if (bankRow) {
-        setBankDetails({
-          bank_name: (bankRow.bank_name as string) ?? "",
-          bank_account_name: (bankRow.bank_account_name as string) ?? "",
-          bank_account_number: (bankRow.bank_account_number as string) ?? "",
-          bank_iban: (bankRow.bank_iban as string) ?? "",
-          swift_code: (bankRow.swift_code as string) ?? "",
-          payout_frequency: (bankRow.payout_frequency as string) ?? "weekly",
-        });
-      }
+      setBankSummary(bankingSummary);
+    } catch (error) {
+      console.error("Failed to load partner payout data:", error);
+      toast.error("Failed to load payout data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -429,30 +426,76 @@ const PartnerPayouts = () => {
 
   const handleSaveBank = async () => {
     if (!restaurantId) return;
+
+    if (
+      !bankSummary?.is_configured &&
+      (!bankDetails.bank_name.trim() ||
+        !bankDetails.bank_account_name.trim() ||
+        !bankDetails.bank_account_number.trim())
+    ) {
+      toast.error("Bank name, account holder, and account number are required.");
+      return;
+    }
+
     setBankSaving(true);
     try {
-      const upsertData = {
-        restaurant_id: restaurantId,
-        bank_name: bankDetails.bank_name || null,
-        bank_account_name: bankDetails.bank_account_name || null,
-        bank_account_number: bankDetails.bank_account_number || null,
-        bank_iban: bankDetails.bank_iban || null,
-        swift_code: bankDetails.swift_code || null,
-        payout_frequency: bankDetails.payout_frequency,
-      };
-      const { error } = await (supabase
-        .from("restaurant_details")
-        .upsert(upsertData as never, {
-          onConflict: "restaurant_id",
-        }) as unknown as Promise<{ error: unknown }>);
-      if (error) throw error;
+      await savePartnerBankingInfo({
+        restaurantId,
+        bankName: bankDetails.bank_name,
+        accountName: bankDetails.bank_account_name,
+        accountNumber: bankDetails.bank_account_number,
+        iban: bankDetails.bank_iban,
+        swiftCode: bankDetails.swift_code,
+        payoutFrequency: bankDetails.payout_frequency as
+          | "weekly"
+          | "biweekly"
+          | "monthly",
+      });
+
+      setBankSummary(await getPartnerBankingSummary(restaurantId));
       toast.success("Bank details saved successfully.");
       setBankEditing(false);
-    } catch {
-      toast.error("Failed to save bank details. Please try again.");
+      setBankDetails((current) => ({
+        bank_name: current.bank_name,
+        bank_account_name: "",
+        bank_account_number: "",
+        bank_iban: "",
+        swift_code: "",
+        payout_frequency: current.payout_frequency,
+      }));
+    } catch (error) {
+      console.error("Failed to save partner bank details:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to save bank details. Please try again.",
+      );
     } finally {
       setBankSaving(false);
     }
+  };
+
+  const handleStartBankEdit = () => {
+    setBankDetails({
+      bank_name: bankSummary?.bank_name ?? "",
+      bank_account_name: "",
+      bank_account_number: "",
+      bank_iban: "",
+      swift_code: "",
+      payout_frequency: bankSummary?.payout_frequency ?? "weekly",
+    });
+    setBankEditing(true);
+  };
+
+  const handleCancelBankEdit = () => {
+    setBankEditing(false);
+    setBankDetails((current) => ({
+      ...current,
+      bank_account_name: "",
+      bank_account_number: "",
+      bank_iban: "",
+      swift_code: "",
+    }));
   };
 
   const toggleRow = (key: string) => {
@@ -466,9 +509,7 @@ const PartnerPayouts = () => {
 
   // ── Derived display values ─────────────────────────────────────────────────
 
-  const isBankConfigured = !!(
-    bankDetails.bank_name && bankDetails.bank_account_number
-  );
+  const isBankConfigured = bankSummary?.is_configured ?? false;
 
   const chartData = [...weeklyEarnings]
     .reverse()
@@ -972,7 +1013,7 @@ const PartnerPayouts = () => {
                   <Button
                     variant="outline"
                     className="rounded-2xl border-[#E5EAF1] font-black text-[#020617]"
-                    onClick={() => setBankEditing(true)}
+                    onClick={handleStartBankEdit}
                   >
                     {isBankConfigured ? "Edit" : "Set up"}
                   </Button>
@@ -981,7 +1022,7 @@ const PartnerPayouts = () => {
                     <Button
                       variant="outline"
                       className="rounded-2xl border-[#E5EAF1]"
-                      onClick={() => setBankEditing(false)}
+                      onClick={handleCancelBankEdit}
                     >
                       Cancel
                     </Button>
@@ -1015,25 +1056,30 @@ const PartnerPayouts = () => {
                     {
                       id: "bank_account_name",
                       label: "Account Holder",
-                      placeholder: "As on the account",
+                      placeholder:
+                        bankSummary?.bank_account_name_masked ??
+                        "As on the account",
                       field: "bank_account_name" as keyof BankDetails,
                     },
                     {
                       id: "bank_account_number",
                       label: "Account Number",
-                      placeholder: "Account number",
+                      placeholder:
+                        bankSummary?.bank_account_number_masked ??
+                        "Account number",
                       field: "bank_account_number" as keyof BankDetails,
                     },
                     {
                       id: "bank_iban",
                       label: "IBAN",
-                      placeholder: "QA...",
+                      placeholder: bankSummary?.bank_iban_masked ?? "QA...",
                       field: "bank_iban" as keyof BankDetails,
                     },
                     {
                       id: "swift_code",
                       label: "SWIFT / BIC",
-                      placeholder: "e.g. QNBAQAQA",
+                      placeholder:
+                        bankSummary?.swift_code_masked ?? "e.g. QNBAQAQA",
                       field: "swift_code" as keyof BankDetails,
                     },
                   ].map(({ id, label, placeholder, field }) => (
@@ -1054,6 +1100,8 @@ const PartnerPayouts = () => {
                           }))
                         }
                         placeholder={placeholder}
+                        autoComplete="off"
+                        spellCheck={false}
                         className="min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617]"
                       />
                     </div>
@@ -1093,27 +1141,26 @@ const PartnerPayouts = () => {
               ) : (
                 <div className="space-y-2.5">
                   {[
-                    { label: "Bank", value: bankDetails.bank_name },
-                    { label: "Holder", value: bankDetails.bank_account_name },
+                    { label: "Bank", value: bankSummary?.bank_name },
+                    {
+                      label: "Holder",
+                      value: bankSummary?.bank_account_name_masked,
+                    },
                     {
                       label: "Account",
-                      value: bankDetails.bank_account_number
-                        ? "****" + bankDetails.bank_account_number.slice(-4)
-                        : "",
+                      value: bankSummary?.bank_account_number_masked,
                     },
                     {
                       label: "IBAN",
-                      value: bankDetails.bank_iban
-                        ? "****" + bankDetails.bank_iban.slice(-4)
-                        : "",
+                      value: bankSummary?.bank_iban_masked,
                     },
-                    { label: "SWIFT", value: bankDetails.swift_code },
+                    { label: "SWIFT", value: bankSummary?.swift_code_masked },
                     {
                       label: "Schedule",
                       value:
                         PAYOUT_FREQUENCY_OPTIONS.find(
-                          (o) => o.value === bankDetails.payout_frequency,
-                        )?.label ?? bankDetails.payout_frequency,
+                          (o) => o.value === bankSummary?.payout_frequency,
+                        )?.label ?? bankSummary?.payout_frequency,
                     },
                   ].map(({ label, value }) => (
                     <div
@@ -1249,7 +1296,7 @@ const PartnerPayouts = () => {
                     <p className="mt-2 text-xs font-bold text-[#94A3B8]">
                       via bank transfer to{" "}
                       <span className="text-[#020617]">
-                        {bankDetails.bank_name}
+                        {bankSummary?.bank_name}
                       </span>
                     </p>
                   )}

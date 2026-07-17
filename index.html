@@ -22,11 +22,8 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
 
-    <!-- Google Fonts: loaded non-blocking using the print/onload trick.
-         CSS @import is render-blocking on Android WebView, so we use <link>
-         with media="print" and switch to "all" once loaded. This way the
-         app renders immediately with system fonts and upgrades to Plus Jakarta
-         Sans once the font is available (or never, if offline). -->
+    <!-- Google Fonts. Avoid inline onload handlers so the web deployment can
+         enforce a strict script-src policy. System fonts remain the fallback. -->
     <!-- Performance: preconnect to critical origins -->
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -35,12 +32,7 @@
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
-      media="print"
-      onload="this.media='all'"
     />
-    <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" />
-    </noscript>
     <!-- Leaflet Map CSS is imported via npm in components that use maps -->
     <!-- Removed CDN link to prevent blocking on devices with no/slow internet -->
 

@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Mail, Lock, ArrowLeft, Loader2, User } from 'lucide-react'
-import { Logo } from '@/components/Logo'
+import { AnimatedNutrioLogo } from '@/components/motion/AnimatedNutrioLogo'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { signUpSchema, SignUpFormValues } from './validation'
 import { FormField } from '@/components/forms/FormField'
@@ -47,9 +47,7 @@ export const SignUpScreen = ({
         </button>
 
         <div className="mb-5 flex justify-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-[28px] border border-[#E5EAF1] bg-white">
-            <Logo size="lg" />
-          </div>
+          <AnimatedNutrioLogo className="h-24 w-24" />
         </div>
 
         <div className="rounded-[34px] border border-[#E5EAF1] bg-white p-5 shadow-[0_16px_34px_rgba(2,6,23,0.06)]">

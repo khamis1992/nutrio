@@ -1,24 +1,50 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  enforceRateLimit,
+  errorResponse,
+  getClientIp,
+  getSupabasePublishableKey,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  recordSecurityEvent,
+  requireAdminOrInternal,
+  requirePost,
+} from "../_shared/security.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-  
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    // Get all active users who have completed onboarding
-    // and have logged progress in the last 14 days
+    requirePost(req);
+    const principal = await requireAdminOrInternal(
+      req,
+      "ADAPTIVE_GOALS_CRON_SECRET",
+    );
+    await enforceRateLimit(
+      req,
+      "adaptive-goals-batch",
+      principal?.user.id || getClientIp(req) || "internal",
+      2,
+      3600,
+    );
+
+    const internalSecret = Deno.env.get("ADAPTIVE_GOALS_CRON_SECRET") || "";
+    let publishableKey: string;
+    try {
+      publishableKey = getSupabasePublishableKey();
+    } catch {
+      throw new HttpError(503, "batch_credentials_not_configured");
+    }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    if (!internalSecret || !supabaseUrl) {
+      throw new HttpError(503, "batch_credentials_not_configured");
+    }
+
+    const supabase = getServiceClient();
     const { data: activeUsers, error: fetchError } = await supabase
       .from("profiles")
       .select("user_id, last_goal_adjustment_date")
@@ -33,103 +59,92 @@ serve(async (req) => {
       skipped: 0,
       errors: 0,
       adjustments_created: 0,
-      plateaus_detected: 0
+      plateaus_detected: 0,
     };
 
-    // Process each user
     for (const user of activeUsers || []) {
       try {
-        // Check if it's time for adjustment (based on frequency setting)
-        const { data: settings } = await supabase
+        const { data: settings, error: settingsError } = await supabase
           .from("adaptive_goal_settings")
           .select("adjustment_frequency, auto_adjust_enabled")
           .eq("user_id", user.user_id)
           .maybeSingle();
 
-        if (!settings || !settings.auto_adjust_enabled) {
-          results.skipped++;
+        if (settingsError) throw settingsError;
+        if (!settings?.auto_adjust_enabled) {
+          results.skipped += 1;
           continue;
         }
 
-        // Check last adjustment date
-        const lastAdjustment = user.last_goal_adjustment_date 
-          ? new Date(user.last_goal_adjustment_date) 
+        const lastAdjustment = user.last_goal_adjustment_date
+          ? new Date(user.last_goal_adjustment_date)
           : null;
-        
-        const now = new Date();
-        const daysSinceAdjustment = lastAdjustment 
-          ? Math.floor((now.getTime() - lastAdjustment.getTime()) / (1000 * 60 * 60 * 24))
-          : 999;
+        const daysSinceAdjustment = lastAdjustment
+          ? Math.floor((Date.now() - lastAdjustment.getTime()) / 86_400_000)
+          : Number.POSITIVE_INFINITY;
+        const dueAfterDays: Record<string, number> = {
+          weekly: 7,
+          biweekly: 14,
+          monthly: 30,
+        };
+        const dueAfter = dueAfterDays[String(settings.adjustment_frequency)] || 30;
 
-        // Determine if adjustment is due
-        let adjustmentDue = false;
-        switch (settings.adjustment_frequency) {
-          case 'weekly':
-            adjustmentDue = daysSinceAdjustment >= 7;
-            break;
-          case 'biweekly':
-            adjustmentDue = daysSinceAdjustment >= 14;
-            break;
-          case 'monthly':
-            adjustmentDue = daysSinceAdjustment >= 30;
-            break;
-        }
-
-        if (!adjustmentDue) {
-          results.skipped++;
+        if (daysSinceAdjustment < dueAfter) {
+          results.skipped += 1;
           continue;
         }
 
-        // Call adaptive-goals function for this user
-        const functionUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/adaptive-goals`;
-        const response = await fetch(functionUrl, {
+        const response = await fetch(`${supabaseUrl}/functions/v1/adaptive-goals`, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            "Content-Type": "application/json"
+            apikey: publishableKey,
+            "Content-Type": "application/json",
+            "x-internal-secret": internalSecret,
           },
-          body: JSON.stringify({ user_id: user.user_id })
+          body: JSON.stringify({ user_id: user.user_id }),
         });
 
         if (!response.ok) {
-          throw new Error(`Function call failed: ${response.statusText}`);
+          throw new Error(`Adaptive goal request failed with ${response.status}`);
         }
 
-        const result = await response.json();
-        
-        results.processed++;
-        
-        if (result.adjustment_id) {
-          results.adjustments_created++;
-        }
-        
+        const result = (await response.json()) as {
+          adjustment_id?: string;
+          recommendation?: { plateau_detected?: boolean };
+        };
+        results.processed += 1;
+        if (result.adjustment_id) results.adjustments_created += 1;
         if (result.recommendation?.plateau_detected) {
-          results.plateaus_detected++;
+          results.plateaus_detected += 1;
         }
 
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
-
+        await new Promise((resolve) => setTimeout(resolve, 100));
       } catch (userError) {
-        console.error(`Error processing user ${user.user_id}:`, userError);
-        results.errors++;
+        console.error("Adaptive goal user processing failed:", userError);
+        results.errors += 1;
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        results,
-        message: `Processed ${results.processed} users, created ${results.adjustments_created} adjustments, detected ${results.plateaus_detected} plateaus`
-      }), 
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    await recordSecurityEvent(req, {
+      eventType: "system.adaptive_goals.batch_completed",
+      category: "data_change",
+      severity: results.errors ? "medium" : "info",
+      outcome: results.errors ? "failure" : "success",
+      principal,
+      actorType: principal ? undefined : "system",
+      action: "run_adaptive_goals_batch",
+      resourceType: "system.batch",
+      resourceId: "adaptive-goals",
+      metadata: results,
+    });
 
+    return jsonResponse(req, {
+      success: results.errors === 0,
+      results,
+      message: `Processed ${results.processed} users and created ${results.adjustments_created} adjustments`,
+    });
   } catch (error) {
-    console.error("Error in batch processing:", error);
-    return new Response(
-      JSON.stringify({ error: (error as Error).message }), 
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("Adaptive goals batch failed:", error);
+    return errorResponse(req, error);
   }
 });

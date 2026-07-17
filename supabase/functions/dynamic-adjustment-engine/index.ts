@@ -3,12 +3,17 @@
 // Implements evidence-based adjustment logic for weight loss plateaus, adherence issues, etc.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  enforceRateLimit,
+  errorResponse,
+  getCorsHeaders,
+  getServiceClient,
+  handlePreflight,
+  readJsonBody,
+  recordSecurityEvent,
+  requirePost,
+  requireSelfOrAdmin,
+} from "../_shared/security.ts";
 
 interface WeightLog {
   id: string;
@@ -273,21 +278,26 @@ async function saveAdjustment(
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    requirePost(req);
+    const supabaseClient = getServiceClient();
 
     const { 
       user_id, 
       auto_apply = false,
       weeks_of_history = 4 
-    } = await req.json();
+    } = await readJsonBody<{
+      user_id: string;
+      auto_apply?: boolean;
+      weeks_of_history?: number;
+    }>(req, 16 * 1024);
+
+    const principal = await requireSelfOrAdmin(req, user_id);
+    await enforceRateLimit(req, "dynamic-adjustment", principal.user.id, 12, 60 * 60);
 
     // Validation
     if (!user_id) {
@@ -427,6 +437,18 @@ serve(async (req) => {
       },
     });
 
+    await recordSecurityEvent(req, {
+      eventType: applied ? "edge.nutrition_adjustment_applied" : "edge.nutrition_adjustment_generated",
+      category: applied ? "data_change" : "edge_function",
+      severity: applied ? "medium" : "info",
+      outcome: "success",
+      principal,
+      action: applied ? "apply_adjustment" : "generate_adjustment",
+      resourceType: "profile",
+      resourceId: user_id,
+      metadata: { adjustment_type: recommendation.type, auto_apply, applied },
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -447,9 +469,6 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in dynamic-adjustment-engine:", error);
-    return new Response(
-      JSON.stringify({ error: "An unexpected error occurred" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(req, error);
   }
 });

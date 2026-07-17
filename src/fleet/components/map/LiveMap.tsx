@@ -109,28 +109,51 @@ export function LiveMap() {
           // Create new marker
           const el = document.createElement('div');
           el.className = 'driver-marker';
-          el.innerHTML = `
-            <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 ${
-              driver.isOnline 
-                ? 'bg-green-500 border-white' 
-                : 'bg-gray-400 border-white'
-            }">
-              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-          `;
+          const markerBody = document.createElement('div');
+          markerBody.className = `w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white ${
+            driver.isOnline ? 'bg-green-500' : 'bg-gray-400'
+          }`;
+          const markerIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          markerIcon.setAttribute('class', 'w-4 h-4 text-white');
+          markerIcon.setAttribute('fill', 'none');
+          markerIcon.setAttribute('stroke', 'currentColor');
+          markerIcon.setAttribute('viewBox', '0 0 24 24');
+          const markerPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          markerPath.setAttribute('stroke-linecap', 'round');
+          markerPath.setAttribute('stroke-linejoin', 'round');
+          markerPath.setAttribute('stroke-width', '2');
+          markerPath.setAttribute('d', 'M13 10V3L4 14h7v7l9-11h-7z');
+          markerIcon.appendChild(markerPath);
+          markerBody.appendChild(markerIcon);
+          el.appendChild(markerBody);
 
-          const popup = new mapboxgl.default.Popup({ offset: 25 }).setHTML(`
-            <div class="p-2 min-w-[150px]">
-              <h3 class="font-semibold text-sm">${driver.driverName}</h3>
-              <p class="text-xs ${driver.isOnline ? 'text-green-600' : 'text-gray-500'}">
-                ${driver.isOnline ? '● Online' : '● Offline'}
-              </p>
-              ${driver.speed ? `<p class="text-xs text-muted-foreground">${Math.round(driver.speed)} km/h</p>` : ''}
-              ${driver.currentOrderId ? `<p class="text-xs text-blue-600">On Delivery</p>` : ''}
-            </div>
-          `);
+          const popupBody = document.createElement('div');
+          popupBody.className = 'p-2 min-w-[150px]';
+          const driverName = document.createElement('h3');
+          driverName.className = 'font-semibold text-sm';
+          driverName.textContent = driver.driverName;
+          popupBody.appendChild(driverName);
+
+          const status = document.createElement('p');
+          status.className = `text-xs ${driver.isOnline ? 'text-green-600' : 'text-gray-500'}`;
+          status.textContent = driver.isOnline ? 'Online' : 'Offline';
+          popupBody.appendChild(status);
+
+          if (Number.isFinite(driver.speed) && Number(driver.speed) > 0) {
+            const speed = document.createElement('p');
+            speed.className = 'text-xs text-muted-foreground';
+            speed.textContent = `${Math.round(Number(driver.speed))} km/h`;
+            popupBody.appendChild(speed);
+          }
+
+          if (driver.currentOrderId) {
+            const deliveryStatus = document.createElement('p');
+            deliveryStatus.className = 'text-xs text-blue-600';
+            deliveryStatus.textContent = 'On Delivery';
+            popupBody.appendChild(deliveryStatus);
+          }
+
+          const popup = new mapboxgl.default.Popup({ offset: 25 }).setDOMContent(popupBody);
 
           const marker = new mapboxgl.default.Marker(el)
             .setLngLat([driver.longitude, driver.latitude])

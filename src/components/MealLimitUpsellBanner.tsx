@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Utensils, ArrowRight, TrendingUp } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
-import { posthog } from "posthog-js";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { trackEvent } from "@/lib/analytics";
 
 interface MealLimitUpsellBannerProps {
   threshold?: number; // Default 0.8 (80%)
@@ -37,7 +37,7 @@ export function MealLimitUpsellBanner({
   // Track impression
   useEffect(() => {
     if (shouldShow && !impressionTracked && user) {
-      posthog.capture("meal_limit_banner_impression", {
+      trackEvent("meal_limit_banner_impression", {
         user_id: user.id,
         usage_percent: Math.round(usageRatio * 100),
         meals_used: mealsUsed,
@@ -54,7 +54,7 @@ export function MealLimitUpsellBanner({
     if (!user) return;
 
     // Track click
-    posthog.capture("meal_limit_banner_click", {
+    trackEvent("meal_limit_banner_click", {
       user_id: user.id,
       usage_percent: Math.round(usageRatio * 100),
       current_tier: subscription?.tier,
@@ -67,7 +67,7 @@ export function MealLimitUpsellBanner({
     if (!user) return;
 
     // Track dismiss
-    posthog.capture("meal_limit_banner_dismiss", {
+    trackEvent("meal_limit_banner_dismiss", {
       user_id: user.id,
       usage_percent: Math.round(usageRatio * 100),
     });
@@ -170,7 +170,7 @@ export function MealLimitUpsellBanner({
 // Hook for tracking meal limit banner conversion
 export function useMealLimitTracking() {
   const trackConversion = (fromTier: string, toTier: string, source: string) => {
-    posthog.capture("meal_limit_banner_conversion", {
+    trackEvent("meal_limit_banner_conversion", {
       from_tier: fromTier,
       to_tier: toTier,
       source,

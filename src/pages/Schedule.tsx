@@ -10,7 +10,7 @@ import { useWallet } from "@/hooks/useWallet";
 import { formatCurrency } from "@/lib/currency";
 import { findCoachMealSuggestion, getCoachMealScheduleFields } from "@/lib/coach-meal-schedule";
 import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
-import { scheduleMealsAtomic, type ScheduleMealInput } from "@/lib/schedule-meals";
+import { scheduleMealsResilient, type ScheduleMealInput } from "@/lib/schedule-meals";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
@@ -58,6 +58,7 @@ import LogMealModal from "@/components/LogMealModal";
 import { MealPlanGenerator } from "@/components/meal/MealPlanGenerator";
 import { SmartSubstitutionBanner } from "@/components/meal/SmartSubstitutionBanner";
 import { useSmartSubstitutions } from "@/hooks/useSmartSubstitutions";
+import ScheduleWeekTools from "@/components/schedule/ScheduleWeekTools";
 
 interface ScheduledMeal {
   id: string;
@@ -186,6 +187,7 @@ const Schedule = () => {
   const pricePerMeal = subscription?.price_per_meal ?? 50;
 
   const [showMealPlanGenerator, setShowMealPlanGenerator] = useState(false);
+  const [templateApplying, setTemplateApplying] = useState(false);
   const [showBuyCredit, setShowBuyCredit] = useState(false);
   const [buyLoading, setBuyLoading] = useState(false);
 
@@ -517,15 +519,24 @@ const Schedule = () => {
         ),
       }));
 
-      await scheduleMealsAtomic(subscription.id, items);
+      const scheduleResult = await scheduleMealsResilient(user.id, subscription.id, items);
 
-      await refetchSubscription();
-      await fetchSchedules();
+      if ("queued" in scheduleResult) {
+        toast({
+          title: "Saved offline",
+          description: "This combo will be scheduled when your connection returns.",
+        });
+      } else {
+        await refetchSubscription();
+        await fetchSchedules();
+      }
       clearSelectedCombo();
-      toast({
-        title: "Combo added",
-        description: `${rows.length} meal${rows.length === 1 ? "" : "s"} scheduled for ${format(selectedDate, "MMM d")}.`,
-      });
+      if (!("queued" in scheduleResult)) {
+        toast({
+          title: "Combo added",
+          description: `${rows.length} meal${rows.length === 1 ? "" : "s"} scheduled for ${format(selectedDate, "MMM d")}.`,
+        });
+      }
     } catch (err) {
       console.error("Error applying combo:", err);
       toast({
@@ -537,6 +548,30 @@ const Schedule = () => {
       setComboApplying(false);
     }
   }, [clearSelectedCombo, comboMeals, fetchSchedules, hasActiveSubscription, refetchSubscription, schedules, selectedDate, subscription?.id, toast, user]);
+
+  const applyScheduleTemplate = useCallback(async (templateItems: ScheduleMealInput[]) => {
+    if (!user || !subscription?.id) throw new Error("SUBSCRIPTION_REQUIRED");
+    const occupied = new Set(schedules.map((schedule) => `${schedule.scheduled_date}:${schedule.meal_type}`));
+    const openItems = templateItems.filter((item) => !occupied.has(`${item.scheduled_date}:${item.meal_type}`));
+    if (openItems.length === 0) {
+      toast({ title: "Week already filled", description: "This template has no open meal slots to add." });
+      return;
+    }
+
+    setTemplateApplying(true);
+    try {
+      const result = await scheduleMealsResilient(user.id, subscription.id, openItems);
+      if ("queued" in result) {
+        toast({ title: "Saved offline", description: `${openItems.length} meals will sync when you reconnect.` });
+      } else {
+        await refetchSubscription();
+        await fetchSchedules();
+        toast({ title: "Template applied", description: `${openItems.length} meals added to open slots.` });
+      }
+    } finally {
+      setTemplateApplying(false);
+    }
+  }, [fetchSchedules, refetchSubscription, schedules, subscription?.id, toast, user]);
 
   const toggleMealCompletion = async (scheduleId: string, isCompleted: boolean, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -807,42 +842,56 @@ const Schedule = () => {
       {/* ── Content Area ─────────────────────────────── */}
       <div className="relative z-10 mx-auto max-w-[430px] px-3 pb-[88px] pt-4">
 
+        {!loading && (
+          <motion.button
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => {
+              if (!user) {
+                promptLogin({
+                  title: t("login_required"),
+                  description: t("login_to_schedule_meals"),
+                  actionLabel: t("login"),
+                  signUpLabel: t("create_free_account"),
+                });
+                return;
+              }
+              if (!hasActiveSubscription) {
+                navigate("/subscription");
+                return;
+              }
+              setShowMealPlanGenerator(true);
+            }}
+            whileTap={{ scale: 0.98 }}
+            className="mb-3 flex min-h-[76px] w-full items-center gap-3 rounded-[22px] bg-white p-3 text-left shadow-[0_8px_24px_rgba(2,6,23,0.05)] ring-1 ring-[#E5EAF1] transition active:bg-[#F6F8FB]"
+            dir={isRTL ? "rtl" : "ltr"}
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[#E9FBF6] text-[#22C7A1] ring-1 ring-[#22C7A1]/15">
+              <CalendarPlus className="h-5 w-5" strokeWidth={2.4} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-black text-[#020617]">{t("weekly_meals")}</p>
+              <p className="mt-0.5 line-clamp-2 text-[11px] font-semibold leading-4 text-[#64748B]">
+                {t("schedule_fill_week_desc")}
+              </p>
+            </div>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white">
+              <Sparkles className="h-4 w-4" strokeWidth={2.4} />
+            </span>
+          </motion.button>
+        )}
+
+        {user && (
+          <ScheduleWeekTools
+            userId={user.id}
+            weekStart={currentWeekStart}
+            schedules={thisWeekSchedules}
+            applying={templateApplying}
+            onApply={applyScheduleTemplate}
+          />
+        )}
+
         {/* ── Weekly Stats ─────────────────────────────── */}
-        {!loading && hasActiveSubscription && (() => {
-          const totalSlots = 7 * 4;
-          const hasUnusedSlots = thisWeekSchedules.length < totalSlots;
-          const isWeekEmpty = thisWeekSchedules.length === 0;
-          const openSlots = Math.max(totalSlots - thisWeekSchedules.length, 0);
-
-          if (!isWeekEmpty && !hasUnusedSlots) return null;
-
-          return (
-            <motion.button
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={() => setShowMealPlanGenerator(true)}
-              whileTap={{ scale: 0.98 }}
-              className="mb-4 flex min-h-[68px] w-full items-center gap-3 rounded-[20px] bg-white p-3 text-left shadow-[0_8px_24px_rgba(2,6,23,0.05)] ring-1 ring-[#E5EAF1] transition active:bg-[#F6F8FB]"
-              dir={isRTL ? "rtl" : "ltr"}
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-[#E9FBF6] text-[#22C7A1] ring-1 ring-[#22C7A1]/15">
-                <CalendarPlus className="h-5 w-5" strokeWidth={2.4} />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-black text-[#020617]">{t("schedule_fill_week_title")}</p>
-                <p className="mt-0.5 truncate text-[11px] font-semibold text-[#64748B]">
-                  {isWeekEmpty ? "Build your week in one step" : `${openSlots} open slots this week`}
-                </p>
-              </div>
-
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white">
-                <Sparkles className="h-4 w-4" strokeWidth={2.4} />
-              </span>
-            </motion.button>
-          );
-        })()}
-
         {/* ── Smart Substitution Banner ─────────────────── */}
         <SmartSubstitutionBanner
           unavailableMeals={unavailableMeals}

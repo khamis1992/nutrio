@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Mail, Lock, ArrowLeft, Loader2, X } from 'lucide-react'
-import { Logo } from '@/components/Logo'
+import { AnimatedNutrioLogo } from '@/components/motion/AnimatedNutrioLogo'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { signInSchema, SignInFormValues } from './validation'
 import { useState } from 'react'
@@ -110,9 +110,7 @@ export const SignInScreen = ({
           transition={{ duration: 0.4, delay: 0.2, ease: [0.34, 1.56, 0.64, 1] }}
           className="mb-5 mt-2 flex items-center justify-center"
         >
-          <div className="flex h-28 w-28 items-center justify-center max-[380px]:h-24 max-[380px]:w-24">
-            <Logo size="xl" className="!h-28 max-[380px]:!h-24" />
-          </div>
+          <AnimatedNutrioLogo className="h-28 w-28 max-[380px]:h-24 max-[380px]:w-24" />
         </motion.div>
 
         {/* Main form card */}

@@ -17,6 +17,7 @@ type OperationalRole = Exclude<LaunchRole, "coach">;
 
 type PortalSession = {
   accessToken: string;
+  aal?: string;
   email: string;
   userId: string;
 };
@@ -28,6 +29,22 @@ type Portal = {
   client: SupabaseClient;
   requestFailures: string[];
   businessMutations: string[];
+};
+
+type SecurityPosture = {
+  status?: string;
+  checks?: Array<{
+    id?: string;
+    status?: string;
+    summary?: string;
+  }>;
+};
+
+type SecurityIntegrity = {
+  valid?: boolean;
+  coverage?: string;
+  first_invalid_sequence?: string | number | null;
+  first_invalid_anchor?: string | null;
 };
 
 const env = loadEnv(process.env.NODE_ENV || "development", process.cwd(), "");
@@ -98,7 +115,14 @@ async function readPortalSession(page: Page): Promise<PortalSession> {
     throw new Error("The authenticated Supabase session was not found in browser storage.");
   }
 
-  return session;
+  const payload = JSON.parse(
+    Buffer.from(session.accessToken.split(".")[1], "base64url").toString("utf8"),
+  ) as { aal?: unknown };
+
+  return {
+    ...session,
+    aal: typeof payload.aal === "string" ? payload.aal : undefined,
+  };
 }
 
 async function openPortal(browser: Browser, role: LaunchRole): Promise<Portal> {
@@ -114,6 +138,9 @@ async function openPortal(browser: Browser, role: LaunchRole): Promise<Portal> {
   expect(session.email.toLowerCase(), `${role} authenticated as the wrong user`).toBe(
     expectedCredentials.email.toLowerCase(),
   );
+  if (role === "admin") {
+    expect(session.aal, "Admin launch verification must use an AAL2 session").toBe("aal2");
+  }
 
   page.on("response", (response) => {
     if (
@@ -251,6 +278,40 @@ test.describe("Nutrio six-portal launch gate", () => {
         .single();
       expect(adminRoleError, "Admin account has no admin role").toBeNull();
       expect(adminRole?.role).toBe("admin");
+
+      const { data: securityPostureData, error: securityPostureError } =
+        await portals.admin.client.rpc("admin_security_posture");
+      expect(
+        securityPostureError,
+        "The live admin security posture RPC is missing or inaccessible at AAL2",
+      ).toBeNull();
+      const securityPosture = securityPostureData as SecurityPosture | null;
+      const failedSecurityChecks = (securityPosture?.checks || []).filter(
+        (check) => check.status === "fail",
+      );
+      expect(
+        failedSecurityChecks,
+        `Production security posture has failing controls: ${failedSecurityChecks
+          .map((check) => `${check.id || "unknown"}: ${check.summary || "failed"}`)
+          .join("; ")}`,
+      ).toEqual([]);
+      expect(securityPosture?.status).not.toBe("action_required");
+
+      const { data: integrityData, error: integrityError } =
+        await portals.admin.client.rpc("admin_verify_security_event_chain", {
+          p_limit: 10_000,
+        });
+      expect(
+        integrityError,
+        "The security evidence integrity verifier is missing or inaccessible at AAL2",
+      ).toBeNull();
+      const integrity = integrityData as SecurityIntegrity | null;
+      expect(
+        integrity?.valid,
+        `Security evidence is invalid at event ${String(
+          integrity?.first_invalid_sequence || "unknown",
+        )} or anchor ${integrity?.first_invalid_anchor || "unknown"}`,
+      ).toBe(true);
 
       const { data: fleetManager, error: fleetManagerError } = await portals.fleet.client
         .from("fleet_managers")

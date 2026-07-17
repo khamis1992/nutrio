@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getQatarDay } from "@/lib/dateUtils";
-import { getCachedHealthData, setCachedHealthData } from "@/lib/healthKit";
+import {
+  clearCachedHealthData,
+  getCachedHealthData,
+  setCachedHealthData,
+} from "@/lib/healthKit";
 import type { HealthPlatform, SyncedHealthData } from "@/lib/healthKit";
 import type { HealthDailyMetrics } from "@/lib/health-readiness";
 
@@ -135,6 +139,12 @@ export function useHealthDailyMetrics(userId?: string, date = todayKey(), rangeD
         const scopedMetric = dailyMetric && isMetricInScope(dailyMetric, userId, date)
           ? dailyMetric
           : null;
+        if (dailyMetric && !scopedMetric) {
+          clearCachedHealthData(userId);
+          console.error("Rejected an out-of-scope health metrics response");
+          setMetricState({ userId, date, value: null, loading: true });
+          return;
+        }
         if (scopedMetric) cacheDailyMetric(userId, date, scopedMetric);
         setMetricState({ userId, date, value: scopedMetric ?? cached, loading: true });
       })
@@ -170,11 +180,18 @@ export function useHealthDailyMetrics(userId?: string, date = todayKey(), rangeD
           setRangeState({ userId, date, rangeDays, value: [] });
           return;
         }
-        const scopedRange = ((data as HealthDailyMetrics[] | null) ?? []).filter((metric) => (
-          metric.user_id === userId
-          && metric.metric_date >= rangeStartDate
-          && metric.metric_date <= date
+        const receivedRange = (data as HealthDailyMetrics[] | null) ?? [];
+        const containsOutOfScopeMetric = receivedRange.some((metric) => (
+          metric.user_id !== userId
+          || metric.metric_date < rangeStartDate
+          || metric.metric_date > date
         ));
+        if (containsOutOfScopeMetric) {
+          console.error("Rejected an out-of-scope health metrics range response");
+          setRangeState({ userId, date, rangeDays, value: [] });
+          return;
+        }
+        const scopedRange = receivedRange;
         setRangeState({ userId, date, rangeDays, value: scopedRange });
       })
       .catch((error: unknown) => {

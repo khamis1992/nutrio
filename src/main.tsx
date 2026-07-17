@@ -5,7 +5,6 @@ import App from "./App.tsx";
 import "./index.css";
 import { initializeNativeApp } from "./lib/capacitor";
 import { initSentry } from "./lib/sentry";
-import { initPostHog } from "./lib/analytics";
 import { SentryErrorBoundary } from "./components/SentryErrorBoundary";
 import DevelopmentErrorBoundary from "./components/DevelopmentErrorBoundary";
 import { SplashVideo } from "./components/SplashVideo";
@@ -19,7 +18,6 @@ function initMonitoring() {
   if (monitoringInitialized) return;
   monitoringInitialized = true;
   initSentry();
-  initPostHog();
 }
 
 // NOTE: initializeNativeApp() is now called inside the Root component

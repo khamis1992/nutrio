@@ -1,14 +1,19 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AdminEmptyState,
+  AdminMetricTile,
+  AdminPanel,
+  AdminPanelHeader,
+} from "@/components/admin/AdminPrimitives";
 import { OrderStats } from "@/hooks/useUserOrders";
-import { 
-  UtensilsCrossed, 
-  CheckCircle2, 
-  Clock, 
-  Flame, 
+import {
+  UtensilsCrossed,
+  CheckCircle2,
+  Clock,
+  Flame,
   Beef,
   Store,
-  Calendar
+  Calendar,
 } from "lucide-react";
 
 interface OrderStatisticsProps {
@@ -18,134 +23,128 @@ interface OrderStatisticsProps {
 export const OrderStatistics = ({ stats }: OrderStatisticsProps) => {
   if (!stats || stats.total_orders === 0) {
     return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-            Order Statistics
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-sm">
-            No order data available for this user.
-          </p>
-        </CardContent>
-      </Card>
+      <AdminPanel>
+        <AdminPanelHeader
+          eyebrow="Customer orders"
+          title="Order Statistics"
+          description="Performance and nutrition totals for this customer."
+        />
+        <AdminEmptyState
+          icon={UtensilsCrossed}
+          title="No order data yet"
+          description="Once the customer starts scheduling meals, their order totals and nutrition profile will appear here."
+        />
+      </AdminPanel>
     );
   }
 
-  const completionRate = stats.total_orders > 0
-    ? Math.round((stats.completed_orders / stats.total_orders) * 100)
-    : 0;
+  const completionRate =
+    stats.total_orders > 0
+      ? Math.round((stats.completed_orders / stats.total_orders) * 100)
+      : 0;
 
   const statCards = [
     {
       label: "Total Orders",
       value: stats.total_orders,
       icon: UtensilsCrossed,
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
+      accent: "#38BDF8" as const,
     },
     {
       label: "Completed",
       value: stats.completed_orders,
       subValue: `${completionRate}%`,
       icon: CheckCircle2,
-      color: "text-emerald-500",
-      bgColor: "bg-emerald-500/10",
+      accent: "#22C7A1" as const,
     },
     {
       label: "Pending",
       value: stats.pending_orders,
       icon: Clock,
-      color: "text-amber-500",
-      bgColor: "bg-amber-500/10",
+      accent: "#F97316" as const,
     },
     {
       label: "Total Calories",
       value: stats.total_calories.toLocaleString(),
       icon: Flame,
-      color: "text-orange-500",
-      bgColor: "bg-orange-500/10",
+      accent: "#22C7A1" as const,
     },
     {
       label: "Total Protein",
       value: `${stats.total_protein}g`,
       icon: Beef,
-      color: "text-red-500",
-      bgColor: "bg-red-500/10",
+      accent: "#7C83F6" as const,
     },
   ];
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-          Order Statistics
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+    <AdminPanel>
+      <AdminPanelHeader
+        eyebrow="Customer orders"
+        title="Order Statistics"
+        description={`${stats.completed_orders} completed / ${stats.pending_orders} pending`}
+      />
+      <div className="space-y-4 px-5 py-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {statCards.map((stat, index) => (
-            <div
+            <AdminMetricTile
               key={index}
-              className="p-3 rounded-xl bg-muted/50 border border-border/50"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`w-8 h-8 rounded-lg ${stat.bgColor} flex items-center justify-center`}>
-                  <stat.icon className={`w-4 h-4 ${stat.color}`} />
-                </div>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <p className="text-xl font-bold">{stat.value}</p>
-                {stat.subValue && (
-                  <span className="text-xs text-muted-foreground">
-                    ({stat.subValue})
-                  </span>
-                )}
-              </div>
-            </div>
+              label={stat.label}
+              value={stat.value}
+              subValue={stat.subValue ? `(${stat.subValue})` : undefined}
+              icon={stat.icon}
+              accent={stat.accent}
+            />
           ))}
         </div>
 
-        {/* Completion Rate Bar */}
         <div className="pt-2">
           <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-muted-foreground">Completion Rate</span>
-            <span className="font-medium">{completionRate}%</span>
+            <span className="font-semibold text-[#94A3B8]">
+              Completion Rate
+            </span>
+            <span className="font-black text-[#020617]">{completionRate}%</span>
           </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div className="h-2 overflow-hidden rounded-full bg-[#E5EAF1]">
             <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
+              className="h-full rounded-full bg-[#22C7A1] transition-all duration-500"
               style={{ width: `${completionRate}%` }}
             />
           </div>
         </div>
 
-        {/* Favorites */}
-        <div className="pt-2 border-t space-y-2">
+        <div className="space-y-2 border-t border-[#E5EAF1] pt-2">
           {stats.favorite_restaurant && (
             <div className="flex items-center gap-2">
-              <Store className="w-4 h-4 text-primary" />
-              <span className="text-sm text-muted-foreground">Favorite Restaurant:</span>
-              <Badge variant="secondary" className="text-xs">
+              <Store className="h-4 w-4 text-[#7C83F6]" />
+              <span className="text-sm font-semibold text-[#94A3B8]">
+                Favorite Restaurant:
+              </span>
+              <Badge
+                variant="secondary"
+                className="bg-[#F6F8FB] text-xs text-[#020617]"
+              >
                 {stats.favorite_restaurant}
               </Badge>
             </div>
           )}
           {stats.favorite_meal_type && (
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-primary" />
-              <span className="text-sm text-muted-foreground">Favorite Meal:</span>
-              <Badge variant="secondary" className="text-xs capitalize">
+              <Calendar className="h-4 w-4 text-[#38BDF8]" />
+              <span className="text-sm font-semibold text-[#94A3B8]">
+                Favorite Meal:
+              </span>
+              <Badge
+                variant="secondary"
+                className="bg-[#F6F8FB] text-xs capitalize text-[#020617]"
+              >
                 {stats.favorite_meal_type}
               </Badge>
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </AdminPanel>
   );
 };
 

@@ -55,16 +55,22 @@ describe("logMealItems", () => {
       protein: 70,
       carbs: 88,
       fat: 24,
+      fiber: 0,
+      sugar: 0,
+      sodium: 0,
     });
 
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc).toHaveBeenCalledWith("log_manual_meal_items", {
+    expect(rpc).toHaveBeenCalledWith("log_manual_meal_items_v2", {
       p_items: [{
         name: "Chicken Bowl",
         calories: 841,
         protein_g: 70,
         carbs_g: 88,
         fat_g: 24,
+        fiber_g: 0,
+        sugar_g: 0,
+        sodium_mg: 0,
         image_url: "https://example.test/meal.jpg",
       }],
       p_log_date: "2026-07-12",
@@ -73,6 +79,25 @@ describe("logMealItems", () => {
     });
     expect(JSON.stringify(rpc.mock.calls[0])).not.toContain("user-1");
     expect(track).toHaveBeenCalledWith("xp_earned", { amount: 20, source: "barcode" });
+  });
+
+  it("falls back to the legacy RPC while the extended migration is pending", async () => {
+    rpc
+      .mockResolvedValueOnce({ data: null, error: { code: "PGRST202", message: "not found" } } as never)
+      .mockResolvedValueOnce({
+        data: { success: true, logged_count: 1, history_ids: ["history-1"] },
+        error: null,
+      } as never);
+
+    await expect(logMealItems({
+      userId: "user-1",
+      items: [{ name: "Soup", calories: 180, protein_g: 8, carbs_g: 25, fat_g: 5 }],
+    })).resolves.toMatchObject({ persisted: true, loggedCount: 1 });
+
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+      "log_manual_meal_items_v2",
+      "log_manual_meal_items",
+    ]);
   });
 
   it("propagates server validation failures without partial client writes", async () => {

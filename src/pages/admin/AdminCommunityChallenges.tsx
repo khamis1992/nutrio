@@ -3,6 +3,10 @@ import { Calendar, Loader2, Plus, Save, Trophy } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminLayout } from "@/components/AdminLayout";
+import {
+  AdminPanel,
+  AdminWorkbenchHeader,
+} from "@/components/admin/AdminPrimitives";
 import { supabase } from "@/integrations/supabase/client";
 
 type ChallengeRow = {
@@ -218,7 +222,10 @@ export default function AdminCommunityChallenges() {
         )
         .order("created_at", { ascending: false });
 
-      if (withWalletReward.error && withWalletReward.error.message.includes("wallet_reward_amount")) {
+      if (
+        withWalletReward.error &&
+        withWalletReward.error.message.includes("wallet_reward_amount")
+      ) {
         const fallback = await supabase
           .from("community_challenges")
           .select(
@@ -228,7 +235,12 @@ export default function AdminCommunityChallenges() {
 
         if (fallback.error) throw fallback.error;
         setChallenges(
-          ((fallback.data ?? []) as Omit<ChallengeRow, "wallet_reward_amount">[]).map((challenge) => ({
+          (
+            (fallback.data ?? []) as Omit<
+              ChallengeRow,
+              "wallet_reward_amount"
+            >[]
+          ).map((challenge) => ({
             ...challenge,
             wallet_reward_amount: 0,
           })),
@@ -318,7 +330,10 @@ export default function AdminCommunityChallenges() {
       const nextPrize = {
         xp_reward: Math.max(0, Number(prizeDraft.xp_reward) || 0),
         reward_points: Math.max(0, Number(prizeDraft.reward_points) || 0),
-        wallet_reward_amount: Math.max(0, Number(prizeDraft.wallet_reward_amount) || 0),
+        wallet_reward_amount: Math.max(
+          0,
+          Number(prizeDraft.wallet_reward_amount) || 0,
+        ),
       };
 
       const { error } = await supabase
@@ -415,92 +430,64 @@ export default function AdminCommunityChallenges() {
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout
+      title="Community Challenges"
+      subtitle="Create and manage platform-wide customer challenges"
+    >
       <div className="space-y-6 bg-[#F6F8FB] p-1 text-[#020617]">
-        <div className="overflow-hidden rounded-3xl bg-white shadow-[0_18px_44px_rgba(2,6,23,0.06)] ring-1 ring-slate-100">
-          <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-4">
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-white shadow-[0_14px_28px_rgba(34,199,161,0.22)]"
-                style={{ backgroundColor: C.progress }}
-              >
-                <Trophy className="h-7 w-7" />
-              </div>
-              <div>
-                <p
-                  className="text-xs font-black uppercase tracking-[0.18em]"
-                  style={{ color: C.progress }}
-                >
-                  Community control
-                </p>
-                <h1
-                  className="mt-1 text-3xl font-black tracking-tight"
-                  style={{ color: C.text }}
-                >
-                  Challenge Management
-                </h1>
-                <p
-                  className="mt-2 max-w-2xl text-sm font-medium leading-6"
-                  style={{ color: C.muted }}
-                >
-                  Create and manage community challenges for meals, water,
-                  protein targets, and streak progress.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
+        <AdminWorkbenchHeader
+          eyebrow="Growth programs"
+          title="Community challenge desk"
+          icon={Trophy}
+          accent="#22C7A1"
+          description="Create and manage platform-wide challenges for meals, water, protein targets, streaks, and reward-funded community progress."
+          meta={[
+            { label: "Total challenges", value: challenges.length },
+            {
+              label: "Active",
+              value: challenges.filter((challenge) => challenge.is_active)
+                .length,
+            },
+            {
+              label: "Participants",
+              value: challenges.reduce(
+                (sum, challenge) => sum + (challenge.participant_count ?? 0),
+                0,
+              ),
+            },
+          ]}
+          actions={
+            <>
               <button
                 onClick={createOneDayTestChallenge}
                 disabled={creatingTest}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#22C7A1] px-5 text-sm font-black text-white shadow-[0_14px_28px_rgba(34,199,161,0.22)] transition hover:opacity-95 disabled:opacity-60"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[#22C7A1]/30 bg-[#22C7A1]/10 px-5 text-sm font-black text-[#020617] transition hover:bg-[#22C7A1]/15 disabled:opacity-60"
               >
                 {creatingTest ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin text-[#22C7A1]" />
                 ) : (
-                  <Trophy className="h-4 w-4" />
+                  <Trophy className="h-4 w-4 text-[#22C7A1]" />
                 )}
                 Create 1-day test
               </button>
               <button
                 onClick={createChallenge}
                 disabled={saving}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-black text-white shadow-[0_14px_28px_rgba(2,6,23,0.16)] transition hover:opacity-95 disabled:opacity-60"
-                style={{ backgroundColor: C.text }}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[#7C83F6]/30 bg-[#7C83F6]/10 px-5 text-sm font-black text-[#020617] transition hover:bg-[#7C83F6]/15 disabled:opacity-60"
               >
                 {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin text-[#7C83F6]" />
                 ) : (
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-4 w-4 text-[#7C83F6]" />
                 )}
                 Create challenge
               </button>
-            </div>
-          </div>
-          <div className="grid border-t border-slate-100 bg-[#F6F8FB]/70 px-6 py-4 text-sm font-semibold sm:grid-cols-3">
-            <span style={{ color: C.muted }}>
-              Total challenges:{" "}
-              <strong className="text-[#020617]">{challenges.length}</strong>
-            </span>
-            <span style={{ color: C.muted }}>
-              Active:{" "}
-              <strong className="text-[#020617]">
-                {challenges.filter((challenge) => challenge.is_active).length}
-              </strong>
-            </span>
-            <span style={{ color: C.muted }}>
-              Participants:{" "}
-              <strong className="text-[#020617]">
-                {challenges.reduce(
-                  (sum, challenge) => sum + (challenge.participant_count ?? 0),
-                  0,
-                )}
-              </strong>
-            </span>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         <div className="grid gap-6 xl:grid-cols-[400px_1fr]">
-          <div className="rounded-3xl bg-white p-5 shadow-[0_18px_44px_rgba(2,6,23,0.06)] ring-1 ring-slate-100">
+          <AdminPanel className="p-5">
             <div className="mb-5 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#7C83F6]/10 text-[#7C83F6]">
                 <Plus className="h-5 w-5" />
@@ -516,7 +503,7 @@ export default function AdminCommunityChallenges() {
             </div>
 
             <div className="space-y-3">
-              <div className="rounded-3xl bg-[#F6F8FB] p-3">
+              <div className="rounded-[22px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
@@ -530,13 +517,13 @@ export default function AdminCommunityChallenges() {
                     {challengeTemplates.length}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   {challengeTemplates.map((template) => (
                     <button
                       key={template.title}
                       type="button"
                       onClick={() => applyTemplate(template)}
-                      className="rounded-2xl bg-white p-3 text-left ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(2,6,23,0.08)]"
+                      className="min-h-[92px] rounded-2xl bg-white p-3 text-left ring-1 ring-[#E5EAF1] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(2,6,23,0.08)]"
                     >
                       <span
                         className="mb-2 inline-flex rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-white"
@@ -548,7 +535,7 @@ export default function AdminCommunityChallenges() {
                         {template.title}
                       </p>
                       <p className="mt-1 text-[10px] font-bold text-[#94A3B8]">
-                        {template.target_value} target · {template.xp_reward} XP
+                        {template.target_value} target - {template.xp_reward} XP
                       </p>
                     </button>
                   ))}
@@ -556,6 +543,7 @@ export default function AdminCommunityChallenges() {
               </div>
 
               <input
+                aria-label="Challenge title"
                 className="h-12 w-full rounded-2xl border-0 bg-[#F6F8FB] px-4 text-sm font-bold text-[#020617] outline-none placeholder:text-[#94A3B8] focus:ring-2 focus:ring-[#22C7A1]/30"
                 placeholder="Title"
                 value={form.title}
@@ -564,6 +552,7 @@ export default function AdminCommunityChallenges() {
                 }
               />
               <textarea
+                aria-label="Challenge description"
                 className="min-h-28 w-full rounded-2xl border-0 bg-[#F6F8FB] px-4 py-3 text-sm font-semibold text-[#020617] outline-none placeholder:text-[#94A3B8] focus:ring-2 focus:ring-[#22C7A1]/30"
                 placeholder="Description"
                 value={form.description}
@@ -575,8 +564,9 @@ export default function AdminCommunityChallenges() {
                 }
               />
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <select
+                  aria-label="Challenge type"
                   className="h-12 rounded-2xl border-0 bg-[#F6F8FB] px-3 text-sm font-bold text-[#020617] outline-none focus:ring-2 focus:ring-[#22C7A1]/30"
                   value={form.challenge_type}
                   onChange={(e) =>
@@ -596,6 +586,7 @@ export default function AdminCommunityChallenges() {
                   <option value="subscription">Subscription usage</option>
                 </select>
                 <select
+                  aria-label="Difficulty level"
                   className="h-12 rounded-2xl border-0 bg-[#F6F8FB] px-3 text-sm font-bold text-[#020617] outline-none focus:ring-2 focus:ring-[#22C7A1]/30"
                   value={form.difficulty_level}
                   onChange={(e) =>
@@ -610,6 +601,7 @@ export default function AdminCommunityChallenges() {
                   <option value="hard">Hard</option>
                 </select>
                 <input
+                  aria-label="Challenge category"
                   className="h-12 rounded-2xl border-0 bg-[#F6F8FB] px-3 text-sm font-bold text-[#020617] outline-none placeholder:text-[#94A3B8] focus:ring-2 focus:ring-[#22C7A1]/30"
                   placeholder="Category"
                   value={form.category}
@@ -621,6 +613,7 @@ export default function AdminCommunityChallenges() {
                   }
                 />
                 <input
+                  aria-label="Challenge target value"
                   className="h-12 rounded-2xl border-0 bg-[#F6F8FB] px-3 text-sm font-bold text-[#020617] outline-none focus:ring-2 focus:ring-[#22C7A1]/30"
                   type="number"
                   min="1"
@@ -685,6 +678,7 @@ export default function AdminCommunityChallenges() {
                   />
                 </label>
                 <input
+                  aria-label="Challenge start date"
                   className="h-12 rounded-2xl border-0 bg-[#F6F8FB] px-3 text-sm font-bold text-[#020617] outline-none focus:ring-2 focus:ring-[#22C7A1]/30"
                   type="date"
                   value={form.start_date}
@@ -696,6 +690,7 @@ export default function AdminCommunityChallenges() {
                   }
                 />
                 <input
+                  aria-label="Challenge end date"
                   className="h-12 rounded-2xl border-0 bg-[#F6F8FB] px-3 text-sm font-bold text-[#020617] outline-none focus:ring-2 focus:ring-[#22C7A1]/30"
                   type="date"
                   value={form.end_date}
@@ -711,6 +706,7 @@ export default function AdminCommunityChallenges() {
               <label className="flex items-center justify-between rounded-2xl bg-[#F6F8FB] px-4 py-3 text-sm font-black text-[#020617]">
                 Active
                 <input
+                  aria-label="Set challenge active"
                   className="h-4 w-4 accent-[#22C7A1]"
                   type="checkbox"
                   checked={form.is_active}
@@ -723,9 +719,9 @@ export default function AdminCommunityChallenges() {
                 />
               </label>
             </div>
-          </div>
+          </AdminPanel>
 
-          <div className="rounded-3xl bg-white p-5 shadow-[0_18px_44px_rgba(2,6,23,0.06)] ring-1 ring-slate-100">
+          <AdminPanel className="p-5">
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black text-[#020617]">
@@ -761,7 +757,7 @@ export default function AdminCommunityChallenges() {
                 {challenges.map((challenge) => (
                   <div
                     key={challenge.id}
-                    className="rounded-3xl bg-[#F6F8FB] p-4 ring-1 ring-slate-100"
+                    className="rounded-[24px] bg-[#F6F8FB] p-4 ring-1 ring-[#E5EAF1]"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -781,13 +777,13 @@ export default function AdminCommunityChallenges() {
                       </div>
                       <button
                         onClick={() => toggleChallenge(challenge)}
-                        className="rounded-full bg-white px-3 py-2 text-xs font-black text-[#020617] ring-1 ring-slate-200 transition hover:bg-slate-50"
+                        className="rounded-full bg-white px-3 py-2 text-xs font-black text-[#020617] ring-1 ring-[#E5EAF1] transition hover:bg-[#F6F8FB]"
                       >
                         {challenge.is_active ? "Pause" : "Activate"}
                       </button>
                     </div>
 
-                    <div className="mt-4 rounded-3xl bg-white p-3 ring-1 ring-slate-100">
+                    <div className="mt-4 rounded-[22px] bg-white p-3 ring-1 ring-[#E5EAF1]">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
@@ -796,11 +792,18 @@ export default function AdminCommunityChallenges() {
                           <p className="mt-1 text-sm font-black text-[#020617]">
                             {(challenge.xp_reward ?? 0).toLocaleString()} XP
                             <span className="mx-2 text-[#94A3B8]">+</span>
-                            {(challenge.reward_points ?? 0).toLocaleString()} points
+                            {(
+                              challenge.reward_points ?? 0
+                            ).toLocaleString()}{" "}
+                            points
                             {(challenge.wallet_reward_amount ?? 0) > 0 && (
                               <>
                                 <span className="mx-2 text-[#94A3B8]">+</span>
-                                QAR {(challenge.wallet_reward_amount ?? 0).toLocaleString()} wallet
+                                QAR{" "}
+                                {(
+                                  challenge.wallet_reward_amount ?? 0
+                                ).toLocaleString()}{" "}
+                                wallet
                               </>
                             )}
                           </p>
@@ -812,6 +815,7 @@ export default function AdminCommunityChallenges() {
                                 XP
                               </span>
                               <input
+                                aria-label="XP reward"
                                 type="number"
                                 min="0"
                                 value={prizeDraft.xp_reward}
@@ -829,13 +833,15 @@ export default function AdminCommunityChallenges() {
                                 Points
                               </span>
                               <input
+                                aria-label="Reward points"
                                 type="number"
                                 min="0"
                                 value={prizeDraft.reward_points}
                                 onChange={(event) =>
                                   setPrizeDraft((current) => ({
                                     ...current,
-                                    reward_points: Number(event.target.value) || 0,
+                                    reward_points:
+                                      Number(event.target.value) || 0,
                                   }))
                                 }
                                 className="mt-1 h-7 w-full bg-transparent text-sm font-black text-[#020617] outline-none"
@@ -846,6 +852,7 @@ export default function AdminCommunityChallenges() {
                                 Wallet
                               </span>
                               <input
+                                aria-label="Wallet reward amount"
                                 type="number"
                                 min="0"
                                 step="0.5"
@@ -853,7 +860,8 @@ export default function AdminCommunityChallenges() {
                                 onChange={(event) =>
                                   setPrizeDraft((current) => ({
                                     ...current,
-                                    wallet_reward_amount: Number(event.target.value) || 0,
+                                    wallet_reward_amount:
+                                      Number(event.target.value) || 0,
                                   }))
                                 }
                                 className="mt-1 h-7 w-full bg-transparent text-sm font-black text-[#020617] outline-none"
@@ -863,10 +871,10 @@ export default function AdminCommunityChallenges() {
                               type="button"
                               onClick={() => savePrize(challenge)}
                               disabled={savingPrizeId === challenge.id}
-                              className="inline-flex h-12 items-center justify-center rounded-2xl bg-[#020617] px-4 text-xs font-black text-white disabled:opacity-60"
+                              className="inline-flex h-12 items-center justify-center rounded-2xl border border-[#22C7A1]/30 bg-[#22C7A1]/10 px-4 text-xs font-black text-[#020617] disabled:opacity-60"
                             >
                               {savingPrizeId === challenge.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 className="h-4 w-4 animate-spin text-[#22C7A1]" />
                               ) : (
                                 "Save"
                               )}
@@ -874,7 +882,7 @@ export default function AdminCommunityChallenges() {
                             <button
                               type="button"
                               onClick={cancelPrizeEdit}
-                              className="inline-flex h-12 items-center justify-center rounded-2xl bg-[#F6F8FB] px-4 text-xs font-black text-[#020617] ring-1 ring-slate-100"
+                              className="inline-flex h-12 items-center justify-center rounded-2xl bg-[#F6F8FB] px-4 text-xs font-black text-[#020617] ring-1 ring-[#E5EAF1]"
                             >
                               Cancel
                             </button>
@@ -883,7 +891,7 @@ export default function AdminCommunityChallenges() {
                           <button
                             type="button"
                             onClick={() => startPrizeEdit(challenge)}
-                            className="inline-flex h-10 items-center justify-center rounded-full bg-[#020617] px-4 text-xs font-black text-white"
+                            className="inline-flex h-11 items-center justify-center rounded-full border border-[#7C83F6]/30 bg-[#7C83F6]/10 px-4 text-xs font-black text-[#020617]"
                           >
                             Edit prize
                           </button>
@@ -891,7 +899,7 @@ export default function AdminCommunityChallenges() {
                       </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-6">
+                    <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-6">
                       <div className="rounded-2xl bg-white p-3">
                         <p className="text-[10px] font-black uppercase text-[#94A3B8]">
                           Type
@@ -951,7 +959,7 @@ export default function AdminCommunityChallenges() {
                 ))}
               </div>
             )}
-          </div>
+          </AdminPanel>
         </div>
       </div>
     </AdminLayout>

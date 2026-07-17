@@ -1,41 +1,79 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 import {
-  corsHeaders,
   getAdminClient,
-  getAuthenticatedUser,
-  jsonResponse,
   randomBase64Url,
+  requireHttpsUrl,
+  requireSportHubUrl,
   safeRedirectPath,
   sha256,
 } from "../_shared/sporthub.ts";
+import {
+  authenticateRequest,
+  enforceRateLimit,
+  errorResponse,
+  handlePreflight,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requirePost,
+} from "../_shared/security.ts";
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405);
+serve(async (req: Request): Promise<Response> => {
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    const user = await getAuthenticatedUser(req);
-    if (!user) return jsonResponse({ error: "unauthorized" }, 401);
+    requirePost(req);
+    const principal = await authenticateRequest(req);
+    await enforceRateLimit(req, "sporthub-link-start", principal.user.id, 5, 10 * 60);
 
-    const authorizationUrl = Deno.env.get("SPORTHUB_AUTHORIZATION_URL");
-    const clientId = Deno.env.get("SPORTHUB_CLIENT_ID");
-    const redirectUri = Deno.env.get("SPORTHUB_REDIRECT_URI");
-    if (!authorizationUrl || !clientId || !redirectUri) {
-      return jsonResponse({ error: "sporthub_oauth_not_configured" }, 503);
+    const body = await readJsonBody<{ redirect_path?: string }>(req, 2 * 1024);
+    const redirectPath = safeRedirectPath(body.redirect_path);
+    const authorizationUrl = requireSportHubUrl(
+      Deno.env.get("SPORTHUB_AUTHORIZATION_URL"),
+      "SPORTHUB_AUTHORIZATION_URL",
+    );
+    const redirectUri = requireHttpsUrl(
+      Deno.env.get("SPORTHUB_REDIRECT_URI"),
+      "SPORTHUB_REDIRECT_URI",
+    );
+    const clientId = (Deno.env.get("SPORTHUB_CLIENT_ID") || "").trim();
+    if (!clientId || clientId.length > 512) {
+      throw new Error("SPORTHUB_CLIENT_ID is invalid");
     }
 
-    const body = await req.json().catch(() => ({}));
-    const redirectPath = safeRedirectPath(body?.redirect_path);
     const state = randomBase64Url(32);
     const codeVerifier = randomBase64Url(48);
-    const [stateHash, codeChallenge] = await Promise.all([sha256(state), sha256(codeVerifier)]);
+    const [stateHash, codeChallenge] = await Promise.all([
+      sha256(state),
+      sha256(codeVerifier),
+    ]);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     const admin = getAdminClient();
 
+    await admin
+      .from("partner_oauth_states")
+      .delete()
+      .eq("user_id", principal.user.id)
+      .eq("partner", "sporthub")
+      .or(`expires_at.lt.${new Date().toISOString()},consumed_at.not.is.null`);
+
+    const { count, error: countError } = await admin
+      .from("partner_oauth_states")
+      .select("state_hash", { head: true, count: "exact" })
+      .eq("user_id", principal.user.id)
+      .eq("partner", "sporthub")
+      .is("consumed_at", null)
+      .gt("expires_at", new Date().toISOString());
+    if (countError) throw countError;
+    if ((count || 0) >= 3) {
+      return jsonResponse(req, { error: "link_already_pending" }, 409);
+    }
+
     const { error: stateError } = await admin.from("partner_oauth_states").insert({
       state_hash: stateHash,
-      user_id: user.id,
+      user_id: principal.user.id,
       partner: "sporthub",
       code_verifier: codeVerifier,
       redirect_path: redirectPath,
@@ -44,7 +82,7 @@ serve(async (req) => {
     if (stateError) throw stateError;
 
     const { error: integrationError } = await admin.from("partner_integrations").upsert({
-      user_id: user.id,
+      user_id: principal.user.id,
       partner: "sporthub",
       consent_status: "pending",
       metadata: {
@@ -55,18 +93,34 @@ serve(async (req) => {
     }, { onConflict: "user_id,partner" });
     if (integrationError) throw integrationError;
 
-    const url = new URL(authorizationUrl);
-    url.searchParams.set("response_type", "code");
-    url.searchParams.set("client_id", clientId);
-    url.searchParams.set("redirect_uri", redirectUri);
-    url.searchParams.set("scope", "openid profile bookings.read activities.read");
-    url.searchParams.set("state", state);
-    url.searchParams.set("code_challenge", codeChallenge);
-    url.searchParams.set("code_challenge_method", "S256");
+    authorizationUrl.searchParams.set("response_type", "code");
+    authorizationUrl.searchParams.set("client_id", clientId);
+    authorizationUrl.searchParams.set("redirect_uri", redirectUri.toString());
+    authorizationUrl.searchParams.set("scope", "openid profile bookings.read activities.read");
+    authorizationUrl.searchParams.set("state", state);
+    authorizationUrl.searchParams.set("code_challenge", codeChallenge);
+    authorizationUrl.searchParams.set("code_challenge_method", "S256");
 
-    return jsonResponse({ authorization_url: url.toString(), expires_at: expiresAt });
+    await recordSecurityEvent(req, {
+      eventType: "integration.sporthub.link_started",
+      category: "authorization",
+      severity: "info",
+      outcome: "success",
+      principal,
+      action: "start_oauth_link",
+      resourceType: "public.partner_integrations",
+      resourceId: "sporthub",
+      metadata: { expires_at: expiresAt, redirect_path: redirectPath },
+    });
+
+    return jsonResponse(req, {
+      authorization_url: authorizationUrl.toString(),
+      expires_at: expiresAt,
+    });
   } catch (error) {
-    console.error("SportHub link start failed", error);
-    return jsonResponse({ error: "link_start_failed" }, 500);
+    console.error("SportHub link start failed", {
+      code: error instanceof Error ? error.name : "unknown",
+    });
+    return errorResponse(req, error);
   }
 });

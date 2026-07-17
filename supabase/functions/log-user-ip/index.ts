@@ -1,21 +1,21 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-function jsonResponse(body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
+import {
+  authenticateRequest,
+  enforceRateLimit,
+  errorResponse,
+  getClientIp,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requirePost,
+} from "../_shared/security.ts";
 
 function isValidIpAddress(value: string): boolean {
+  if (value.length > 64) return false;
   const ipv4Parts = value.split(".");
   if (
     ipv4Parts.length === 4 &&
@@ -23,68 +23,54 @@ function isValidIpAddress(value: string): boolean {
   ) {
     return true;
   }
-
-  return value.includes(":") && /^[0-9a-f:]+$/i.test(value);
+  return value.includes(":") && /^[0-9a-f:.]+$/i.test(value);
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
-  }
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) {
-    return jsonResponse({ error: "Service is not configured" }, 503);
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    const token = req.headers
-      .get("Authorization")
-      ?.replace(/^Bearer\s+/i, "")
-      .trim();
-    if (!token) return jsonResponse({ error: "Unauthorized" }, 401);
-
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
-
-    const body = await req.json().catch(() => ({}));
-    const action = body.action;
+    requirePost(req);
+    const principal = await authenticateRequest(req);
+    await enforceRateLimit(req, "user-ip-log", principal.user.id, 30, 86400);
+    const { action } = await readJsonBody<{ action?: string }>(req, 2 * 1024);
     if (action !== "signup" && action !== "login") {
-      return jsonResponse({ error: "Invalid action" }, 400);
+      throw new HttpError(400, "invalid_auth_action");
     }
 
-    const clientIp =
-      req.headers.get("cf-connecting-ip")?.trim() ||
-      req.headers.get("x-real-ip")?.trim() ||
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      "";
+    const clientIp = getClientIp(req) || "";
     if (!isValidIpAddress(clientIp)) {
-      return jsonResponse({ error: "Client IP unavailable" }, 422);
+      throw new HttpError(422, "client_ip_unavailable");
     }
-    const countryCode = req.headers.get("cf-ipcountry")?.trim() || null;
+    const countryCode = req.headers.get("cf-ipcountry")?.trim().toUpperCase() || null;
 
-    const { error } = await supabaseAdmin.from("user_ip_logs").insert({
-      user_id: user.id,
+    const supabase = getServiceClient();
+    const { error } = await supabase.from("user_ip_logs").insert({
+      user_id: principal.user.id,
       ip_address: clientIp,
       country_code: countryCode,
       country_name: null,
       city: null,
       action,
-      user_agent: req.headers.get("user-agent") || "unknown",
+      user_agent: (req.headers.get("user-agent") || "unknown").slice(0, 1000),
     });
     if (error) throw error;
 
-    return jsonResponse({ success: true });
+    await recordSecurityEvent(req, {
+      eventType: `authentication.${action}.succeeded`,
+      category: "authentication",
+      severity: "info",
+      outcome: "success",
+      principal,
+      action,
+      resourceType: "auth.user",
+      resourceId: principal.user.id,
+    });
+
+    return jsonResponse(req, { success: true });
   } catch (error) {
-    console.error("log-user-ip failed", error);
-    return jsonResponse({ success: false }, 500);
+    console.error("User IP logging failed:", error);
+    return errorResponse(req, error);
   }
 });

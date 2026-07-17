@@ -29,7 +29,7 @@ interface HealthPermissions {
   heartRate: boolean;
 }
 
-import { getAuthUrl } from "@/services/health/googleFit";
+import { getAuthUrl, getGoogleFitRedirectUri } from "@/services/health/googleFit";
 
 export function useHealthIntegration() {
   const { user } = useAuth();
@@ -144,7 +144,7 @@ export function useHealthIntegration() {
 
 // Helper to initiate Google Fit OAuth flow (for web)
 export async function initGoogleFitOAuth(clientId: string) {
-  const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
+  const redirectUri = getGoogleFitRedirectUri();
   const authUrl = await getAuthUrl(clientId, redirectUri);
   window.location.href = authUrl;
 }
@@ -155,29 +155,11 @@ export async function handleGoogleFitCallback(
   codeVerifier: string
 ): Promise<boolean> {
   try {
-    const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      console.error("No authenticated user");
-      return false;
-    }
-
-    const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-fit-token`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code,
-          codeVerifier,
-          redirectUri,
-          userId: user.id,
-        }),
-      }
-    );
-
-    return response.ok;
+    const redirectUri = getGoogleFitRedirectUri();
+    const { data, error } = await supabase.functions.invoke("google-fit-token", {
+      body: { code, codeVerifier, redirectUri },
+    });
+    return !error && data?.success === true;
   } catch (error) {
     console.error("Google Fit callback error:", error);
     return false;

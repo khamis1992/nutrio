@@ -22,7 +22,9 @@ import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import { useDietTags } from "@/hooks/useDietTags";
 import { supabase } from "@/integrations/supabase/client";
-import { Logo } from "@/components/Logo";
+import { AnimatedNutrioLogo } from "@/components/motion/AnimatedNutrioLogo";
+import { LottieAnimation } from "@/components/motion/LottieAnimation";
+import nutrioOrbit from "@/assets/lottie/nutrio-orbit.json";
 import { OnboardingRecoveryDialog } from "@/components/OnboardingRecoveryDialog";
 import { AccessibleStepper } from "@/components/onboarding/AccessibleStepper";
 import { PlanRevealAnimation } from "@/components/onboarding/PlanRevealAnimation";
@@ -493,6 +495,10 @@ const Onboarding = () => {
 
           {/* Circular progress ring */}
           <div className="relative" style={{ width: 240, height: 240 }}>
+            <LottieAnimation
+              animationData={nutrioOrbit}
+              className="absolute -inset-8 h-[304px] w-[304px] opacity-70"
+            />
             <svg width="240" height="240" viewBox="0 0 240 240">
               {/* Background track */}
               <circle cx="120" cy="120" r={RADIUS} fill="none" stroke="#E5EAF1" strokeWidth="14" />
@@ -636,7 +642,7 @@ const Onboarding = () => {
       {/* Header */}
       <header className="shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+14px)]">
         <div className="flex items-center justify-between">
-          <Logo size="lg" className="!h-14" />
+          <AnimatedNutrioLogo className="h-16 w-16" />
           <Badge
             aria-label={`Step ${step} of ${totalSteps}`}
             className="rounded-full border border-[#E5EAF1] bg-white px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] text-[#020617] shadow-[0_8px_20px_rgba(2,6,23,0.05)] hover:bg-white"

@@ -1,16 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  AdminDialogContent,
+  AdminEmptyState,
+  AdminFilterBar,
+  AdminKpiStrip,
+  AdminListSkeleton,
+  AdminPanel,
+  AdminPanelHeader,
+  AdminWorkbenchHeader,
+} from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -30,7 +34,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { createPrivateStorageUrl } from "@/lib/private-storage";
+import {
+  createPrivateStorageUrl,
+  uploadSensitiveFile,
+  validatePrivateStorageFile,
+} from "@/lib/private-storage";
 import {
   Search,
   MessageSquare,
@@ -82,6 +90,15 @@ interface TicketAttachment {
   file_type: string | null;
   created_at: string;
 }
+
+const SUPPORT_ATTACHMENT_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "text/plain",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+] as const;
 
 export default function AdminSupport() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -194,14 +211,16 @@ export default function AdminSupport() {
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      setMessages((data || []).map((message) => ({
-        id: message.id,
-        ticket_id: message.ticket_id,
-        sender_id: message.sender_id,
-        message: message.message,
-        is_admin_reply: message.is_internal,
-        created_at: message.created_at,
-      })));
+      setMessages(
+        (data || []).map((message) => ({
+          id: message.id,
+          ticket_id: message.ticket_id,
+          sender_id: message.sender_id,
+          message: message.message,
+          is_admin_reply: message.is_internal,
+          created_at: message.created_at,
+        })),
+      );
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
@@ -219,7 +238,10 @@ export default function AdminSupport() {
       const signedAttachments = await Promise.all(
         ((data || []) as TicketAttachment[]).map(async (attachment) => ({
           ...attachment,
-          file_url: await createPrivateStorageUrl("ticket-attachments", attachment.file_url),
+          file_url: await createPrivateStorageUrl(
+            "ticket-attachments",
+            attachment.file_url,
+          ),
         })),
       );
       setAttachments(signedAttachments);
@@ -310,12 +332,13 @@ export default function AdminSupport() {
   ) => {
     const uploadedAttachments = [];
     for (const file of files) {
-      const fileExt = file.name.split(".").pop();
-      const filePath = `${ticketId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from("ticket-attachments")
-        .upload(filePath, file);
-      if (uploadError) throw uploadError;
+      const fileExt = validatePrivateStorageFile(
+        file,
+        SUPPORT_ATTACHMENT_TYPES,
+        10 * 1024 * 1024,
+      );
+      const filePath = `${ticketId}/${crypto.randomUUID()}.${fileExt}`;
+      await uploadSensitiveFile("ticket-attachments", filePath, file);
 
       uploadedAttachments.push({
         ticket_id: ticketId,
@@ -385,11 +408,16 @@ export default function AdminSupport() {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter((f) => f.size <= 10 * 1024 * 1024);
+    const validFiles = files.filter(
+      (file) =>
+        file.size > 0 &&
+        file.size <= 10 * 1024 * 1024 &&
+        SUPPORT_ATTACHMENT_TYPES.includes(file.type as (typeof SUPPORT_ATTACHMENT_TYPES)[number]),
+    );
     if (validFiles.length !== files.length) {
       toast({
         title: "Warning",
-        description: "Some files exceeded 10MB limit",
+        description: "Some files were too large or had an unsupported type",
         variant: "destructive",
       });
     }
@@ -416,7 +444,7 @@ export default function AdminSupport() {
         return (
           <Badge
             variant="outline"
-            className="rounded-full border-[#38BDF8]/25 bg-[#38BDF8]/10 px-3 py-1 text-[#0284C7]"
+            className="rounded-full border-[#38BDF8]/25 bg-[#38BDF8]/10 px-3 py-1 text-[#38BDF8]"
           >
             In Progress
           </Badge>
@@ -516,156 +544,203 @@ export default function AdminSupport() {
   return (
     <AdminLayout title="Support" subtitle="Manage customer support requests">
       <div className="space-y-6 bg-[#F6F8FB] text-[#020617]">
-        <section className="overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white p-5 text-[#020617] shadow-[0_18px_44px_rgba(2,6,23,0.06)] sm:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-[#38BDF8]">
-                <MessageSquare className="h-3.5 w-3.5" />
-                Support desk
-              </div>
-              <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
-                Customer ticket queue
-              </h2>
-              <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-[#94A3B8]">
-                Prioritize open cases, reply with attachments, and keep support
-                status visible across the team.
-              </p>
+        <AdminWorkbenchHeader
+          eyebrow="Customer care"
+          title="Support command desk"
+          icon={MessageSquare}
+          accent="#38BDF8"
+          description="Prioritize open cases, triage urgent requests, reply with attachments, and keep resolution status visible across the team."
+          meta={[
+            { label: "Open", value: stats.open },
+            { label: "In progress", value: stats.inProgress },
+            { label: "Resolved", value: stats.resolved },
+          ]}
+        />
+
+        <AdminKpiStrip
+          items={[
+            {
+              label: "Total Tickets",
+              value: stats.total,
+              helper: "All support cases",
+              icon: MessageSquare,
+              accent: "#7C83F6",
+            },
+            {
+              label: "Open",
+              value: stats.open,
+              helper: "Needs first action",
+              icon: AlertCircle,
+              accent: "#FB6B7A",
+            },
+            {
+              label: "In Progress",
+              value: stats.inProgress,
+              helper: "Assigned or active",
+              icon: Clock,
+              accent: "#38BDF8",
+            },
+            {
+              label: "Resolved",
+              value: stats.resolved,
+              helper: "Completed cases",
+              icon: CheckCircle2,
+              accent: "#22C7A1",
+            },
+          ]}
+        />
+
+        <AdminFilterBar title="Ticket controls">
+          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="relative w-full flex-1">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+              <Input
+                placeholder="Search tickets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] pl-11 text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#38BDF8]/30"
+              />
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
-              <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">
-                  Open
-                </p>
-                <p className="mt-2 text-xl font-black text-[#020617]">{stats.open}</p>
-              </div>
-              <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">
-                  Active
-                </p>
-                <p className="mt-2 text-xl font-black text-[#020617]">{stats.inProgress}</p>
-              </div>
-            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="min-h-[48px] w-full rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] sm:w-[160px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="min-h-[48px] w-full rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] sm:w-[160px]">
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
+              <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
+                <SelectItem value="all">All Priority</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </section>
+        </AdminFilterBar>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#94A3B8]">
-                    Total Tickets
-                  </p>
-                  <div className="mt-2 text-2xl font-black text-[#020617]">
-                    {stats.total}
-                  </div>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#7C83F6]/10">
-                  <MessageSquare className="h-5 w-5 text-[#7C83F6]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#94A3B8]">
-                    Open
-                  </p>
-                  <div className="mt-2 text-2xl font-black text-[#FB6B7A]">
-                    {stats.open}
-                  </div>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FB6B7A]/10">
-                  <AlertCircle className="h-5 w-5 text-[#FB6B7A]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#94A3B8]">
-                    In Progress
-                  </p>
-                  <div className="mt-2 text-2xl font-black text-[#38BDF8]">
-                    {stats.inProgress}
-                  </div>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#38BDF8]/10">
-                  <Clock className="h-5 w-5 text-[#38BDF8]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#94A3B8]">
-                    Resolved
-                  </p>
-                  <div className="mt-2 text-2xl font-black text-[#22C7A1]">
-                    {stats.resolved}
-                  </div>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#22C7A1]/10">
-                  <CheckCircle2 className="h-5 w-5 text-[#22C7A1]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
-              <div className="relative flex-1 w-full max-w-sm">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
-                <Input
-                  placeholder="Search tickets..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] pl-11 text-[#020617] placeholder:text-[#94A3B8]"
+        <AdminPanel>
+          <AdminPanelHeader
+            eyebrow="Queue"
+            title="Support tickets"
+            description="Open a ticket to reply, review attachments, or update status."
+            className="bg-[#F6F8FB]"
+          />
+          <div className="p-0">
+            <div className="grid gap-3 p-4 md:hidden">
+              {loading ? (
+                <AdminListSkeleton rows={5} className="p-0" />
+              ) : filteredTickets.length === 0 ? (
+                <AdminEmptyState
+                  icon={MessageSquare}
+                  title="No tickets found"
+                  description="Try a different search, status, or priority filter."
+                  className="rounded-[24px] border border-[#E5EAF1] bg-[#F6F8FB]"
                 />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="min-h-[48px] w-full rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] sm:w-[160px]">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="resolved">Resolved</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="min-h-[48px] w-full rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] sm:w-[160px]">
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priority</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+              ) : (
+                filteredTickets.map((ticket) => (
+                  <div
+                    key={ticket.id}
+                    className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_30px_rgba(2,6,23,0.05)]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-black text-[#020617]">
+                          {ticket.subject}
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-[#94A3B8]">
+                          #{ticket.id.slice(0, 8)} |{" "}
+                          {formatDistanceToNow(new Date(ticket.created_at), {
+                            addSuffix: true,
+                          })}
+                        </p>
+                      </div>
+                      {getStatusBadge(ticket.status)}
+                    </div>
 
-        {/* Tickets Table */}
-        <Card className="overflow-hidden rounded-[28px] border-[#E5EAF1] bg-white shadow-sm">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+                    <div className="mt-4 flex items-center gap-2 rounded-2xl bg-[#F6F8FB] p-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#7C83F6]/10">
+                        <User className="h-4 w-4 text-[#7C83F6]" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-[#020617]">
+                          {ticket.user_name}
+                        </p>
+                        <p className="truncate text-xs font-bold capitalize text-[#94A3B8]">
+                          {ticket.category}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div>
+                        <p className="mb-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Priority
+                        </p>
+                        <Select
+                          value={ticket.priority}
+                          onValueChange={(
+                            value: "low" | "medium" | "high" | "urgent",
+                          ) => handlePriorityChange(ticket.id, value)}
+                        >
+                          <SelectTrigger className="min-h-[44px] rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="urgent">Urgent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Status
+                        </p>
+                        <Select
+                          value={ticket.status}
+                          onValueChange={(value) =>
+                            handleStatusChange(ticket.id, value)
+                          }
+                        >
+                          <SelectTrigger className="min-h-[44px] rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in_progress">
+                              In Progress
+                            </SelectItem>
+                            <SelectItem value="resolved">Resolved</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      className="mt-3 min-h-[46px] w-full rounded-2xl border-[#38BDF8]/30 bg-[#38BDF8]/10 font-black text-[#020617] hover:bg-[#38BDF8]/15"
+                      onClick={() => setSelectedTicket(ticket)}
+                    >
+                      View ticket
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader className="bg-[#F6F8FB]">
                   <TableRow className="border-[#E5EAF1] hover:bg-[#F6F8FB]">
@@ -695,29 +770,38 @@ export default function AdminSupport() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="py-10 text-center font-semibold text-[#94A3B8]"
-                      >
-                        Loading tickets...
+                      <TableCell colSpan={7} className="py-10">
+                        <AdminListSkeleton rows={5} />
                       </TableCell>
                     </TableRow>
                   ) : filteredTickets.length === 0 ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="py-10 text-center font-semibold text-[#94A3B8]"
-                      >
-                        No tickets found
+                      <TableCell colSpan={7} className="py-10">
+                        <AdminEmptyState
+                          icon={MessageSquare}
+                          title="No tickets found"
+                          description="Try a different search, status, or priority filter."
+                        />
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredTickets.map((ticket) => (
                       <TableRow
                         key={ticket.id}
-                        className="cursor-pointer border-[#E5EAF1] hover:bg-[#F6F8FB]"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Open support ticket ${ticket.subject}`}
+                        className="cursor-pointer border-[#E5EAF1] outline-none transition-colors hover:bg-[#F6F8FB] focus-visible:bg-[#F6F8FB] focus-visible:ring-2 focus-visible:ring-[#7C83F6]/35"
+                        onClick={() => setSelectedTicket(ticket)}
+                        onKeyDown={(event) => {
+                          if (event.target !== event.currentTarget) return;
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedTicket(ticket);
+                          }
+                        }}
                       >
-                        <TableCell onClick={() => setSelectedTicket(ticket)}>
+                        <TableCell>
                           <div>
                             <p className="font-black text-[#020617]">
                               {ticket.subject}
@@ -727,7 +811,7 @@ export default function AdminSupport() {
                             </p>
                           </div>
                         </TableCell>
-                        <TableCell onClick={() => setSelectedTicket(ticket)}>
+                        <TableCell>
                           <div className="flex items-center gap-2">
                             <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#7C83F6]/10">
                               <User className="h-4 w-4 text-[#7C83F6]" />
@@ -737,15 +821,15 @@ export default function AdminSupport() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell onClick={() => setSelectedTicket(ticket)}>
+                        <TableCell>
                           <Badge
                             variant="outline"
-                            className="rounded-full border-[#E5EAF1] bg-[#F6F8FB] px-3 py-1 capitalize text-[#64748B]"
+                            className="rounded-full border-[#E5EAF1] bg-[#F6F8FB] px-3 py-1 capitalize text-[#94A3B8]"
                           >
                             {ticket.category}
                           </Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(event) => event.stopPropagation()}>
                           <Select
                             value={ticket.priority}
                             onValueChange={(
@@ -755,7 +839,7 @@ export default function AdminSupport() {
                             <SelectTrigger className="h-10 min-h-[44px] w-[110px] rounded-2xl border-[#E5EAF1] bg-white text-[#020617]">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                               <SelectItem value="low">Low</SelectItem>
                               <SelectItem value="medium">Medium</SelectItem>
                               <SelectItem value="high">High</SelectItem>
@@ -763,7 +847,7 @@ export default function AdminSupport() {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(event) => event.stopPropagation()}>
                           <Select
                             value={ticket.status}
                             onValueChange={(value) =>
@@ -773,7 +857,7 @@ export default function AdminSupport() {
                             <SelectTrigger className="h-10 min-h-[44px] w-[135px] rounded-2xl border-[#E5EAF1] bg-white text-[#020617]">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                               <SelectItem value="open">Open</SelectItem>
                               <SelectItem value="in_progress">
                                 In Progress
@@ -783,14 +867,17 @@ export default function AdminSupport() {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell onClick={() => setSelectedTicket(ticket)}>
+                        <TableCell>
                           <span className="text-sm font-medium text-[#94A3B8]">
                             {formatDistanceToNow(new Date(ticket.created_at), {
                               addSuffix: true,
                             })}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell
+                          className="text-right"
+                          onClick={(event) => event.stopPropagation()}
+                        >
                           <Button
                             variant="outline"
                             size="sm"
@@ -806,16 +893,16 @@ export default function AdminSupport() {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </AdminPanel>
 
         {/* Ticket Detail Dialog */}
         <Dialog
           open={!!selectedTicket}
           onOpenChange={() => setSelectedTicket(null)}
         >
-          <DialogContent className="mx-4 max-h-[90vh] max-w-[95vw] overflow-y-auto rounded-[28px] border-[#E5EAF1] bg-white text-[#020617] sm:max-w-2xl">
-            <DialogHeader>
+          <AdminDialogContent size="lg">
+            <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4 text-left">
               <DialogTitle className="flex flex-col gap-3 pr-8 text-xl font-black text-[#020617] sm:flex-row sm:items-center sm:justify-between">
                 <span>{selectedTicket?.subject}</span>
                 <div className="flex flex-wrap gap-2">
@@ -826,9 +913,9 @@ export default function AdminSupport() {
             </DialogHeader>
 
             {selectedTicket && (
-              <div className="space-y-4">
+              <div className="space-y-4 bg-[#F6F8FB] px-5 py-4">
                 {/* Ticket Info */}
-                <div className="space-y-3 rounded-[24px] border border-[#E5EAF1] bg-[#F6F8FB] p-4">
+                <div className="space-y-3 rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_10px_26px_rgba(2,6,23,0.035)]">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#7C83F6]/10">
                       <User className="h-4 w-4 text-[#7C83F6]" />
@@ -838,7 +925,7 @@ export default function AdminSupport() {
                     </span>{" "}
                     <Badge
                       variant="outline"
-                      className="rounded-full border-[#E5EAF1] bg-white px-3 py-1 capitalize text-[#64748B]"
+                      className="rounded-full border-[#E5EAF1] bg-white px-3 py-1 capitalize text-[#94A3B8]"
                     >
                       {selectedTicket.category}
                     </Badge>{" "}
@@ -849,7 +936,7 @@ export default function AdminSupport() {
                       )}
                     </span>
                   </div>
-                  <p className="text-sm font-medium leading-relaxed text-[#334155]">
+                  <p className="text-sm font-medium leading-relaxed text-[#020617]">
                     {selectedTicket.description}
                   </p>
 
@@ -894,16 +981,19 @@ export default function AdminSupport() {
 
                 {/* Messages */}
                 <div className="overflow-hidden rounded-[24px] border border-[#E5EAF1]">
-                  <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                  <div className="border-b border-[#E5EAF1] bg-white p-3">
                     <h4 className="text-sm font-black text-[#020617]">
                       Conversation
                     </h4>
                   </div>
-                  <ScrollArea className="h-[250px] p-4">
+                  <ScrollArea className="h-[280px] bg-white p-4">
                     {messages.length === 0 ? (
-                      <p className="py-8 text-center text-sm font-semibold text-[#94A3B8]">
-                        No replies yet
-                      </p>
+                      <AdminEmptyState
+                        icon={MessageSquare}
+                        title="No replies yet"
+                        description="The conversation will appear here once the customer or support team replies."
+                        className="py-8"
+                      />
                     ) : (
                       <div className="space-y-4">
                         {messages.map((msg) => (
@@ -912,10 +1002,10 @@ export default function AdminSupport() {
                             className={`flex ${msg.is_admin_reply ? "justify-end" : "justify-start"}`}
                           >
                             <div
-                              className={`max-w-[80%] rounded-2xl p-3 ${
+                              className={`max-w-[80%] rounded-2xl border p-3 ${
                                 msg.is_admin_reply
-                                  ? "bg-[#020617] text-white"
-                                  : "bg-[#F6F8FB] text-[#020617]"
+                                  ? "border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#020617]"
+                                  : "border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]"
                               }`}
                             >
                               <p className="text-xs sm:text-sm">
@@ -946,7 +1036,7 @@ export default function AdminSupport() {
                                           <div
                                             className={`flex items-center gap-1 text-xs hover:underline ${
                                               msg.is_admin_reply
-                                                ? "text-white/80"
+                                                ? "text-[#22C7A1]"
                                                 : "text-[#7C83F6]"
                                             }`}
                                           >
@@ -961,7 +1051,7 @@ export default function AdminSupport() {
                               <p
                                 className={`text-xs mt-1 ${
                                   msg.is_admin_reply
-                                    ? "text-white/60"
+                                    ? "text-[#94A3B8]"
                                     : "text-[#94A3B8]"
                                 }`}
                               >
@@ -987,7 +1077,7 @@ export default function AdminSupport() {
                           <Badge
                             key={i}
                             variant="outline"
-                            className="gap-1 rounded-full border-[#E5EAF1] bg-[#F6F8FB] px-3 py-1 text-[#64748B]"
+                            className="gap-1 rounded-full border-[#E5EAF1] bg-[#F6F8FB] px-3 py-1 text-[#94A3B8]"
                           >
                             {file.type.startsWith("image/") ? (
                               <Image className="h-3 w-3" />
@@ -997,10 +1087,14 @@ export default function AdminSupport() {
                             {file.name.length > 20
                               ? file.name.substring(0, 20) + "..."
                               : file.name}
-                            <X
-                              className="h-3 w-3 cursor-pointer hover:text-[#FB6B7A]"
+                            <button
+                              type="button"
+                              aria-label={`Remove attachment ${file.name}`}
                               onClick={() => removeAttachment(i)}
-                            />
+                              className="-my-2 ml-1 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[#94A3B8] transition hover:bg-[#FB6B7A]/10 hover:text-[#FB6B7A]"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
                           </Badge>
                         ))}
                       </div>
@@ -1010,7 +1104,7 @@ export default function AdminSupport() {
                         ref={fileInputRef}
                         type="file"
                         multiple
-                        accept="image/*,.pdf,.doc,.docx,.txt"
+                        accept="image/jpeg,image/png,image/webp,.pdf,.docx,.txt"
                         className="hidden"
                         onChange={handleFileSelect}
                       />
@@ -1020,7 +1114,8 @@ export default function AdminSupport() {
                         size="icon"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={sendingMessage}
-                        className="min-h-[44px] min-w-[44px] rounded-2xl border-[#E5EAF1] text-[#64748B] hover:bg-[#F6F8FB] hover:text-[#020617]"
+                        aria-label="Attach file to support reply"
+                        className="min-h-[44px] min-w-[44px] rounded-2xl border-[#E5EAF1] text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]"
                       >
                         <Paperclip className="h-4 w-4" />
                       </Button>
@@ -1031,15 +1126,17 @@ export default function AdminSupport() {
                         className="min-h-[88px] rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] placeholder:text-[#94A3B8]"
                       />
                       <Button
+                        variant="outline"
                         onClick={handleSendMessage}
+                        aria-label="Send support reply"
                         disabled={
                           (!newMessage.trim() &&
                             replyAttachments.length === 0) ||
                           sendingMessage
                         }
-                        className="min-h-[44px] rounded-2xl bg-[#020617] text-white hover:bg-[#020617]/90 self-end"
+                        className="self-end min-h-[44px] rounded-2xl border-[#22C7A1]/30 bg-[#22C7A1]/10 text-[#020617] hover:bg-[#22C7A1]/15"
                       >
-                        <Send className="h-4 w-4" />
+                        <Send className="h-4 w-4 text-[#22C7A1]" />
                       </Button>
                     </div>
                   </div>
@@ -1056,7 +1153,7 @@ export default function AdminSupport() {
                     <SelectTrigger className="min-h-[44px] w-full rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] sm:w-[160px]">
                       <SelectValue placeholder="Change status" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                       <SelectItem value="open">Open</SelectItem>
                       <SelectItem value="in_progress">In Progress</SelectItem>
                       <SelectItem value="resolved">Resolved</SelectItem>
@@ -1072,7 +1169,7 @@ export default function AdminSupport() {
                     <SelectTrigger className="min-h-[44px] w-full rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] sm:w-[160px]">
                       <SelectValue placeholder="Change priority" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                       <SelectItem value="low">Low</SelectItem>
                       <SelectItem value="medium">Medium</SelectItem>
                       <SelectItem value="high">High</SelectItem>
@@ -1082,7 +1179,7 @@ export default function AdminSupport() {
                 </div>
               </div>
             )}
-          </DialogContent>
+          </AdminDialogContent>
         </Dialog>
       </div>
     </AdminLayout>

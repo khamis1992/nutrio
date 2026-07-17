@@ -3,12 +3,17 @@
 // Balances demand across restaurants to prevent overload
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  enforceRateLimit,
+  errorResponse,
+  getCorsHeaders,
+  getServiceClient,
+  handlePreflight,
+  readJsonBody,
+  recordSecurityEvent,
+  requireAdmin,
+  requirePost,
+} from "../_shared/security.ts";
 
 interface RestaurantMetrics {
   restaurant_id: string;
@@ -191,22 +196,27 @@ async function balanceRestaurantDemand(
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    requirePost(req);
+    const principal = await requireAdmin(req);
+    await enforceRateLimit(req, "restaurant-intelligence", principal.user.id, 10, 60 * 60);
+    const supabaseClient = getServiceClient();
 
     const { 
       restaurant_id,
       analyze_all = false,
       days_of_history = 14,
       apply_balancing = true
-    } = await req.json();
+    } = await readJsonBody<{
+      restaurant_id?: string;
+      analyze_all?: boolean;
+      days_of_history?: number;
+      apply_balancing?: boolean;
+    }>(req, 16 * 1024);
 
     // Calculate date range
     const periodEnd = new Date();
@@ -398,6 +408,18 @@ serve(async (req) => {
       );
     }
 
+    await recordSecurityEvent(req, {
+      eventType: "admin.restaurant_intelligence_completed",
+      category: "admin",
+      severity: apply_balancing ? "medium" : "info",
+      outcome: "success",
+      principal,
+      action: apply_balancing ? "analyze_and_balance" : "analyze",
+      resourceType: analyze_all ? "restaurant_collection" : "restaurant",
+      resourceId: analyze_all ? "all" : restaurant_id,
+      metadata: { restaurants_analyzed: results.length, apply_balancing },
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -413,9 +435,6 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in restaurant-intelligence-engine:", error);
-    return new Response(
-      JSON.stringify({ error: "An unexpected error occurred" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(req, error);
   }
 });

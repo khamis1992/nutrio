@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.99.2";
+
 const inMemoryStore = new Map<
   string,
   { count: number; windowStart: number; windowEnd: number }
@@ -28,150 +30,94 @@ async function checkWithDenoKv(
   limit: number,
   windowSeconds: number,
 ): Promise<RateLimitResult | null> {
+  let kv: Deno.Kv | null = null;
+
   try {
-    const kv = await Deno.openKv();
+    kv = await Deno.openKv();
     if (!kv) return null;
 
     const key = ["rate_limit", identifier];
-    const now = Date.now();
     const windowMs = windowSeconds * 1000;
 
-    const entry = await kv.get<{
-      count: number;
-      windowStart: number;
-      windowEnd: number;
-    }>(key);
+    // Optimistic atomic checks prevent concurrent requests from overwriting
+    // each other's counters and bypassing the configured limit.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const now = Date.now();
+      const entry = await kv.get<{
+        count: number;
+        windowStart: number;
+        windowEnd: number;
+      }>(key);
 
-    if (!entry.value || entry.value.windowEnd < now) {
-      const windowEnd = now + windowMs;
-      await kv.set(key, {
-        count: 1,
-        windowStart: now,
-        windowEnd,
-      });
-      const remaining = limit - 1;
-      const resetAt = windowEnd;
-      kv.close();
-      return { allowed: true, remaining: Math.max(0, remaining), resetAt };
-    }
+      if (!entry.value || entry.value.windowEnd <= now) {
+        const windowEnd = now + windowMs;
+        const committed = await kv.atomic()
+          .check(entry)
+          .set(key, { count: 1, windowStart: now, windowEnd })
+          .commit();
 
-    if (entry.value.count >= limit) {
-      const resetAt = entry.value.windowEnd;
-      kv.close();
+        if (!committed.ok) continue;
+        return {
+          allowed: true,
+          remaining: Math.max(0, limit - 1),
+          resetAt: windowEnd,
+        };
+      }
+
+      if (entry.value.count >= limit) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: entry.value.windowEnd,
+        };
+      }
+
+      const newCount = entry.value.count + 1;
+      const committed = await kv.atomic()
+        .check(entry)
+        .set(key, { ...entry.value, count: newCount })
+        .commit();
+
+      if (!committed.ok) continue;
       return {
-        allowed: false,
-        remaining: 0,
-        resetAt,
+        allowed: true,
+        remaining: Math.max(0, limit - newCount),
+        resetAt: entry.value.windowEnd,
       };
     }
 
-    const newCount = entry.value.count + 1;
-    await kv.set(key, {
-      ...entry.value,
-      count: newCount,
-    });
-
-    const remaining = limit - newCount;
-    const resetAt = entry.value.windowEnd;
-    kv.close();
-    return { allowed: true, remaining: Math.max(0, remaining), resetAt };
+    return null;
   } catch {
     return null;
+  } finally {
+    kv?.close();
   }
 }
 
 async function checkWithDatabase(
-  supabase: any,
+  supabase: SupabaseClient,
   identifier: string,
   limit: number,
   windowSeconds: number,
 ): Promise<RateLimitResult | null> {
   try {
-    const now = new Date();
-    const windowEnd = new Date(now.getTime() + windowSeconds * 1000);
+    const { data, error } = await supabase.rpc("consume_security_rate_limit", {
+      p_identifier: identifier,
+      p_limit: limit,
+      p_window_seconds: windowSeconds,
+    });
 
-    const { data: existing, error: fetchError } = await supabase
-      .from("rate_limits")
-      .select("id, request_count, window_start, window_end")
-      .eq("identifier", identifier)
-      .gte("window_end", now.toISOString())
-      .order("window_start", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (fetchError) {
-      console.error("Rate limit DB fetch error:", fetchError.message);
+    if (error) {
+      console.error("Atomic rate limit RPC error:", error.message);
       return null;
     }
 
-    if (existing) {
-      if (existing.request_count >= limit) {
-        return {
-          allowed: false,
-          remaining: 0,
-          resetAt: new Date(existing.window_end).getTime(),
-        };
-      }
-
-      const newCount = existing.request_count + 1;
-      const { error: updateError } = await supabase
-        .from("rate_limits")
-        .update({ request_count: newCount })
-        .eq("id", existing.id);
-
-      if (updateError) {
-        console.error("Rate limit DB update error:", updateError.message);
-        return null;
-      }
-
-      return {
-        allowed: true,
-        remaining: Math.max(0, limit - newCount),
-        resetAt: new Date(existing.window_end).getTime(),
-      };
-    }
-
-    const { error: insertError } = await supabase
-      .from("rate_limits")
-      .insert({
-        identifier,
-        request_count: 1,
-        window_start: now.toISOString(),
-        window_end: windowEnd.toISOString(),
-      });
-
-    if (insertError) {
-      if (insertError.code === "23505") {
-        const { data: retryExisting } = await supabase
-          .from("rate_limits")
-          .select("id, request_count, window_end")
-          .eq("identifier", identifier)
-          .gte("window_end", now.toISOString())
-          .limit(1)
-          .maybeSingle();
-
-        if (retryExisting && retryExisting.request_count < limit) {
-          const newCount = retryExisting.request_count + 1;
-          await supabase
-            .from("rate_limits")
-            .update({ request_count: newCount })
-            .eq("id", retryExisting.id);
-
-          return {
-            allowed: true,
-            remaining: Math.max(0, limit - newCount),
-            resetAt: new Date(retryExisting.window_end).getTime(),
-          };
-        }
-      }
-      console.error("Rate limit DB insert error:", insertError.message);
-      return null;
-    }
-
+    if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+    const result = data as Record<string, unknown>;
     return {
-      allowed: true,
-      remaining: Math.max(0, limit - 1),
-      resetAt: windowEnd.getTime(),
+      allowed: result.allowed === true,
+      remaining: Math.max(0, Number(result.remaining) || 0),
+      resetAt: Number(result.reset_at) || Date.now() + windowSeconds * 1000,
     };
   } catch (err) {
     console.error("Rate limit DB error:", err);
@@ -221,7 +167,7 @@ function checkWithMemory(
 }
 
 export async function checkRateLimit(
-  supabase: any,
+  supabase: SupabaseClient,
   identifier: string,
   limit: number,
   windowSeconds: number,

@@ -1,16 +1,18 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ScanLine, Plus, Utensils, Camera, Barcode, X } from "lucide-react";
+import { Search, ScanLine, Plus, Utensils, Camera, Barcode, X, Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BarcodeScanner, type ScannedProduct } from "./BarcodeScanner";
 import { FoodPhotoLogSheet } from "./FoodPhotoLogSheet";
-import { logMealItems } from "@/lib/meal-log-service";
+import { flushQueuedMealLogs, logMealItemsResilient } from "@/lib/meal-log-service";
 import { getMealImage } from "@/lib/meal-images";
+import { createFoodProviderRegistry, type FoodSearchItem } from "@/lib/food-providers";
+import { QuickAddFoodForm } from "@/components/QuickAddFoodForm";
 
 interface FoodItem {
   id: string;
@@ -19,8 +21,13 @@ interface FoodItem {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
-  image_url?: string;
+  fiber_g?: number;
+  sugar_g?: number;
+  sodium_mg?: number;
+  image_url?: string | null;
   logged_at?: string;
+  source?: FoodSearchItem["source"];
+  brand?: string | null;
 }
 
 type MealImageLookupRow = {
@@ -46,6 +53,13 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
   const [showScanChoice, setShowScanChoice] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [searchItems, setSearchItems] = useState<FoodSearchItem[]>([]);
+  const [searching, setSearching] = useState(false);
+  const providerRegistry = useMemo(
+    () => user?.id ? createFoodProviderRegistry(user.id) : null,
+    [user?.id],
+  );
 
   const handleBarcodeScanned = (product: ScannedProduct) => {
     const item: FoodItem = {
@@ -55,6 +69,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
       protein_g: product.protein ?? 0,
       carbs_g: product.carbs ?? 0,
       fat_g: product.fat ?? 0,
+      fiber_g: product.fiber ?? 0,
     };
     setSelectedItems((prev) => [...prev, item]);
     toast.success("Product found!", { description: product.name });
@@ -121,9 +136,53 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
       setSearchQuery("");
       setSelectedItems([]);
       setShowScanChoice(false);
+      setShowQuickAdd(false);
+      setSearchItems([]);
       loadRecentMeals();
     }
   }, [open, loadRecentMeals]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!providerRegistry || query.length < 2) {
+      setSearchItems([]);
+      setSearching(false);
+      return;
+    }
+
+    let active = true;
+    setSearching(true);
+    const timeout = window.setTimeout(() => {
+      providerRegistry.search(query)
+        .then((items) => {
+          if (active) setSearchItems(items);
+        })
+        .catch((error) => {
+          console.error("Food search failed:", error);
+          if (active) setSearchItems([]);
+        })
+        .finally(() => {
+          if (active) setSearching(false);
+        });
+    }, 250);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [providerRegistry, searchQuery]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const sync = () => {
+      void flushQueuedMealLogs(user.id).then(({ synced }) => {
+        if (synced > 0) onMealLogged();
+      });
+    };
+    window.addEventListener("online", sync);
+    sync();
+    return () => window.removeEventListener("online", sync);
+  }, [onMealLogged, user?.id]);
 
   // Toggle item selection
   const toggleItem = (item: FoodItem) => {
@@ -140,7 +199,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
     if (!user?.id) return;
     setLoading(true);
     try {
-      const result = await logMealItems({
+      const result = await logMealItemsResilient({
         userId: user.id,
         source: "log_meal_modal",
         items: selectedItems.map((item) => ({
@@ -149,12 +208,20 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
           protein_g: item.protein_g,
           carbs_g: item.carbs_g,
           fat_g: item.fat_g,
+          fiber_g: item.fiber_g,
+          sugar_g: item.sugar_g,
+          sodium_mg: item.sodium_mg,
           image_url: item.image_url,
         })),
       });
-      if (result.persisted !== true) throw new Error("MEAL_LOG_NOT_PERSISTED");
-
-      toast.success(t("meal_logged"));
+      if (result.persisted !== true && !("queued" in result && result.queued === true)) {
+        throw new Error("MEAL_LOG_NOT_PERSISTED");
+      }
+      if (result.persisted) {
+        toast.success(t("meal_logged"));
+      } else {
+        toast.success("Saved offline", { description: "This meal will sync when your connection returns." });
+      }
       onMealLogged();
       onOpenChange(false);
     } catch (error) {
@@ -165,10 +232,39 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
     }
   };
 
+  const handleQuickAdd = async (item: FoodSearchItem) => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const result = await logMealItemsResilient({
+        userId: user.id,
+        source: "quick_add",
+        items: [item],
+      });
+      if (result.persisted !== true && !("queued" in result && result.queued === true)) {
+        throw new Error("MEAL_LOG_NOT_PERSISTED");
+      }
+      if (result.persisted) {
+        toast.success(t("meal_logged"), { description: item.name });
+      } else {
+        toast.success("Saved offline", { description: `${item.name} will sync when your connection returns.` });
+      }
+      onMealLogged();
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Failed to quick add food:", error);
+      toast.error(t("failed_to_log_meal"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const visibleItems: FoodItem[] = searchQuery.trim().length >= 2 ? searchItems : recentItems;
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent hideCloseButton className="w-full max-w-full max-h-[85dvh] rounded-3xl bg-white flex flex-col p-0 overflow-hidden">
+        <DialogContent hideCloseButton className="relative w-full max-w-full max-h-[85dvh] rounded-3xl bg-white flex flex-col p-0 overflow-hidden">
           <DialogTitle className="sr-only">{t("log_meal_title")}</DialogTitle>
 
           {/* Header */}
@@ -191,8 +287,8 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
             </button>
           </div>
 
-          {/* Search and scan bar */}
-          <div className="flex items-center gap-2 px-4 pb-3 shrink-0">
+          {/* Search and quick actions */}
+          <div className="px-4 pb-3 shrink-0">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -202,31 +298,43 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                 className="pl-10 pr-3 rounded-xl h-11 bg-gray-100 border-0 focus-visible:ring-1 focus-visible:ring-gray-300 text-sm"
               />
             </div>
-            <button
-              onClick={() => setShowScanChoice(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-[#020617] px-3 py-2.5 text-white shadow-[0_8px_18px_rgba(2,6,23,0.14)] transition-colors hover:bg-slate-800 text-sm font-semibold shrink-0"
-              aria-label="Scan Food"
-            >
-              <ScanLine className="w-4 h-4" />
-              Scan
-            </button>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setShowQuickAdd(true)}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#F6F8FB] text-sm font-extrabold text-[#020617] ring-1 ring-slate-200"
+              >
+                <Plus className="h-4 w-4 text-[#22C7A1]" /> Quick add
+              </button>
+              <button
+                onClick={() => setShowScanChoice(true)}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#020617] text-sm font-extrabold text-white shadow-[0_8px_18px_rgba(2,6,23,0.14)] transition-colors hover:bg-slate-800"
+                aria-label="Scan Food"
+              >
+                <ScanLine className="w-4 h-4" /> Scan food
+              </button>
+            </div>
           </div>
 
           {/* Recent meals list */}
           <div className="flex-1 overflow-y-auto px-4 pb-2">
             <div className="flex items-center justify-between mb-3">
-              <p className="font-semibold text-gray-900 text-sm">{t("recently_logged")}</p>
-              <button className="text-xs font-semibold text-[#020617]">{t("view_all_small")}</button>
+              <p className="font-semibold text-gray-900 text-sm">
+                {searchQuery.trim().length >= 2 ? "Search results" : t("recently_logged")}
+              </p>
+              {searching ? <Loader2 className="h-4 w-4 animate-spin text-[#22C7A1]" /> : null}
             </div>
             <div className="space-y-2">
-              {loading ? (
+              {loading && searchQuery.trim().length < 2 ? (
                 <div className="flex justify-center py-6">
                   <div className="w-6 h-6 border-4 border-[#020617] border-t-transparent rounded-full animate-spin" />
                 </div>
-              ) : recentItems.length === 0 ? (
-                <p className="text-center py-6 text-gray-400 text-sm">No recent meals found.</p>
+              ) : visibleItems.length === 0 ? (
+                <p className="text-center py-6 text-gray-400 text-sm">
+                  {searchQuery.trim().length >= 2 ? "No foods match your search." : "No recent meals found."}
+                </p>
               ) : (
-                recentItems.map((item) => {
+                visibleItems.map((item) => {
                   const isSelected = selectedItems.some((i) => i.id === item.id);
                   const loggedDate = item.logged_at
                     ? new Date(item.logged_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -258,9 +366,9 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                           {item.name}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {item.calories} cal · {Math.round(item.protein_g + item.carbs_g + item.fat_g)}g
+                          {item.calories} cal · {Math.round(item.protein_g)}g protein
                         </p>
-                        <p className="text-xs text-gray-400">{loggedDate}</p>
+                        <p className="text-xs text-gray-400">{item.brand || loggedDate || (item.source === "nutrio" ? "Nutrio menu" : "Previously logged")}</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <div className="rounded-lg bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
@@ -361,6 +469,16 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                   Cancel
                 </button>
               </div>
+            </div>
+          )}
+
+          {showQuickAdd && (
+            <div className="absolute inset-x-0 bottom-0 top-[68px] z-20 bg-white">
+              <QuickAddFoodForm
+                busy={loading}
+                onCancel={() => setShowQuickAdd(false)}
+                onSubmit={handleQuickAdd}
+              />
             </div>
           )}
         </DialogContent>

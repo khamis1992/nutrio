@@ -14,6 +14,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { isNative } from "@/lib/capacitor";
 import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
 import { syncWorkoutSessionsToHealthDailyMetrics } from "@/lib/health-daily-metrics";
+import { isGoogleFitConnected } from "@/lib/google-fit-workout-service";
+import { getAuthUrl, getGoogleFitRedirectUri } from "@/services/health/googleFit";
 
 interface Activity {
   id: string;
@@ -196,9 +198,10 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
       setSearch("");
       setCategory("All");
       setShowActivityPicker(true);
-      loadSessions();
-      const storedToken = localStorage.getItem("google_fit_access_token");
-      setGoogleFitConnected(!!storedToken);
+      void loadSessions();
+      if (user) {
+        void isGoogleFitConnected(user.id).then(setGoogleFitConnected);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -328,16 +331,9 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                         }
                         const clientId = import.meta.env.VITE_GOOGLE_FIT_CLIENT_ID;
                         if (clientId) {
-                          const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
-                          const params = new URLSearchParams({
-                            client_id: clientId,
-                            redirect_uri: redirectUri,
-                            response_type: "code",
-                            scope: "https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.body.read",
-                            access_type: "offline",
-                            prompt: "consent",
+                          void getAuthUrl(clientId, getGoogleFitRedirectUri()).then((url) => {
+                            window.location.assign(url);
                           });
-                          window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
                         }
                       }}
                       className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[20px] border border-[#CDEBE0] bg-white px-4 text-[15px] font-black text-[#10A86C] transition-colors hover:bg-[#F5FFFA]"

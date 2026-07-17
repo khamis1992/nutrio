@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { uploadSensitiveFile, validatePrivateStorageFile } from "@/lib/private-storage";
 import { 
   ArrowLeft, 
   User, 
@@ -144,26 +145,36 @@ export default function AddDriver() {
     }));
   };
 
-  const uploadDocument = async (file: File, prefix: string): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `drivers/${Date.now()}_${prefix}.${fileExt}`;
-    
-    const { error: uploadError } = await supabase.storage
-      .from('fleet-documents')
-      .upload(fileName, file);
-    
-    if (uploadError) throw uploadError;
-    
-    const { data: { publicUrl } } = supabase.storage
-      .from('fleet-documents')
-      .getPublicUrl(fileName);
-    
-    return publicUrl;
+  const uploadDocument = async (
+    file: File,
+    prefix: string,
+    documentType: "driving_license" | "id_card" | "vehicle_registration",
+    driverId: string,
+  ): Promise<void> => {
+    const fileExt = validatePrivateStorageFile(
+      file,
+      ["application/pdf", "image/jpeg", "image/png", "image/webp"],
+      10 * 1024 * 1024,
+    );
+    const fileName = `cities/${formData.cityId}/drivers/${driverId}/${crypto.randomUUID()}_${prefix}.${fileExt}`;
+
+    await uploadSensitiveFile("fleet-documents", fileName, file);
+
+    const { error: recordError } = await supabase.functions.invoke(
+      `fleet-drivers/${driverId}/documents`,
+      { body: { documentType, documentPath: fileName } },
+    );
+    if (recordError) {
+      const { error: cleanupError } = await supabase.storage.from("fleet-documents").remove([fileName]);
+      if (cleanupError) console.error("Failed to remove unregistered driver document:", cleanupError);
+      throw recordError;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    let createdDriverId: string | null = null;
 
     try {
       // Validate required fields
@@ -177,19 +188,14 @@ export default function AddDriver() {
         return;
       }
 
-      // Upload documents
-      let licenseUrl = null;
-      let idCardUrl = null;
-      let vehicleRegUrl = null;
-
-      if (documents.license) {
-        licenseUrl = await uploadDocument(documents.license, 'license');
-      }
-      if (documents.idCard) {
-        idCardUrl = await uploadDocument(documents.idCard, 'id');
-      }
-      if (documents.vehicleReg) {
-        vehicleRegUrl = await uploadDocument(documents.vehicleReg, 'reg');
+      for (const file of [documents.license, documents.idCard, documents.vehicleReg]) {
+        if (file) {
+          validatePrivateStorageFile(
+            file,
+            ["application/pdf", "image/jpeg", "image/png", "image/webp"],
+            10 * 1024 * 1024,
+          );
+        }
       }
 
       // Create the Auth user and driver atomically through the privileged fleet endpoint.
@@ -206,51 +212,25 @@ export default function AddDriver() {
 
       if (driverError) throw driverError;
       if (!driverData?.id) throw new Error("Driver creation returned no driver ID");
+      createdDriverId = driverData.id;
 
-      // Create document records
-      const documentRecords = [];
-      if (licenseUrl) {
-        documentRecords.push({
-          driver_id: driverData.id,
-          document_type: 'driving_license',
-          document_url: licenseUrl,
-          verification_status: 'pending',
-        });
+      if (documents.license) {
+        await uploadDocument(documents.license, "license", "driving_license", driverData.id);
       }
-      if (idCardUrl) {
-        documentRecords.push({
-          driver_id: driverData.id,
-          document_type: 'id_card',
-          document_url: idCardUrl,
-          verification_status: 'pending',
-        });
+      if (documents.idCard) {
+        await uploadDocument(documents.idCard, "id", "id_card", driverData.id);
       }
-      if (vehicleRegUrl) {
-        documentRecords.push({
-          driver_id: driverData.id,
-          document_type: 'vehicle_registration',
-          document_url: vehicleRegUrl,
-          verification_status: 'pending',
-        });
-      }
-
-      if (documentRecords.length > 0) {
-        const { error: docError } = await supabase
-          .from('driver_documents')
-          .insert(documentRecords);
-        
-        if (docError) throw docError;
+      if (documents.vehicleReg) {
+        await uploadDocument(documents.vehicleReg, "registration", "vehicle_registration", driverData.id);
       }
 
       // Assign vehicle if selected
       if (formData.vehicleId) {
-        await supabase
-          .from('vehicles')
-          .update({ 
-            assigned_driver_id: driverData.id,
-            status: 'assigned'
-          })
-          .eq('id', formData.vehicleId);
+        const { error: assignmentError } = await supabase.functions.invoke(
+          `fleet-drivers/${driverData.id}`,
+          { method: "PUT", body: { assignedVehicleId: formData.vehicleId } },
+        );
+        if (assignmentError) throw assignmentError;
       }
 
       toast({
@@ -263,7 +243,9 @@ export default function AddDriver() {
       console.error("Error adding driver:", error);
       toast({
         title: "Error",
-        description: "Failed to add driver. Please try again.",
+        description: createdDriverId
+          ? "The driver was created, but a document or vehicle assignment could not be completed. Review the driver record before retrying."
+          : "Failed to add driver. Please try again.",
         variant: "destructive",
       });
     } finally {

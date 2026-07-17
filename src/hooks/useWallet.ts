@@ -138,7 +138,7 @@ export function useWallet() {
     staleTime: 30_000,
   });
 
-  const { data: topUpPackages = [] } = useQuery({
+  const { data: topUpPackages = [], isLoading: packagesLoading } = useQuery({
     queryKey: [PACKAGES_KEY],
     queryFn: ({ signal }) => fetchPackages(signal),
     staleTime: 10 * 60 * 1000,
@@ -200,6 +200,7 @@ export function useWallet() {
     transactions,
     topUpPackages,
     loading,
+    packagesLoading,
     transactionsLoading,
     error: null,
     fetchWallet: refetchWallet,

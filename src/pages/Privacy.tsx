@@ -1,10 +1,19 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { hasAnalyticsConsent, setAnalyticsConsent } from "@/lib/analytics";
 
 const Privacy = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(hasAnalyticsConsent);
+
+  const updateAnalyticsConsent = async (enabled: boolean) => {
+    setAnalyticsEnabled(enabled);
+    await setAnalyticsConsent(enabled);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -20,6 +29,30 @@ const Privacy = () => {
 
         <h1 className="text-4xl font-bold mb-8">{t("privacy_title")}</h1>
         <p className="text-muted-foreground mb-8">{t("privacy_last_updated")}</p>
+
+        <section className="mb-8 flex items-start gap-3 rounded-[8px] border border-[#E5EAF1] bg-[#F6F8FB] p-4">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-[#22C7A1] ring-1 ring-[#E5EAF1]">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <label className="flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-4">
+            <span>
+              <span className="block font-extrabold text-[#020617]">
+                {language === "ar" ? "تحليلات الاستخدام الاختيارية" : "Optional usage analytics"}
+              </span>
+              <span className="mt-1 block text-sm leading-5 text-[#64748B]">
+                {language === "ar"
+                  ? "متوقفة افتراضيًا. عند تفعيلها نرسل أحداث استخدام منزوعة البيانات الحساسة، ولا نسجل الجلسة أو محتوى التقارير الصحية."
+                  : "Off by default. When enabled, Nutrio sends sanitized usage events only; session replay and health-report content remain disabled."}
+              </span>
+            </span>
+            <Switch
+              className="mt-1 shrink-0"
+              checked={analyticsEnabled}
+              onCheckedChange={(enabled) => void updateAnalyticsConsent(enabled)}
+              aria-label={language === "ar" ? "السماح بتحليلات الاستخدام" : "Allow usage analytics"}
+            />
+          </label>
+        </section>
 
         <div className="prose prose-neutral dark:prose-invert max-w-none space-y-8">
           <section>

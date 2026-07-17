@@ -1,88 +1,57 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  enforceRateLimit,
+  errorResponse,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requireAdmin,
+  requirePost,
+  type SecurityPrincipal,
+} from "../_shared/security.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+const EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function jsonResponse(body: Record<string, unknown>, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+function hasControlCharacters(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 31 || code === 127;
   });
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
-  }
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.error("create-partner-user: missing Supabase configuration");
-    return jsonResponse({ error: "Service is not configured" }, 503);
-  }
-
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  let principal: SecurityPrincipal | null = null;
 
   try {
-    const token = req.headers
-      .get("Authorization")
-      ?.replace(/^Bearer\s+/i, "")
-      .trim();
-    if (!token) return jsonResponse({ error: "Unauthorized" }, 401);
+    requirePost(req);
+    principal = await requireAdmin(req);
+    await enforceRateLimit(req, "create-partner-user", principal.user.id, 5, 3600);
 
-    const {
-      data: { user: caller },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !caller) {
-      return jsonResponse({ error: "Unauthorized" }, 401);
-    }
-
-    const { data: adminRole, error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", caller.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (roleError) throw roleError;
-    if (!adminRole) return jsonResponse({ error: "Forbidden" }, 403);
-
-    const body = await req.json();
+    const body = await readJsonBody<Record<string, unknown>>(req, 8 * 1024);
     const email = typeof body.email === "string" ? body.email.trim() : "";
-    const password = typeof body.password === "string" ? body.password : "";
     const fullName =
       typeof body.full_name === "string" ? body.full_name.trim() : "";
     const restaurantId =
       typeof body.restaurant_id === "string" ? body.restaurant_id.trim() : "";
 
-    if (!email || !password || !restaurantId) {
-      return jsonResponse(
-        { error: "email, password, and restaurant_id are required" },
-        400,
-      );
+    if (
+      !EMAIL_PATTERN.test(email) ||
+      email.length > 254 ||
+      !UUID_PATTERN.test(restaurantId) ||
+      fullName.length > 100 ||
+      hasControlCharacters(fullName)
+    ) {
+      throw new HttpError(400, "invalid_partner_invitation");
     }
-    if (password.length < 8) {
-      return jsonResponse(
-        { error: "Password must contain at least 8 characters" },
-        400,
-      );
-    }
+
+    const supabaseAdmin = getServiceClient();
 
     const { data: restaurant, error: restaurantLookupError } =
       await supabaseAdmin
@@ -91,28 +60,37 @@ serve(async (req) => {
         .eq("id", restaurantId)
         .maybeSingle();
     if (restaurantLookupError) throw restaurantLookupError;
-    if (!restaurant) return jsonResponse({ error: "Restaurant not found" }, 404);
+    if (!restaurant) throw new HttpError(404, "restaurant_not_found");
     if (restaurant.owner_id) {
-      return jsonResponse(
-        { error: "Restaurant already has an owner" },
-        409,
-      );
+      throw new HttpError(409, "restaurant_already_has_owner");
     }
 
+    const appBaseUrl = (
+      Deno.env.get("NUTRIO_APP_URL") || "https://nutrio.me/nutrio"
+    ).replace(/\/$/, "");
     const { data: authData, error: authCreateError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: fullName },
+      await supabaseAdmin.auth.admin.inviteUserByEmail(email.toLowerCase(), {
+        redirectTo: `${appBaseUrl}/partner/auth?invited=1`,
+        data: {
+          full_name: fullName || email.split("@")[0],
+          account_type: "partner",
+        },
       });
-    if (authCreateError) throw authCreateError;
+    if (authCreateError || !authData.user) {
+      console.error("Partner invitation creation failed", {
+        status: authCreateError?.status,
+      });
+      throw new HttpError(409, "partner_invitation_failed");
+    }
 
     const userId = authData.user.id;
     try {
       const { error: profileError } = await supabaseAdmin
         .from("profiles")
-        .upsert({ user_id: userId, full_name: fullName });
+        .upsert({
+          user_id: userId,
+          full_name: fullName || email.split("@")[0],
+        });
       if (profileError) throw profileError;
 
       const { error: partnerRoleError } = await supabaseAdmin
@@ -130,20 +108,44 @@ serve(async (req) => {
           .maybeSingle();
       if (restaurantUpdateError) throw restaurantUpdateError;
       if (!linkedRestaurant) {
-        throw new Error("Restaurant owner changed while creating partner");
+        throw new Error("restaurant_owner_conflict");
       }
     } catch (error) {
       const { error: cleanupError } =
         await supabaseAdmin.auth.admin.deleteUser(userId);
       if (cleanupError) {
-        console.error("create-partner-user cleanup failed", cleanupError);
+        console.error("Partner invitation cleanup failed", {
+          status: cleanupError.status,
+        });
       }
       throw error;
     }
 
-    return jsonResponse({ success: true, user_id: userId }, 200);
+    await recordSecurityEvent(req, {
+      eventType: "admin.partner_invitation_created",
+      category: "admin",
+      severity: "medium",
+      outcome: "success",
+      principal,
+      action: "invite_partner_owner",
+      resourceType: "restaurant",
+      resourceId: restaurantId,
+      metadata: { invited_user_id: userId },
+    });
+
+    return jsonResponse(req, { success: true, user_id: userId, invited: true });
   } catch (error) {
-    console.error("create-partner-user failed", getErrorMessage(error));
-    return jsonResponse({ error: "Unable to create partner account" }, 500);
+    await recordSecurityEvent(req, {
+      eventType: "admin.partner_invitation_failed",
+      category: "admin",
+      severity: "high",
+      outcome: "failure",
+      principal,
+      action: "invite_partner_owner",
+      metadata: {
+        code: error instanceof HttpError ? error.code : "internal_error",
+      },
+    });
+    return errorResponse(req, error);
   }
 });

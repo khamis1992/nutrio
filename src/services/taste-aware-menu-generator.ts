@@ -1,13 +1,19 @@
 import { supabase } from "@/integrations/supabase/client";
+import { runAiTask } from "@/lib/ai-router";
 import { TasteProfile } from "./taste-profile-calculator";
 import type { MealPlanDay } from "@/lib/meal-plan-generator";
 
 async function callOpenRouter(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { data, error } = await supabase.functions.invoke("proxy-openrouter", {
-    body: { systemPrompt, userPrompt },
-  });
-  if (error || !data?.content) return "";
-  return data.content;
+  try {
+    const result = await runAiTask({
+      task: "meal_plan",
+      systemPrompt,
+      userPrompt,
+    });
+    return result.content;
+  } catch {
+    return "";
+  }
 }
 
 interface TasteAwareMeal {

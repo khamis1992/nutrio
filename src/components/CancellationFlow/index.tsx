@@ -3,8 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent } from "@/lib/analytics";
 import { captureError } from "@/lib/sentry";
-import { posthog } from "posthog-js";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Loader2 } from "lucide-react";
 
@@ -40,7 +40,7 @@ export function CancellationFlow({
   // Track cancellation flow start
   useEffect(() => {
     if (isOpen && user) {
-      posthog.capture("cancellation_flow_start", {
+      trackEvent("cancellation_flow_start", {
         user_id: user.id,
         subscription_id: subscriptionId,
       });
@@ -85,7 +85,7 @@ export function CancellationFlow({
     setReasonDetails(details);
 
     // Track step 1 completion
-    posthog.capture("cancellation_step_1_complete", {
+    trackEvent("cancellation_step_1_complete", {
       user_id: user?.id,
       reason: selectedReason,
     });
@@ -94,7 +94,7 @@ export function CancellationFlow({
   };
 
   const handleStep2Next = () => {
-    posthog.capture("cancellation_step_2_skip", {
+    trackEvent("cancellation_step_2_skip", {
       user_id: user?.id,
     });
     setCurrentStep(3);
@@ -120,7 +120,7 @@ export function CancellationFlow({
       const result = data as { success: boolean; action?: string; message?: string };
 
       if (result.success) {
-        posthog.capture("win_back_offer_accepted", {
+        trackEvent("win_back_offer_accepted", {
           user_id: user.id,
           offer_code: offerCode,
           offer_type: "pause",
@@ -145,7 +145,7 @@ export function CancellationFlow({
   };
 
   const handleStep3Next = () => {
-    posthog.capture("cancellation_step_3_skip", {
+    trackEvent("cancellation_step_3_skip", {
       user_id: user?.id,
     });
     setCurrentStep(4);
@@ -171,7 +171,7 @@ export function CancellationFlow({
       const result = data as { success: boolean; action?: string; message?: string };
 
       if (result.success) {
-        posthog.capture("win_back_offer_accepted", {
+        trackEvent("win_back_offer_accepted", {
           user_id: user.id,
           offer_code: offerCode,
           offer_type: "discount",
@@ -215,7 +215,7 @@ export function CancellationFlow({
       const result = data as { success: boolean; action?: string; message?: string };
 
       if (result.success) {
-        posthog.capture("subscription_cancelled", {
+        trackEvent("subscription_cancelled", {
           user_id: user.id,
           reason: reason,
           steps_completed: 4,
@@ -264,7 +264,7 @@ export function CancellationFlow({
       };
 
       if (result.success) {
-        posthog.capture("win_back_offer_accepted", {
+        trackEvent("win_back_offer_accepted", {
           user_id: user.id,
           offer_code: offerCode,
           offer_type: result.action === "downgraded" ? "downgrade" : "bonus",
@@ -297,7 +297,7 @@ export function CancellationFlow({
   const handleClose = () => {
     // Track flow abandonment
     if (currentStep < 4 && user) {
-      posthog.capture("cancellation_flow_abandoned", {
+      trackEvent("cancellation_flow_abandoned", {
         user_id: user.id,
         step: currentStep,
       });

@@ -1,0 +1,105 @@
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: "17 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+  pull-requests: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    name: Scan new commits for secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Install verified Gitleaks binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl --fail --silent --show-error --location \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}" \
+            --output gitleaks.tar.gz
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum --check --strict
+          tar --extract --gzip --file gitleaks.tar.gz gitleaks
+          chmod 0755 gitleaks
+
+      - name: Scan commit range
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          valid_sha() { [[ "$1" =~ ^[0-9a-f]{40}$ ]]; }
+
+          if ! valid_sha "$HEAD_SHA"; then
+            echo "Invalid GitHub head SHA" >&2
+            exit 2
+          fi
+
+          if [[ "$EVENT_NAME" == "pull_request" ]] && \
+             valid_sha "$BASE_SHA" && valid_sha "$PR_HEAD_SHA"; then
+            range="${BASE_SHA}..${PR_HEAD_SHA}"
+          elif valid_sha "$BEFORE_SHA" && \
+               [[ ! "$BEFORE_SHA" =~ ^0{40}$ ]] && \
+               git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            range="${BEFORE_SHA}..${HEAD_SHA}"
+          elif git rev-parse "${HEAD_SHA}^" >/dev/null 2>&1; then
+            range="${HEAD_SHA}^..${HEAD_SHA}"
+          else
+            range="$HEAD_SHA"
+          fi
+
+          ./gitleaks git --redact --no-banner --log-opts="$range" .
+
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - javascript-typescript
+          - actions
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - name: Analyze repository
+        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        with:
+          category: /language:${{ matrix.language }}

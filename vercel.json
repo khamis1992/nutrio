@@ -37,7 +37,7 @@
     },
     {
       "key": "X-XSS-Protection",
-      "value": "1; mode=block"
+      "value": "0"
     },
     {
       "key": "Referrer-Policy",
@@ -52,8 +52,16 @@
       "value": "max-age=31536000; includeSubDomains"
     },
     {
+      "key": "Permissions-Policy",
+      "value": "camera=(self), geolocation=(self), microphone=(), payment=(self), usb=()"
+    },
+    {
+      "key": "Cross-Origin-Opener-Policy",
+      "value": "same-origin-allow-popups"
+    },
+    {
       "key": "Content-Security-Policy",
-      "value": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.amazonaws.com https://images.unsplash.com; connect-src 'self' https://*.supabase.co https://*.amazonaws.com wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+      "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.amazonaws.com https://images.unsplash.com https://ui-avatars.com https://api.mapbox.com https://*.mapbox.com; media-src 'self' blob: https://assets.mixkit.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.amazonaws.com https://*.posthog.com https://api.posthog.com https://us.i.posthog.com https://*.sentry.io https://api.mapbox.com https://events.mapbox.com; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests"
     }
   ]
 }

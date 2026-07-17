@@ -1,0 +1,269 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  background: #eef4f6;
+  color: #12353e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 80% 10%, rgba(15, 133, 143, 0.15), transparent 34%),
+    #eef4f6;
+}
+
+.shell {
+  width: min(680px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 72px 0 40px;
+}
+
+.card {
+  padding: clamp(28px, 5vw, 52px);
+  border: 1px solid rgba(18, 53, 62, 0.1);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(18, 53, 62, 0.12);
+}
+
+.eyebrow {
+  margin-bottom: 12px;
+  color: #087783;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+h1 {
+  margin: 0;
+  color: #12353e;
+  font-size: clamp(28px, 5vw, 42px);
+  line-height: 1.2;
+}
+
+.intro {
+  margin: 20px 0 28px;
+  color: #557078;
+  font-size: 17px;
+  line-height: 1.9;
+}
+
+.notice {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 28px;
+  padding: 18px;
+  border-radius: 16px;
+  background: #edf9f8;
+}
+
+.notice-icon {
+  display: grid;
+  flex: 0 0 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: #087783;
+  color: white;
+  font-weight: 800;
+}
+
+.notice strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.notice p {
+  margin: 0;
+  color: #557078;
+  line-height: 1.6;
+}
+
+.button-row {
+  display: grid;
+  gap: 10px;
+}
+
+button {
+  width: 100%;
+  min-height: 54px;
+  padding: 14px 20px;
+  border: 0;
+  border-radius: 14px;
+  background: #087783;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: #06626c;
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+button.secondary {
+  border: 1px solid #c9dadd;
+  background: white;
+  color: #375861;
+}
+
+button.secondary:hover:not(:disabled) {
+  background: #f4f7f8;
+}
+
+.progress-panel,
+.result {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  line-height: 1.7;
+}
+
+.progress-panel {
+  background: #f4f7f8;
+  color: #375861;
+}
+
+.progress-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.spinner {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #bed7da;
+  border-top-color: #087783;
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.progress-track {
+  height: 9px;
+  margin: 16px 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dce8ea;
+}
+
+.progress-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #087783;
+  transition: width 220ms ease;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.stats div {
+  padding: 12px 8px;
+  border-radius: 10px;
+  background: white;
+  text-align: center;
+}
+
+.stats strong,
+.stats span {
+  display: block;
+}
+
+.stats strong {
+  color: #12353e;
+  font-size: 22px;
+}
+
+.stats span {
+  margin-top: 2px;
+  color: #6a8086;
+  font-size: 11px;
+}
+
+.activity-log {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.activity-log li {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: white;
+}
+
+.activity-log li.saved {
+  color: #155f40;
+}
+
+.activity-log li.skipped {
+  color: #80610c;
+}
+
+.activity-log li.error {
+  color: #8d2424;
+}
+
+.result.success {
+  border: 1px solid #9bd7bf;
+  background: #effbf5;
+  color: #155f40;
+}
+
+.result.error {
+  border: 1px solid #efb5b5;
+  background: #fff3f3;
+  color: #8d2424;
+}
+
+.result.warning {
+  border: 1px solid #e5cb7b;
+  background: #fff9e8;
+  color: #80610c;
+}
+
+.privacy {
+  margin: 18px 0 0;
+  color: #6a8086;
+  font-size: 13px;
+  text-align: center;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 560px) {
+  .shell {
+    padding-top: 24px;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

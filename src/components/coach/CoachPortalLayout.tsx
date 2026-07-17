@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Outlet } from "react-router-dom";
+import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,7 @@ import { LogOut } from "lucide-react";
 
 export function CoachPortalLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { profile } = useProfile();
   const [loading, setLoading] = useState(true);
@@ -59,11 +60,12 @@ export function CoachPortalLayout() {
 
   const coachName = profile?.full_name?.split(" ")[0] || "Coach";
   const coachInitial = coachName.charAt(0).toUpperCase();
+  const isClientWorkspace = location.pathname.startsWith("/coach/client/");
 
   return (
-    <div className="min-h-screen bg-[#F8FAFB] flex flex-col">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#F4F7FA]">
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-100 h-14 flex items-center justify-between px-4 shrink-0">
+      <header className={isClientWorkspace ? "hidden" : "sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-100 h-14 flex items-center justify-between px-4 shrink-0"}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
             <span className="text-sm font-bold text-white">{coachInitial}</span>
@@ -85,19 +87,21 @@ export function CoachPortalLayout() {
 
       {/* Main content */}
       <main
-        className="flex-1 overflow-y-auto"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
         style={{
-          paddingBottom: "calc(100px + env(safe-area-inset-bottom, 16px))",
+          paddingBottom: isClientWorkspace
+            ? "calc(16px + env(safe-area-inset-bottom, 0px))"
+            : "calc(100px + env(safe-area-inset-bottom, 16px))",
           WebkitOverflowScrolling: "touch",
         }}
       >
-        <div className="max-w-[430px] mx-auto px-4 py-5">
+        <div className={isClientWorkspace ? "max-w-[430px] mx-auto px-3 py-3" : "max-w-[430px] mx-auto px-4 py-5"}>
           <Outlet />
         </div>
       </main>
 
       {/* Bottom tab bar */}
-      <CoachBottomTabBar />
+      {!isClientWorkspace && <CoachBottomTabBar />}
     </div>
   );
 }

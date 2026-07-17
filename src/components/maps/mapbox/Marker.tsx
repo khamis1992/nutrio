@@ -37,19 +37,19 @@ export function Marker({
     el.className = 'mapbox-marker';
     
     if (children) {
-      el.innerHTML = typeof children === 'string' ? children : '';
+      // Marker labels may contain user-controlled names. Keep them as text so
+      // they can never become executable markup inside Mapbox's DOM.
+      el.textContent = typeof children === 'string' ? children : '';
     } else {
       // Default green marker
-      el.innerHTML = `
-        <div style="
-          width: 30px;
-          height: 30px;
-          background: #16a34a;
-          border-radius: 50%;
-          border: 3px solid white;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        "></div>
-      `;
+      const markerBody = document.createElement('div');
+      markerBody.style.width = '30px';
+      markerBody.style.height = '30px';
+      markerBody.style.background = '#16a34a';
+      markerBody.style.borderRadius = '50%';
+      markerBody.style.border = '3px solid white';
+      markerBody.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+      el.appendChild(markerBody);
     }
 
     const [lng, lat] = parseLatLng(position);

@@ -1,107 +1,88 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+import { getNotificationRecipient } from "../_shared/notificationRecipient.ts";
+import {
+  enforceRateLimit,
+  errorResponse,
+  escapeHtml,
+  getServiceClient,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requireAdmin,
+  requirePost,
+  type SecurityPrincipal,
+} from "../_shared/security.ts";
 
-function corsHeaders(req: Request): Record<string, string> {
-  const requestOrigin = req.headers.get("Origin");
-  const origins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-  const allowOrigin = requestOrigin && origins.includes(requestOrigin)
-    ? requestOrigin
-    : origins[0] ?? "*";
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Vary": "Origin",
-  };
-}
-
-function respond(req: Request, body: Record<string, unknown>, status = 200) {
-  return Response.json(body, { status, headers: corsHeaders(req) });
-}
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+function safeAppUrl(): string | null {
+  const configured = Deno.env.get("APP_URL") || "";
+  try {
+    const parsed = new URL(configured);
+    return parsed.protocol === "https:" ? parsed.origin : null;
+  } catch {
+    return null;
+  }
 }
 
 serve(async (req: Request): Promise<Response> => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders(req) });
-  }
-  if (req.method !== "POST") {
-    return respond(req, { error: "METHOD_NOT_ALLOWED" }, 405);
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+
+  let principal: SecurityPrincipal | null = null;
+  let payoutId: string | null = null;
 
   try {
-    const authorization = req.headers.get("Authorization");
-    if (!authorization || !supabaseUrl || !anonKey || !serviceRoleKey) {
-      return respond(req, { error: "AUTHENTICATION_REQUIRED" }, 401);
+    requirePost(req);
+    principal = await requireAdmin(req);
+    await enforceRateLimit(
+      req,
+      "payout-notification",
+      principal.user.id,
+      30,
+      60 * 60,
+    );
+
+    const body = await readJsonBody<{ payout_id?: string }>(req, 4 * 1024);
+    payoutId = String(body.payout_id || "").trim();
+    if (!UUID_PATTERN.test(payoutId)) {
+      throw new HttpError(400, "invalid_payout_reference");
     }
 
-    const authClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authorization } },
-    });
-    const serviceClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data: authData, error: authError } = await authClient.auth.getUser();
-    if (authError || !authData.user) {
-      return respond(req, { error: "AUTHENTICATION_REQUIRED" }, 401);
-    }
-
-    const { data: adminRole, error: roleError } = await serviceClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", authData.user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (roleError || !adminRole) {
-      return respond(req, { error: "ADMIN_REQUIRED" }, 403);
-    }
-
-    const body = await req.json() as { payout_id?: string };
-    if (!body.payout_id) {
-      return respond(req, { error: "PAYOUT_ID_REQUIRED" }, 400);
-    }
-
-    const { data: payout, error: payoutError } = await serviceClient
+    const service = getServiceClient();
+    const { data: payout, error: payoutError } = await service
       .from("affiliate_payouts")
       .select("id,user_id,amount,status,payout_method,notes")
-      .eq("id", body.payout_id)
-      .single();
-    if (payoutError || !payout) {
-      return respond(req, { error: "PAYOUT_NOT_FOUND" }, 404);
-    }
+      .eq("id", payoutId)
+      .maybeSingle();
+    if (payoutError) throw payoutError;
+    if (!payout) throw new HttpError(404, "payout_not_found");
     if (!["processing", "completed", "rejected"].includes(payout.status)) {
-      return respond(req, { error: "PAYOUT_STATUS_NOT_NOTIFIABLE" }, 409);
+      throw new HttpError(409, "payout_status_not_notifiable");
     }
 
-    const { data: authUser, error: userError } = await serviceClient.auth.admin.getUserById(payout.user_id);
-    if (userError || !authUser.user?.email) {
-      return respond(req, { error: "RECIPIENT_NOT_FOUND" }, 404);
+    const recipient = await getNotificationRecipient(payout.user_id);
+    if (!recipient.email || !recipient.emailEnabled) {
+      await recordSecurityEvent(req, {
+        eventType: "affiliate.payout_notification.skipped",
+        category: "admin",
+        severity: "info",
+        outcome: "success",
+        principal,
+        action: "send_payout_notification",
+        resourceType: "public.affiliate_payouts",
+        resourceId: payout.id,
+        metadata: { reason: recipient.email ? "email_disabled" : "verified_email_missing" },
+      });
+      return jsonResponse(req, { success: true, delivered: false, skipped: true });
     }
-
-    const { data: profile } = await serviceClient
-      .from("profiles")
-      .select("full_name,affiliate_balance")
-      .eq("user_id", payout.user_id)
-      .single();
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendKey) {
-      return respond(req, { error: "EMAIL_PROVIDER_NOT_CONFIGURED" }, 503);
-    }
+    if (!resendKey) throw new HttpError(503, "email_provider_not_configured");
 
     const statusLabel = payout.status === "processing"
       ? "approved for transfer"
@@ -109,32 +90,57 @@ serve(async (req: Request): Promise<Response> => {
         ? "transferred"
         : "rejected";
     const amount = Number(payout.amount || 0);
-    const appUrl = Deno.env.get("APP_URL") ?? "";
+    const appUrl = safeAppUrl();
     const resend = new Resend(resendKey);
     const { error: emailError } = await resend.emails.send({
-      from: Deno.env.get("PAYOUT_EMAIL_FROM") ?? "Nutrio <noreply@nutrio.qa>",
-      to: [authUser.user.email],
+      from: Deno.env.get("PAYOUT_EMAIL_FROM") || "Nutrio <noreply@nutrio.qa>",
+      to: [recipient.email],
       subject: `Affiliate payout ${statusLabel}`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0f172a">
-          <h1 style="font-size:24px">Payout ${statusLabel}</h1>
-          <p>Hi ${escapeHtml(profile?.full_name || "Affiliate Partner")},</p>
-          <p>Your QAR ${amount.toFixed(2)} payout is now <strong>${statusLabel}</strong>.</p>
-          <p>Method: ${escapeHtml((payout.payout_method || "bank_transfer").replaceAll("_", " "))}</p>
+          <h1 style="font-size:24px">Payout ${escapeHtml(statusLabel)}</h1>
+          <p>Hi ${escapeHtml(recipient.fullName || "Affiliate Partner")},</p>
+          <p>Your QAR ${escapeHtml(amount.toFixed(2))} payout is now <strong>${escapeHtml(statusLabel)}</strong>.</p>
+          <p>Method: ${escapeHtml(String(payout.payout_method || "bank_transfer").replaceAll("_", " "))}</p>
           ${payout.status === "rejected" && payout.notes ? `<p>Reason: ${escapeHtml(payout.notes)}</p>` : ""}
-          <p>Available balance: QAR ${Number(profile?.affiliate_balance || 0).toFixed(2)}</p>
           ${appUrl ? `<p><a href="${escapeHtml(appUrl)}/affiliate">View payout history</a></p>` : ""}
         </div>
       `,
     });
     if (emailError) {
-      console.error("Payout email failed", emailError);
-      return respond(req, { error: "EMAIL_SEND_FAILED" }, 502);
+      console.error("Payout email provider rejected request", { name: emailError.name });
+      throw new HttpError(502, "email_send_failed");
     }
 
-    return respond(req, { success: true, payout_id: payout.id });
+    await recordSecurityEvent(req, {
+      eventType: "affiliate.payout_notification.sent",
+      category: "admin",
+      severity: "info",
+      outcome: "success",
+      principal,
+      action: "send_payout_notification",
+      resourceType: "public.affiliate_payouts",
+      resourceId: payout.id,
+      metadata: { status: payout.status, channel: "email" },
+    });
+
+    return jsonResponse(req, { success: true, delivered: true, payout_id: payout.id });
   } catch (error) {
-    console.error("send-payout-notification failed", error);
-    return respond(req, { error: error instanceof Error ? error.message : "UNKNOWN_ERROR" }, 500);
+    if (principal) {
+      await recordSecurityEvent(req, {
+        eventType: "affiliate.payout_notification.failed",
+        category: "admin",
+        severity: "medium",
+        outcome: error instanceof HttpError && [401, 403, 429].includes(error.status)
+          ? "denied"
+          : "failure",
+        principal,
+        action: "send_payout_notification",
+        resourceType: "public.affiliate_payouts",
+        resourceId: payoutId || undefined,
+        metadata: { error_code: error instanceof HttpError ? error.code : "internal_error" },
+      });
+    }
+    return errorResponse(req, error);
   }
 });

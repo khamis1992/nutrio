@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  AdminDialogContent,
+  AdminPanel,
+  AdminWorkbenchHeader,
+} from "@/components/admin/AdminPrimitives";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,11 +20,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { downloadCsv } from "@/lib/csv";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -68,8 +84,6 @@ import {
   Filter,
   FileSpreadsheet,
   UserPlus,
-  KeyRound,
-  Copy,
   CheckCheck,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -92,6 +106,10 @@ import {
   Area,
 } from "recharts";
 import { formatCurrency } from "@/lib/currency";
+import {
+  getPartnerBankingSummary,
+  type PartnerBankingSummary,
+} from "@/lib/partner-banking";
 
 // Types
 interface Restaurant {
@@ -123,12 +141,14 @@ interface Restaurant {
 interface RestaurantDetails {
   id: string;
   restaurant_id: string;
-  bank_name: string | null;
-  bank_name_encrypted: string | null;
-  bank_account_name: string | null;
-  bank_account_number: string | null;
-  bank_iban: string | null;
-  swift_code: string | null;
+  bank_name_masked: string | null;
+  bank_account_name_masked: string | null;
+  bank_account_number_masked: string | null;
+  bank_iban_masked: string | null;
+  swift_code_masked: string | null;
+  payout_frequency: PartnerBankingSummary["payout_frequency"];
+  is_configured: boolean;
+  banking_updated_at: string | null;
   alternate_phone: string | null;
   avg_prep_time_minutes: number | null;
   max_meals_per_day: number | null;
@@ -161,16 +181,15 @@ interface Order {
   } | null;
 }
 
-type OrderStatus = 
-  | "pending" 
-  | "confirmed" 
-  | "preparing" 
-  | "ready" 
-  | "out_for_delivery" 
-  | "delivered" 
-  | "completed" 
+type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "preparing"
+  | "ready"
+  | "out_for_delivery"
+  | "delivered"
+  | "completed"
   | "cancelled";
-
 
 interface AuditLogEntry {
   id: string;
@@ -183,59 +202,74 @@ interface AuditLogEntry {
 }
 
 // Status configuration for display
-const STATUS_CONFIG: Record<OrderStatus, { 
-  label: string; 
-  color: string;
-  bgColor: string;
-}> = {
+const STATUS_CONFIG: Record<
+  OrderStatus,
+  {
+    label: string;
+    color: string;
+    bgColor: string;
+  }
+> = {
   pending: {
     label: "Pending",
-    color: "text-amber-600",
-    bgColor: "bg-amber-500/10 border-amber-500/20",
+    color: "text-[#F97316]",
+    bgColor: "border-[#F97316]/20 bg-[#F97316]/10 text-[#F97316]",
   },
   confirmed: {
     label: "Confirmed",
-    color: "text-blue-600",
-    bgColor: "bg-blue-500/10 border-blue-500/20",
+    color: "text-[#38BDF8]",
+    bgColor: "border-[#38BDF8]/20 bg-[#38BDF8]/10 text-[#38BDF8]",
   },
   preparing: {
     label: "Preparing",
-    color: "text-purple-600",
-    bgColor: "bg-purple-500/10 border-purple-500/20",
+    color: "text-[#7C83F6]",
+    bgColor: "border-[#7C83F6]/20 bg-[#7C83F6]/10 text-[#7C83F6]",
   },
   ready: {
     label: "Ready",
-    color: "text-cyan-600",
-    bgColor: "bg-cyan-500/10 border-cyan-500/20",
+    color: "text-[#38BDF8]",
+    bgColor: "border-[#38BDF8]/20 bg-[#38BDF8]/10 text-[#38BDF8]",
   },
   out_for_delivery: {
     label: "Out for Delivery",
-    color: "text-indigo-600",
-    bgColor: "bg-indigo-500/10 border-indigo-500/20",
+    color: "text-[#7C83F6]",
+    bgColor: "border-[#7C83F6]/20 bg-[#7C83F6]/10 text-[#7C83F6]",
   },
   delivered: {
     label: "Delivered",
-    color: "text-green-600",
-    bgColor: "bg-green-500/10 border-green-500/20",
+    color: "text-[#22C7A1]",
+    bgColor: "border-[#22C7A1]/20 bg-[#22C7A1]/10 text-[#22C7A1]",
   },
   completed: {
     label: "Completed",
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-500/10 border-emerald-500/20",
+    color: "text-[#22C7A1]",
+    bgColor: "border-[#22C7A1]/20 bg-[#22C7A1]/10 text-[#22C7A1]",
   },
   cancelled: {
     label: "Cancelled",
-    color: "text-red-600",
-    bgColor: "bg-red-500/10 border-red-500/20",
+    color: "text-[#FB6B7A]",
+    bgColor: "border-[#FB6B7A]/20 bg-[#FB6B7A]/10 text-[#FB6B7A]",
   },
 };
 
 // ── QNAS (Qatar National Address System) ────────────────────────────────────
 // All calls go through the Supabase edge function proxy to avoid CORS issues.
 
-interface QnasZone { zone_number: number; zone_name_en: string; zone_name_ar: string; }
-interface QnasStreet { street_number: number; street_name_en: string; street_name_ar: string; }
-interface QnasBuilding { building_number: string; x: string; y: string; }
+interface QnasZone {
+  zone_number: number;
+  zone_name_en: string;
+  zone_name_ar: string;
+}
+interface QnasStreet {
+  street_number: number;
+  street_name_en: string;
+  street_name_ar: string;
+}
+interface QnasBuilding {
+  building_number: string;
+  x: string;
+  y: string;
+}
 
 async function qnasFetch<T>(path: string): Promise<T | null> {
   try {
@@ -252,16 +286,44 @@ async function qnasFetch<T>(path: string): Promise<T | null> {
 
 // Validation schema
 const restaurantSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
-  description: z.string().max(500, "Description must be less than 500 characters").nullable(),
+  name: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must be less than 100 characters"),
+  description: z
+    .string()
+    .max(500, "Description must be less than 500 characters")
+    .nullable(),
   email: z.string().email("Invalid email address").nullable().or(z.literal("")),
-  phone: z.string().regex(/^\+?[0-9\s()-]{8,20}$/, "Invalid phone number").nullable().or(z.literal("")),
+  phone: z
+    .string()
+    .regex(/^\+?[0-9\s()-]{8,20}$/, "Invalid phone number")
+    .nullable()
+    .or(z.literal("")),
   website: z.string().url("Invalid URL").nullable().or(z.literal("")),
-  address: z.string().max(300, "Address must be less than 300 characters").nullable().or(z.literal("")),
-  cuisine_type: z.string().max(50, "Cuisine type must be less than 50 characters").nullable().or(z.literal("")),
-  payout_rate: z.number().min(1, "Payout rate must be at least 1").max(1000, "Payout rate must be less than 1000"),
-  commission_rate: z.number().min(0, "Commission must be 0% or more").max(100, "Commission cannot exceed 100%"),
-  max_meals_per_day: z.number().min(1, "Must be at least 1").max(10000, "Must be less than 10000").nullable(),
+  address: z
+    .string()
+    .max(300, "Address must be less than 300 characters")
+    .nullable()
+    .or(z.literal("")),
+  cuisine_type: z
+    .string()
+    .max(50, "Cuisine type must be less than 50 characters")
+    .nullable()
+    .or(z.literal("")),
+  payout_rate: z
+    .number()
+    .min(1, "Payout rate must be at least 1")
+    .max(1000, "Payout rate must be less than 1000"),
+  commission_rate: z
+    .number()
+    .min(0, "Commission must be 0% or more")
+    .max(100, "Commission cannot exceed 100%"),
+  max_meals_per_day: z
+    .number()
+    .min(1, "Must be at least 1")
+    .max(10000, "Must be less than 10000")
+    .nullable(),
   is_active: z.boolean(),
   approval_status: z.enum(["pending", "approved", "rejected"]),
 });
@@ -284,10 +346,11 @@ const AdminRestaurantDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   // Main state
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [restaurantDetails, setRestaurantDetails] = useState<RestaurantDetails | null>(null);
+  const [restaurantDetails, setRestaurantDetails] =
+    useState<RestaurantDetails | null>(null);
   const [stats, setStats] = useState<RestaurantStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -295,12 +358,17 @@ const AdminRestaurantDetail = () => {
   // Create owner account dialog
   const [ownerDialogOpen, setOwnerDialogOpen] = useState(false);
   const [ownerCreating, setOwnerCreating] = useState(false);
-  const [ownerForm, setOwnerForm] = useState({ full_name: "", email: "", password: "" });
-  const [ownerCreated, setOwnerCreated] = useState<{ email: string; password: string } | null>(null);
-  const [passwordCopied, setPasswordCopied] = useState(false);
+  const [ownerForm, setOwnerForm] = useState({
+    full_name: "",
+    email: "",
+  });
+  const [ownerCreated, setOwnerCreated] = useState<{
+    email: string;
+  } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
-  const [initialFormData, setInitialFormData] = useState<RestaurantFormData | null>(null);
-  
+  const [initialFormData, setInitialFormData] =
+    useState<RestaurantFormData | null>(null);
+
   // Form state
   const [formData, setFormData] = useState<RestaurantFormData>({
     name: "",
@@ -316,10 +384,13 @@ const AdminRestaurantDetail = () => {
     is_active: true,
     approval_status: "pending",
   });
-  const [errors, setErrors] = useState<Partial<Record<keyof RestaurantFormData, string>>>({});
-  
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof RestaurantFormData, string>>
+  >({});
+
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
 
@@ -336,12 +407,14 @@ const AdminRestaurantDetail = () => {
   const [qnasLoadingStreets, setQnasLoadingStreets] = useState(false);
   const [qnasLoadingBuildings, setQnasLoadingBuildings] = useState(false);
   const [qnasZoneOpen, setQnasZoneOpen] = useState(false);
-  
+
   // Analytics state
   const [revenueData, setRevenueData] = useState<DailyRevenue[]>([]);
-  const [ratingDistribution, setRatingDistribution] = useState<RatingDistribution[]>([]);
+  const [ratingDistribution, setRatingDistribution] = useState<
+    RatingDistribution[]
+  >([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  
+
   // Orders state
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -351,24 +424,26 @@ const AdminRestaurantDetail = () => {
   const [ordersPerPage] = useState(10);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderDetailOpen, setOrderDetailOpen] = useState(false);
-  
+
   // Partner payouts state
-  const [restaurantPayouts, setRestaurantPayouts] = useState<Array<{
-    id: string;
-    amount: number;
-    status: string | null;
-    period_start: string;
-    period_end: string;
-    processed_at: string | null;
-    reference_number: string | null;
-    payout_method: string | null;
-    created_at: string | null;
-  }>>([]);
+  const [restaurantPayouts, setRestaurantPayouts] = useState<
+    Array<{
+      id: string;
+      amount: number;
+      status: string | null;
+      period_start: string;
+      period_end: string;
+      processed_at: string | null;
+      reference_number: string | null;
+      payout_method: string | null;
+      created_at: string | null;
+    }>
+  >([]);
   const [payoutsLoading, setPayoutsLoading] = useState(false);
 
   // Audit log state
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
-  
+
   // Image upload state
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -383,7 +458,7 @@ const AdminRestaurantDetail = () => {
         e.returnValue = "";
       }
     };
-    
+
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasChanges]);
@@ -405,7 +480,11 @@ const AdminRestaurantDetail = () => {
 
   // QNAS: load streets when zone changes
   useEffect(() => {
-    if (!qnasZone) { setQnasStreets([]); setQnasBuildings([]); return; }
+    if (!qnasZone) {
+      setQnasStreets([]);
+      setQnasBuildings([]);
+      return;
+    }
     setQnasLoadingStreets(true);
     setQnasStreet(null);
     setQnasBuildings([]);
@@ -417,17 +496,22 @@ const AdminRestaurantDetail = () => {
 
   // QNAS: load buildings when street changes
   useEffect(() => {
-    if (!qnasZone || !qnasStreet) { setQnasBuildings([]); return; }
+    if (!qnasZone || !qnasStreet) {
+      setQnasBuildings([]);
+      return;
+    }
     setQnasLoadingBuildings(true);
-    qnasFetch<QnasBuilding[]>(`/get_buildings/${qnasZone}/${qnasStreet}`).then((data) => {
-      if (Array.isArray(data)) setQnasBuildings(data);
-      setQnasLoadingBuildings(false);
-    });
+    qnasFetch<QnasBuilding[]>(`/get_buildings/${qnasZone}/${qnasStreet}`).then(
+      (data) => {
+        if (Array.isArray(data)) setQnasBuildings(data);
+        setQnasLoadingBuildings(false);
+      },
+    );
   }, [qnasZone, qnasStreet]);
 
   const fetchRestaurant = async () => {
     if (!id) return;
-    
+
     setLoading(true);
     try {
       // Fetch restaurant details
@@ -438,7 +522,11 @@ const AdminRestaurantDetail = () => {
         .single();
 
       if (restaurantError) throw restaurantError;
-      if (!restaurantData) {
+      if (
+        !restaurantData ||
+        Array.isArray(restaurantData) ||
+        typeof restaurantData.id !== "string"
+      ) {
         toast({
           title: "Restaurant not found",
           description: "The requested restaurant could not be found.",
@@ -456,7 +544,7 @@ const AdminRestaurantDetail = () => {
           .select("user_id, full_name, email")
           .eq("user_id", restaurantData.owner_id)
           .single();
-        
+
         if (ownerData) {
           owner = {
             id: ownerData.user_id,
@@ -466,12 +554,19 @@ const AdminRestaurantDetail = () => {
         }
       }
 
-      // Fetch restaurant details (banking info, etc.)
-      const { data: detailsData } = await supabase
+      // Fetch only non-sensitive columns directly. Banking identifiers are
+      // returned masked by a separately authorized server-side function.
+      const { data: detailsData, error: detailsError } = await supabase
         .from("restaurant_details")
-        .select("*")
+        .select(
+          "id, restaurant_id, alternate_phone, avg_prep_time_minutes, max_meals_per_day, operating_hours, website_url",
+        )
         .eq("restaurant_id", id)
-        .single();
+        .maybeSingle();
+
+      if (detailsError) throw detailsError;
+
+      const bankingSummary = await getPartnerBankingSummary(id);
 
       const restaurantWithOwner: Restaurant = {
         ...restaurantData,
@@ -481,8 +576,24 @@ const AdminRestaurantDetail = () => {
       };
 
       setRestaurant(restaurantWithOwner);
-      setRestaurantDetails(detailsData || null);
-      
+      setRestaurantDetails(
+        detailsData
+          ? {
+              ...detailsData,
+              bank_name_masked: bankingSummary.bank_name_masked,
+              bank_account_name_masked:
+                bankingSummary.bank_account_name_masked,
+              bank_account_number_masked:
+                bankingSummary.bank_account_number_masked,
+              bank_iban_masked: bankingSummary.bank_iban_masked,
+              swift_code_masked: bankingSummary.swift_code_masked,
+              payout_frequency: bankingSummary.payout_frequency,
+              is_configured: bankingSummary.is_configured,
+              banking_updated_at: bankingSummary.updated_at,
+            }
+          : null,
+      );
+
       // Set form data
       const initialData = {
         name: restaurantData.name,
@@ -498,7 +609,7 @@ const AdminRestaurantDetail = () => {
         is_active: restaurantData.is_active ?? true,
         approval_status: restaurantData.approval_status || "pending",
       };
-      
+
       setFormData(initialData);
       setInitialFormData(initialData);
       setHasChanges(false);
@@ -513,7 +624,6 @@ const AdminRestaurantDetail = () => {
 
       // Fetch stats
       await fetchRestaurantStats(id);
-      
     } catch (error) {
       console.error("Error fetching restaurant:", error);
       toast({
@@ -535,20 +645,25 @@ const AdminRestaurantDetail = () => {
         .eq("restaurant_id", restaurantId);
 
       // Get meal prices
-      const mealIds = [...new Set((ordersData || []).map((o) => o.meal_id).filter(Boolean))];
+      const mealIds = [
+        ...new Set((ordersData || []).map((o) => o.meal_id).filter(Boolean)),
+      ];
       let mealsMap: Record<string, number> = {};
-      
+
       if (mealIds.length > 0) {
         const { data: meals } = await supabase
           .from("meals")
           .select("id, price")
           .in("id", mealIds);
-        
+
         if (meals) {
-          mealsMap = meals.reduce((acc, m) => {
-            acc[m.id] = m.price || 0;
-            return acc;
-          }, {} as Record<string, number>);
+          mealsMap = meals.reduce(
+            (acc, m) => {
+              acc[m.id] = m.price || 0;
+              return acc;
+            },
+            {} as Record<string, number>,
+          );
         }
       }
 
@@ -562,12 +677,15 @@ const AdminRestaurantDetail = () => {
       const totalRevenue = (ordersData || []).reduce((sum, order) => {
         return sum + (mealsMap[order.meal_id] || 0);
       }, 0);
-      const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-      
+      const averageOrderValue =
+        totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
       const reviewCount = reviewsData?.length || 0;
-      const averageRating = reviewCount > 0 && reviewsData
-        ? reviewsData.reduce((sum, review) => sum + (review.rating || 0), 0) / reviewCount
-        : 0;
+      const averageRating =
+        reviewCount > 0 && reviewsData
+          ? reviewsData.reduce((sum, review) => sum + (review.rating || 0), 0) /
+            reviewCount
+          : 0;
 
       setStats({
         total_orders: totalOrders,
@@ -583,13 +701,13 @@ const AdminRestaurantDetail = () => {
 
   const fetchAnalytics = async () => {
     if (!id) return;
-    
+
     setAnalyticsLoading(true);
     try {
       // Get last 30 days of orders
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
+
       const { data: ordersData } = await supabase
         .from("meal_schedules")
         .select("created_at, meal_id")
@@ -597,26 +715,31 @@ const AdminRestaurantDetail = () => {
         .gte("created_at", thirtyDaysAgo.toISOString());
 
       // Get meal prices
-      const mealIds = [...new Set((ordersData || []).map((o) => o.meal_id).filter(Boolean))];
+      const mealIds = [
+        ...new Set((ordersData || []).map((o) => o.meal_id).filter(Boolean)),
+      ];
       let mealsMap: Record<string, number> = {};
-      
+
       if (mealIds.length > 0) {
         const { data: meals } = await supabase
           .from("meals")
           .select("id, price")
           .in("id", mealIds);
-        
+
         if (meals) {
-          mealsMap = meals.reduce((acc, m) => {
-            acc[m.id] = m.price || 0;
-            return acc;
-          }, {} as Record<string, number>);
+          mealsMap = meals.reduce(
+            (acc, m) => {
+              acc[m.id] = m.price || 0;
+              return acc;
+            },
+            {} as Record<string, number>,
+          );
         }
       }
 
       // Build daily revenue data
       const dailyMap: Record<string, { revenue: number; orders: number }> = {};
-      
+
       for (let i = 29; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
@@ -633,11 +756,13 @@ const AdminRestaurantDetail = () => {
         }
       });
 
-      const revenueChartData: DailyRevenue[] = Object.entries(dailyMap).map(([date, data]) => ({
-        date: format(new Date(date), "MMM d"),
-        revenue: data.revenue,
-        orders: data.orders,
-      }));
+      const revenueChartData: DailyRevenue[] = Object.entries(dailyMap).map(
+        ([date, data]) => ({
+          date: format(new Date(date), "MMM d"),
+          revenue: data.revenue,
+          orders: data.orders,
+        }),
+      );
 
       setRevenueData(revenueChartData);
 
@@ -647,7 +772,13 @@ const AdminRestaurantDetail = () => {
         .select("rating")
         .eq("restaurant_id", id);
 
-      const ratingCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      const ratingCounts: Record<number, number> = {
+        1: 0,
+        2: 0,
+        3: 0,
+        4: 0,
+        5: 0,
+      };
       (reviewsData || []).forEach((review) => {
         const rating = Math.round(review.rating || 0);
         if (rating >= 1 && rating <= 5) {
@@ -655,7 +786,9 @@ const AdminRestaurantDetail = () => {
         }
       });
 
-      const ratingChartData: RatingDistribution[] = Object.entries(ratingCounts).map(([rating, count]) => ({
+      const ratingChartData: RatingDistribution[] = Object.entries(
+        ratingCounts,
+      ).map(([rating, count]) => ({
         rating: parseInt(rating),
         count,
       }));
@@ -675,13 +808,14 @@ const AdminRestaurantDetail = () => {
 
   const fetchOrders = async () => {
     if (!id) return;
-    
+
     setOrdersLoading(true);
     try {
       // Fetch meal schedules (orders) for this restaurant
       const { data: schedulesData, error: schedulesError } = await supabase
         .from("meal_schedules")
-        .select(`
+        .select(
+          `
           id,
           scheduled_date,
           meal_type,
@@ -690,18 +824,21 @@ const AdminRestaurantDetail = () => {
           created_at,
           user_id,
           meal_id
-        `)
+        `,
+        )
         .eq("restaurant_id", id)
         .order("created_at", { ascending: false });
 
       if (schedulesError) throw schedulesError;
 
       // Get meal details
-      const mealIds = [...new Set(
-        (schedulesData || [])
-          .map((schedule) => schedule.meal_id)
-          .filter((mealId): mealId is string => Boolean(mealId)),
-      )];
+      const mealIds = [
+        ...new Set(
+          (schedulesData || [])
+            .map((schedule) => schedule.meal_id)
+            .filter((mealId): mealId is string => Boolean(mealId)),
+        ),
+      ];
       let mealsMap: Record<string, { name: string; price: number }> = {};
 
       if (mealIds.length > 0) {
@@ -711,16 +848,22 @@ const AdminRestaurantDetail = () => {
           .in("id", mealIds);
 
         if (meals) {
-          mealsMap = meals.reduce((acc, m) => {
-            acc[m.id] = { name: m.name, price: m.price || 0 };
-            return acc;
-          }, {} as Record<string, { name: string; price: number }>);
+          mealsMap = meals.reduce(
+            (acc, m) => {
+              acc[m.id] = { name: m.name, price: m.price || 0 };
+              return acc;
+            },
+            {} as Record<string, { name: string; price: number }>,
+          );
         }
       }
 
       // Get user profiles
       const userIds = [...new Set((schedulesData || []).map((o) => o.user_id))];
-      let profilesMap: Record<string, { full_name: string | null; email?: string }> = {};
+      let profilesMap: Record<
+        string,
+        { full_name: string | null; email?: string }
+      > = {};
 
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -729,32 +872,39 @@ const AdminRestaurantDetail = () => {
           .in("user_id", userIds);
 
         if (profiles) {
-          profilesMap = profiles.reduce((acc, p: Record<string, unknown>) => {
-            acc[p.user_id as string] = { full_name: p.full_name as string | null };
-            return acc;
-          }, {} as Record<string, { full_name: string | null }>);
+          profilesMap = profiles.reduce(
+            (acc, p: Record<string, unknown>) => {
+              acc[p.user_id as string] = {
+                full_name: p.full_name as string | null,
+              };
+              return acc;
+            },
+            {} as Record<string, { full_name: string | null }>,
+          );
         }
       }
 
-      const ordersWithDetails: Order[] = (schedulesData || []).map((schedule) => {
-        const meal = schedule.meal_id
-          ? mealsMap[schedule.meal_id] || { name: "Unknown", price: 0 }
-          : { name: "Unknown", price: 0 };
-        
-        return {
-          id: schedule.id,
-          scheduled_date: schedule.scheduled_date,
-          meal_type: schedule.meal_type,
-          order_status: (schedule.order_status || "pending") as OrderStatus,
-          is_completed: schedule.is_completed ?? false,
-          created_at: schedule.created_at,
-          meal: {
-            name: meal.name,
-            price: meal.price,
-          },
-          profile: profilesMap[schedule.user_id] || null,
-        };
-      });
+      const ordersWithDetails: Order[] = (schedulesData || []).map(
+        (schedule) => {
+          const meal = schedule.meal_id
+            ? mealsMap[schedule.meal_id] || { name: "Unknown", price: 0 }
+            : { name: "Unknown", price: 0 };
+
+          return {
+            id: schedule.id,
+            scheduled_date: schedule.scheduled_date,
+            meal_type: schedule.meal_type,
+            order_status: (schedule.order_status || "pending") as OrderStatus,
+            is_completed: schedule.is_completed ?? false,
+            created_at: schedule.created_at,
+            meal: {
+              name: meal.name,
+              price: meal.price,
+            },
+            profile: profilesMap[schedule.user_id] || null,
+          };
+        },
+      );
 
       setOrders(ordersWithDetails);
     } catch (error) {
@@ -775,7 +925,9 @@ const AdminRestaurantDetail = () => {
     try {
       const { data, error } = await supabase
         .from("partner_payouts")
-        .select("id, amount, status, period_start, period_end, processed_at, reference_number, payout_method, created_at")
+        .select(
+          "id, amount, status, period_start, period_end, processed_at, reference_number, payout_method, created_at",
+        )
         .eq("restaurant_id", id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -806,9 +958,12 @@ const AdminRestaurantDetail = () => {
     }
   };
 
-  const handleInputChange = (field: keyof RestaurantFormData, value: string | number | boolean | null) => {
+  const handleInputChange = (
+    field: keyof RestaurantFormData,
+    value: string | number | boolean | null,
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    
+
     // Check if value differs from initial
     if (initialFormData) {
       const hasFormChanges = Object.keys(formData).some((key) => {
@@ -819,7 +974,7 @@ const AdminRestaurantDetail = () => {
       });
       setHasChanges(hasFormChanges);
     }
-    
+
     // Clear error for this field
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -827,11 +982,19 @@ const AdminRestaurantDetail = () => {
 
     // Add to audit log
     if (initialFormData && initialFormData[field] !== value) {
-      addAuditLogEntry(field, String(initialFormData[field] || ""), String(value || ""));
+      addAuditLogEntry(
+        field,
+        String(initialFormData[field] || ""),
+        String(value || ""),
+      );
     }
   };
 
-  const addAuditLogEntry = (field: string, oldValue: string, newValue: string) => {
+  const addAuditLogEntry = (
+    field: string,
+    oldValue: string,
+    newValue: string,
+  ) => {
     const entry: AuditLogEntry = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
@@ -841,46 +1004,55 @@ const AdminRestaurantDetail = () => {
       oldValue,
       newValue,
     };
-    
+
     setAuditLog((prev) => [entry, ...prev].slice(0, 50)); // Keep last 50 entries
   };
 
   const handleCreateOwner = async () => {
-    if (!ownerForm.email || !ownerForm.password || !restaurant?.id) return;
+    if (!ownerForm.email || !restaurant?.id) return;
     setOwnerCreating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-partner-user", {
-        body: {
-          email: ownerForm.email.trim(),
-          password: ownerForm.password,
-          full_name: ownerForm.full_name.trim() || ownerForm.email.split("@")[0],
-          restaurant_id: restaurant.id,
+      const { data, error } = await supabase.functions.invoke(
+        "create-partner-user",
+        {
+          body: {
+            email: ownerForm.email.trim(),
+            full_name:
+              ownerForm.full_name.trim() || ownerForm.email.split("@")[0],
+            restaurant_id: restaurant.id,
+          },
         },
-      });
+      );
 
-      if (error || data?.error) throw new Error(data?.error ?? error?.message ?? "Failed to create account");
+      if (error || data?.error)
+        throw new Error(
+          data?.error ?? error?.message ?? "Failed to create account",
+        );
 
       // Refresh restaurant so owner info updates
       await fetchRestaurant();
-      setOwnerCreated({ email: ownerForm.email.trim(), password: ownerForm.password });
-      setOwnerForm({ full_name: "", email: "", password: "" });
-      toast({ title: "Owner Account Created", description: `${ownerForm.email} can now log in at /partner/auth` });
+      setOwnerCreated({
+        email: ownerForm.email.trim(),
+      });
+      setOwnerForm({ full_name: "", email: "" });
+      toast({
+        title: "Secure invitation sent",
+        description: `${ownerForm.email} can set a password from the email invitation.`,
+      });
     } catch (err: unknown) {
-      toast({ title: "Error", description: err instanceof Error ? err.message : "An error occurred", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "An error occurred",
+        variant: "destructive",
+      });
     } finally {
       setOwnerCreating(false);
     }
   };
 
-  const copyPassword = (pwd: string) => {
-    navigator.clipboard.writeText(pwd);
-    setPasswordCopied(true);
-    setTimeout(() => setPasswordCopied(false), 2000);
-  };
-
   const handleSave = async () => {
     if (!id) return;
-    
+
     if (!validateForm()) {
       toast({
         title: "Validation Error",
@@ -953,11 +1125,12 @@ const AdminRestaurantDetail = () => {
 
   const handleDelete = async () => {
     if (!id) return;
-    
+
     if (deleteConfirmText !== restaurant?.name) {
       toast({
         title: "Confirmation Failed",
-        description: "Please type the restaurant name exactly to confirm deletion.",
+        description:
+          "Please type the restaurant name exactly to confirm deletion.",
         variant: "destructive",
       });
       return;
@@ -996,16 +1169,21 @@ const AdminRestaurantDetail = () => {
 
   const handleCancel = () => {
     if (hasChanges) {
-      const confirmed = window.confirm("You have unsaved changes. Are you sure you want to leave?");
-      if (!confirmed) return;
+      setLeaveDialogOpen(true);
+      return;
     }
+    navigate("/admin/restaurants");
+  };
+
+  const confirmLeaveWithoutSaving = () => {
+    setLeaveDialogOpen(false);
     navigate("/admin/restaurants");
   };
 
   // Image upload handlers
   const handleImageUpload = async (file: File, type: "logo" | "cover") => {
     if (!id) return;
-    
+
     // Validate file type
     if (!file.type.startsWith("image/")) {
       toast({
@@ -1041,9 +1219,9 @@ const AdminRestaurantDetail = () => {
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(filePath);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(bucket).getPublicUrl(filePath);
 
       // Update restaurant record
       const updateField = type === "logo" ? "logo_url" : "cover_image_url";
@@ -1055,7 +1233,9 @@ const AdminRestaurantDetail = () => {
       if (updateError) throw updateError;
 
       // Update local state
-      setRestaurant((prev) => prev ? { ...prev, [updateField]: publicUrl } : null);
+      setRestaurant((prev) =>
+        prev ? { ...prev, [updateField]: publicUrl } : null,
+      );
 
       toast({
         title: `${type === "logo" ? "Logo" : "Cover image"} uploaded successfully`,
@@ -1064,7 +1244,8 @@ const AdminRestaurantDetail = () => {
       console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: error instanceof Error ? error.message : `Failed to upload ${type}`,
+        description:
+          error instanceof Error ? error.message : `Failed to upload ${type}`,
         variant: "destructive",
       });
     } finally {
@@ -1096,14 +1277,10 @@ const AdminRestaurantDetail = () => {
       ["Created At", restaurant.created_at || ""],
     ];
 
-    const csv = [headers.join(","), ...rows.map((row) => `"${row[0]}","${row[1]}"`)].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${restaurant.name}-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    downloadCsv(
+      [headers, ...rows],
+      `${restaurant.name}-export-${format(new Date(), "yyyy-MM-dd")}.csv`,
+    );
 
     toast({
       title: "Export Complete",
@@ -1113,10 +1290,14 @@ const AdminRestaurantDetail = () => {
 
   // Filtered orders
   const filteredOrders = orders.filter((order) => {
-    const matchesStatus = orderFilter === "all" || order.order_status === orderFilter;
-    const matchesSearch = !orderSearch || 
+    const matchesStatus =
+      orderFilter === "all" || order.order_status === orderFilter;
+    const matchesSearch =
+      !orderSearch ||
       order.meal.name.toLowerCase().includes(orderSearch.toLowerCase()) ||
-      order.profile?.full_name?.toLowerCase().includes(orderSearch.toLowerCase());
+      order.profile?.full_name
+        ?.toLowerCase()
+        .includes(orderSearch.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -1124,7 +1305,7 @@ const AdminRestaurantDetail = () => {
   const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
   const paginatedOrders = filteredOrders.slice(
     (orderPage - 1) * ordersPerPage,
-    orderPage * ordersPerPage
+    orderPage * ordersPerPage,
   );
 
   // UI Helpers
@@ -1132,21 +1313,30 @@ const AdminRestaurantDetail = () => {
     switch (status) {
       case "pending":
         return (
-          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+          <Badge
+            variant="outline"
+            className="rounded-full border-[#F97316]/25 bg-[#F97316]/10 px-3 py-1 font-black text-[#F97316]"
+          >
             <Clock className="h-3 w-3 mr-1" />
             Pending
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+          <Badge
+            variant="outline"
+            className="rounded-full border-[#22C7A1]/25 bg-[#22C7A1]/10 px-3 py-1 font-black text-[#22C7A1]"
+          >
             <CheckCircle className="h-3 w-3 mr-1" />
             Approved
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
+          <Badge
+            variant="outline"
+            className="rounded-full border-[#FB6B7A]/25 bg-[#FB6B7A]/10 px-3 py-1 font-black text-[#FB6B7A]"
+          >
             <XCircle className="h-3 w-3 mr-1" />
             Rejected
           </Badge>
@@ -1159,21 +1349,31 @@ const AdminRestaurantDetail = () => {
   const getOrderStatusBadge = (status: OrderStatus) => {
     const config = STATUS_CONFIG[status];
     return (
-      <Badge variant="outline" className={config?.bgColor || "bg-gray-500/10 text-gray-600 border-gray-500/20"}>
+      <Badge
+        variant="outline"
+        className={
+          config?.bgColor || "border-[#E5EAF1] bg-[#F6F8FB] text-[#94A3B8]"
+        }
+      >
         {config?.label || status}
       </Badge>
     );
   };
 
-  const COLORS = ["#ef4444", "#f97316", "#eab308", "#84cc16", "#22c55e"];
+  const COLORS = ["#FB6B7A", "#F97316", "#F97316", "#22C7A1", "#22C7A1"];
 
   if (loading) {
     return (
       <AdminLayout title="Restaurant Details">
-        <div className="flex items-center justify-center h-96">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">Loading restaurant details...</p>
+        <div className="flex min-h-[420px] items-center justify-center">
+          <div className="rounded-[30px] border border-[#E5EAF1] bg-white p-8 text-center shadow-[0_18px_44px_rgba(2,6,23,0.06)]">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#22C7A1]" />
+            <p className="mt-4 text-sm font-black text-[#020617]">
+              Loading restaurant details
+            </p>
+            <p className="mt-1 text-xs font-semibold text-[#94A3B8]">
+              Fetching profile, orders, payouts, and settings.
+            </p>
           </div>
         </div>
       </AdminLayout>
@@ -1183,163 +1383,249 @@ const AdminRestaurantDetail = () => {
   if (!restaurant) {
     return (
       <AdminLayout title="Restaurant Not Found">
-        <div className="flex flex-col items-center justify-center h-96 gap-4">
-          <Store className="w-16 h-16 text-muted-foreground" />
-          <h2 className="text-xl font-semibold">Restaurant Not Found</h2>
-          <p className="text-muted-foreground">The requested restaurant could not be found.</p>
-          <Button onClick={() => navigate("/admin/restaurants")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Restaurants
-          </Button>
+        <div className="flex min-h-[420px] items-center justify-center">
+          <div className="max-w-md rounded-[30px] border border-[#E5EAF1] bg-white p-8 text-center shadow-[0_18px_44px_rgba(2,6,23,0.06)]">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-[24px] bg-[#F6F8FB] text-[#94A3B8] ring-1 ring-[#E5EAF1]">
+              <Store className="h-8 w-8" />
+            </div>
+            <h2 className="mt-5 text-xl font-black text-[#020617]">
+              Restaurant Not Found
+            </h2>
+            <p className="mt-2 text-sm font-semibold leading-6 text-[#94A3B8]">
+              The requested restaurant could not be found.
+            </p>
+            <Button
+              variant="outline"
+              className="mt-5 min-h-[44px] rounded-[16px] border-[#7C83F6]/30 bg-[#7C83F6]/10 font-black text-[#020617] hover:bg-[#7C83F6]/15"
+              onClick={() => navigate("/admin/restaurants")}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Restaurants
+            </Button>
+          </div>
         </div>
       </AdminLayout>
     );
   }
 
+  const detailInputClass =
+    "min-h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#020617]";
+
+  const restaurantShortId =
+    typeof restaurant.id === "string" ? restaurant.id.slice(0, 8) : "unknown";
+
   return (
-    <AdminLayout title={restaurant.name} subtitle={`ID: ${restaurant.id.slice(0, 8)}...`}>
-      <div className="space-y-6">
+    <AdminLayout
+      title={restaurant.name}
+      subtitle={`ID: ${restaurantShortId}...`}
+    >
+      <div className="space-y-6 text-[#020617]">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={handleCancel}>
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold">{restaurant.name}</h1>
-                {getStatusBadge(restaurant.approval_status)}
-                {restaurant.is_active ? (
-                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600">
-                    Active
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-gray-500/10 text-gray-600">
-                    Inactive
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Created {restaurant.created_at ? format(new Date(restaurant.created_at as string), "MMM d, yyyy") : "Unknown"} • 
-                Last updated {restaurant.updated_at ? format(new Date(restaurant.updated_at as string), "MMM d, yyyy") : "Unknown"}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 flex-wrap">
-            {hasChanges && (
-              <Badge variant="secondary" className="mr-2">
-                Unsaved Changes
-              </Badge>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => fetchRestaurant()}
-              disabled={loading}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleReset}
-              disabled={!hasChanges}
-            >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Reset
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => setDeleteDialogOpen(true)}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!hasChanges || saving}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
-                </>
+        <AdminWorkbenchHeader
+          eyebrow="Restaurant profile"
+          title={restaurant.name}
+          icon={Store}
+          accent="#22C7A1"
+          description={
+            <>
+              Created{" "}
+              {restaurant.created_at
+                ? format(
+                    new Date(restaurant.created_at as string),
+                    "MMM d, yyyy",
+                  )
+                : "Unknown"}{" "}
+              - Last updated{" "}
+              {restaurant.updated_at
+                ? format(
+                    new Date(restaurant.updated_at as string),
+                    "MMM d, yyyy",
+                  )
+                : "Unknown"}
+            </>
+          }
+          meta={[
+            {
+              label: "Status",
+              value: getStatusBadge(restaurant.approval_status),
+            },
+            { label: "Active", value: restaurant.is_active ? "Yes" : "No" },
+            { label: "ID", value: `${restaurantShortId}...` },
+          ]}
+          actions={
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleCancel}
+                aria-label="Back to restaurants"
+                className="min-h-[44px] min-w-[44px] rounded-[16px] border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              {hasChanges && (
+                <Badge
+                  variant="secondary"
+                  className="rounded-full bg-[#7C83F6]/10 px-3 py-1 font-black text-[#7C83F6]"
+                >
+                  Unsaved Changes
+                </Badge>
               )}
-            </Button>
-          </div>
-        </div>
+              <Button
+                variant="outline"
+                onClick={() => fetchRestaurant()}
+                disabled={loading}
+                className="min-h-[44px] rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                />
+                Refresh
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleReset}
+                disabled={!hasChanges}
+                className="min-h-[44px] rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reset
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+                className="min-h-[44px] rounded-[16px] bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={!hasChanges || saving}
+                variant="outline"
+                className="min-h-[44px] rounded-[16px] border-[#22C7A1]/30 bg-[#22C7A1]/10 font-black text-[#020617] hover:bg-[#22C7A1]/15"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </>
+          }
+        />
 
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2">
-                  <Package className="w-5 h-5 text-primary" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <AdminPanel className="rounded-[24px] border-[#E5EAF1] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+              <div className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#7C83F6]/10 text-[#7C83F6]">
+                    <Package className="w-5 h-5" />
+                  </div>
                   <div>
-                    <p className="text-2xl font-bold">{stats.total_orders}</p>
-                    <p className="text-xs text-muted-foreground">Total Orders</p>
+                    <p className="text-2xl font-black text-[#020617]">
+                      {stats.total_orders}
+                    </p>
+                    <p className="text-xs font-bold text-[#94A3B8]">
+                      Total Orders
+                    </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-emerald-500" />
+              </div>
+            </AdminPanel>
+            <AdminPanel className="rounded-[24px] border-[#E5EAF1] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+              <div className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#22C7A1]/10 text-[#22C7A1]">
+                    <DollarSign className="w-5 h-5" />
+                  </div>
                   <div>
-                    <p className="text-2xl font-bold">{formatCurrency(stats.total_revenue)}</p>
-                    <p className="text-xs text-muted-foreground">Total Revenue</p>
+                    <p className="text-2xl font-black text-[#020617]">
+                      {formatCurrency(stats.total_revenue)}
+                    </p>
+                    <p className="text-xs font-bold text-[#94A3B8]">
+                      Total Revenue
+                    </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-blue-500" />
+              </div>
+            </AdminPanel>
+            <AdminPanel className="rounded-[24px] border-[#E5EAF1] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+              <div className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#38BDF8]/10 text-[#38BDF8]">
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
                   <div>
-                    <p className="text-2xl font-bold">{formatCurrency(stats.average_order_value)}</p>
-                    <p className="text-xs text-muted-foreground">Avg Order Value</p>
+                    <p className="text-2xl font-black text-[#020617]">
+                      {formatCurrency(stats.average_order_value)}
+                    </p>
+                    <p className="text-xs font-bold text-[#94A3B8]">
+                      Avg Order Value
+                    </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2">
-                  <Star className="w-5 h-5 text-amber-500" />
+              </div>
+            </AdminPanel>
+            <AdminPanel className="rounded-[24px] border-[#E5EAF1] bg-white shadow-[0_14px_34px_rgba(2,6,23,0.05)]">
+              <div className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F97316]/10 text-[#F97316]">
+                    <Star className="w-5 h-5" />
+                  </div>
                   <div>
-                    <p className="text-2xl font-bold">{stats.rating.toFixed(1)}</p>
-                    <p className="text-xs text-muted-foreground">{stats.review_count} Reviews</p>
+                    <p className="text-2xl font-black text-[#020617]">
+                      {stats.rating.toFixed(1)}
+                    </p>
+                    <p className="text-xs font-bold text-[#94A3B8]">
+                      {stats.review_count} Reviews
+                    </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </AdminPanel>
           </div>
         )}
 
         {/* Tabs */}
         <Tabs defaultValue="details" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto">
-            <TabsTrigger value="details" className="gap-2">
+          <TabsList className="grid h-auto w-full grid-cols-2 rounded-[24px] border border-[#E5EAF1] bg-white p-2 shadow-[0_14px_34px_rgba(2,6,23,0.05)] sm:grid-cols-4 lg:w-auto">
+            <TabsTrigger
+              value="details"
+              className="min-h-11 gap-2 rounded-2xl text-xs font-black text-[#94A3B8] data-[state=active]:border data-[state=active]:border-[#22C7A1]/30 data-[state=active]:bg-[#22C7A1]/10 data-[state=active]:text-[#020617] data-[state=active]:shadow-none sm:text-sm"
+            >
               <Store className="w-4 h-4" />
               Details
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-2" onClick={fetchAnalytics}>
+            <TabsTrigger
+              value="analytics"
+              className="min-h-11 gap-2 rounded-2xl text-xs font-black text-[#94A3B8] data-[state=active]:border data-[state=active]:border-[#7C83F6]/30 data-[state=active]:bg-[#7C83F6]/10 data-[state=active]:text-[#020617] data-[state=active]:shadow-none sm:text-sm"
+              onClick={fetchAnalytics}
+            >
               <TrendingUp className="w-4 h-4" />
               Analytics
             </TabsTrigger>
-            <TabsTrigger value="orders" className="gap-2" onClick={fetchOrders}>
+            <TabsTrigger
+              value="orders"
+              className="min-h-11 gap-2 rounded-2xl text-xs font-black text-[#94A3B8] data-[state=active]:border data-[state=active]:border-[#38BDF8]/30 data-[state=active]:bg-[#38BDF8]/10 data-[state=active]:text-[#020617] data-[state=active]:shadow-none sm:text-sm"
+              onClick={fetchOrders}
+            >
               <Package className="w-4 h-4" />
               Orders
             </TabsTrigger>
-            <TabsTrigger value="payouts" className="gap-2" onClick={fetchRestaurantPayouts}>
+            <TabsTrigger
+              value="payouts"
+              className="min-h-11 gap-2 rounded-2xl text-xs font-black text-[#94A3B8] data-[state=active]:border data-[state=active]:border-[#F97316]/30 data-[state=active]:bg-[#F97316]/10 data-[state=active]:text-[#020617] data-[state=active]:shadow-none sm:text-sm"
+              onClick={fetchRestaurantPayouts}
+            >
               <DollarSign className="w-4 h-4" />
               Payouts
             </TabsTrigger>
@@ -1351,12 +1637,16 @@ const AdminRestaurantDetail = () => {
               {/* Main Form */}
               <div className="lg:col-span-2 space-y-6">
                 {/* Images Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Restaurant Images</CardTitle>
-                    <CardDescription>Upload logo and cover image</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
+                <AdminPanel className="rounded-[28px]">
+                  <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                    <h2 className="text-lg font-black text-[#020617]">
+                      Restaurant Images
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                      Upload logo and cover image
+                    </p>
+                  </div>
+                  <div className="space-y-6 pt-5">
                     {/* Logo Upload */}
                     <div className="space-y-3">
                       <Label className="flex items-center gap-2">
@@ -1364,7 +1654,7 @@ const AdminRestaurantDetail = () => {
                         Restaurant Logo
                       </Label>
                       <div className="flex items-start gap-4">
-                        <div className="relative w-24 h-24 rounded-xl border-2 border-dashed border-border bg-muted/50 flex items-center justify-center overflow-hidden">
+                        <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-[22px] border border-dashed border-[#E5EAF1] bg-[#F6F8FB]">
                           {restaurant.logo_url ? (
                             <>
                               <img
@@ -1374,7 +1664,7 @@ const AdminRestaurantDetail = () => {
                               />
                             </>
                           ) : (
-                            <div className="text-center text-muted-foreground">
+                            <div className="text-center text-[#94A3B8]">
                               <ImageIcon className="w-8 h-8 mx-auto mb-1 opacity-50" />
                               <span className="text-xs">No logo</span>
                             </div>
@@ -1385,16 +1675,18 @@ const AdminRestaurantDetail = () => {
                             ref={logoInputRef}
                             type="file"
                             accept="image/*"
-                            onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], "logo")}
+                            onChange={(e) =>
+                              e.target.files?.[0] &&
+                              handleImageUpload(e.target.files[0], "logo")
+                            }
                             className="hidden"
                           />
                           <Button
                             type="button"
                             variant="outline"
-                            size="sm"
                             disabled={uploadingLogo}
                             onClick={() => logoInputRef.current?.click()}
-                            className="gap-2"
+                            className="min-h-[44px] rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
                           >
                             {uploadingLogo ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -1403,7 +1695,7 @@ const AdminRestaurantDetail = () => {
                             )}
                             {uploadingLogo ? "Uploading..." : "Upload Logo"}
                           </Button>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-[#94A3B8]">
                             JPG, PNG or WebP. Max 5MB. Recommended: 400x400px
                           </p>
                         </div>
@@ -1419,7 +1711,7 @@ const AdminRestaurantDetail = () => {
                         Cover Image
                       </Label>
                       <div className="space-y-3">
-                        <div className="relative w-full h-32 rounded-xl border-2 border-dashed border-border bg-muted/50 flex items-center justify-center overflow-hidden">
+                        <div className="relative flex h-32 w-full items-center justify-center overflow-hidden rounded-[22px] border border-dashed border-[#E5EAF1] bg-[#F6F8FB]">
                           {restaurant.cover_image_url ? (
                             <img
                               src={restaurant.cover_image_url}
@@ -1427,7 +1719,7 @@ const AdminRestaurantDetail = () => {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <div className="text-center text-muted-foreground">
+                            <div className="text-center text-[#94A3B8]">
                               <ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-50" />
                               <span className="text-sm">No cover image</span>
                             </div>
@@ -1437,16 +1729,18 @@ const AdminRestaurantDetail = () => {
                           ref={coverInputRef}
                           type="file"
                           accept="image/*"
-                          onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], "cover")}
+                          onChange={(e) =>
+                            e.target.files?.[0] &&
+                            handleImageUpload(e.target.files[0], "cover")
+                          }
                           className="hidden"
                         />
                         <Button
                           type="button"
                           variant="outline"
-                          size="sm"
                           disabled={uploadingCover}
                           onClick={() => coverInputRef.current?.click()}
-                          className="gap-2"
+                          className="min-h-[44px] rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
                         >
                           {uploadingCover ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1455,28 +1749,37 @@ const AdminRestaurantDetail = () => {
                           )}
                           {uploadingCover ? "Uploading..." : "Upload Cover"}
                         </Button>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-[#94A3B8]">
                           JPG, PNG or WebP. Max 5MB. Recommended: 1200x400px
                         </p>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </AdminPanel>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Basic Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+                <AdminPanel className="rounded-[28px]">
+                  <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                    <h2 className="text-lg font-black text-[#020617]">
+                      Basic Information
+                    </h2>
+                  </div>
+                  <div className="space-y-4 pt-5">
                     <div className="space-y-2">
                       <Label htmlFor="name">Restaurant Name *</Label>
                       <Input
                         id="name"
                         value={formData.name}
-                        onChange={(e) => handleInputChange("name", e.target.value)}
-                        className={errors.name ? "border-red-500" : ""}
+                        onChange={(e) =>
+                          handleInputChange("name", e.target.value)
+                        }
+                        className={cn(
+                          detailInputClass,
+                          errors.name && "border-[#FB6B7A] bg-[#FB6B7A]/10",
+                        )}
                       />
-                      {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+                      {errors.name && (
+                        <p className="text-sm text-[#FB6B7A]">{errors.name}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -1484,11 +1787,22 @@ const AdminRestaurantDetail = () => {
                       <Textarea
                         id="description"
                         value={formData.description || ""}
-                        onChange={(e) => handleInputChange("description", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("description", e.target.value)
+                        }
                         rows={3}
-                        className={errors.description ? "border-red-500" : ""}
+                        className={cn(
+                          detailInputClass,
+                          "min-h-24",
+                          errors.description &&
+                            "border-[#FB6B7A] bg-[#FB6B7A]/10",
+                        )}
                       />
-                      {errors.description && <p className="text-sm text-red-500">{errors.description}</p>}
+                      {errors.description && (
+                        <p className="text-sm text-[#FB6B7A]">
+                          {errors.description}
+                        </p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1497,11 +1811,21 @@ const AdminRestaurantDetail = () => {
                         <Input
                           id="cuisine_type"
                           value={formData.cuisine_type || ""}
-                          onChange={(e) => handleInputChange("cuisine_type", e.target.value)}
+                          onChange={(e) =>
+                            handleInputChange("cuisine_type", e.target.value)
+                          }
                           placeholder="e.g., Healthy, Italian, Asian"
-                          className={errors.cuisine_type ? "border-red-500" : ""}
+                          className={cn(
+                            detailInputClass,
+                            errors.cuisine_type &&
+                              "border-[#FB6B7A] bg-[#FB6B7A]/10",
+                          )}
                         />
-                        {errors.cuisine_type && <p className="text-sm text-red-500">{errors.cuisine_type}</p>}
+                        {errors.cuisine_type && (
+                          <p className="text-sm text-[#FB6B7A]">
+                            {errors.cuisine_type}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -1509,75 +1833,115 @@ const AdminRestaurantDetail = () => {
                         <Input
                           id="website"
                           value={formData.website || ""}
-                          onChange={(e) => handleInputChange("website", e.target.value)}
+                          onChange={(e) =>
+                            handleInputChange("website", e.target.value)
+                          }
                           placeholder="https://..."
-                          className={errors.website ? "border-red-500" : ""}
+                          className={cn(
+                            detailInputClass,
+                            errors.website &&
+                              "border-[#FB6B7A] bg-[#FB6B7A]/10",
+                          )}
                         />
-                        {errors.website && <p className="text-sm text-red-500">{errors.website}</p>}
+                        {errors.website && (
+                          <p className="text-sm text-[#FB6B7A]">
+                            {errors.website}
+                          </p>
+                        )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </AdminPanel>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Contact Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-
+                <AdminPanel className="rounded-[28px]">
+                  <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                    <h2 className="text-lg font-black text-[#020617]">
+                      Contact Information
+                    </h2>
+                  </div>
+                  <div className="space-y-4 pt-5">
                     {/* ── QNAS Address Picker ── */}
-                    <div className="rounded-xl border-2 border-blue-300 bg-blue-600 p-5 space-y-4">
+                    <div className="space-y-4 rounded-[24px] border border-[#E5EAF1] bg-[#F6F8FB] p-4">
                       {/* Header */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-white" />
-                          <span className="text-sm font-bold text-white">Find Qatar Address</span>
+                          <span className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-[#38BDF8]/10 text-[#38BDF8]">
+                            <MapPin className="w-4 h-4" />
+                          </span>
+                          <div>
+                            <span className="block text-sm font-black text-[#020617]">
+                              Find Qatar Address
+                            </span>
+                            <span className="text-xs font-semibold text-[#94A3B8]">
+                              QNAS location lookup
+                            </span>
+                          </div>
                         </div>
                         {qnasLoadingZones && (
-                          <div className="flex items-center gap-1 text-xs text-blue-200">
+                          <div className="flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-bold text-[#38BDF8] ring-1 ring-[#E5EAF1]">
                             <Loader2 className="w-3 h-3 animate-spin" />
-                            Loading zones…
+                            Loading zones...
                           </div>
                         )}
                         {!qnasLoadingZones && qnasZones.length > 0 && (
-                          <span className="text-xs text-blue-200">{qnasZones.length} zones loaded</span>
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[#94A3B8] ring-1 ring-[#E5EAF1]">
+                            {qnasZones.length} zones loaded
+                          </span>
                         )}
                       </div>
 
-                      {/* Zone — searchable combobox */}
+                      {/* Zone - searchable combobox */}
                       <div className="space-y-1">
-                        <Label className="text-sm font-semibold text-white">
-                          Zone | <span className="font-arabic">منطقة</span>
+                        <Label className="text-sm font-black text-[#020617]">
+                          Zone
                         </Label>
-                        <Popover open={qnasZoneOpen} onOpenChange={setQnasZoneOpen}>
+                        <Popover
+                          open={qnasZoneOpen}
+                          onOpenChange={setQnasZoneOpen}
+                        >
                           <PopoverTrigger asChild>
                             <Button
                               variant="outline"
                               role="combobox"
-                              disabled={qnasLoadingZones || qnasZones.length === 0}
-                              className="w-full justify-between bg-white border-blue-300 text-blue-700 font-medium h-10 hover:bg-blue-50"
+                              disabled={
+                                qnasLoadingZones || qnasZones.length === 0
+                              }
+                              className="h-11 w-full justify-between rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-white"
                             >
                               {qnasZone
                                 ? (() => {
-                                    const z = qnasZones.find((z) => z.zone_number === qnasZone);
-                                    return z ? `${z.zone_number} - ${z.zone_name_en}` : qnasZone.toString();
+                                    const z = qnasZones.find(
+                                      (z) => z.zone_number === qnasZone,
+                                    );
+                                    return z
+                                      ? `${z.zone_number} - ${z.zone_name_en}`
+                                      : qnasZone.toString();
                                   })()
                                 : qnasLoadingZones
-                                ? "⏱️ Loading List ..."
-                                : "Select Zone"}
+                                  ? "Loading list..."
+                                  : "Select Zone"}
                               <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-[380px] p-0" align="start">
-                            <Command>
-                              <CommandInput placeholder="Search by zone number or name..." />
-                              <CommandList>
-                                <CommandEmpty>No zones found.</CommandEmpty>
-                                <CommandGroup>
+                          <PopoverContent
+                            className="w-[calc(100vw-32px)] max-w-[380px] overflow-hidden rounded-[22px] border-[#E5EAF1] bg-white p-0 text-[#020617] shadow-[0_18px_44px_rgba(2,6,23,0.12)]"
+                            align="start"
+                          >
+                            <Command className="bg-white text-[#020617]">
+                              <CommandInput
+                                placeholder="Search by zone number or name..."
+                                className="h-12 border-b border-[#E5EAF1] text-sm font-semibold text-[#020617] placeholder:text-[#94A3B8]"
+                              />
+                              <CommandList className="max-h-[280px] p-1">
+                                <CommandEmpty className="py-8 text-center text-sm font-semibold text-[#94A3B8]">
+                                  No zones found.
+                                </CommandEmpty>
+                                <CommandGroup className="p-1">
                                   {qnasZones.map((z) => (
                                     <CommandItem
                                       key={z.zone_number}
                                       value={`${z.zone_number} ${z.zone_name_en} ${z.zone_name_ar}`}
+                                      className="min-h-11 rounded-2xl px-3 font-semibold text-[#020617] data-[selected=true]:bg-[#F6F8FB]"
                                       onSelect={() => {
                                         setQnasZone(z.zone_number);
                                         setQnasStreet(null);
@@ -1587,11 +1951,17 @@ const AdminRestaurantDetail = () => {
                                         setQnasZoneOpen(false);
                                       }}
                                     >
-                                      <span className="font-medium mr-1">{z.zone_number}</span>
+                                      <span className="font-medium mr-1 text-[#020617]">
+                                        {z.zone_number}
+                                      </span>
                                       {" - "}
-                                      <span className="ml-1">{z.zone_name_en}</span>
+                                      <span className="ml-1 text-[#020617]">
+                                        {z.zone_name_en}
+                                      </span>
                                       {z.zone_name_ar && (
-                                        <span className="text-muted-foreground ml-2 text-xs">{z.zone_name_ar}</span>
+                                        <span className="text-[#94A3B8] ml-2 text-xs">
+                                          {z.zone_name_ar}
+                                        </span>
                                       )}
                                     </CommandItem>
                                   ))}
@@ -1604,8 +1974,8 @@ const AdminRestaurantDetail = () => {
 
                       {/* Street */}
                       <div className="space-y-1">
-                        <Label className="text-sm font-semibold text-white">
-                          Street | <span className="font-arabic">شارع</span>
+                        <Label className="text-sm font-black text-[#020617]">
+                          Street
                         </Label>
                         <Select
                           value={qnasStreet?.toString() ?? ""}
@@ -1617,19 +1987,34 @@ const AdminRestaurantDetail = () => {
                           }}
                           disabled={!qnasZone || qnasLoadingStreets}
                         >
-                          <SelectTrigger className="bg-white border-blue-300 text-blue-700 font-medium h-10">
-                            <SelectValue placeholder={
-                              !qnasZone ? "Select Street" :
-                              qnasLoadingStreets ? "⏱️ Loading List ..." : "Select Street"
-                            } />
+                          <SelectTrigger className="h-11 rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617]">
+                            <SelectValue
+                              placeholder={
+                                !qnasZone
+                                  ? "Select Street"
+                                  : qnasLoadingStreets
+                                    ? "Loading list..."
+                                    : "Select Street"
+                              }
+                            />
                           </SelectTrigger>
-                          <SelectContent className="max-h-72">
+                          <SelectContent className="max-h-72 rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                             {qnasStreets.map((s) => (
-                              <SelectItem key={s.street_number} value={s.street_number.toString()}>
-                                <span className="font-medium">{s.street_number}</span>
+                              <SelectItem
+                                key={s.street_number}
+                                value={s.street_number.toString()}
+                              >
+                                <span className="font-medium">
+                                  {s.street_number}
+                                </span>
                                 {" - "}
                                 <span>{s.street_name_en}</span>
-                                {s.street_name_ar && <span className="text-muted-foreground mr-1"> {s.street_name_ar}</span>}
+                                {s.street_name_ar && (
+                                  <span className="text-[#94A3B8] mr-1">
+                                    {" "}
+                                    {s.street_name_ar}
+                                  </span>
+                                )}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -1638,20 +2023,26 @@ const AdminRestaurantDetail = () => {
 
                       {/* Building */}
                       <div className="space-y-1">
-                        <Label className="text-sm font-semibold text-white">
-                          Building Number | <span className="font-arabic">رقم البناية</span>
+                        <Label className="text-sm font-black text-[#020617]">
+                          Building Number
                         </Label>
                         <Select
                           value={qnasBuilding}
                           onValueChange={(v) => {
                             setQnasBuilding(v);
                             // Find lat/lng from the buildings list
-                            const bld = qnasBuildings.find((b) => b.building_number === v);
+                            const bld = qnasBuildings.find(
+                              (b) => b.building_number === v,
+                            );
                             if (bld?.x && bld?.y) {
                               setQnasLat(parseFloat(bld.x));
                               setQnasLng(parseFloat(bld.y));
-                              const zone = qnasZones.find((z) => z.zone_number === qnasZone);
-                              const street = qnasStreets.find((s) => s.street_number === qnasStreet);
+                              const zone = qnasZones.find(
+                                (z) => z.zone_number === qnasZone,
+                              );
+                              const street = qnasStreets.find(
+                                (s) => s.street_number === qnasStreet,
+                              );
                               const composed = [
                                 `Zone ${qnasZone}${zone ? ` - ${zone.zone_name_en}` : ""}`,
                                 `Street ${qnasStreet}${street ? ` - ${street.street_name_en}` : ""}`,
@@ -1663,15 +2054,23 @@ const AdminRestaurantDetail = () => {
                           }}
                           disabled={!qnasStreet || qnasLoadingBuildings}
                         >
-                          <SelectTrigger className="bg-white border-blue-300 text-blue-700 font-medium h-10">
-                            <SelectValue placeholder={
-                              !qnasStreet ? "Select Building" :
-                              qnasLoadingBuildings ? "⏱️ Loading List ..." : "Select Building"
-                            } />
+                          <SelectTrigger className="h-11 rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617]">
+                            <SelectValue
+                              placeholder={
+                                !qnasStreet
+                                  ? "Select Building"
+                                  : qnasLoadingBuildings
+                                    ? "Loading list..."
+                                    : "Select Building"
+                              }
+                            />
                           </SelectTrigger>
-                          <SelectContent className="max-h-72">
+                          <SelectContent className="max-h-72 rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                             {qnasBuildings.map((b) => (
-                              <SelectItem key={b.building_number} value={b.building_number}>
+                              <SelectItem
+                                key={b.building_number}
+                                value={b.building_number}
+                              >
                                 {b.building_number}
                               </SelectItem>
                             ))}
@@ -1681,17 +2080,21 @@ const AdminRestaurantDetail = () => {
 
                       {/* Coordinates + success */}
                       {qnasLat && qnasLng && (
-                        <div className="flex items-center gap-2 bg-blue-500/60 rounded-lg px-3 py-2">
-                          <MapPin className="w-4 h-4 text-green-300 shrink-0" />
-                          <span className="text-xs text-green-200 font-medium">
-                            Location found — {qnasLat.toFixed(6)}, {qnasLng.toFixed(6)}
+                        <div className="flex items-center gap-2 rounded-2xl border border-[#22C7A1]/20 bg-[#22C7A1]/10 px-3 py-2">
+                          <MapPin className="w-4 h-4 text-[#22C7A1] shrink-0" />
+                          <span className="text-xs font-black text-[#22C7A1]">
+                            Location found - {qnasLat.toFixed(6)},{" "}
+                            {qnasLng.toFixed(6)}
                           </span>
                         </div>
                       )}
 
                       {/* Map preview */}
                       {qnasLat && qnasLng && (
-                        <div className="rounded-lg overflow-hidden border-2 border-blue-400" style={{ height: 240 }}>
+                        <div
+                          className="overflow-hidden rounded-[22px] border border-[#E5EAF1]"
+                          style={{ height: 240 }}
+                        >
                           <iframe
                             title="Restaurant location"
                             width="100%"
@@ -1709,16 +2112,28 @@ const AdminRestaurantDetail = () => {
                       <Label htmlFor="address">
                         <MapPin className="w-4 h-4 inline mr-1" />
                         Address
-                        <span className="text-xs text-muted-foreground ml-2">Auto-filled by QNAS or enter manually</span>
+                        <span className="text-xs text-[#94A3B8] ml-2">
+                          Auto-filled by QNAS or enter manually
+                        </span>
                       </Label>
                       <Textarea
                         id="address"
                         value={formData.address || ""}
-                        onChange={(e) => handleInputChange("address", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("address", e.target.value)
+                        }
                         rows={2}
-                        className={errors.address ? "border-red-500" : ""}
+                        className={cn(
+                          detailInputClass,
+                          "min-h-20",
+                          errors.address && "border-[#FB6B7A] bg-[#FB6B7A]/10",
+                        )}
                       />
-                      {errors.address && <p className="text-sm text-red-500">{errors.address}</p>}
+                      {errors.address && (
+                        <p className="text-sm text-[#FB6B7A]">
+                          {errors.address}
+                        </p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1731,10 +2146,19 @@ const AdminRestaurantDetail = () => {
                           id="email"
                           type="email"
                           value={formData.email || ""}
-                          onChange={(e) => handleInputChange("email", e.target.value)}
-                          className={errors.email ? "border-red-500" : ""}
+                          onChange={(e) =>
+                            handleInputChange("email", e.target.value)
+                          }
+                          className={cn(
+                            detailInputClass,
+                            errors.email && "border-[#FB6B7A] bg-[#FB6B7A]/10",
+                          )}
                         />
-                        {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
+                        {errors.email && (
+                          <p className="text-sm text-[#FB6B7A]">
+                            {errors.email}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -1745,23 +2169,36 @@ const AdminRestaurantDetail = () => {
                         <Input
                           id="phone"
                           value={formData.phone || ""}
-                          onChange={(e) => handleInputChange("phone", e.target.value)}
-                          className={errors.phone ? "border-red-500" : ""}
+                          onChange={(e) =>
+                            handleInputChange("phone", e.target.value)
+                          }
+                          className={cn(
+                            detailInputClass,
+                            errors.phone && "border-[#FB6B7A] bg-[#FB6B7A]/10",
+                          )}
                         />
-                        {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
+                        {errors.phone && (
+                          <p className="text-sm text-[#FB6B7A]">
+                            {errors.phone}
+                          </p>
+                        )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </AdminPanel>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Business Settings</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+                <AdminPanel className="rounded-[28px]">
+                  <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                    <h2 className="text-lg font-black text-[#020617]">
+                      Business Settings
+                    </h2>
+                  </div>
+                  <div className="space-y-4 pt-5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="commission_rate">Platform Commission (%) *</Label>
+                        <Label htmlFor="commission_rate">
+                          Platform Commission (%) *
+                        </Label>
                         <Input
                           id="commission_rate"
                           type="number"
@@ -1769,38 +2206,76 @@ const AdminRestaurantDetail = () => {
                           max="100"
                           step="0.1"
                           value={formData.commission_rate}
-                          onChange={(e) => handleInputChange("commission_rate", parseFloat(e.target.value))}
-                          className={errors.commission_rate ? "border-red-500" : ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              "commission_rate",
+                              parseFloat(e.target.value),
+                            )
+                          }
+                          className={cn(
+                            detailInputClass,
+                            errors.commission_rate &&
+                              "border-[#FB6B7A] bg-[#FB6B7A]/10",
+                          )}
                         />
-                        {errors.commission_rate && <p className="text-sm text-red-500">{errors.commission_rate}</p>}
-                        <p className="text-xs text-muted-foreground">% Nutrio takes from each meal sale</p>
+                        {errors.commission_rate && (
+                          <p className="text-sm text-[#FB6B7A]">
+                            {errors.commission_rate}
+                          </p>
+                        )}
+                        <p className="text-xs text-[#94A3B8]">
+                          % Nutrio takes from each meal sale
+                        </p>
                       </div>
 
                       {/* Commission preview */}
                       {formData.commission_rate >= 0 && (
-                        <div className="sm:col-span-2 rounded-xl bg-muted/60 border p-4 grid grid-cols-2 gap-3 text-center">
+                        <div className="grid grid-cols-2 gap-3 rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] p-4 text-center sm:col-span-2">
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">Platform Takes</p>
-                            <p className="text-lg font-bold text-destructive">{formData.commission_rate}%</p>
+                            <p className="mb-1 text-xs font-bold text-[#94A3B8]">
+                              Platform Takes
+                            </p>
+                            <p className="text-lg font-black text-[#FB6B7A]">
+                              {formData.commission_rate}%
+                            </p>
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">Restaurant Earns</p>
-                            <p className="text-lg font-bold text-emerald-600">{(100 - formData.commission_rate).toFixed(1)}%</p>
+                            <p className="mb-1 text-xs font-bold text-[#94A3B8]">
+                              Restaurant Earns
+                            </p>
+                            <p className="text-lg font-black text-[#22C7A1]">
+                              {(100 - formData.commission_rate).toFixed(1)}%
+                            </p>
                           </div>
                         </div>
                       )}
 
                       <div className="space-y-2">
-                        <Label htmlFor="max_meals_per_day">Max Meals Per Day</Label>
+                        <Label htmlFor="max_meals_per_day">
+                          Max Meals Per Day
+                        </Label>
                         <Input
                           id="max_meals_per_day"
                           type="number"
                           min="1"
                           value={formData.max_meals_per_day || ""}
-                          onChange={(e) => handleInputChange("max_meals_per_day", e.target.value ? parseInt(e.target.value) : null)}
-                          className={errors.max_meals_per_day ? "border-red-500" : ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              "max_meals_per_day",
+                              e.target.value ? parseInt(e.target.value) : null,
+                            )
+                          }
+                          className={cn(
+                            detailInputClass,
+                            errors.max_meals_per_day &&
+                              "border-[#FB6B7A] bg-[#FB6B7A]/10",
+                          )}
                         />
-                        {errors.max_meals_per_day && <p className="text-sm text-red-500">{errors.max_meals_per_day}</p>}
+                        {errors.max_meals_per_day && (
+                          <p className="text-sm text-[#FB6B7A]">
+                            {errors.max_meals_per_day}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1809,12 +2284,17 @@ const AdminRestaurantDetail = () => {
                         <Label htmlFor="approval_status">Approval Status</Label>
                         <Select
                           value={formData.approval_status}
-                          onValueChange={(value: string) => handleInputChange("approval_status", value as "pending" | "approved" | "rejected")}
+                          onValueChange={(value: string) =>
+                            handleInputChange(
+                              "approval_status",
+                              value as "pending" | "approved" | "rejected",
+                            )
+                          }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-black text-[#020617]">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                             <SelectItem value="pending">Pending</SelectItem>
                             <SelectItem value="approved">Approved</SelectItem>
                             <SelectItem value="rejected">Rejected</SelectItem>
@@ -1826,31 +2306,35 @@ const AdminRestaurantDetail = () => {
                         <Label htmlFor="is_active">Account Status</Label>
                         <Select
                           value={formData.is_active ? "true" : "false"}
-                          onValueChange={(value) => handleInputChange("is_active", value === "true")}
+                          onValueChange={(value) =>
+                            handleInputChange("is_active", value === "true")
+                          }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="h-11 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-black text-[#020617]">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                             <SelectItem value="true">Active</SelectItem>
                             <SelectItem value="false">Inactive</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </AdminPanel>
 
                 {/* Banking Details */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                <AdminPanel className="rounded-[28px]">
+                  <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                    <h2 className="flex items-center gap-2 text-lg font-black text-[#020617]">
                       <CreditCard className="w-5 h-5" />
                       Banking Details
-                    </CardTitle>
-                    <CardDescription>Secure banking information for payouts</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                      Only masked payout information is loaded in this browser
+                    </p>
+                  </div>
+                  <div className="space-y-4 pt-5">
                     {restaurantDetails ? (
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1859,18 +2343,21 @@ const AdminRestaurantDetail = () => {
                               <Building2 className="w-4 h-4" />
                               Bank Name
                             </Label>
-                            <div className="p-3 bg-muted rounded-lg flex items-center justify-between">
-                              <span>{restaurantDetails.bank_name || "Not set"}</span>
-                              {restaurantDetails.bank_name_encrypted && (
-                                <Shield className="w-4 h-4 text-emerald-500" />
+                            <div className="flex items-center justify-between rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3 font-bold text-[#020617]">
+                              <span>
+                                {restaurantDetails.bank_name_masked || "Not set"}
+                              </span>
+                              {restaurantDetails.is_configured && (
+                                <Shield className="w-4 h-4 text-[#22C7A1]" />
                               )}
                             </div>
                           </div>
 
                           <div className="space-y-2">
                             <Label>Account Name</Label>
-                            <div className="p-3 bg-muted rounded-lg">
-                              {restaurantDetails.bank_account_name || "Not set"}
+                            <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3 font-bold text-[#020617]">
+                              {restaurantDetails.bank_account_name_masked ||
+                                "Not set"}
                             </div>
                           </div>
                         </div>
@@ -1881,162 +2368,196 @@ const AdminRestaurantDetail = () => {
                               <Shield className="w-4 h-4" />
                               Account Number
                             </Label>
-                            <div className="p-3 bg-muted rounded-lg font-mono">
-                              {restaurantDetails.bank_account_number 
-                                ? `****${restaurantDetails.bank_account_number.slice(-4)}`
-                                : "Not set"}
+                            <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3 font-mono font-bold text-[#020617]">
+                              {restaurantDetails.bank_account_number_masked ||
+                                "Not set"}
                             </div>
                           </div>
 
                           <div className="space-y-2">
                             <Label>IBAN</Label>
-                            <div className="p-3 bg-muted rounded-lg font-mono">
-                              {restaurantDetails.bank_iban 
-                                ? `****${restaurantDetails.bank_iban.slice(-4)}`
-                                : "Not set"}
+                            <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3 font-mono font-bold text-[#020617]">
+                              {restaurantDetails.bank_iban_masked || "Not set"}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Shield className="w-4 h-4 text-emerald-500" />
-                          <span>Banking information is encrypted and secure</span>
+                        <div className="flex items-center gap-2 rounded-2xl bg-[#22C7A1]/10 px-3 py-2 text-sm font-bold text-[#22C7A1]">
+                          <Shield className="w-4 h-4 text-[#22C7A1]" />
+                          <span>
+                            Banking information is encrypted and secure
+                          </span>
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-muted-foreground">
+                      <div className="rounded-[22px] border border-[#E5EAF1] bg-[#F6F8FB] px-4 py-8 text-center text-[#94A3B8]">
                         <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
                         <p>No banking details available</p>
-                        <p className="text-sm">Banking information can be set by the restaurant owner</p>
+                        <p className="text-sm">
+                          Banking information can be set by the restaurant owner
+                        </p>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </AdminPanel>
               </div>
 
               {/* Sidebar */}
               <div className="space-y-6">
-                <Card>
-                  <CardHeader>
+                <AdminPanel className="rounded-[28px]">
+                  <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
+                      <h2 className="flex items-center gap-2 text-lg font-black text-[#020617]">
                         <Shield className="w-4 h-4" />
                         Owner / Login Access
-                      </CardTitle>
+                      </h2>
                       <Button
-                        size="sm"
                         variant="outline"
-                        className="gap-1 text-xs"
-                        onClick={() => { setOwnerDialogOpen(true); setOwnerCreated(null); }}
+                        className="min-h-[44px] rounded-[16px] border-[#E5EAF1] bg-white px-3 text-xs font-black text-[#020617] hover:bg-[#F6F8FB]"
+                        onClick={() => {
+                          setOwnerDialogOpen(true);
+                          setOwnerCreated(null);
+                        }}
                       >
                         <UserPlus className="w-3 h-3" />
                         {restaurant.owner ? "Change Owner" : "Create Account"}
                       </Button>
                     </div>
-                  </CardHeader>
-                  <CardContent>
+                  </div>
+                  <div className="pt-4">
                     {restaurant.owner ? (
                       <div className="space-y-3">
-                        <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
-                          <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
-                            <Users className="w-4 h-4 text-emerald-600" />
+                        <div className="flex items-center gap-3 rounded-2xl border border-[#22C7A1]/20 bg-[#22C7A1]/10 p-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#22C7A1]">
+                            <Users className="w-4 h-4" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium">{restaurant.owner.full_name || "Unnamed Owner"}</p>
-                            <p className="text-xs text-muted-foreground">{restaurant.owner.email}</p>
+                            <p className="text-sm font-medium">
+                              {restaurant.owner.full_name || "Unnamed Owner"}
+                            </p>
+                            <p className="text-xs text-[#94A3B8]">
+                              {restaurant.owner.email}
+                            </p>
                           </div>
                         </div>
-                        <p className="text-xs text-emerald-600 flex items-center gap-1">
-                          <CheckCheck className="w-3 h-3" /> Can log in at /partner/auth
+                        <p className="flex items-center gap-1 text-xs font-black text-[#22C7A1]">
+                          <CheckCheck className="w-3 h-3" /> Can log in at
+                          /partner/auth
                         </p>
                         <Button
                           variant="outline"
-                          className="w-full text-xs h-8"
-                          onClick={() => navigate(`/admin/users?search=${restaurant.owner?.email}`)}
+                          className="min-h-[44px] w-full rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
+                          onClick={() =>
+                            navigate(
+                              `/admin/users?search=${restaurant.owner?.email}`,
+                            )
+                          }
                         >
                           View in Users Panel
                         </Button>
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                        <div className="flex items-center gap-3 rounded-2xl border border-[#F97316]/20 bg-[#F97316]/10 p-3">
+                          <AlertTriangle className="w-4 h-4 text-[#F97316] shrink-0" />
                           <div>
-                            <p className="text-sm font-medium text-amber-700">No login account</p>
-                            <p className="text-xs text-amber-600">The restaurant owner cannot log in yet.</p>
+                            <p className="text-sm font-black text-[#020617]">
+                              No login account
+                            </p>
+                            <p className="text-xs font-bold text-[#F97316]">
+                              The restaurant owner cannot log in yet.
+                            </p>
                           </div>
                         </div>
                         <Button
-                          className="w-full gap-2"
-                          onClick={() => { setOwnerDialogOpen(true); setOwnerCreated(null); }}
+                          variant="outline"
+                          className="min-h-[44px] w-full rounded-[16px] border-[#7C83F6]/30 bg-[#7C83F6]/10 font-black text-[#020617] hover:bg-[#7C83F6]/15"
+                          onClick={() => {
+                            setOwnerDialogOpen(true);
+                            setOwnerCreated(null);
+                          }}
                         >
                           <UserPlus className="w-4 h-4" />
                           Create Owner Account
                         </Button>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </AdminPanel>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Actions</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
+                <AdminPanel className="rounded-[28px]">
+                  <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                    <h2 className="text-lg font-black text-[#020617]">
+                      Actions
+                    </h2>
+                  </div>
+                  <div className="space-y-2 pt-4">
+                    <Button
+                      variant="outline"
+                      className="min-h-[44px] w-full justify-start rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
                       onClick={() => navigate(`/restaurant/${restaurant.id}`)}
                     >
                       <Globe className="w-4 h-4 mr-2" />
                       View Public Page
                     </Button>
                     {restaurant.email && (
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-start"
-                        onClick={() => window.location.href = `mailto:${restaurant.email}`}
+                      <Button
+                        variant="outline"
+                        className="min-h-[44px] w-full justify-start rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
+                        onClick={() =>
+                          (window.location.href = `mailto:${restaurant.email}`)
+                        }
                       >
                         <Mail className="w-4 h-4 mr-2" />
                         Send Email
                       </Button>
                     )}
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
+                    <Button
+                      variant="outline"
+                      className="min-h-[44px] w-full justify-start rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617] hover:bg-[#F6F8FB]"
                       onClick={exportToCSV}
                     >
                       <FileSpreadsheet className="w-4 h-4 mr-2" />
                       Export Data (CSV)
                     </Button>
-                  </CardContent>
-                </Card>
+                  </div>
+                </AdminPanel>
 
                 {/* Audit Log */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                <AdminPanel className="rounded-[28px]">
+                  <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                    <h2 className="flex items-center gap-2 text-lg font-black text-[#020617]">
                       <History className="w-5 h-5" />
                       Recent Changes
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
+                    </h2>
+                  </div>
+                  <div className="pt-4">
                     {auditLog.length > 0 ? (
                       <div className="space-y-3 max-h-64 overflow-y-auto">
                         {auditLog.slice(0, 10).map((entry) => (
-                          <div key={entry.id} className="text-sm border-l-2 border-primary pl-3 py-1">
-                            <p className="font-medium capitalize">{entry.field} updated</p>
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(entry.timestamp), "MMM d, h:mm a")}
+                          <div
+                            key={entry.id}
+                            className="text-sm border-l-2 border-[#22C7A1] pl-3 py-1"
+                          >
+                            <p className="font-medium capitalize">
+                              {entry.field} updated
+                            </p>
+                            <p className="text-xs text-[#94A3B8]">
+                              {format(
+                                new Date(entry.timestamp),
+                                "MMM d, h:mm a",
+                              )}
                             </p>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No recent changes</p>
+                      <p className="text-sm text-[#94A3B8]">
+                        No recent changes
+                      </p>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </AdminPanel>
               </div>
             </div>
           </TabsContent>
@@ -2045,56 +2566,78 @@ const AdminRestaurantDetail = () => {
           <TabsContent value="analytics" className="space-y-6">
             {analyticsLoading ? (
               <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <Loader2 className="w-8 h-8 animate-spin text-[#22C7A1]" />
               </div>
             ) : (
               <>
                 {/* Revenue Chart */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Revenue & Orders (Last 30 Days)</CardTitle>
-                    <CardDescription>Daily revenue and order volume trends</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+                <AdminPanel className="rounded-[28px]">
+                  <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                    <h2 className="text-lg font-black text-[#020617]">
+                      Revenue & Orders (Last 30 Days)
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                      Daily revenue and order volume trends
+                    </p>
+                  </div>
+                  <div className="pt-5">
                     <div className="h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={revenueData}>
                           <defs>
-                            <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                            <linearGradient
+                              id="colorRevenue"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="5%"
+                                stopColor="#22C7A1"
+                                stopOpacity={0.3}
+                              />
+                              <stop
+                                offset="95%"
+                                stopColor="#22C7A1"
+                                stopOpacity={0}
+                              />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                          <XAxis 
-                            dataKey="date" 
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="#E5EAF1"
+                          />
+                          <XAxis
+                            dataKey="date"
                             tick={{ fontSize: 12 }}
                             tickLine={false}
                           />
-                          <YAxis 
+                          <YAxis
                             yAxisId="left"
                             tick={{ fontSize: 12 }}
                             tickLine={false}
                             tickFormatter={(value) => `QAR ${value}`}
                           />
-                          <YAxis 
+                          <YAxis
                             yAxisId="right"
                             orientation="right"
                             tick={{ fontSize: 12 }}
                             tickLine={false}
                           />
-                          <Tooltip 
-                            contentStyle={{ 
-                              backgroundColor: "hsl(var(--card))",
-                              border: "1px solid hsl(var(--border))",
-                              borderRadius: "8px"
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "white",
+                              border: "1px solid #E5EAF1",
+                              borderRadius: "16px",
+                              color: "#020617",
                             }}
                           />
                           <Area
                             yAxisId="left"
                             type="monotone"
                             dataKey="revenue"
-                            stroke="#22c55e"
+                            stroke="#22C7A1"
                             fillOpacity={1}
                             fill="url(#colorRevenue)"
                             name="Revenue (QAR)"
@@ -2103,85 +2646,121 @@ const AdminRestaurantDetail = () => {
                             yAxisId="right"
                             type="monotone"
                             dataKey="orders"
-                            stroke="#3b82f6"
+                            stroke="#38BDF8"
                             strokeWidth={2}
-                            dot={{ fill: "#3b82f6", r: 3 }}
+                            dot={{ fill: "#38BDF8", r: 3 }}
                             name="Orders"
                           />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </AdminPanel>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Average Order Value */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Average Order Value Trend</CardTitle>
-                      <CardDescription>Revenue per order over time</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                  <AdminPanel className="rounded-[28px]">
+                    <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                      <h2 className="text-lg font-black text-[#020617]">
+                        Average Order Value Trend
+                      </h2>
+                      <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                        Revenue per order over time
+                      </p>
+                    </div>
+                    <div className="pt-5">
                       <div className="h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={revenueData.map(d => ({
-                            ...d,
-                            aov: d.orders > 0 ? Math.round(d.revenue / d.orders) : 0
-                          }))}>
-                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                            <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} />
-                            <YAxis tick={{ fontSize: 12 }} tickLine={false} tickFormatter={(value) => `QAR ${value}`} />
-                            <Tooltip 
-                              contentStyle={{ 
-                                backgroundColor: "hsl(var(--card))",
-                                border: "1px solid hsl(var(--border))",
-                                borderRadius: "8px"
+                          <LineChart
+                            data={revenueData.map((d) => ({
+                              ...d,
+                              aov:
+                                d.orders > 0
+                                  ? Math.round(d.revenue / d.orders)
+                                  : 0,
+                            }))}
+                          >
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="#E5EAF1"
+                            />
+                            <XAxis
+                              dataKey="date"
+                              tick={{ fontSize: 12 }}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              tick={{ fontSize: 12 }}
+                              tickLine={false}
+                              tickFormatter={(value) => `QAR ${value}`}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "white",
+                                border: "1px solid #E5EAF1",
+                                borderRadius: "16px",
+                                color: "#020617",
                               }}
                             />
                             <Line
                               type="monotone"
                               dataKey="aov"
-                              stroke="#8b5cf6"
+                              stroke="#7C83F6"
                               strokeWidth={2}
-                              dot={{ fill: "#8b5cf6", r: 3 }}
+                              dot={{ fill: "#7C83F6", r: 3 }}
                               name="Avg Order Value"
                             />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </AdminPanel>
 
                   {/* Rating Distribution */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Customer Ratings Distribution</CardTitle>
-                      <CardDescription>Breakdown of review ratings</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                  <AdminPanel className="rounded-[28px]">
+                    <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                      <h2 className="text-lg font-black text-[#020617]">
+                        Customer Ratings Distribution
+                      </h2>
+                      <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                        Breakdown of review ratings
+                      </p>
+                    </div>
+                    <div className="pt-5">
                       <div className="h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={ratingDistribution}>
-                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                            <XAxis dataKey="rating" tick={{ fontSize: 12 }} tickLine={false} />
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="#E5EAF1"
+                            />
+                            <XAxis
+                              dataKey="rating"
+                              tick={{ fontSize: 12 }}
+                              tickLine={false}
+                            />
                             <YAxis tick={{ fontSize: 12 }} tickLine={false} />
-                            <Tooltip 
-                              contentStyle={{ 
-                                backgroundColor: "hsl(var(--card))",
-                                border: "1px solid hsl(var(--border))",
-                                borderRadius: "8px"
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "white",
+                                border: "1px solid #E5EAF1",
+                                borderRadius: "16px",
+                                color: "#020617",
                               }}
                             />
                             <Bar dataKey="count" name="Reviews">
                               {ratingDistribution.map((_entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={COLORS[index % COLORS.length]}
+                                />
                               ))}
                             </Bar>
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </AdminPanel>
                 </div>
               </>
             )}
@@ -2189,16 +2768,20 @@ const AdminRestaurantDetail = () => {
 
           {/* Orders Tab */}
           <TabsContent value="orders" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Order History</CardTitle>
-                <CardDescription>View and manage orders for this restaurant</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <AdminPanel className="rounded-[28px]">
+              <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                <h2 className="text-lg font-black text-[#020617]">
+                  Order History
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                  View and manage orders for this restaurant
+                </p>
+              </div>
+              <div className="space-y-4 pt-5">
                 {/* Filters */}
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
                     <Input
                       placeholder="Search by meal or customer..."
                       value={orderSearch}
@@ -2206,18 +2789,25 @@ const AdminRestaurantDetail = () => {
                       className="pl-10"
                     />
                   </div>
-                  <Select value={orderFilter} onValueChange={(v) => setOrderFilter(v as OrderStatus | "all")}>
-                    <SelectTrigger className="w-[180px]">
+                  <Select
+                    value={orderFilter}
+                    onValueChange={(v) =>
+                      setOrderFilter(v as OrderStatus | "all")
+                    }
+                  >
+                    <SelectTrigger className="h-11 w-full rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-black text-[#020617] sm:w-[180px]">
                       <Filter className="w-4 h-4 mr-2" />
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                       <SelectItem value="all">All Statuses</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="confirmed">Confirmed</SelectItem>
                       <SelectItem value="preparing">Preparing</SelectItem>
                       <SelectItem value="ready">Ready</SelectItem>
-                      <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+                      <SelectItem value="out_for_delivery">
+                        Out for Delivery
+                      </SelectItem>
                       <SelectItem value="delivered">Delivered</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -2226,17 +2816,98 @@ const AdminRestaurantDetail = () => {
                 </div>
 
                 {/* Orders Table */}
-                <div className="border rounded-lg">
+                <div className="grid gap-3 md:hidden">
+                  {ordersLoading ? (
+                    <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-8 text-center">
+                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-[#22C7A1]" />
+                    </div>
+                  ) : paginatedOrders.length === 0 ? (
+                    <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-8 text-center text-[#94A3B8]">
+                      <Package className="mx-auto mb-2 h-10 w-10 opacity-50" />
+                      <p className="font-black text-[#020617]">
+                        No orders found
+                      </p>
+                      <p className="text-sm">Try adjusting your filters</p>
+                    </div>
+                  ) : (
+                    paginatedOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_30px_rgba(2,6,23,0.05)]"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-base font-black text-[#020617]">
+                              {order.meal.name}
+                            </p>
+                            <p className="mt-1 text-xs font-semibold text-[#94A3B8]">
+                              #{order.id.slice(0, 8)} -{" "}
+                              {order.profile?.full_name || "Guest"}
+                            </p>
+                          </div>
+                          {getOrderStatusBadge(order.order_status)}
+                        </div>
+                        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Price
+                            </p>
+                            <p className="mt-1 text-sm font-black text-[#22C7A1]">
+                              {formatCurrency(order.meal.price)}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Scheduled
+                            </p>
+                            <p className="mt-1 text-sm font-black text-[#020617]">
+                              {format(
+                                new Date(order.scheduled_date),
+                                "MMM d, yyyy",
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="mt-3 min-h-[44px] w-full rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617]"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setOrderDetailOpen(true);
+                          }}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View order
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="hidden overflow-hidden rounded-[22px] border border-[#E5EAF1] md:block">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Order ID</TableHead>
-                        <TableHead>Meal</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Scheduled</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="w-20">Actions</TableHead>
+                    <TableHeader className="bg-[#F6F8FB]">
+                      <TableRow className="border-[#E5EAF1] hover:bg-[#F6F8FB]">
+                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Order ID
+                        </TableHead>
+                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Meal
+                        </TableHead>
+                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Customer
+                        </TableHead>
+                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Price
+                        </TableHead>
+                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Scheduled
+                        </TableHead>
+                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Status
+                        </TableHead>
+                        <TableHead className="w-20 text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Actions
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2248,23 +2919,44 @@ const AdminRestaurantDetail = () => {
                         </TableRow>
                       ) : paginatedOrders.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          <TableCell
+                            colSpan={7}
+                            className="text-center py-8 text-[#94A3B8]"
+                          >
                             <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
                             <p>No orders found</p>
-                            <p className="text-sm">Try adjusting your filters</p>
+                            <p className="text-sm">
+                              Try adjusting your filters
+                            </p>
                           </TableCell>
                         </TableRow>
                       ) : (
                         paginatedOrders.map((order) => (
-                          <TableRow key={order.id}>
-                            <TableCell className="font-mono text-xs">
+                          <TableRow
+                            key={order.id}
+                            className="border-[#E5EAF1] transition-colors hover:bg-[#F6F8FB]/70"
+                          >
+                            <TableCell className="font-mono text-xs font-black text-[#020617]">
                               {order.id.slice(0, 8)}...
                             </TableCell>
-                            <TableCell>{order.meal.name}</TableCell>
-                            <TableCell>{order.profile?.full_name || "Guest"}</TableCell>
-                            <TableCell>{formatCurrency(order.meal.price)}</TableCell>
-                            <TableCell>{format(new Date(order.scheduled_date), "MMM d, yyyy")}</TableCell>
-                            <TableCell>{getOrderStatusBadge(order.order_status)}</TableCell>
+                            <TableCell className="font-black text-[#020617]">
+                              {order.meal.name}
+                            </TableCell>
+                            <TableCell className="font-semibold text-[#020617]">
+                              {order.profile?.full_name || "Guest"}
+                            </TableCell>
+                            <TableCell className="font-black text-[#22C7A1]">
+                              {formatCurrency(order.meal.price)}
+                            </TableCell>
+                            <TableCell className="font-semibold text-[#94A3B8]">
+                              {format(
+                                new Date(order.scheduled_date),
+                                "MMM d, yyyy",
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {getOrderStatusBadge(order.order_status)}
+                            </TableCell>
                             <TableCell>
                               <Button
                                 variant="ghost"
@@ -2273,6 +2965,8 @@ const AdminRestaurantDetail = () => {
                                   setSelectedOrder(order);
                                   setOrderDetailOpen(true);
                                 }}
+                                className="h-11 w-11 rounded-2xl text-[#020617] hover:bg-[#F6F8FB]"
+                                aria-label={`View order ${order.id.slice(0, 8)}`}
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
@@ -2287,15 +2981,22 @@ const AdminRestaurantDetail = () => {
                 {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Showing {((orderPage - 1) * ordersPerPage) + 1} to {Math.min(orderPage * ordersPerPage, filteredOrders.length)} of {filteredOrders.length} orders
+                    <p className="text-sm text-[#94A3B8]">
+                      Showing {(orderPage - 1) * ordersPerPage + 1} to{" "}
+                      {Math.min(
+                        orderPage * ordersPerPage,
+                        filteredOrders.length,
+                      )}{" "}
+                      of {filteredOrders.length} orders
                     </p>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
-                        size="sm"
-                        onClick={() => setOrderPage(p => Math.max(1, p - 1))}
+                        size="icon"
+                        onClick={() => setOrderPage((p) => Math.max(1, p - 1))}
                         disabled={orderPage === 1}
+                        className="h-11 w-11 rounded-2xl border-[#E5EAF1] bg-white text-[#020617]"
+                        aria-label="Previous orders page"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
@@ -2304,59 +3005,93 @@ const AdminRestaurantDetail = () => {
                       </span>
                       <Button
                         variant="outline"
-                        size="sm"
-                        onClick={() => setOrderPage(p => Math.min(totalPages, p + 1))}
+                        size="icon"
+                        onClick={() =>
+                          setOrderPage((p) => Math.min(totalPages, p + 1))
+                        }
                         disabled={orderPage === totalPages}
+                        className="h-11 w-11 rounded-2xl border-[#E5EAF1] bg-white text-[#020617]"
+                        aria-label="Next orders page"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </AdminPanel>
 
             {/* Order Detail Dialog */}
             <Dialog open={orderDetailOpen} onOpenChange={setOrderDetailOpen}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Order Details</DialogTitle>
-                  <DialogDescription>
+              <AdminDialogContent size="md">
+                <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
+                  <DialogTitle className="text-xl font-black text-[#020617]">
+                    Order Details
+                  </DialogTitle>
+                  <DialogDescription className="font-semibold text-[#94A3B8]">
                     Order ID: {selectedOrder?.id}
                   </DialogDescription>
                 </DialogHeader>
                 {selectedOrder && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Meal</p>
-                        <p className="font-medium">{selectedOrder.meal.name}</p>
+                  <div className="space-y-4 p-5">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Meal
+                        </p>
+                        <p className="mt-1 font-black text-[#020617]">
+                          {selectedOrder.meal.name}
+                        </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Price</p>
-                        <p className="font-medium">{formatCurrency(selectedOrder.meal.price)}</p>
+                      <div className="rounded-[18px] bg-[#22C7A1]/10 p-3 ring-1 ring-[#22C7A1]/20">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">
+                          Price
+                        </p>
+                        <p className="mt-1 font-black text-[#020617]">
+                          {formatCurrency(selectedOrder.meal.price)}
+                        </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Customer</p>
-                        <p className="font-medium">{selectedOrder.profile?.full_name || "Guest"}</p>
+                      <div className="rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Customer
+                        </p>
+                        <p className="mt-1 font-black text-[#020617]">
+                          {selectedOrder.profile?.full_name || "Guest"}
+                        </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Meal Type</p>
-                        <p className="font-medium capitalize">{selectedOrder.meal_type}</p>
+                      <div className="rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Meal Type
+                        </p>
+                        <p className="mt-1 font-black capitalize text-[#020617]">
+                          {selectedOrder.meal_type}
+                        </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Scheduled Date</p>
-                        <p className="font-medium">{format(new Date(selectedOrder.scheduled_date), "MMM d, yyyy")}</p>
+                      <div className="rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Scheduled Date
+                        </p>
+                        <p className="mt-1 font-black text-[#020617]">
+                          {format(
+                            new Date(selectedOrder.scheduled_date),
+                            "MMM d, yyyy",
+                          )}
+                        </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Status</p>
+                      <div className="rounded-[18px] bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          Status
+                        </p>
                         {getOrderStatusBadge(selectedOrder.order_status)}
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-4">
+                    <div className="flex gap-2 pt-1">
                       <Button
-                        className="flex-1"
-                        onClick={() => navigate(`/admin/orders?id=${selectedOrder.id}`)}
+                        variant="outline"
+                        className="min-h-[48px] flex-1 rounded-[16px] border-[#38BDF8]/30 bg-[#38BDF8]/10 font-black text-[#020617] hover:bg-[#38BDF8]/15"
+                        onClick={() =>
+                          navigate(`/admin/orders?id=${selectedOrder.id}`)
+                        }
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         View Full Details
@@ -2364,152 +3099,299 @@ const AdminRestaurantDetail = () => {
                     </div>
                   </div>
                 )}
-              </DialogContent>
+              </AdminDialogContent>
             </Dialog>
           </TabsContent>
-
 
           {/* Payouts Tab */}
           <TabsContent value="payouts" className="space-y-6">
             {/* Bank Account Summary */}
             {restaurantDetails && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
+              <AdminPanel className="rounded-[28px]">
+                <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                  <h2 className="flex items-center gap-2 text-base font-black text-[#020617]">
                     <CreditCard className="w-4 h-4" />
                     Bank Account on File
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                  </h2>
+                </div>
+                <div className="pt-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
                     {[
-                      { label: "Bank", value: restaurantDetails.bank_name },
-                      { label: "Account Holder", value: restaurantDetails.bank_account_name },
+                      {
+                        label: "Bank",
+                        value: restaurantDetails.bank_name_masked,
+                      },
+                      {
+                        label: "Account Holder",
+                        value: restaurantDetails.bank_account_name_masked,
+                      },
                       {
                         label: "Account Number",
-                        value: restaurantDetails.bank_account_number
-                          ? "••••" + restaurantDetails.bank_account_number.slice(-4)
-                          : null,
+                        value: restaurantDetails.bank_account_number_masked,
                       },
                       {
                         label: "IBAN",
-                        value: restaurantDetails.bank_iban
-                          ? "••••" + restaurantDetails.bank_iban.slice(-4)
-                          : null,
+                        value: restaurantDetails.bank_iban_masked,
                       },
-                      { label: "SWIFT", value: restaurantDetails.swift_code },
+                      {
+                        label: "SWIFT",
+                        value: restaurantDetails.swift_code_masked,
+                      },
                     ].map(({ label, value }) => (
                       <div key={label} className="flex items-center gap-2">
-                        <span className="text-muted-foreground w-36 shrink-0">{label}</span>
-                        <span className={value ? "font-medium" : "text-muted-foreground italic"}>
+                        <span className="text-[#94A3B8] w-36 shrink-0">
+                          {label}
+                        </span>
+                        <span
+                          className={
+                            value ? "font-medium" : "text-[#94A3B8] italic"
+                          }
+                        >
                           {value || "Not set"}
                         </span>
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </AdminPanel>
             )}
 
             {/* Payout History */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Payout Request History</CardTitle>
-                <CardDescription>All partner-initiated payout requests for this restaurant</CardDescription>
-              </CardHeader>
-              <CardContent>
+            <AdminPanel className="rounded-[28px]">
+              <div className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
+                <h2 className="text-base font-black text-[#020617]">
+                  Payout Request History
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-[#94A3B8]">
+                  All partner-initiated payout requests for this restaurant
+                </p>
+              </div>
+              <div className="pt-5">
                 {payoutsLoading ? (
                   <div className="flex items-center justify-center h-32">
                     <Loader2 className="w-6 h-6 animate-spin" />
                   </div>
                 ) : restaurantPayouts.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
+                  <div className="text-center py-8 text-[#94A3B8]">
                     <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>No payout requests yet</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Period</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                          <TableHead>Method</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Reference</TableHead>
-                          <TableHead>Requested</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {restaurantPayouts.map((payout) => (
-                          <TableRow key={payout.id}>
-                            <TableCell className="text-sm">
-                              {format(new Date(payout.period_start), "MMM d")} – {format(new Date(payout.period_end), "MMM d, yyyy")}
-                            </TableCell>
-                            <TableCell className="text-right font-semibold text-emerald-600">
-                              {formatCurrency(payout.amount)}
-                            </TableCell>
-                            <TableCell className="capitalize text-sm text-muted-foreground">
-                              {payout.payout_method?.replace(/_/g, " ") || "—"}
-                            </TableCell>
-                            <TableCell>
-                              {payout.status === "completed" ? (
-                                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                                  <CheckCircle className="h-3 w-3 mr-1" />Completed
-                                </Badge>
-                              ) : payout.status === "failed" ? (
-                                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                                  <XCircle className="h-3 w-3 mr-1" />Failed
-                                </Badge>
-                              ) : payout.status === "processing" ? (
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                  <Clock className="h-3 w-3 mr-1" />Processing
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                                  <Clock className="h-3 w-3 mr-1" />Pending
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-xs font-mono text-muted-foreground">
-                              {payout.reference_number || "—"}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {payout.created_at ? format(new Date(payout.created_at), "MMM d, yyyy") : "-"}
-                            </TableCell>
+                  <>
+                    <div className="grid gap-3 md:hidden">
+                      {restaurantPayouts.map((payout) => (
+                        <div
+                          key={payout.id}
+                          className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_30px_rgba(2,6,23,0.05)]"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-lg font-black text-[#22C7A1]">
+                                {formatCurrency(payout.amount)}
+                              </p>
+                              <p className="mt-1 text-xs font-semibold text-[#94A3B8]">
+                                {format(new Date(payout.period_start), "MMM d")}{" "}
+                                -{" "}
+                                {format(
+                                  new Date(payout.period_end),
+                                  "MMM d, yyyy",
+                                )}
+                              </p>
+                            </div>
+                            {payout.status === "completed" ? (
+                              <Badge
+                                variant="outline"
+                                className="border-[#22C7A1]/20 bg-[#22C7A1]/10 text-[#22C7A1]"
+                              >
+                                <CheckCircle className="mr-1 h-3 w-3" />
+                                Completed
+                              </Badge>
+                            ) : payout.status === "failed" ? (
+                              <Badge
+                                variant="outline"
+                                className="border-[#FB6B7A]/20 bg-[#FB6B7A]/10 text-[#FB6B7A]"
+                              >
+                                <XCircle className="mr-1 h-3 w-3" />
+                                Failed
+                              </Badge>
+                            ) : payout.status === "processing" ? (
+                              <Badge
+                                variant="outline"
+                                className="border-[#38BDF8]/20 bg-[#38BDF8]/10 text-[#38BDF8]"
+                              >
+                                <Clock className="mr-1 h-3 w-3" />
+                                Processing
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="border-[#F97316]/20 bg-[#F97316]/10 text-[#F97316]"
+                              >
+                                <Clock className="mr-1 h-3 w-3" />
+                                Pending
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                                Method
+                              </p>
+                              <p className="mt-1 truncate text-sm font-black capitalize text-[#020617]">
+                                {payout.payout_method?.replace(/_/g, " ") ||
+                                  "-"}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl bg-[#F6F8FB] p-3">
+                              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                                Requested
+                              </p>
+                              <p className="mt-1 text-sm font-black text-[#020617]">
+                                {payout.created_at
+                                  ? format(
+                                      new Date(payout.created_at),
+                                      "MMM d, yyyy",
+                                    )
+                                  : "-"}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="mt-3 truncate font-mono text-xs font-semibold text-[#94A3B8]">
+                            Ref: {payout.reference_number || "-"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="hidden overflow-hidden rounded-[22px] border border-[#E5EAF1] md:block">
+                      <Table>
+                        <TableHeader className="bg-[#F6F8FB]">
+                          <TableRow className="border-[#E5EAF1] hover:bg-[#F6F8FB]">
+                            <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Period
+                            </TableHead>
+                            <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Amount
+                            </TableHead>
+                            <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Method
+                            </TableHead>
+                            <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Status
+                            </TableHead>
+                            <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Reference
+                            </TableHead>
+                            <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Requested
+                            </TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {restaurantPayouts.map((payout) => (
+                            <TableRow
+                              key={payout.id}
+                              className="border-[#E5EAF1] transition-colors hover:bg-[#F6F8FB]/70"
+                            >
+                              <TableCell className="text-sm font-semibold text-[#020617]">
+                                {format(new Date(payout.period_start), "MMM d")}{" "}
+                                -{" "}
+                                {format(
+                                  new Date(payout.period_end),
+                                  "MMM d, yyyy",
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right font-black text-[#22C7A1]">
+                                {formatCurrency(payout.amount)}
+                              </TableCell>
+                              <TableCell className="text-sm font-semibold capitalize text-[#94A3B8]">
+                                {payout.payout_method?.replace(/_/g, " ") ||
+                                  "-"}
+                              </TableCell>
+                              <TableCell>
+                                {payout.status === "completed" ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-[#22C7A1]/25 bg-[#22C7A1]/10 text-[#22C7A1]"
+                                  >
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Completed
+                                  </Badge>
+                                ) : payout.status === "failed" ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-[#FB6B7A]/25 bg-[#FB6B7A]/10 text-[#FB6B7A]"
+                                  >
+                                    <XCircle className="h-3 w-3 mr-1" />
+                                    Failed
+                                  </Badge>
+                                ) : payout.status === "processing" ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-[#38BDF8]/25 bg-[#38BDF8]/10 text-[#38BDF8]"
+                                  >
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Processing
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-[#F97316]/25 bg-[#F97316]/10 text-[#F97316]"
+                                  >
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Pending
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="font-mono text-xs font-semibold text-[#94A3B8]">
+                                {payout.reference_number || "-"}
+                              </TableCell>
+                              <TableCell className="text-sm font-semibold text-[#94A3B8]">
+                                {payout.created_at
+                                  ? format(
+                                      new Date(payout.created_at),
+                                      "MMM d, yyyy",
+                                    )
+                                  : "-"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </AdminPanel>
           </TabsContent>
         </Tabs>
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-red-600">
+          <AdminDialogContent size="md">
+            <DialogHeader className="border-b border-[#E5EAF1] bg-[#FB6B7A]/10 p-5 text-left">
+              <DialogTitle className="flex items-center gap-2 text-xl font-black text-[#FB6B7A]">
                 <AlertTriangle className="w-5 h-5" />
                 Delete Restaurant
               </DialogTitle>
-              <DialogDescription>
-                This action cannot be undone. This will permanently delete {restaurant.name} and all associated data.
+              <DialogDescription className="font-semibold text-[#94A3B8]">
+                This action cannot be undone. This will permanently delete{" "}
+                {restaurant.name} and all associated data.
               </DialogDescription>
             </DialogHeader>
-            
-            <div className="space-y-4 py-4">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-800">
-                  <strong>Warning:</strong> Deleting this restaurant will also remove all associated meals, orders, and reviews.
+
+            <div className="space-y-4 p-5">
+              <div className="rounded-[18px] border border-[#FB6B7A]/20 bg-[#FB6B7A]/10 p-4">
+                <p className="text-sm font-semibold leading-6 text-[#FB6B7A]">
+                  <strong>Warning:</strong> Deleting this restaurant will also
+                  remove all associated meals, orders, and reviews.
                 </p>
               </div>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="confirm-delete">
+                <Label
+                  htmlFor="confirm-delete"
+                  className="font-black text-[#020617]"
+                >
                   Type <strong>{restaurant.name}</strong> to confirm
                 </Label>
                 <Input
@@ -2517,18 +3399,23 @@ const AdminRestaurantDetail = () => {
                   value={deleteConfirmText}
                   onChange={(e) => setDeleteConfirmText(e.target.value)}
                   placeholder="Type restaurant name"
+                  className="min-h-[48px] rounded-[16px] border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617] focus-visible:ring-[#020617]"
                 />
               </div>
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <DialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+              <Button
+                variant="outline"
+                className="min-h-[44px] rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617]"
+                onClick={() => setDeleteDialogOpen(false)}
+              >
                 Cancel
               </Button>
               <Button
-                variant="destructive"
                 onClick={handleDelete}
                 disabled={deleteConfirmText !== restaurant.name || deleting}
+                className="min-h-[44px] rounded-[16px] bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90 disabled:opacity-60"
               >
                 {deleting ? (
                   <>
@@ -2543,117 +3430,174 @@ const AdminRestaurantDetail = () => {
                 )}
               </Button>
             </DialogFooter>
-          </DialogContent>
+          </AdminDialogContent>
         </Dialog>
-      {/* Create Owner Account Dialog */}
-      <Dialog open={ownerDialogOpen} onOpenChange={(open) => { setOwnerDialogOpen(open); if (!open) setOwnerCreated(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-primary" />
-              Create Owner Account
-            </DialogTitle>
-            <DialogDescription>
-              Create a login account for <strong>{restaurant?.name}</strong>. The owner will log in at <code>/partner/auth</code>.
-            </DialogDescription>
-          </DialogHeader>
-
-          {ownerCreated ? (
-            /* Success state — show credentials */
-            <div className="space-y-4 py-2">
-              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 space-y-3">
-                <p className="text-sm font-semibold text-emerald-700 flex items-center gap-2">
-                  <CheckCheck className="w-4 h-4" /> Account created successfully!
+        <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+          <AdminDialogContent size="md">
+            <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
+              <DialogTitle className="flex items-center gap-2 text-xl font-black text-[#020617]">
+                <AlertTriangle className="h-5 w-5 text-[#F97316]" />
+                Leave without saving?
+              </DialogTitle>
+              <DialogDescription className="font-semibold leading-6 text-[#94A3B8]">
+                You have unsaved restaurant changes. If you leave now, the edits
+                on this page will be discarded.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="p-5">
+              <div className="rounded-[18px] border border-[#F97316]/20 bg-[#F97316]/10 p-4">
+                <p className="text-sm font-black text-[#020617]">
+                  Review before leaving
                 </p>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="text-sm font-medium">{ownerCreated.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Password</p>
-                    <div className="flex items-center gap-2">
-                      <code className="text-sm font-mono bg-muted px-2 py-1 rounded flex-1">{ownerCreated.password}</code>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => copyPassword(ownerCreated.password)}>
-                        {passwordCopied ? <CheckCheck className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      </Button>
+                <p className="mt-1 text-sm font-semibold leading-6 text-[#94A3B8]">
+                  Save changes to keep updates to profile, settings, or delivery
+                  data.
+                </p>
+              </div>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+              <Button
+                variant="outline"
+                className="min-h-[44px] rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617]"
+                onClick={() => setLeaveDialogOpen(false)}
+              >
+                Stay here
+              </Button>
+              <Button
+                variant="outline"
+                className="min-h-[44px] rounded-[16px] border-[#FB6B7A]/30 bg-[#FB6B7A]/10 font-black text-[#FB6B7A] hover:bg-[#FB6B7A]/15"
+                onClick={confirmLeaveWithoutSaving}
+              >
+                Leave page
+              </Button>
+            </DialogFooter>
+          </AdminDialogContent>
+        </Dialog>
+        {/* Create Owner Account Dialog */}
+        <Dialog
+          open={ownerDialogOpen}
+          onOpenChange={(open) => {
+            setOwnerDialogOpen(open);
+            if (!open) setOwnerCreated(null);
+          }}
+        >
+          <AdminDialogContent size="md">
+            <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left">
+              <DialogTitle className="flex items-center gap-2 text-xl font-black text-[#020617]">
+                <UserPlus className="w-5 h-5 text-[#7C83F6]" />
+                Invite Owner
+              </DialogTitle>
+              <DialogDescription className="font-semibold text-[#94A3B8]">
+                Send a secure account invitation for <strong>{restaurant?.name}</strong>.
+                The owner chooses a password from a one-time email link.
+              </DialogDescription>
+            </DialogHeader>
+
+            {ownerCreated ? (
+              /* Success state */
+              <div className="space-y-4 p-5">
+                <div className="space-y-3 rounded-[20px] border border-[#22C7A1]/20 bg-[#22C7A1]/10 p-4">
+                  <p className="flex items-center gap-2 text-sm font-black text-[#22C7A1]">
+                    <CheckCheck className="w-4 h-4" /> Invitation sent
+                    successfully
+                  </p>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                        Email
+                      </p>
+                      <p className="text-sm font-black text-[#020617]">
+                        {ownerCreated.email}
+                      </p>
                     </div>
                   </div>
+                  <p className="rounded-[14px] border border-[#38BDF8]/20 bg-[#EFFAFF] p-3 text-xs font-bold text-[#0369A1]">
+                    No password was generated or exposed. The invitation link
+                    lets the owner establish credentials directly with the
+                    authentication provider.
+                  </p>
                 </div>
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
-                  ⚠️ Share these credentials with the owner now. The password will not be shown again.
+                <p className="text-center text-xs font-semibold text-[#94A3B8]">
+                  Login URL:{" "}
+                  <strong>{window.location.origin}/partner/auth</strong>
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground text-center">
-                Login URL: <strong>{window.location.origin}/partner/auth</strong>
-              </p>
-            </div>
-          ) : (
-            /* Form state */
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label htmlFor="owner-name">Full Name</Label>
-                <Input
-                  id="owner-name"
-                  placeholder="e.g. Ahmed Al-Rashid"
-                  value={ownerForm.full_name}
-                  onChange={(e) => setOwnerForm((p) => ({ ...p, full_name: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="owner-email">Email <span className="text-destructive">*</span></Label>
-                <Input
-                  id="owner-email"
-                  type="email"
-                  placeholder="owner@restaurant.qa"
-                  value={ownerForm.email}
-                  onChange={(e) => setOwnerForm((p) => ({ ...p, email: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="owner-password">Password <span className="text-destructive">*</span></Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="owner-password"
-                    type="text"
-                    placeholder="Min. 6 characters"
-                    value={ownerForm.password}
-                    onChange={(e) => setOwnerForm((p) => ({ ...p, password: e.target.value }))}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="shrink-0 text-xs px-3"
-                    onClick={() => setOwnerForm((p) => ({ ...p, password: Math.random().toString(36).slice(2, 10) }))}
+            ) : (
+              /* Form state */
+              <div className="space-y-4 p-5">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="owner-name"
+                    className="font-black text-[#020617]"
                   >
-                    Generate
-                  </Button>
+                    Full Name
+                  </Label>
+                  <Input
+                    id="owner-name"
+                    placeholder="e.g. Ahmed Al-Rashid"
+                    value={ownerForm.full_name}
+                    onChange={(e) =>
+                      setOwnerForm((p) => ({ ...p, full_name: e.target.value }))
+                    }
+                    className="min-h-[48px] rounded-[16px] border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617] focus-visible:ring-[#020617]"
+                  />
                 </div>
-                <p className="text-xs text-muted-foreground">The owner will use this to log in. Share it securely.</p>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="owner-email"
+                    className="font-black text-[#020617]"
+                  >
+                    Email <span className="text-[#FB6B7A]">*</span>
+                  </Label>
+                  <Input
+                    id="owner-email"
+                    type="email"
+                    placeholder="owner@restaurant.qa"
+                    value={ownerForm.email}
+                    onChange={(e) =>
+                      setOwnerForm((p) => ({ ...p, email: e.target.value }))
+                    }
+                    className="min-h-[48px] rounded-[16px] border-[#E5EAF1] bg-[#F6F8FB] font-bold text-[#020617] focus-visible:ring-[#020617]"
+                  />
+                </div>
+                <p className="rounded-[14px] border border-[#E5EAF1] bg-[#F6F8FB] p-3 text-xs font-semibold leading-5 text-[#64748B]">
+                  The invitation is sent only to this address. Confirm it with
+                  the restaurant owner before sending.
+                </p>
               </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOwnerDialogOpen(false)}>
-              {ownerCreated ? "Close" : "Cancel"}
-            </Button>
-            {!ownerCreated && (
-              <Button
-                onClick={handleCreateOwner}
-                disabled={ownerCreating || !ownerForm.email || !ownerForm.password}
-              >
-                {ownerCreating ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating…</>
-                ) : (
-                  <><KeyRound className="w-4 h-4 mr-2" />Create Account</>
-                )}
-              </Button>
             )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
+            <DialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] p-5">
+              <Button
+                variant="outline"
+                className="min-h-[44px] rounded-[16px] border-[#E5EAF1] bg-white font-black text-[#020617]"
+                onClick={() => setOwnerDialogOpen(false)}
+              >
+                {ownerCreated ? "Close" : "Cancel"}
+              </Button>
+              {!ownerCreated && (
+                <Button
+                  onClick={handleCreateOwner}
+                  disabled={ownerCreating || !ownerForm.email}
+                  variant="outline"
+                  className="min-h-[44px] rounded-[16px] border-[#22C7A1]/30 bg-[#22C7A1]/10 font-black text-[#020617] hover:bg-[#22C7A1]/15"
+                >
+                  {ownerCreating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating…
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4 mr-2" />
+                      Send Invitation
+                    </>
+                  )}
+                </Button>
+              )}
+            </DialogFooter>
+          </AdminDialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

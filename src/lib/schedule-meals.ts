@@ -1,4 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
+import {
+  enqueueOfflineMutation,
+  flushOfflineMutations,
+  isNetworkFailure,
+  type OfflineMutation,
+} from "@/lib/offline-mutation-queue";
 
 export interface ScheduleMealAddonInput {
   addon_id: string;
@@ -28,10 +34,25 @@ export interface ScheduleMealsResult {
   schedule_ids: string[];
 }
 
+export interface QueuedScheduleMealsResult {
+  success: false;
+  queued: true;
+  already_processed: false;
+  schedule_ids: [];
+  requestBatchId: string;
+}
+
+interface QueuedSchedulePayload {
+  userId: string;
+  subscriptionId: string;
+  items: ScheduleMealInput[];
+  requestBatchId: string;
+}
+
 export async function scheduleMealsAtomic(
   subscriptionId: string,
   items: ScheduleMealInput[],
-  requestBatchId = crypto.randomUUID(),
+  requestBatchId: string = crypto.randomUUID(),
 ): Promise<ScheduleMealsResult> {
   const { data, error } = await supabase.rpc(
     "schedule_meals_atomic" as never,
@@ -50,4 +71,43 @@ export async function scheduleMealsAtomic(
   }
 
   return result;
+}
+
+export async function scheduleMealsResilient(
+  userId: string,
+  subscriptionId: string,
+  items: ScheduleMealInput[],
+  requestBatchId: string = crypto.randomUUID(),
+): Promise<ScheduleMealsResult | QueuedScheduleMealsResult> {
+  if (!userId) throw new Error("USER_REQUIRED");
+  if (items.length === 0) throw new Error("SCHEDULE_ITEMS_REQUIRED");
+
+  const payload: QueuedSchedulePayload = { userId, subscriptionId, items, requestBatchId };
+  const queue = (): QueuedScheduleMealsResult => {
+    enqueueOfflineMutation({
+      id: requestBatchId,
+      kind: "schedule-meals",
+      userId,
+      payload,
+    });
+    return { success: false, queued: true, already_processed: false, schedule_ids: [], requestBatchId };
+  };
+
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return queue();
+
+  try {
+    return await scheduleMealsAtomic(subscriptionId, items, requestBatchId);
+  } catch (error) {
+    if (isNetworkFailure(error)) return queue();
+    throw error;
+  }
+}
+
+export async function flushQueuedSchedules(userId: string) {
+  return flushOfflineMutations(userId, {
+    "schedule-meals": async (mutation: OfflineMutation) => {
+      const payload = mutation.payload as QueuedSchedulePayload;
+      await scheduleMealsAtomic(payload.subscriptionId, payload.items, payload.requestBatchId);
+    },
+  });
 }

@@ -4,12 +4,13 @@ import { motion, type Variants } from "framer-motion";
 import {
   Users, TrendingDown, TrendingUp, Minus, Flame, Target,
   CalendarCheck, Loader2, AlertCircle, UserPlus,
-  Check, X, Bell, ChevronRight
+  Check, X, Bell, ChevronRight, Dumbbell, Search
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoachClients, type ClientCompliance } from "@/hooks/useCoachClients";
 import { useCoachNotifications } from "@/hooks/useCoachNotifications";
 import { InviteClientModal } from "@/components/coach/InviteClientModal";
+import { ExerciseCatalogSheet } from "@/components/exercises/ExerciseCatalogSheet";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -133,6 +134,7 @@ export default function CoachDashboard() {
   const coachId = user?.id;
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [milestonesOpen, setMilestonesOpen] = useState(false);
+  const [exerciseLibraryOpen, setExerciseLibraryOpen] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 
@@ -261,6 +263,25 @@ export default function CoachDashboard() {
         </div>
       </div>
 
+      <motion.button
+        type="button"
+        variants={fadeInUp}
+        initial="hidden"
+        animate="visible"
+        onClick={() => setExerciseLibraryOpen(true)}
+        className="flex w-full items-center gap-4 overflow-hidden rounded-[22px] bg-[#07152D] p-4 text-left shadow-[0_14px_34px_rgba(7,21,45,0.18)] transition active:scale-[0.99]"
+      >
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[#22C7A1]/15 text-[#42E4BC] ring-1 ring-[#42E4BC]/20">
+          <Dumbbell className="h-6 w-6" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-[#42E4BC]">Programming library</span>
+          <span className="mt-1 block text-[15px] font-extrabold text-white">Browse 1,324 exercises</span>
+          <span className="mt-0.5 block text-[10px] font-semibold text-white/55">Form guides, targets, and equipment filters</span>
+        </span>
+        <Search className="h-5 w-5 shrink-0 text-white/65" />
+      </motion.button>
+
       {/* Pending Requests */}
       {pending.length > 0 && (
         <motion.div
@@ -372,6 +393,11 @@ export default function CoachDashboard() {
         open={inviteModalOpen}
         onClose={() => setInviteModalOpen(false)}
         onInviteCreated={refresh}
+      />
+      <ExerciseCatalogSheet
+        open={exerciseLibraryOpen}
+        onOpenChange={setExerciseLibraryOpen}
+        title="Programming library"
       />
     </div>
   );

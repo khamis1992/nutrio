@@ -1,9 +1,14 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  errorResponse,
+  getCorsHeaders,
+  getServiceClient,
+  handlePreflight,
+  recordSecurityEvent,
+  requireAdmin,
+  requireInternalSecret,
+  requirePost,
+  type SecurityPrincipal,
+} from "../_shared/security.ts";
 
 interface MealSchedule {
   id: string;
@@ -27,19 +32,22 @@ interface NotificationSettings {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
+    requirePost(req);
+    let principal: SecurityPrincipal | null = null;
+    if (req.headers.has("x-internal-secret")) {
+      await requireInternalSecret(req, "MEAL_REMINDER_CRON_SECRET");
+    } else {
+      principal = await requireAdmin(req);
+    }
+
     console.log("Starting meal reminder job...");
 
-    // Create Supabase client with service role for admin access
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabase = getServiceClient();
 
     // Check if push notifications are enabled in platform settings
     const { data: settingsData, error: settingsError } = await supabase
@@ -147,6 +155,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    const dayStart = `${today}T00:00:00.000Z`;
+    const { data: existingReminders, error: existingError } = await supabase
+      .from("notifications")
+      .select("user_id, data")
+      .eq("type", "meal_reminder")
+      .gte("created_at", dayStart);
+
+    if (existingError) {
+      console.error("Error checking reminder idempotency:", existingError);
+      throw existingError;
+    }
+
+    const usersAlreadyReminded = new Set(
+      (existingReminders || [])
+        .filter((notification) =>
+          notification.data?.dedupe_key === `meal-reminder:${today}:${notification.user_id}`
+        )
+        .map((notification) => notification.user_id),
+    );
+
     // Group schedules by user_id
     const userSchedules = filteredSchedules.reduce((acc: Record<string, MealSchedule[]>, schedule: any) => {
       const userId = schedule.user_id;
@@ -163,6 +191,7 @@ Deno.serve(async (req) => {
     const notifications = [];
 
     for (const [userId, userMeals] of Object.entries(userSchedules)) {
+      if (usersAlreadyReminded.has(userId)) continue;
       const mealCount = userMeals.length;
       const mealNames = userMeals
         .slice(0, 3)
@@ -189,12 +218,20 @@ Deno.serve(async (req) => {
         type: "meal_reminder",
         title,
         message,
-        metadata: {
+        data: {
+          dedupe_key: `meal-reminder:${today}:${userId}`,
           scheduled_date: today,
           meal_count: mealCount,
           schedule_ids: userMeals.map((s: MealSchedule) => s.id),
         },
       });
+    }
+
+    if (notifications.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, message: "Reminders already sent", count: 0 }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // Insert all notifications
@@ -209,6 +246,19 @@ Deno.serve(async (req) => {
 
     console.log(`Successfully sent ${notifications.length} meal reminders`);
 
+    await recordSecurityEvent(req, {
+      eventType: "system.meal_reminders_dispatched",
+      category: "edge_function",
+      severity: "info",
+      outcome: "success",
+      principal,
+      actorType: principal ? undefined : "service",
+      action: "dispatch_meal_reminders",
+      resourceType: "notification_batch",
+      resourceId: today,
+      metadata: { notification_count: notifications.length },
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -220,9 +270,6 @@ Deno.serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in send-meal-reminders:", errorMessage);
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(req, error);
   }
 });

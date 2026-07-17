@@ -7,12 +7,35 @@ export function requireEnv(...names) {
   throw new Error(`Missing required environment variable: ${names.join(" or ")}`);
 }
 
+function getNamedKey(mapName, nameEnvironmentName) {
+  const raw = process.env[mapName]?.trim();
+  if (!raw) return null;
+
+  let keys;
+  try {
+    keys = JSON.parse(raw);
+  } catch {
+    throw new Error(`${mapName} must contain a JSON object`);
+  }
+
+  const keyName = process.env[nameEnvironmentName]?.trim() || "default";
+  const key = keys?.[keyName];
+  if (typeof key !== "string" || !key.trim()) {
+    throw new Error(`${mapName} does not contain the configured key name`);
+  }
+  return key.trim();
+}
+
 export function getSupabaseUrl() {
   return requireEnv("SUPABASE_URL", "VITE_SUPABASE_URL");
 }
 
 export function getSupabaseAnonKey() {
-  return requireEnv(
+  return getNamedKey(
+    "SUPABASE_PUBLISHABLE_KEYS",
+    "NUTRIO_SUPABASE_PUBLISHABLE_KEY_NAME",
+  ) || requireEnv(
+    "SUPABASE_PUBLISHABLE_KEY",
     "SUPABASE_ANON_KEY",
     "VITE_SUPABASE_PUBLISHABLE_KEY",
     "VITE_SUPABASE_ANON_KEY",
@@ -20,5 +43,11 @@ export function getSupabaseAnonKey() {
 }
 
 export function getSupabaseServiceRoleKey() {
-  return requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  return getNamedKey(
+    "SUPABASE_SECRET_KEYS",
+    "NUTRIO_SUPABASE_SECRET_KEY_NAME",
+  ) || requireEnv(
+    "SUPABASE_SECRET_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+  );
 }

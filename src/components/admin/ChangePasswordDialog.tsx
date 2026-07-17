@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { AdminDialogContent } from "@/components/admin/AdminPrimitives";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -67,12 +67,15 @@ export const ChangePasswordDialog = ({
 
     try {
       // Call Supabase Edge Function to update password
-      const { error } = await supabase.functions.invoke('update-user-password', {
-        body: {
-          userId,
-          newPassword: password,
+      const { error } = await supabase.functions.invoke(
+        "update-user-password",
+        {
+          body: {
+            userId,
+            newPassword: password,
+          },
         },
-      });
+      );
 
       if (error) {
         throw error;
@@ -95,7 +98,10 @@ export const ChangePasswordDialog = ({
       console.error("Error changing password:", err);
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Failed to change password. Please try again.",
+        description:
+          err instanceof Error
+            ? err.message
+            : "Failed to change password. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -112,27 +118,33 @@ export const ChangePasswordDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Lock className="w-5 h-5" />
+      <AdminDialogContent size="md">
+        <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4 text-left">
+          <DialogTitle className="flex items-center gap-2 text-xl font-black text-[#020617]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#020617] text-white">
+              <Lock className="h-5 w-5" />
+            </span>
             Change User Password
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="font-semibold text-[#94A3B8]">
             Set a new password for {userName || userEmail}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 bg-[#F6F8FB] px-5 py-4">
           {/* User Info */}
-          <div className="p-3 bg-muted rounded-lg">
-            <p className="text-sm font-medium">{userName || "Unnamed User"}</p>
-            <p className="text-xs text-muted-foreground">{userEmail}</p>
+          <div className="rounded-[18px] border border-[#E5EAF1] bg-white p-3">
+            <p className="text-sm font-black text-[#020617]">
+              {userName || "Unnamed User"}
+            </p>
+            <p className="text-xs font-semibold text-[#94A3B8]">{userEmail}</p>
           </div>
 
           {/* New Password */}
           <div className="space-y-2">
-            <Label htmlFor="new-password">New Password</Label>
+            <Label htmlFor="new-password" className="font-black text-[#020617]">
+              New Password
+            </Label>
             <div className="relative">
               <Input
                 id="new-password"
@@ -140,13 +152,13 @@ export const ChangePasswordDialog = ({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter new password"
-                className="pr-10"
+                className="h-11 rounded-2xl border-[#E5EAF1] bg-white pr-10 font-bold text-[#020617]"
                 disabled={loading || success}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#020617]"
                 disabled={loading || success}
               >
                 {showPassword ? (
@@ -156,14 +168,19 @@ export const ChangePasswordDialog = ({
                 )}
               </button>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs font-semibold text-[#94A3B8]">
               Must be at least 6 characters
             </p>
           </div>
 
           {/* Confirm Password */}
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirm Password</Label>
+            <Label
+              htmlFor="confirm-password"
+              className="font-black text-[#020617]"
+            >
+              Confirm Password
+            </Label>
             <div className="relative">
               <Input
                 id="confirm-password"
@@ -171,13 +188,13 @@ export const ChangePasswordDialog = ({
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm new password"
-                className="pr-10"
+                className="h-11 rounded-2xl border-[#E5EAF1] bg-white pr-10 font-bold text-[#020617]"
                 disabled={loading || success}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#020617]"
                 disabled={loading || success}
               >
                 {showConfirmPassword ? (
@@ -199,23 +216,23 @@ export const ChangePasswordDialog = ({
                     className={`h-1 flex-1 rounded-full transition-colors ${
                       password.length >= level * 2
                         ? password.length >= 10
-                          ? "bg-emerald-500"
+                          ? "bg-[#22C7A1]"
                           : password.length >= 8
-                          ? "bg-amber-500"
-                          : "bg-red-500"
-                        : "bg-muted"
+                            ? "bg-[#F97316]"
+                            : "bg-[#FB6B7A]"
+                        : "bg-[#E5EAF1]"
                     }`}
                   />
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs font-semibold text-[#94A3B8]">
                 {password.length < 6
                   ? "Too weak"
                   : password.length < 8
-                  ? "Weak"
-                  : password.length < 10
-                  ? "Good"
-                  : "Strong"}
+                    ? "Weak"
+                    : password.length < 10
+                      ? "Good"
+                      : "Strong"}
               </p>
             </div>
           )}
@@ -227,14 +244,14 @@ export const ChangePasswordDialog = ({
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2"
+                className="flex items-center gap-2 rounded-[18px] border border-[#22C7A1]/20 bg-[#22C7A1]/10 p-4"
               >
-                <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center">
-                  <Check className="w-5 h-5 text-white" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#22C7A1]">
+                  <Check className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-medium text-emerald-700">Password Updated!</p>
-                  <p className="text-sm text-emerald-600">
+                  <p className="font-black text-[#22C7A1]">Password Updated!</p>
+                  <p className="text-sm font-semibold text-[#22C7A1]">
                     The new password has been set successfully
                   </p>
                 </div>
@@ -244,17 +261,19 @@ export const ChangePasswordDialog = ({
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 border-t border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
           <Button
             variant="outline"
             onClick={handleClose}
             disabled={loading}
+            className="h-11 rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617]"
           >
             Cancel
           </Button>
           <Button
             onClick={handleChangePassword}
             disabled={loading || success || !password || !confirmPassword}
+            className="h-11 rounded-2xl bg-[#020617] font-black text-white hover:bg-[#020617]/90"
           >
             {loading ? (
               <>
@@ -271,7 +290,7 @@ export const ChangePasswordDialog = ({
             )}
           </Button>
         </div>
-      </DialogContent>
+      </AdminDialogContent>
     </Dialog>
   );
 };

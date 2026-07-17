@@ -1,0 +1,50 @@
+.coach-client-page {
+  --client-navy: #08162f;
+  --client-teal: #20d3ad;
+  --client-blue: #56b8ff;
+  --client-coral: #ff6f61;
+  --client-orange: #ff9c52;
+}
+
+.coach-client-page .client-card {
+  position: relative;
+  border: 1px solid rgba(203, 213, 225, 0.72);
+  box-shadow: 0 12px 34px rgba(8, 22, 47, 0.07);
+}
+
+.coach-client-page .client-card::before {
+  position: absolute;
+  top: 0;
+  left: 24px;
+  width: 48px;
+  height: 4px;
+  border-radius: 0 0 999px 999px;
+  background: var(--card-accent, var(--client-teal));
+  content: "";
+}
+
+.coach-client-page .client-card--teal { --card-accent: var(--client-teal); }
+.coach-client-page .client-card--blue { --card-accent: var(--client-blue); }
+.coach-client-page .client-card--coral { --card-accent: var(--client-coral); }
+.coach-client-page .client-card--orange { --card-accent: var(--client-orange); }
+.coach-client-page .client-card--yellow { --card-accent: #f5c84c; }
+.coach-client-page .client-card--violet { --card-accent: #8b7cff; }
+
+.coach-client-page .client-card h2 {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.coach-client-page input,
+.coach-client-page select,
+.coach-client-page textarea,
+.coach-client-page button {
+  letter-spacing: 0;
+}
+
+@media (max-width: 374px) {
+  .coach-client-page .client-card {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

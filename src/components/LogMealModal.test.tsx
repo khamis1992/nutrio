@@ -35,7 +35,8 @@ vi.mock("@/lib/meal-images", () => ({
 }));
 
 vi.mock("@/lib/meal-log-service", () => ({
-  logMealItems: vi.fn(),
+  logMealItemsResilient: vi.fn(),
+  flushQueuedMealLogs: vi.fn().mockResolvedValue({ synced: 0, remaining: 0 }),
 }));
 
 vi.mock("sonner", () => ({
@@ -44,7 +45,7 @@ vi.mock("sonner", () => ({
 
 import LogMealModal from "@/components/LogMealModal";
 import { supabase } from "@/integrations/supabase/client";
-import { logMealItems } from "@/lib/meal-log-service";
+import { logMealItemsResilient } from "@/lib/meal-log-service";
 import { toast } from "sonner";
 
 const recentMeal = {
@@ -92,13 +93,16 @@ describe("LogMealModal", () => {
   });
 
   it("reports success only after the service confirms persistence", async () => {
-    vi.mocked(logMealItems).mockResolvedValue({
+    vi.mocked(logMealItemsResilient).mockResolvedValue({
       persisted: true,
       loggedCount: 1,
       calories: 420,
       protein: 35,
       carbs: 44,
       fat: 12,
+      fiber: 0,
+      sugar: 0,
+      sodium: 0,
     });
     const { onMealLogged, onOpenChange } = renderModal();
 
@@ -113,12 +117,15 @@ describe("LogMealModal", () => {
 
   it("does not report success without an explicit persisted result", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(logMealItems).mockResolvedValue({
+    vi.mocked(logMealItemsResilient).mockResolvedValue({
       loggedCount: 0,
       calories: 0,
       protein: 0,
       carbs: 0,
       fat: 0,
+      fiber: 0,
+      sugar: 0,
+      sodium: 0,
     } as never);
     const { onMealLogged, onOpenChange } = renderModal();
 

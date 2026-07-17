@@ -1,51 +1,60 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+import {
+  authenticateRequest,
+  enforceRateLimit,
+  errorResponse,
+  getClientIp,
+  handlePreflight,
+  HttpError,
+  jsonResponse,
+  readJsonBody,
+  recordSecurityEvent,
+  requirePost,
+} from "../_shared/security.ts";
+
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 interface AIProxyRequest {
   systemPrompt: string;
   userPrompt: string;
-  model?: string;
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    if (!DEEPSEEK_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "DeepSeek API key not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    requirePost(req);
+    const principal = await authenticateRequest(req);
+    const clientIp = getClientIp(req) || "unknown";
 
-    const { systemPrompt, userPrompt, model }: AIProxyRequest = await req.json();
+    await Promise.all([
+      enforceRateLimit(req, "ai-proxy:user", principal.user.id, 30, 60 * 60),
+      enforceRateLimit(req, "ai-proxy:ip", clientIp, 10, 60),
+    ]);
 
+    const body = await readJsonBody<AIProxyRequest>(req, 48 * 1024);
+    const systemPrompt = body.systemPrompt?.trim();
+    const userPrompt = body.userPrompt?.trim();
     if (!systemPrompt || !userPrompt) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields: systemPrompt, userPrompt" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      throw new HttpError(400, "prompts_required");
+    }
+    if (systemPrompt.length > 12_000 || userPrompt.length > 30_000) {
+      throw new HttpError(413, "prompt_too_large");
     }
 
-    const selectedModel = model || "deepseek-chat";
+    const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
+    if (!apiKey) throw new HttpError(503, "ai_provider_not_configured");
 
     const response = await fetch(DEEPSEEK_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: selectedModel,
+        model: "deepseek-chat",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -56,38 +65,45 @@ serve(async (req) => {
     });
 
     const data = await response.json().catch(() => null);
-
     if (!response.ok) {
-      return new Response(
-        JSON.stringify({
-          error: "DeepSeek request failed",
-          status: response.status,
-          details: data?.error?.message || data?.message || "Unknown DeepSeek error",
-        }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      await recordSecurityEvent(req, {
+        eventType: "edge.ai_provider_failure",
+        category: "edge_function",
+        severity: response.status === 429 ? "medium" : "low",
+        outcome: "failure",
+        principal,
+        action: "generate_ai_content",
+        resourceType: "edge_function",
+        resourceId: "proxy-openrouter",
+        metadata: { provider_status: response.status },
+      });
+      console.error("DeepSeek request failed:", response.status, data?.error?.message || "unknown");
+      throw new HttpError(502, "ai_provider_failed");
     }
 
     const content = data?.choices?.[0]?.message?.content;
-
-    if (!content) {
-      return new Response(
-        JSON.stringify({ error: "DeepSeek returned an empty response" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (typeof content !== "string" || !content.trim()) {
+      throw new HttpError(502, "empty_ai_response");
     }
 
-    return new Response(
-      JSON.stringify({ content, provider: "deepseek", model: selectedModel }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    await recordSecurityEvent(req, {
+      eventType: "edge.ai_request_completed",
+      category: "edge_function",
+      severity: "info",
+      outcome: "success",
+      principal,
+      action: "generate_ai_content",
+      resourceType: "edge_function",
+      resourceId: "proxy-openrouter",
+      metadata: { response_chars: content.length },
+    });
+
+    return jsonResponse(req, {
+      content,
+      provider: "deepseek",
+      model: "deepseek-chat",
+    });
   } catch (error) {
-    return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(req, error);
   }
 });

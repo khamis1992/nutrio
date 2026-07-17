@@ -1,100 +1,85 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+import {
+  enforceRateLimit,
+  errorResponse,
+  getCorsHeaders,
+  handlePreflight,
+  HttpError,
+  readJsonBody,
+  requireAdmin,
+  requirePost,
+} from "../_shared/security.ts";
 
 const QNAS_BASE = "https://qnas.qa";
 const allowedPaths = [
   /^\/get_zones$/,
-  /^\/get_streets\/\d+$/,
-  /^\/get_buildings\/\d+\/\d+$/,
+  /^\/get_streets\/\d{1,10}$/,
+  /^\/get_buildings\/\d{1,10}\/\d{1,10}$/,
 ];
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-function jsonResponse(body: Record<string, unknown>, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-  if (req.method !== "GET" && req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
-  }
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const qnasToken = Deno.env.get("QNAS_TOKEN");
-  const qnasDomain = Deno.env.get("QNAS_DOMAIN");
-  if (!supabaseUrl || !serviceRoleKey || !qnasToken || !qnasDomain) {
-    console.error("qnas-proxy: missing service configuration");
-    return jsonResponse({ error: "Service is not configured" }, 503);
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
 
   try {
-    const token = req.headers
-      .get("Authorization")
-      ?.replace(/^Bearer\s+/i, "")
-      .trim();
-    if (!token) return jsonResponse({ error: "Unauthorized" }, 401);
+    requirePost(req);
+    const principal = await requireAdmin(req);
+    await enforceRateLimit(req, "qnas-proxy", principal.user.id, 120, 3600);
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) {
-      return jsonResponse({ error: "Unauthorized" }, 401);
+    const qnasToken = Deno.env.get("QNAS_TOKEN") || "";
+    const qnasDomain = Deno.env.get("QNAS_DOMAIN") || "";
+    if (!qnasToken || !qnasDomain) {
+      throw new HttpError(503, "qnas_not_configured");
     }
 
-    const { data: adminRole, error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (roleError) throw roleError;
-    if (!adminRole) return jsonResponse({ error: "Forbidden" }, 403);
-
-    const requestUrl = new URL(req.url);
-    let qnasPath = requestUrl.searchParams.get("path");
-    if (!qnasPath && req.method === "POST") {
-      const body = await req.json().catch(() => ({}));
-      qnasPath = typeof body.path === "string" ? body.path : null;
+    const { path } = await readJsonBody<{ path?: string }>(req, 4 * 1024);
+    if (!path || !allowedPaths.some((pattern) => pattern.test(path))) {
+      throw new HttpError(400, "unsupported_qnas_path");
     }
 
-    if (!qnasPath || !allowedPaths.some((pattern) => pattern.test(qnasPath))) {
-      return jsonResponse({ error: "Unsupported QNAS path" }, 400);
-    }
-
-    const qnasUrl = new URL(qnasPath, QNAS_BASE);
+    const qnasUrl = new URL(path, QNAS_BASE);
     if (qnasUrl.origin !== QNAS_BASE) {
-      return jsonResponse({ error: "Unsupported QNAS host" }, 400);
+      throw new HttpError(400, "unsupported_qnas_host");
     }
 
-    const qnasResponse = await fetch(qnasUrl, {
+    const response = await fetch(qnasUrl, {
       headers: {
         Accept: "application/json",
         "X-Token": qnasToken,
         "X-Domain": qnasDomain,
       },
+      signal: AbortSignal.timeout(12_000),
     });
-    const responseBody = await qnasResponse.text();
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > 2 * 1024 * 1024) {
+      throw new HttpError(502, "qnas_response_too_large");
+    }
 
-    return new Response(responseBody, {
-      status: qnasResponse.status,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const body = await response.text();
+    if (new TextEncoder().encode(body).byteLength > 2 * 1024 * 1024) {
+      throw new HttpError(502, "qnas_response_too_large");
+    }
+    if (!response.ok) {
+      console.error("QNAS provider returned status", response.status);
+      throw new HttpError(502, "qnas_provider_unavailable");
+    }
+
+    try {
+      JSON.parse(body);
+    } catch {
+      throw new HttpError(502, "invalid_qnas_response");
+    }
+
+    return new Response(body, {
+      status: 200,
+      headers: {
+        ...getCorsHeaders(req),
+        "Content-Type": "application/json; charset=utf-8",
+      },
     });
   } catch (error) {
-    console.error("qnas-proxy failed", error);
-    return jsonResponse({ error: "QNAS proxy request failed" }, 500);
+    console.error("QNAS proxy failed:", error);
+    return errorResponse(req, error);
   }
 });

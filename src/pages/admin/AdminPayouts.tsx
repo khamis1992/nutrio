@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  AdminSheetContent,
+  AdminDialogContent,
+  AdminFilterBar,
+  AdminKpiStrip,
+  AdminPanel,
+  AdminWorkbenchHeader,
+} from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -8,7 +15,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -31,7 +37,6 @@ import {
 } from "@/components/ui/table";
 import {
   Sheet,
-  SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
@@ -61,9 +66,14 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { downloadCsv } from "@/lib/csv";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
+import {
+  getPartnerBankingSummary,
+  type PartnerBankingSummary,
+} from "@/lib/partner-banking";
 import {
   transitionLegacyPartnerPayout,
   transitionPartnerPayout,
@@ -115,14 +125,6 @@ interface PartnerRequest {
   created_at: string;
   restaurant?: { name: string; owner_id: string | null };
   partner_name?: string | null;
-}
-
-interface PartnerBankDetails {
-  bank_name: string | null;
-  bank_account_name: string | null;
-  bank_account_number: string | null;
-  bank_iban: string | null;
-  swift_code: string | null;
 }
 
 type TabValue = "all" | "pending" | "processed" | "rejected";
@@ -197,7 +199,8 @@ export default function AdminPayouts() {
   const [selectedPartnerRequest, setSelectedPartnerRequest] =
     useState<PartnerRequest | null>(null);
   const [partnerBankDetails, setPartnerBankDetails] =
-    useState<PartnerBankDetails | null>(null);
+    useState<PartnerBankingSummary | null>(null);
+  const [partnerBankLoading, setPartnerBankLoading] = useState(false);
   const [partnerDetailOpen, setPartnerDetailOpen] = useState(false);
   const [partnerActionDialogOpen, setPartnerActionDialogOpen] = useState(false);
   const [partnerActionType, setPartnerActionType] = useState<
@@ -222,12 +225,19 @@ export default function AdminPayouts() {
       if (payoutsError) throw payoutsError;
 
       const validPayouts = (payoutsData || []).filter((payout) =>
-        Boolean(payout.partner_id && payout.restaurant_id && payout.period_start && payout.period_end),
+        Boolean(
+          payout.partner_id &&
+          payout.restaurant_id &&
+          payout.period_start &&
+          payout.period_end,
+        ),
       );
 
       const partnerIds = [
         ...new Set(
-          validPayouts.map((payout) => payout.partner_id!).filter((id): id is string => Boolean(id)),
+          validPayouts
+            .map((payout) => payout.partner_id!)
+            .filter((id): id is string => Boolean(id)),
         ),
       ];
 
@@ -250,26 +260,27 @@ export default function AdminPayouts() {
         );
       }
 
-      const formattedPayouts: Payout[] = validPayouts.map(
-        (payout) => ({
-          id: payout.id,
-          partner_id: payout.partner_id!,
-          restaurant_id: payout.restaurant_id!,
-          amount: payout.amount,
-          status: payout.status === "processed" || payout.status === "rejected" ? payout.status : "pending",
-          period_start: payout.period_start!,
-          period_end: payout.period_end!,
-          order_count: payout.order_count,
-          commission_rate: payout.commission_rate,
-          total_order_value: payout.total_order_value,
-          commission_deducted: payout.commission_deducted,
-          payout_method: payout.payout_method,
-          processed_at: payout.processed_at,
-          created_at: payout.created_at,
-          restaurant: payout.restaurant as { name: string } | undefined,
-          partner: { full_name: profilesMap[payout.partner_id!] || null },
-        }),
-      );
+      const formattedPayouts: Payout[] = validPayouts.map((payout) => ({
+        id: payout.id,
+        partner_id: payout.partner_id!,
+        restaurant_id: payout.restaurant_id!,
+        amount: payout.amount,
+        status:
+          payout.status === "processed" || payout.status === "rejected"
+            ? payout.status
+            : "pending",
+        period_start: payout.period_start!,
+        period_end: payout.period_end!,
+        order_count: payout.order_count,
+        commission_rate: payout.commission_rate,
+        total_order_value: payout.total_order_value,
+        commission_deducted: payout.commission_deducted,
+        payout_method: payout.payout_method,
+        processed_at: payout.processed_at,
+        created_at: payout.created_at,
+        restaurant: payout.restaurant as { name: string } | undefined,
+        partner: { full_name: profilesMap[payout.partner_id!] || null },
+      }));
 
       setPayouts(formattedPayouts);
 
@@ -360,7 +371,9 @@ export default function AdminPayouts() {
     if (selectedPayouts.size === 0) return;
 
     if (action === "approve") {
-      toast.error("Process payouts individually so every bank transfer has its own reference");
+      toast.error(
+        "Process payouts individually so every bank transfer has its own reference",
+      );
       return;
     }
 
@@ -372,9 +385,7 @@ export default function AdminPayouts() {
         ),
       );
 
-      toast.success(
-        `${selectedPayouts.size} payout(s) rejected`,
-      );
+      toast.success(`${selectedPayouts.size} payout(s) rejected`);
       setSelectedPayouts(new Set());
       fetchPayouts();
     } catch (error) {
@@ -501,23 +512,18 @@ export default function AdminPayouts() {
   const openPartnerDetail = async (request: PartnerRequest) => {
     setSelectedPartnerRequest(request);
     setPartnerBankDetails(null);
+    setPartnerBankLoading(true);
     setPartnerDetailOpen(true);
 
     try {
-      const { data, error } = await supabase
-        .from("restaurant_details")
-        .select(
-          "bank_name, bank_account_name, bank_account_number, bank_iban, swift_code",
-        )
-        .eq("restaurant_id", request.restaurant_id)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      setPartnerBankDetails((data as PartnerBankDetails | null) || null);
+      setPartnerBankDetails(
+        await getPartnerBankingSummary(request.restaurant_id),
+      );
     } catch (error) {
       console.error("Error fetching partner bank details:", error);
       toast.error("Failed to load partner bank details");
+    } finally {
+      setPartnerBankLoading(false);
     }
   };
 
@@ -577,16 +583,7 @@ export default function AdminPayouts() {
       ]),
     ];
 
-    const csvContent = csvRows.map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `payouts-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadCsv(csvRows, `payouts-${format(new Date(), "yyyy-MM-dd")}.csv`);
     toast.success("Payouts exported to CSV");
   };
 
@@ -668,7 +665,7 @@ export default function AdminPayouts() {
         return (
           <Badge
             variant="outline"
-            className="rounded-full border-[#38BDF8]/25 bg-[#38BDF8]/10 px-3 py-1 text-[#0284C7]"
+            className="rounded-full border-[#38BDF8]/25 bg-[#38BDF8]/10 px-3 py-1 text-[#38BDF8]"
           >
             <Loader2 className="h-3 w-3 mr-1" />
             Processing
@@ -762,162 +759,87 @@ export default function AdminPayouts() {
       subtitle="Manage partner payouts and commissions"
     >
       <div className="space-y-6 bg-[#F6F8FB] text-[#020617]">
-        <section className="overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white p-5 text-[#020617] shadow-[0_18px_44px_rgba(2,6,23,0.06)] sm:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-[#38BDF8]">
-                <Wallet className="h-3.5 w-3.5" />
-                Partner finance
-              </div>
-              <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
-                Payout operations
-              </h2>
-              <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-[#94A3B8]">
-                Review pending payouts, process partner requests, and keep
-                commission records clean.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
-              <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">
-                  Pending
-                </p>
-                <p className="mt-2 text-xl font-black text-[#020617]">{stats.pendingCount}</p>
-              </div>
-              <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">
-                  Rejected
-                </p>
-                <p className="mt-2 text-xl font-black text-[#020617]">{stats.rejectedCount}</p>
-              </div>
-            </div>
+        <AdminWorkbenchHeader
+          eyebrow="Finance settlement"
+          title="Payout command desk"
+          icon={Wallet}
+          accent="#7C83F6"
+          description="Review payout liabilities, partner withdrawal requests, commission deductions, and settlement exceptions from one finance workflow."
+          meta={[
+            { label: "Pending payouts", value: stats.pendingCount },
+            { label: "Partner requests", value: pendingPartnerCount },
+            { label: "Selected", value: selectedPayouts.size },
+          ]}
+          actions={
+            <>
+              <Button
+                variant="outline"
+                onClick={handleExportCSV}
+                className="h-11 rounded-[14px] border-[#E5EAF1] bg-white px-4 font-black text-[#020617] hover:bg-[#F6F8FB]"
+              >
+                <Download className="mr-2 h-4 w-4 text-[#38BDF8]" />
+                Export CSV
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setGenerateDialogOpen(true)}
+                className="h-11 rounded-[14px] border-[#7C83F6]/30 bg-[#7C83F6]/10 px-4 font-black text-[#020617] hover:bg-[#7C83F6]/15"
+              >
+                <FileText className="mr-2 h-4 w-4 text-[#7C83F6]" />
+                Generate Payout
+              </Button>
+            </>
+          }
+        />
+
+        <AdminKpiStrip
+          items={[
+            {
+              label: "Pending Payouts",
+              value: formatCurrency(stats.totalPending),
+              helper: `${stats.pendingCount} awaiting processing`,
+              icon: Clock,
+              accent: "#7C83F6",
+            },
+            {
+              label: "Processed",
+              value: formatCurrency(stats.totalProcessed),
+              helper: `${stats.processedCount} completed`,
+              icon: CheckCircle,
+              accent: "#22C7A1",
+            },
+            {
+              label: "Total Commission",
+              value: formatCurrency(stats.totalCommission),
+              helper: "Platform earnings",
+              icon: Percent,
+              accent: "#F97316",
+            },
+            {
+              label: "Total Order Value",
+              value: formatCurrency(stats.totalOrderValue),
+              helper: "Gross revenue",
+              icon: TrendingUp,
+              accent: "#38BDF8",
+            },
+          ]}
+        />
+
+        <AdminFilterBar title="Settlement queue">
+          <div className="relative w-full">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+            <Input
+              placeholder="Search by restaurant, partner, or ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] pl-11 text-[#020617] placeholder:text-[#94A3B8] focus-visible:ring-[#7C83F6]/30"
+            />
           </div>
-        </section>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">
-                    Pending Payouts
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-[#020617]">
-                    {formatCurrency(stats.totalPending)}
-                  </p>
-                  <p className="mt-1 text-xs font-semibold text-[#7C83F6]">
-                    {stats.pendingCount} awaiting processing
-                  </p>
-                </div>
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#7C83F6]/10">
-                  <Clock className="h-6 w-6 text-[#7C83F6]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">
-                    Processed
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-[#020617]">
-                    {formatCurrency(stats.totalProcessed)}
-                  </p>
-                  <p className="mt-1 text-xs font-semibold text-[#22C7A1]">
-                    {stats.processedCount} completed
-                  </p>
-                </div>
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#22C7A1]/10">
-                  <CheckCircle className="h-6 w-6 text-[#22C7A1]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">
-                    Total Commission
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-[#020617]">
-                    {formatCurrency(stats.totalCommission)}
-                  </p>
-                  <p className="mt-1 text-xs font-semibold text-[#7C83F6]">
-                    Platform earnings
-                  </p>
-                </div>
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#7C83F6]/10">
-                  <Percent className="h-6 w-6 text-[#7C83F6]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#94A3B8]">
-                    Total Order Value
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-[#020617]">
-                    {formatCurrency(stats.totalOrderValue)}
-                  </p>
-                  <p className="mt-1 text-xs font-semibold text-[#38BDF8]">
-                    Gross revenue
-                  </p>
-                </div>
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#38BDF8]/10">
-                  <TrendingUp className="h-6 w-6 text-[#38BDF8]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search and Actions */}
-        <Card className="rounded-[24px] border-[#E5EAF1] bg-white shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
-              <div className="relative flex-1 w-full max-w-md">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
-                <Input
-                  placeholder="Search by restaurant, partner, or ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] pl-11 text-[#020617] placeholder:text-[#94A3B8]"
-                />
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button
-                  variant="outline"
-                  onClick={handleExportCSV}
-                  className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-white px-5 text-[#020617] hover:bg-[#F6F8FB]"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </Button>
-                <Button
-                  onClick={() => setGenerateDialogOpen(true)}
-                  className="min-h-[48px] rounded-2xl bg-[#020617] px-5 text-white hover:bg-[#020617]/90"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Generate Payout
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        </AdminFilterBar>
 
         {/* Tabs and Table */}
-        <Card className="overflow-hidden rounded-[28px] border-[#E5EAF1] bg-white shadow-sm">
-          <CardContent className="p-0">
+        <AdminPanel>
+          <div className="p-0">
             {/* Tabs */}
             <div className="border-b border-[#E5EAF1] bg-white px-4 py-4">
               <div className="flex flex-wrap gap-2 items-center">
@@ -928,20 +850,14 @@ export default function AdminPayouts() {
                       setMainView("payouts");
                       setActiveTab(tab.value);
                     }}
-                    className={`min-h-[44px] rounded-2xl px-4 py-2 text-sm font-bold transition-colors ${
+                    className={`min-h-[44px] rounded-2xl border px-4 py-2 text-sm font-bold transition-colors ${
                       mainView === "payouts" && activeTab === tab.value
-                        ? "bg-[#020617] text-white shadow-[0_12px_28px_rgba(2,6,23,0.18)]"
-                        : "border border-[#E5EAF1] bg-[#F6F8FB] text-[#94A3B8] hover:bg-white"
+                        ? "border-[#7C83F6]/30 bg-[#7C83F6]/10 text-[#020617]"
+                        : "border-[#E5EAF1] bg-[#F6F8FB] text-[#94A3B8] hover:bg-white hover:text-[#020617]"
                     }`}
                   >
                     {tab.label}
-                    <span
-                      className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
-                        mainView === "payouts" && activeTab === tab.value
-                          ? "bg-white/20 text-white"
-                          : "bg-white text-[#94A3B8]"
-                      }`}
-                    >
+                    <span className="ml-2 rounded-full bg-white px-2 py-0.5 text-xs text-[#94A3B8]">
                       {tab.count}
                     </span>
                   </button>
@@ -952,20 +868,14 @@ export default function AdminPayouts() {
                     setMainView("partner_requests");
                     fetchPartnerRequests();
                   }}
-                  className={`min-h-[44px] rounded-2xl px-4 py-2 text-sm font-bold transition-colors ${
+                  className={`min-h-[44px] rounded-2xl border px-4 py-2 text-sm font-bold transition-colors ${
                     mainView === "partner_requests"
-                      ? "bg-[#020617] text-white shadow-[0_12px_28px_rgba(2,6,23,0.18)]"
-                      : "border border-[#E5EAF1] bg-[#F6F8FB] text-[#94A3B8] hover:bg-white"
+                      ? "border-[#7C83F6]/30 bg-[#7C83F6]/10 text-[#020617]"
+                      : "border-[#E5EAF1] bg-[#F6F8FB] text-[#94A3B8] hover:bg-white hover:text-[#020617]"
                   }`}
                 >
                   Partner Requests
-                  <span
-                    className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
-                      mainView === "partner_requests"
-                        ? "bg-white/20 text-white"
-                        : "bg-[#7C83F6]/10 text-[#7C83F6]"
-                    }`}
-                  >
+                  <span className="ml-2 rounded-full bg-white px-2 py-0.5 text-xs text-[#7C83F6]">
                     {pendingPartnerCount}
                   </span>
                 </button>
@@ -984,7 +894,7 @@ export default function AdminPayouts() {
                     variant="outline"
                     onClick={() => handleBulkAction("approve")}
                     disabled={processing}
-                    className="rounded-xl border-[#22C7A1]/25 bg-white text-[#22C7A1] hover:bg-[#22C7A1]/10"
+                    className="rounded-2xl border-[#22C7A1]/25 bg-white text-[#22C7A1] hover:bg-[#22C7A1]/10"
                   >
                     <CheckCircle className="h-4 w-4 mr-1" />
                     Approve All
@@ -994,7 +904,7 @@ export default function AdminPayouts() {
                     variant="outline"
                     onClick={() => handleBulkAction("reject")}
                     disabled={processing}
-                    className="rounded-xl border-[#FB6B7A]/25 bg-white text-[#FB6B7A] hover:bg-[#FB6B7A]/10"
+                    className="rounded-2xl border-[#FB6B7A]/25 bg-white text-[#FB6B7A] hover:bg-[#FB6B7A]/10"
                   >
                     <XCircle className="h-4 w-4 mr-1" />
                     Reject All
@@ -1019,119 +929,231 @@ export default function AdminPayouts() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader className="bg-[#F6F8FB]">
-                      <TableRow className="border-[#E5EAF1] hover:bg-[#F6F8FB]">
-                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Restaurant
-                        </TableHead>
-                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Partner
-                        </TableHead>
-                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Period
-                        </TableHead>
-                        <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Amount
-                        </TableHead>
-                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Method
-                        </TableHead>
-                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Status
-                        </TableHead>
-                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Ref #
-                        </TableHead>
-                        <TableHead className="w-24 text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Actions
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredPartnerRequests.map((req) => (
-                        <TableRow
-                          key={req.id}
-                          className="cursor-pointer border-[#E5EAF1] hover:bg-[#F6F8FB]"
-                          onClick={() => openPartnerDetail(req)}
-                        >
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#38BDF8]/10">
-                                <Building2 className="h-4 w-4 text-[#38BDF8]" />
-                              </div>
-                              <span className="font-bold text-[#020617]">
+                <>
+                  <div className="grid gap-3 p-4 md:hidden">
+                    {filteredPartnerRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openPartnerDetail(req)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            openPartnerDetail(req);
+                          }
+                        }}
+                        className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 text-left shadow-[0_12px_30px_rgba(2,6,23,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_38px_rgba(2,6,23,0.08)]"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-start gap-3">
+                            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#38BDF8]/10">
+                              <Building2 className="h-5 w-5 text-[#38BDF8]" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-base font-black text-[#020617]">
                                 {req.restaurant?.name || "Unknown"}
-                              </span>
+                              </p>
+                              <p className="mt-1 truncate text-xs font-bold text-[#94A3B8]">
+                                {req.partner_name || "Unknown partner"}
+                              </p>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-[#94A3B8]" />
-                              <span className="text-[#020617]">
-                                {req.partner_name || "Unknown"}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1 text-sm font-medium text-[#94A3B8]">
-                              <Calendar className="h-3 w-3" />
-                              {format(
-                                new Date(req.period_start),
-                                "MMM d",
-                              )} -{" "}
-                              {format(new Date(req.period_end), "MMM d, yyyy")}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right font-black text-[#22C7A1]">
-                            {formatCurrency(req.amount)}
-                          </TableCell>
-                          <TableCell className="capitalize text-sm font-medium text-[#94A3B8]">
-                            {req.payout_method?.replace(/_/g, " ") || "-"}
-                          </TableCell>
-                          <TableCell>
-                            {getPartnerRequestStatusBadge(req.status)}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-[#94A3B8]">
-                            {req.reference_number || "-"}
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            {(req.status === "pending" ||
-                              req.status === "processing") && (
-                              <div className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 rounded-xl border-[#22C7A1]/25 px-2 text-[#22C7A1] hover:bg-[#22C7A1]/10"
-                                  onClick={() => {
-                                    setSelectedPartnerRequest(req);
-                                    setPartnerActionType("approve");
-                                    setPartnerActionDialogOpen(true);
-                                  }}
-                                >
-                                  <CheckCircle className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 rounded-xl border-[#FB6B7A]/25 px-2 text-[#FB6B7A] hover:bg-[#FB6B7A]/10"
-                                  onClick={() => {
-                                    setSelectedPartnerRequest(req);
-                                    setPartnerActionType("reject");
-                                    setPartnerActionDialogOpen(true);
-                                  }}
-                                >
-                                  <XCircle className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
+                          </div>
+                          {getPartnerRequestStatusBadge(req.status)}
+                        </div>
+                        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Amount
+                            </p>
+                            <p className="mt-1 text-lg font-black text-[#22C7A1]">
+                              {formatCurrency(req.amount)}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Method
+                            </p>
+                            <p className="mt-1 truncate text-sm font-black capitalize text-[#020617]">
+                              {req.payout_method?.replace(/_/g, " ") || "-"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between rounded-2xl bg-[#F6F8FB] px-3 py-2 text-xs font-bold text-[#94A3B8]">
+                          <span>
+                            {format(new Date(req.period_start), "MMM d")} -{" "}
+                            {format(new Date(req.period_end), "MMM d, yyyy")}
+                          </span>
+                          <span className="font-mono">
+                            {req.reference_number || "No ref"}
+                          </span>
+                        </div>
+                        {(req.status === "pending" ||
+                          req.status === "processing") && (
+                          <div
+                            className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="min-h-11 rounded-2xl border-[#22C7A1]/25 bg-[#22C7A1]/10 font-black text-[#22C7A1] hover:bg-[#22C7A1]/15"
+                              onClick={() => {
+                                setSelectedPartnerRequest(req);
+                                setPartnerActionType("approve");
+                                setPartnerActionDialogOpen(true);
+                              }}
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="min-h-11 rounded-2xl border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#FB6B7A] hover:bg-[#FB6B7A]/15"
+                              onClick={() => {
+                                setSelectedPartnerRequest(req);
+                                setPartnerActionType("reject");
+                                setPartnerActionDialogOpen(true);
+                              }}
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="hidden overflow-x-auto md:block">
+                    <Table>
+                      <TableHeader className="bg-[#F6F8FB]">
+                        <TableRow className="border-[#E5EAF1] hover:bg-[#F6F8FB]">
+                          <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Restaurant
+                          </TableHead>
+                          <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Partner
+                          </TableHead>
+                          <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Period
+                          </TableHead>
+                          <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Amount
+                          </TableHead>
+                          <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Method
+                          </TableHead>
+                          <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Status
+                          </TableHead>
+                          <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Ref #
+                          </TableHead>
+                          <TableHead className="w-24 text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Actions
+                          </TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredPartnerRequests.map((req) => (
+                          <TableRow
+                            key={req.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Open partner payout request for ${req.restaurant?.name || "unknown restaurant"}`}
+                            className="cursor-pointer border-[#E5EAF1] outline-none transition-colors hover:bg-[#F6F8FB] focus-visible:bg-[#F6F8FB] focus-visible:ring-2 focus-visible:ring-[#7C83F6]/35"
+                            onClick={() => openPartnerDetail(req)}
+                            onKeyDown={(event) => {
+                              if (event.target !== event.currentTarget) return;
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                openPartnerDetail(req);
+                              }
+                            }}
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#38BDF8]/10">
+                                  <Building2 className="h-4 w-4 text-[#38BDF8]" />
+                                </div>
+                                <span className="font-bold text-[#020617]">
+                                  {req.restaurant?.name || "Unknown"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-[#94A3B8]" />
+                                <span className="text-[#020617]">
+                                  {req.partner_name || "Unknown"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1 text-sm font-medium text-[#94A3B8]">
+                                <Calendar className="h-3 w-3" />
+                                {format(
+                                  new Date(req.period_start),
+                                  "MMM d",
+                                )} -{" "}
+                                {format(
+                                  new Date(req.period_end),
+                                  "MMM d, yyyy",
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-black text-[#22C7A1]">
+                              {formatCurrency(req.amount)}
+                            </TableCell>
+                            <TableCell className="capitalize text-sm font-medium text-[#94A3B8]">
+                              {req.payout_method?.replace(/_/g, " ") || "-"}
+                            </TableCell>
+                            <TableCell>
+                              {getPartnerRequestStatusBadge(req.status)}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-[#94A3B8]">
+                              {req.reference_number || "-"}
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              {(req.status === "pending" ||
+                                req.status === "processing") && (
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-11 min-w-11 rounded-2xl border-[#22C7A1]/25 px-3 text-[#22C7A1] hover:bg-[#22C7A1]/10"
+                                    aria-label="Approve partner payout request"
+                                    onClick={() => {
+                                      setSelectedPartnerRequest(req);
+                                      setPartnerActionType("approve");
+                                      setPartnerActionDialogOpen(true);
+                                    }}
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-11 min-w-11 rounded-2xl border-[#FB6B7A]/25 px-3 text-[#FB6B7A] hover:bg-[#FB6B7A]/10"
+                                    aria-label="Reject partner payout request"
+                                    onClick={() => {
+                                      setSelectedPartnerRequest(req);
+                                      setPartnerActionType("reject");
+                                      setPartnerActionDialogOpen(true);
+                                    }}
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               ))}
 
             {/* Admin Payouts Table */}
@@ -1144,167 +1166,308 @@ export default function AdminPayouts() {
               </div>
             ) : (
               mainView === "payouts" && (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader className="bg-[#F6F8FB]">
-                      <TableRow className="border-[#E5EAF1] hover:bg-[#F6F8FB]">
-                        <TableHead className="w-12">
-                          <Checkbox
-                            checked={
-                              filteredPayouts.length > 0 &&
-                              selectedPayouts.size === filteredPayouts.length
-                            }
-                            onCheckedChange={toggleAllSelection}
-                          />
-                        </TableHead>
-                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Restaurant
-                        </TableHead>
-                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Partner
-                        </TableHead>
-                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Period
-                        </TableHead>
-                        <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Orders
-                        </TableHead>
-                        <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Gross Value
-                        </TableHead>
-                        <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Commission
-                        </TableHead>
-                        <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Payout
-                        </TableHead>
-                        <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                          Status
-                        </TableHead>
-                        <TableHead className="w-12"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredPayouts.map((payout) => (
-                        <TableRow
-                          key={payout.id}
-                          className="cursor-pointer border-[#E5EAF1] hover:bg-[#F6F8FB]"
-                          onClick={() => {
+                <>
+                  <div className="grid gap-3 p-4 md:hidden">
+                    {filteredPayouts.map((payout) => (
+                      <div
+                        key={payout.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                          setSelectedPayout(payout);
+                          setDetailOpen(true);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
                             setSelectedPayout(payout);
                             setDetailOpen(true);
-                          }}
-                        >
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              checked={selectedPayouts.has(payout.id)}
-                              onCheckedChange={() =>
-                                togglePayoutSelection(payout.id)
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#38BDF8]/10">
-                                <Building2 className="h-4 w-4 text-[#38BDF8]" />
-                              </div>
-                              <span className="font-bold text-[#020617]">
+                          }
+                        }}
+                        className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 text-left shadow-[0_12px_30px_rgba(2,6,23,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_38px_rgba(2,6,23,0.08)]"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-start gap-3">
+                            <div
+                              className="pt-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Checkbox
+                                checked={selectedPayouts.has(payout.id)}
+                                onCheckedChange={() =>
+                                  togglePayoutSelection(payout.id)
+                                }
+                              />
+                            </div>
+                            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#38BDF8]/10">
+                              <Building2 className="h-5 w-5 text-[#38BDF8]" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-base font-black text-[#020617]">
                                 {payout.restaurant?.name || "Unknown"}
-                              </span>
+                              </p>
+                              <p className="mt-1 truncate text-xs font-bold text-[#94A3B8]">
+                                {payout.partner?.full_name || "Unknown partner"}
+                              </p>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-[#94A3B8]" />
-                              <span className="text-[#020617]">
-                                {payout.partner?.full_name || "Unknown"}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1 text-sm font-medium text-[#94A3B8]">
-                              <Calendar className="h-3 w-3" />
-                              {format(
-                                new Date(payout.period_start),
-                                "MMM d",
-                              )} -{" "}
-                              {format(
-                                new Date(payout.period_end),
-                                "MMM d, yyyy",
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right font-bold text-[#020617]">
-                            {payout.order_count}
-                          </TableCell>
-                          <TableCell className="text-right font-semibold text-[#020617]">
-                            {formatCurrency(payout.total_order_value || 0)}
-                          </TableCell>
-                          <TableCell className="text-right text-[#94A3B8]">
-                            -{formatCurrency(payout.commission_deducted || 0)}
-                            <span className="text-xs ml-1">
-                              ({payout.commission_rate || 0}%)
+                          </div>
+                          {getStatusBadge(payout.status)}
+                        </div>
+                        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Payout
+                            </p>
+                            <p className="mt-1 text-lg font-black text-[#22C7A1]">
+                              {formatCurrency(payout.amount)}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                              Orders
+                            </p>
+                            <p className="mt-1 text-lg font-black text-[#020617]">
+                              {payout.order_count}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 text-xs font-bold">
+                          <div className="rounded-2xl bg-[#F6F8FB] px-3 py-2 text-[#94A3B8]">
+                            Gross{" "}
+                            <span className="block text-sm font-black text-[#020617]">
+                              {formatCurrency(payout.total_order_value || 0)}
                             </span>
-                          </TableCell>
-                          <TableCell className="text-right font-black text-[#22C7A1]">
-                            {formatCurrency(payout.amount)}
-                          </TableCell>
-                          <TableCell>{getStatusBadge(payout.status)}</TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-xl text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {payout.status === "pending" && (
-                                  <>
-                                    <DropdownMenuItem
-                                      onClick={() => {
-                                        setSelectedPayout(payout);
-                                        setActionType("approve");
-                                        setActionDialogOpen(true);
-                                      }}
-                                      className="text-[#22C7A1]"
-                                    >
-                                      <CheckCircle className="h-4 w-4 mr-2" />
-                                      Approve
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => {
-                                        setSelectedPayout(payout);
-                                        setActionType("reject");
-                                        setActionDialogOpen(true);
-                                      }}
-                                      className="text-[#FB6B7A]"
-                                    >
-                                      <XCircle className="h-4 w-4 mr-2" />
-                                      Reject
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
+                          </div>
+                          <div className="rounded-2xl bg-[#F6F8FB] px-3 py-2 text-[#94A3B8]">
+                            Commission{" "}
+                            <span className="block text-sm font-black text-[#FB6B7A]">
+                              -{formatCurrency(payout.commission_deducted || 0)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between rounded-2xl bg-[#F6F8FB] px-3 py-2 text-xs font-bold text-[#94A3B8]">
+                          <span>
+                            {format(new Date(payout.period_start), "MMM d")} -{" "}
+                            {format(new Date(payout.period_end), "MMM d, yyyy")}
+                          </span>
+                          <span>{payout.commission_rate || 0}%</span>
+                        </div>
+                        {payout.status === "pending" && (
+                          <div
+                            className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="min-h-11 rounded-2xl border-[#22C7A1]/25 bg-[#22C7A1]/10 font-black text-[#22C7A1] hover:bg-[#22C7A1]/15"
+                              onClick={() => {
+                                setSelectedPayout(payout);
+                                setActionType("approve");
+                                setActionDialogOpen(true);
+                              }}
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="min-h-11 rounded-2xl border-[#FB6B7A]/25 bg-[#FB6B7A]/10 font-black text-[#FB6B7A] hover:bg-[#FB6B7A]/15"
+                              onClick={() => {
+                                setSelectedPayout(payout);
+                                setActionType("reject");
+                                setActionDialogOpen(true);
+                              }}
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="hidden overflow-x-auto md:block">
+                    <Table>
+                      <TableHeader className="bg-[#F6F8FB]">
+                        <TableRow className="border-[#E5EAF1] hover:bg-[#F6F8FB]">
+                          <TableHead className="w-12">
+                            <Checkbox
+                              checked={
+                                filteredPayouts.length > 0 &&
+                                selectedPayouts.size === filteredPayouts.length
+                              }
+                              onCheckedChange={toggleAllSelection}
+                            />
+                          </TableHead>
+                          <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Restaurant
+                          </TableHead>
+                          <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Partner
+                          </TableHead>
+                          <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Period
+                          </TableHead>
+                          <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Orders
+                          </TableHead>
+                          <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Gross Value
+                          </TableHead>
+                          <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Commission
+                          </TableHead>
+                          <TableHead className="text-right text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Payout
+                          </TableHead>
+                          <TableHead className="text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                            Status
+                          </TableHead>
+                          <TableHead className="w-12"></TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredPayouts.map((payout) => (
+                          <TableRow
+                            key={payout.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Open payout for ${payout.restaurant?.name || "unknown restaurant"}`}
+                            className="cursor-pointer border-[#E5EAF1] outline-none transition-colors hover:bg-[#F6F8FB] focus-visible:bg-[#F6F8FB] focus-visible:ring-2 focus-visible:ring-[#7C83F6]/35"
+                            onClick={() => {
+                              setSelectedPayout(payout);
+                              setDetailOpen(true);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.target !== event.currentTarget) return;
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                setSelectedPayout(payout);
+                                setDetailOpen(true);
+                              }
+                            }}
+                          >
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedPayouts.has(payout.id)}
+                                onCheckedChange={() =>
+                                  togglePayoutSelection(payout.id)
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#38BDF8]/10">
+                                  <Building2 className="h-4 w-4 text-[#38BDF8]" />
+                                </div>
+                                <span className="font-bold text-[#020617]">
+                                  {payout.restaurant?.name || "Unknown"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-[#94A3B8]" />
+                                <span className="text-[#020617]">
+                                  {payout.partner?.full_name || "Unknown"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1 text-sm font-medium text-[#94A3B8]">
+                                <Calendar className="h-3 w-3" />
+                                {format(
+                                  new Date(payout.period_start),
+                                  "MMM d",
+                                )}{" "}
+                                -{" "}
+                                {format(
+                                  new Date(payout.period_end),
+                                  "MMM d, yyyy",
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-[#020617]">
+                              {payout.order_count}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-[#020617]">
+                              {formatCurrency(payout.total_order_value || 0)}
+                            </TableCell>
+                            <TableCell className="text-right text-[#94A3B8]">
+                              -{formatCurrency(payout.commission_deducted || 0)}
+                              <span className="text-xs ml-1">
+                                ({payout.commission_rate || 0}%)
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right font-black text-[#22C7A1]">
+                              {formatCurrency(payout.amount)}
+                            </TableCell>
+                            <TableCell>
+                              {getStatusBadge(payout.status)}
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-11 w-11 rounded-2xl text-[#94A3B8] hover:bg-[#F6F8FB] hover:text-[#020617]"
+                                    aria-label="Open payout actions"
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]"
+                                >
+                                  {payout.status === "pending" && (
+                                    <>
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          setSelectedPayout(payout);
+                                          setActionType("approve");
+                                          setActionDialogOpen(true);
+                                        }}
+                                        className="text-[#22C7A1]"
+                                      >
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Approve
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          setSelectedPayout(payout);
+                                          setActionType("reject");
+                                          setActionDialogOpen(true);
+                                        }}
+                                        className="text-[#FB6B7A]"
+                                      >
+                                        <XCircle className="h-4 w-4 mr-2" />
+                                        Reject
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </AdminPanel>
       </div>
 
       {/* Detail Sheet */}
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent className="w-full overflow-y-auto border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] sm:max-w-lg">
-          <SheetHeader>
+        <AdminSheetContent size="lg">
+          <SheetHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left shadow-[0_12px_30px_rgba(2,6,23,0.05)]">
             <SheetTitle className="text-[#020617]">Payout Details</SheetTitle>
             <SheetDescription className="text-[#94A3B8]">
               View complete payout information
@@ -1312,7 +1475,7 @@ export default function AdminPayouts() {
           </SheetHeader>
 
           {selectedPayout && (
-            <div className="mt-6 space-y-6">
+            <div className="space-y-6 p-5">
               <div className="flex items-center justify-between rounded-[24px] border border-[#22C7A1]/20 bg-[#22C7A1]/10 p-4">
                 <div>
                   <p className="text-sm font-bold text-[#22C7A1]">
@@ -1392,7 +1555,9 @@ export default function AdminPayouts() {
               </div>
 
               <div className="rounded-[24px] border border-[#E5EAF1] bg-white p-4">
-                <h4 className="mb-3 font-black text-[#020617]">Financial Breakdown</h4>
+                <h4 className="mb-3 font-black text-[#020617]">
+                  Financial Breakdown
+                </h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="font-medium text-[#94A3B8]">
@@ -1406,7 +1571,9 @@ export default function AdminPayouts() {
                     <span className="font-medium text-[#94A3B8]">
                       Commission Rate
                     </span>
-                    <span className="font-bold text-[#020617]">{selectedPayout.commission_rate || 0}%</span>
+                    <span className="font-bold text-[#020617]">
+                      {selectedPayout.commission_rate || 0}%
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-[#94A3B8]">
@@ -1426,7 +1593,9 @@ export default function AdminPayouts() {
               </div>
 
               <div className="rounded-[24px] border border-[#E5EAF1] bg-white p-4">
-                <h4 className="mb-3 font-black text-[#020617]">Status Information</h4>
+                <h4 className="mb-3 font-black text-[#020617]">
+                  Status Information
+                </h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-[#94A3B8]">
@@ -1445,7 +1614,9 @@ export default function AdminPayouts() {
                   </div>
                   {selectedPayout.processed_at && (
                     <div className="flex justify-between">
-                      <span className="font-medium text-[#94A3B8]">Processed</span>
+                      <span className="font-medium text-[#94A3B8]">
+                        Processed
+                      </span>
                       <span className="font-bold text-[#020617]">
                         {format(
                           new Date(selectedPayout.processed_at),
@@ -1460,7 +1631,7 @@ export default function AdminPayouts() {
               {selectedPayout.status === "pending" && (
                 <div className="flex gap-2 pt-4">
                   <Button
-                    className="min-h-[44px] flex-1 rounded-2xl bg-[#22C7A1] text-white hover:bg-[#18B28F]"
+                    className="min-h-[44px] flex-1 rounded-2xl bg-[#22C7A1] text-white hover:bg-[#22C7A1]"
                     onClick={() => {
                       setActionType("approve");
                       setActionDialogOpen(true);
@@ -1484,13 +1655,13 @@ export default function AdminPayouts() {
               )}
             </div>
           )}
-        </SheetContent>
+        </AdminSheetContent>
       </Sheet>
 
       {/* Action Confirmation Dialog */}
       <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
-        <DialogContent className="border-[#E5EAF1] bg-white text-[#020617]">
-          <DialogHeader>
+        <AdminDialogContent size="md">
+          <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4 text-left">
             <DialogTitle className="text-[#020617]">
               {actionType === "approve" ? "Process Payout" : "Reject Payout"}
             </DialogTitle>
@@ -1502,33 +1673,35 @@ export default function AdminPayouts() {
           </DialogHeader>
 
           {selectedPayout && (
-            <div className="space-y-4">
+            <div className="space-y-4 bg-[#F6F8FB] px-5 py-4">
               <div className="space-y-2 rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB] p-4 text-sm">
-              <div className="flex justify-between">
-                <span className="font-medium text-[#94A3B8]">Restaurant:</span>
-                <span className="font-bold text-[#020617]">
-                  {selectedPayout.restaurant?.name}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium text-[#94A3B8]">Partner:</span>
-                <span className="font-bold text-[#020617]">
-                  {selectedPayout.partner?.full_name}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium text-[#94A3B8]">Amount:</span>
-                <span className="font-black text-[#22C7A1]">
-                  {formatCurrency(selectedPayout.amount)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium text-[#94A3B8]">Period:</span>
-                <span className="font-bold text-[#020617]">
-                  {format(new Date(selectedPayout.period_start), "MMM d")} -{" "}
-                  {format(new Date(selectedPayout.period_end), "MMM d, yyyy")}
-                </span>
-              </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-[#94A3B8]">
+                    Restaurant:
+                  </span>
+                  <span className="font-bold text-[#020617]">
+                    {selectedPayout.restaurant?.name}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-[#94A3B8]">Partner:</span>
+                  <span className="font-bold text-[#020617]">
+                    {selectedPayout.partner?.full_name}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-[#94A3B8]">Amount:</span>
+                  <span className="font-black text-[#22C7A1]">
+                    {formatCurrency(selectedPayout.amount)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-[#94A3B8]">Period:</span>
+                  <span className="font-bold text-[#020617]">
+                    {format(new Date(selectedPayout.period_start), "MMM d")} -{" "}
+                    {format(new Date(selectedPayout.period_end), "MMM d, yyyy")}
+                  </span>
+                </div>
               </div>
               {actionType === "approve" && (
                 <div className="space-y-2">
@@ -1546,7 +1719,7 @@ export default function AdminPayouts() {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
             <Button
               variant="outline"
               onClick={() => {
@@ -1559,7 +1732,6 @@ export default function AdminPayouts() {
               Cancel
             </Button>
             <Button
-              variant={actionType === "approve" ? "default" : "destructive"}
               onClick={handleAction}
               disabled={
                 processing ||
@@ -1567,31 +1739,35 @@ export default function AdminPayouts() {
               }
               className={
                 actionType === "approve"
-                  ? "min-h-[44px] rounded-2xl bg-[#22C7A1] text-white hover:bg-[#18B28F]"
-                  : "min-h-[44px] rounded-2xl bg-[#FB6B7A] text-white hover:bg-[#EF5A6B]"
+                  ? "min-h-[44px] rounded-2xl bg-[#22C7A1] font-black text-white hover:bg-[#22C7A1]/90"
+                  : "min-h-[44px] rounded-2xl bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90"
               }
             >
               {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {actionType === "approve" ? "Process Payout" : "Reject Payout"}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
 
       {/* Generate Payout Dialog */}
       <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
-        <DialogContent className="border-[#E5EAF1] bg-white text-[#020617]">
-          <DialogHeader>
-            <DialogTitle className="text-[#020617]">Generate Partner Payout</DialogTitle>
+        <AdminDialogContent size="md">
+          <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4 text-left">
+            <DialogTitle className="text-[#020617]">
+              Generate Partner Payout
+            </DialogTitle>
             <DialogDescription className="text-[#94A3B8]">
               Create a payout for a restaurant partner based on their orders in
               the specified period.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-4 bg-[#F6F8FB] px-5 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-bold text-[#020617]">Restaurant</label>
+              <label className="text-sm font-bold text-[#020617]">
+                Restaurant
+              </label>
               <Select
                 value={selectedRestaurant}
                 onValueChange={setSelectedRestaurant}
@@ -1599,7 +1775,7 @@ export default function AdminPayouts() {
                 <SelectTrigger className="min-h-[48px] rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]">
                   <SelectValue placeholder="Select a restaurant" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-[18px] border-[#E5EAF1] bg-white text-[#020617] shadow-[0_18px_42px_rgba(2,6,23,0.12)]">
                   {restaurants.map((restaurant) => (
                     <SelectItem key={restaurant.id} value={restaurant.id}>
                       {restaurant.name}
@@ -1609,9 +1785,11 @@ export default function AdminPayouts() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-[#020617]">Period Start</label>
+                <label className="text-sm font-bold text-[#020617]">
+                  Period Start
+                </label>
                 <Input
                   type="date"
                   value={periodStart}
@@ -1620,7 +1798,9 @@ export default function AdminPayouts() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-[#020617]">Period End</label>
+                <label className="text-sm font-bold text-[#020617]">
+                  Period End
+                </label>
                 <Input
                   type="date"
                   value={periodEnd}
@@ -1631,7 +1811,7 @@ export default function AdminPayouts() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
             <Button
               variant="outline"
               onClick={() => setGenerateDialogOpen(false)}
@@ -1641,9 +1821,10 @@ export default function AdminPayouts() {
               Cancel
             </Button>
             <Button
+              variant="outline"
               onClick={handleGeneratePayout}
               disabled={generatingPayout}
-              className="min-h-[44px] rounded-2xl bg-[#020617] text-white hover:bg-[#020617]/90"
+              className="min-h-[44px] rounded-2xl border-[#7C83F6]/30 bg-[#7C83F6]/10 font-black text-[#020617] hover:bg-[#7C83F6]/15"
             >
               {generatingPayout && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1651,23 +1832,27 @@ export default function AdminPayouts() {
               Generate Payout
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
       {/* Partner Request Detail Sheet */}
       <Sheet open={partnerDetailOpen} onOpenChange={setPartnerDetailOpen}>
-        <SheetContent className="w-full overflow-y-auto border-[#E5EAF1] bg-[#F6F8FB] text-[#020617] sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle className="text-[#020617]">Partner Payout Request</SheetTitle>
+        <AdminSheetContent size="lg">
+          <SheetHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] p-5 text-left shadow-[0_12px_30px_rgba(2,6,23,0.05)]">
+            <SheetTitle className="text-[#020617]">
+              Partner Payout Request
+            </SheetTitle>
             <SheetDescription className="text-[#94A3B8]">
               Review and action this partner-initiated payout request
             </SheetDescription>
           </SheetHeader>
 
           {selectedPartnerRequest && (
-            <div className="mt-6 space-y-6">
+            <div className="space-y-6 p-5">
               <div className="flex items-center justify-between rounded-[24px] border border-[#22C7A1]/20 bg-[#22C7A1]/10 p-4">
                 <div>
-                  <p className="text-sm font-bold text-[#22C7A1]">Requested Amount</p>
+                  <p className="text-sm font-bold text-[#22C7A1]">
+                    Requested Amount
+                  </p>
                   <p className="text-3xl font-black text-[#020617]">
                     {formatCurrency(selectedPartnerRequest.amount)}
                   </p>
@@ -1681,7 +1866,9 @@ export default function AdminPayouts() {
                     <Building2 className="h-4 w-4 text-[#38BDF8]" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-[#94A3B8]">Restaurant</p>
+                    <p className="text-sm font-medium text-[#94A3B8]">
+                      Restaurant
+                    </p>
                     <p className="font-bold text-[#020617]">
                       {selectedPartnerRequest.restaurant?.name || "Unknown"}
                     </p>
@@ -1693,7 +1880,9 @@ export default function AdminPayouts() {
                     <User className="h-4 w-4 text-[#38BDF8]" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-[#94A3B8]">Partner</p>
+                    <p className="text-sm font-medium text-[#94A3B8]">
+                      Partner
+                    </p>
                     <p className="font-bold text-[#020617]">
                       {selectedPartnerRequest.partner_name || "Unknown"}
                     </p>
@@ -1726,7 +1915,11 @@ export default function AdminPayouts() {
               {/* Bank Account Details */}
               <div className="rounded-[24px] border border-[#E5EAF1] bg-white p-4">
                 <h4 className="mb-3 font-black text-[#020617]">Bank Account</h4>
-                {partnerBankDetails ? (
+                {partnerBankLoading ? (
+                  <p className="text-sm font-medium italic text-[#94A3B8]">
+                    Loading bank details...
+                  </p>
+                ) : partnerBankDetails ? (
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="font-medium text-[#94A3B8]">Bank</span>
@@ -1739,7 +1932,7 @@ export default function AdminPayouts() {
                         Account Holder
                       </span>
                       <span className="font-bold text-[#020617]">
-                        {partnerBankDetails.bank_account_name || "-"}
+                        {partnerBankDetails.bank_account_name_masked || "-"}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1747,30 +1940,25 @@ export default function AdminPayouts() {
                         Account Number
                       </span>
                       <span className="font-mono font-bold text-[#020617]">
-                        {partnerBankDetails.bank_account_number
-                          ? "****" +
-                            partnerBankDetails.bank_account_number.slice(-4)
-                          : "-"}
+                        {partnerBankDetails.bank_account_number_masked || "-"}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="font-medium text-[#94A3B8]">IBAN</span>
                       <span className="font-mono font-bold text-[#020617]">
-                        {partnerBankDetails.bank_iban
-                          ? "****" + partnerBankDetails.bank_iban.slice(-4)
-                          : "-"}
+                        {partnerBankDetails.bank_iban_masked || "-"}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="font-medium text-[#94A3B8]">SWIFT</span>
                       <span className="font-bold text-[#020617]">
-                        {partnerBankDetails.swift_code || "-"}
+                        {partnerBankDetails.swift_code_masked || "-"}
                       </span>
                     </div>
                   </div>
                 ) : (
                   <p className="text-sm font-medium italic text-[#94A3B8]">
-                    Loading bank details...
+                    Bank details unavailable.
                   </p>
                 )}
               </div>
@@ -1788,7 +1976,9 @@ export default function AdminPayouts() {
                     )}
                   </div>
                   <div className="flex justify-between">
-                    <span className="font-medium text-[#94A3B8]">Requested</span>
+                    <span className="font-medium text-[#94A3B8]">
+                      Requested
+                    </span>
                     <span className="font-bold text-[#020617]">
                       {format(
                         new Date(selectedPartnerRequest.created_at),
@@ -1798,7 +1988,9 @@ export default function AdminPayouts() {
                   </div>
                   {selectedPartnerRequest.reference_number && (
                     <div className="flex justify-between">
-                      <span className="font-medium text-[#94A3B8]">Reference</span>
+                      <span className="font-medium text-[#94A3B8]">
+                        Reference
+                      </span>
                       <span className="font-mono font-bold text-[#020617]">
                         {selectedPartnerRequest.reference_number}
                       </span>
@@ -1806,7 +1998,9 @@ export default function AdminPayouts() {
                   )}
                   {selectedPartnerRequest.processed_at && (
                     <div className="flex justify-between">
-                      <span className="font-medium text-[#94A3B8]">Processed</span>
+                      <span className="font-medium text-[#94A3B8]">
+                        Processed
+                      </span>
                       <span className="font-bold text-[#020617]">
                         {format(
                           new Date(selectedPartnerRequest.processed_at),
@@ -1822,7 +2016,7 @@ export default function AdminPayouts() {
                 selectedPartnerRequest.status === "processing") && (
                 <div className="flex gap-2 pt-4">
                   <Button
-                    className="min-h-[44px] flex-1 rounded-2xl bg-[#22C7A1] text-white hover:bg-[#18B28F]"
+                    className="min-h-[44px] flex-1 rounded-2xl bg-[#22C7A1] text-white hover:bg-[#22C7A1]"
                     onClick={() => {
                       setPartnerActionType("approve");
                       setPartnerActionDialogOpen(true);
@@ -1846,7 +2040,7 @@ export default function AdminPayouts() {
               )}
             </div>
           )}
-        </SheetContent>
+        </AdminSheetContent>
       </Sheet>
 
       {/* Partner Request Action Dialog */}
@@ -1854,8 +2048,8 @@ export default function AdminPayouts() {
         open={partnerActionDialogOpen}
         onOpenChange={setPartnerActionDialogOpen}
       >
-        <DialogContent className="border-[#E5EAF1] bg-white text-[#020617]">
-          <DialogHeader>
+        <AdminDialogContent size="md">
+          <DialogHeader className="border-b border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4 text-left">
             <DialogTitle className="text-[#020617]">
               {partnerActionType === "approve"
                 ? "Approve Payout Request"
@@ -1869,10 +2063,12 @@ export default function AdminPayouts() {
           </DialogHeader>
 
           {selectedPartnerRequest && (
-            <div className="space-y-4">
+            <div className="space-y-4 bg-[#F6F8FB] px-5 py-4">
               <div className="space-y-2 rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB] p-4 text-sm">
                 <div className="flex justify-between">
-                  <span className="font-medium text-[#94A3B8]">Restaurant:</span>
+                  <span className="font-medium text-[#94A3B8]">
+                    Restaurant:
+                  </span>
                   <span className="font-bold text-[#020617]">
                     {selectedPartnerRequest.restaurant?.name}
                   </span>
@@ -1910,7 +2106,7 @@ export default function AdminPayouts() {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-3 border-t border-[#E5EAF1] bg-[#F6F8FB] px-5 py-4">
             <Button
               variant="outline"
               onClick={() => {
@@ -1923,18 +2119,16 @@ export default function AdminPayouts() {
               Cancel
             </Button>
             <Button
-              variant={
-                partnerActionType === "approve" ? "default" : "destructive"
-              }
               onClick={handlePartnerRequestAction}
               disabled={
                 processing ||
-                (partnerActionType === "approve" && referenceNumber.trim().length < 3)
+                (partnerActionType === "approve" &&
+                  referenceNumber.trim().length < 3)
               }
               className={
                 partnerActionType === "approve"
-                  ? "min-h-[44px] rounded-2xl bg-[#22C7A1] text-white hover:bg-[#18B28F]"
-                  : "min-h-[44px] rounded-2xl bg-[#FB6B7A] text-white hover:bg-[#EF5A6B]"
+                  ? "min-h-[44px] rounded-2xl bg-[#22C7A1] font-black text-white hover:bg-[#22C7A1]/90"
+                  : "min-h-[44px] rounded-2xl bg-[#FB6B7A] font-black text-white hover:bg-[#FB6B7A]/90"
               }
             >
               {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -1943,7 +2137,7 @@ export default function AdminPayouts() {
                 : "Reject Request"}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
     </AdminLayout>
   );

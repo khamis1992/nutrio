@@ -1,13 +1,16 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import {
+  errorResponse,
+  escapeHtml,
+  getCorsHeaders,
+  getServiceClient,
+  handlePreflight,
+  requireAdminOrInternal,
+  requirePost,
+} from "../_shared/security.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 interface AffiliateReport {
   user_id: string;
@@ -28,14 +31,14 @@ interface AffiliateReport {
 const handler = async (req: Request): Promise<Response> => {
   console.log("Monthly affiliate report function called");
 
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    requirePost(req);
+    await requireAdminOrInternal(req, "AFFILIATE_NOTIFICATION_SECRET");
+    const supabase = getServiceClient();
 
     // Get current month date range
     const now = new Date();
@@ -116,11 +119,18 @@ const handler = async (req: Request): Promise<Response> => {
           .eq("user_id", affiliate.user_id)
           .gte("achieved_at", firstDayOfMonth.toISOString());
 
+        const normalizedTier = String(affiliate.affiliate_tier || "bronze")
+          .trim()
+          .toLowerCase();
+        const safeTier = ["bronze", "silver", "gold", "platinum", "diamond"]
+          .includes(normalizedTier)
+          ? normalizedTier
+          : "bronze";
         const report: AffiliateReport = {
           user_id: affiliate.user_id,
           email: authUser.user.email,
-          full_name: affiliate.full_name || "Affiliate Partner",
-          affiliate_tier: affiliate.affiliate_tier || "Bronze",
+          full_name: escapeHtml(affiliate.full_name || "Affiliate Partner"),
+          affiliate_tier: safeTier,
           total_earnings: affiliate.total_affiliate_earnings || 0,
           current_balance: affiliate.affiliate_balance || 0,
           monthly_commissions: monthlyCommissions,
@@ -264,13 +274,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("Error in send-monthly-affiliate-report function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return errorResponse(req, error);
   }
 };
 

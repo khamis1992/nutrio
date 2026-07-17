@@ -2,83 +2,23 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Loader2,
-  Crown, Zap, Star, Clock, Apple, Utensils,
-  Shield, ClipboardList, CalendarDays, HeartHandshake, Sparkles,
-  type LucideIcon
+  Crown, Zap, Clock, Apple, Utensils,
+  Shield, ClipboardList, CalendarDays, HeartHandshake, Sparkles, ChevronRight
 } from "lucide-react";
-import { formatCurrency } from "@/lib/currency";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useFreezeDaysRemaining } from "@/hooks/useSubscriptionFreeze";
-import { useWallet } from "@/hooks/useWallet";
-import { useSubscriptionPlans, type DbSubscriptionPlan } from "@/hooks/useSubscriptionPlans";
 import { supabase } from "@/integrations/supabase/client";
-import { type BillingInterval } from "@/components/BillingIntervalToggle";
 import { differenceInDays, format } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 
-import { PlanPickerMode } from "@/components/subscription/PlanPickerMode";
-import { type PlanCardData } from "@/components/subscription/PlanCard";
 import { SubscriptionManage } from "@/components/subscription/SubscriptionManage";
-import { SubscriptionPlansTab } from "@/components/subscription/SubscriptionPlansTab";
-import { UpgradeBottomSheet } from "@/components/subscription/UpgradeBottomSheet";
 import { ExpiryBanner } from "@/components/subscription/ExpiryBanner";
 
-const TIER_META: Record<string, { icon: LucideIcon; color: string; descriptionKey: string; popular: boolean; isVip: boolean }> = {
-  elite:     { icon: Crown, color: "from-amber-400 to-orange-500",   descriptionKey: "plan_elite_desc",     popular: true,  isVip: false },
-  healthy:   { icon: Zap,   color: "from-emerald-400 to-emerald-600", descriptionKey: "plan_healthy_desc",   popular: false, isVip: false },
-  fresh:     { icon: Star,  color: "from-emerald-400 to-emerald-600", descriptionKey: "plan_fresh_desc",     popular: false, isVip: false },
-  weekly:    { icon: Zap,   color: "from-emerald-400 to-emerald-600", descriptionKey: "plan_weekly_desc",    popular: false, isVip: false },
-  basic:     { icon: Star,  color: "from-emerald-400 to-emerald-600", descriptionKey: "plan_basic_desc",    popular: false, isVip: false },
-  standard:  { icon: Zap,   color: "from-emerald-400 to-emerald-600", descriptionKey: "plan_standard_desc", popular: true,  isVip: false },
-  premium:   { icon: Crown, color: "from-amber-400 to-amber-500",    descriptionKey: "plan_premium_desc",  popular: false, isVip: false },
-  vip:       { icon: Crown, color: "from-amber-400 to-amber-500",    descriptionKey: "plan_vip_desc",      popular: false, isVip: true  },
-};
-
-const TIER_NAMES: Record<string, string> = {
-  elite: "Elite",
-  healthy: "Healthy",
-  fresh: "Fresh",
-  weekly: "Weekly Boost",
-  basic: "Basic",
-  standard: "Standard",
-  premium: "Premium",
-  vip: "VIP",
-};
-
-function dbPlanToUiPlan(p: DbSubscriptionPlan, isRTL: boolean): PlanCardData {
-  const meta = TIER_META[p.tier] ?? TIER_META.basic;
-  const price = p.price_qar ?? 0;
-  const period = p.billing_interval === "weekly" ? "week" : "month";
-  const features = Array.isArray(p.features) ? p.features : [];
-
-  const description = isRTL
-    ? (p.short_description_ar || p.description || "")
-    : (p.short_description || p.description_en || "");
-
-  return {
-    id: p.id,
-    name: TIER_NAMES[p.tier] || p.tier.charAt(0).toUpperCase() + p.tier.slice(1),
-    price,
-    period,
-    mealsPerMonth: p.meals_per_month ?? 0,
-    snacksPerMonth: p.snacks_per_month ?? 0,
-    dailyMeals: p.daily_meals ?? 0,
-    dailySnacks: p.daily_snacks ?? 0,
-    tier: p.tier,
-    description,
-    icon: meta.icon,
-    features,
-    popular: meta.popular,
-    isVip: meta.isVip,
-    color: meta.color,
-  };
-}
-
 export default function SubscriptionPage() {
-  const { t, isRTL } = useLanguage();
+  const { t } = useLanguage();
   useEffect(() => { document.title = `${t("subscription")} - Nutrio`; }, [t]);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -132,158 +72,8 @@ export default function SubscriptionPage() {
 
   const effectiveMealsLeft = isUnlimited ? Infinity : remainingMeals + rolloverCredits;
 
-  const [selectedPlan, setSelectedPlan] = useState<PlanCardData | null>(null);
-  const [selectedBillingInterval, setSelectedBillingInterval] = useState<BillingInterval>("monthly");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"card" | "wallet">("card");
-
-  const [promoCode, setPromoCode] = useState("");
-  const [promoLoading, setPromoLoading] = useState(false);
-  const [promoError, setPromoError] = useState<string | null>(null);
-  const [appliedPromo, setAppliedPromo] = useState<{
-    id: string;
-    name: string;
-    discountType: "percentage" | "fixed";
-    discountValue: number;
-    maxDiscountAmount: number | null;
-    discountAmount: number;
-  } | null>(null);
-
-  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
-
-  const { wallet } = useWallet();
   const { data: freezeDays } = useFreezeDaysRemaining(subscription?.id);
-
-  const { plans: dbPlans } = useSubscriptionPlans();
-  const plans = dbPlans.map(p => dbPlanToUiPlan(p, isRTL));
-
-  const applyPromoCode = async () => {
-    if (!promoCode.trim() || !selectedPlan) return;
-    setPromoLoading(true);
-    setPromoError(null);
-    setAppliedPromo(null);
-
-    try {
-      const { data, error } = await supabase
-        .from("promotions")
-        .select("id, name, discount_type, discount_value, max_discount_amount, min_order_amount, max_uses, uses_count, max_uses_per_user, valid_from, valid_until, is_active")
-        .eq("code", promoCode.trim().toUpperCase())
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!data) { setPromoError("Invalid or expired promo code."); return; }
-
-      const now = new Date();
-      if (data.valid_until && new Date(data.valid_until) < now) { setPromoError("This promo code has expired."); return; }
-      if (data.max_uses !== null && data.uses_count >= data.max_uses) { setPromoError("This promo code has reached its usage limit."); return; }
-      if (data.min_order_amount !== null && selectedPlan.price < Number(data.min_order_amount)) {
-        setPromoError(`Minimum order amount is ${formatCurrency(Number(data.min_order_amount))}.`); return;
-      }
-
-      if (data.max_uses_per_user && user) {
-        const { count } = await supabase
-          .from("promotion_usage")
-          .select("id", { count: "exact", head: true })
-          .eq("promotion_id", data.id)
-          .eq("user_id", user.id);
-        if (count && count >= data.max_uses_per_user) {
-          setPromoError("You have already used this promo code."); return;
-        }
-      }
-
-      const basePrice = selectedPlan.price;
-      let discountAmount = 0;
-      if (data.discount_type === "percentage") {
-        discountAmount = basePrice * (Number(data.discount_value) / 100);
-        if (data.max_discount_amount) discountAmount = Math.min(discountAmount, Number(data.max_discount_amount));
-      } else {
-        discountAmount = Math.min(Number(data.discount_value), basePrice);
-      }
-
-      setAppliedPromo({
-        id: data.id,
-        name: data.name,
-        discountType: data.discount_type as "percentage" | "fixed",
-        discountValue: Number(data.discount_value),
-        maxDiscountAmount: data.max_discount_amount ? Number(data.max_discount_amount) : null,
-        discountAmount: Math.round(discountAmount * 100) / 100,
-      });
-    } catch {
-      setPromoError("Failed to validate promo code. Please try again.");
-    } finally {
-      setPromoLoading(false);
-    }
-  };
-
-  const handleUpgrade = async () => {
-    if (!selectedPlan || !user || !subscription?.id) return;
-    setIsProcessing(true);
-
-    try {
-      if (selectedPaymentMethod === "card") {
-        if (appliedPromo) {
-          throw new Error("Promo codes are currently available for wallet payments only.");
-        }
-        const query = new URLSearchParams({
-          type: "subscription",
-          planId: selectedPlan.id,
-          subscriptionId: subscription.id,
-        });
-        setIsProcessing(false);
-        navigate(`/checkout?${query.toString()}`);
-        return;
-      }
-
-      const { data: upgradeResult, error } = await supabase.functions.invoke("upgrade-subscription", {
-        body: {
-          subscription_id: subscription.id,
-          new_plan_id: selectedPlan.id,
-          payment_method: selectedPaymentMethod,
-          promo_code: appliedPromo ? promoCode.trim().toUpperCase() : undefined,
-        },
-      });
-
-      if (error) throw error;
-
-      const result = upgradeResult as {
-        success: boolean;
-        error?: string;
-        code?: string;
-        prorated_credit?: number;
-        discount?: number;
-        amount_due?: number;
-      };
-
-      if (result.success) {
-        const billingText = selectedBillingInterval === "weekly" ? " (Weekly billing)" : "";
-        const paymentText = selectedPaymentMethod === "wallet"
-          ? ` Paid QAR ${Number(result.amount_due || 0).toFixed(2)} from your wallet.`
-          : "";
-
-        toast({
-          title: t("plan_updated_toast"),
-          description: `Your subscription has been updated to ${selectedPlan.name} plan${billingText}.${paymentText} ${result.prorated_credit ? `Prorated credit: ${result.prorated_credit} QAR` : ""}`,
-        });
-
-        await refetch();
-        setShowUpgradeDialog(false);
-        setSelectedPlan(null);
-        setSelectedPaymentMethod("card");
-        setPromoCode("");
-        setAppliedPromo(null);
-        setPromoError(null);
-      } else {
-        throw new Error(result.error || "Failed to update subscription");
-      }
-    } catch (err) {
-      console.error("Error in handleUpgrade:", err);
-      const message = err instanceof Error ? err.message : "An unexpected error occurred.";
-      toast({ title: "Error", description: message, variant: "destructive" });
-    }
-
-    setIsProcessing(false);
-  };
 
   const handleReactivate = async () => {
     if (!subscription?.id) return;
@@ -312,15 +102,6 @@ export default function SubscriptionPage() {
   const daysRemaining = subscription?.month_start_date
     ? 30 - differenceInDays(new Date(), new Date(subscription.month_start_date))
     : 30;
-
-  const closeUpgradeDialog = () => {
-    setShowUpgradeDialog(false);
-    setPromoCode("");
-    setAppliedPromo(null);
-    setPromoError(null);
-    setSelectedPlan(null);
-    setSelectedPaymentMethod("card");
-  };
 
   if (loading) {
     return (
@@ -384,10 +165,6 @@ export default function SubscriptionPage() {
                 </div>
               </div>
 
-              {/* Plan Picker */}
-              <PlanPickerMode
-                plans={plans}
-              />
             </div>
           </div>
 
@@ -396,9 +173,43 @@ export default function SubscriptionPage() {
     }
 
     return (
-      <PlanPickerMode
-        plans={plans}
-      />
+      <div className="flex min-h-screen flex-col bg-[#F6F8FB] pb-24 pt-safe text-[#020617]">
+        <header className="sticky top-0 z-20 border-b border-[#E5EAF1] bg-[#F6F8FB]/92 backdrop-blur-xl">
+          <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-4 rtl:flex-row-reverse">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-[#E5EAF1] active:scale-95"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div>
+              <h1 className="text-base font-extrabold">My Subscription</h1>
+              <p className="text-xs font-medium text-[#94A3B8]">Manage your Nutrio membership</p>
+            </div>
+          </div>
+        </header>
+
+        <div className="mx-auto flex w-full max-w-lg flex-1 items-center px-4 py-8">
+          <section className="w-full rounded-[28px] bg-white p-6 text-center shadow-[0_18px_45px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#BFF4E6]">
+              <Crown className="h-7 w-7" />
+            </div>
+            <h2 className="mt-5 text-xl font-black">No active subscription</h2>
+            <p className="mx-auto mt-2 max-w-xs text-sm font-medium leading-6 text-[#64748B]">
+              Choose a plan to receive meal credits and start scheduling your meals.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/subscription/plans")}
+              className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#020617] text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(2,6,23,0.16)] active:scale-[0.98]"
+            >
+              View subscription plans
+              <ChevronRight className="h-4 w-4 rtl:rotate-180" />
+            </button>
+          </section>
+        </div>
+      </div>
     );
   }
 
@@ -618,11 +429,8 @@ export default function SubscriptionPage() {
           <ExpiryBanner
             status={status}
             endDate={endDate || null}
-            onRenew={() => setShowUpgradeDialog(true)}
-            onSeePlans={() => {
-              const el = document.getElementById("available-plans");
-              el?.scrollIntoView({ behavior: "smooth" });
-            }}
+            onRenew={() => navigate("/subscription/plans?source=reactivation")}
+            onSeePlans={() => navigate("/subscription/plans")}
           />
         )}
 
@@ -682,22 +490,20 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
-        {/* Available Plans */}
-        <div id="available-plans" className="pt-1">
-          <div className="mb-3 px-1">
-            <h3 className="text-base font-black text-[#020617]">{t("available_plans")}</h3>
-            <p className="mt-0.5 text-xs font-medium text-[#94A3B8]">{t("upgrade_anytime")}</p>
-          </div>
-          <SubscriptionPlansTab
-            plans={plans}
-            currentTier={subscription?.tier}
-            onSelectPlan={(plan) => {
-              setSelectedBillingInterval(plan.period === "week" ? "weekly" : "monthly");
-              setSelectedPlan(plan);
-              setShowUpgradeDialog(true);
-            }}
-          />
-        </div>
+        <button
+          type="button"
+          onClick={() => navigate("/subscription/plans")}
+          className="flex min-h-16 w-full items-center gap-3 rounded-[24px] bg-white p-4 text-start shadow-sm ring-1 ring-[#E5EAF1] transition active:scale-[0.99]"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EFFFFA] text-[#22C7A1]">
+            <Crown className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-extrabold text-[#020617]">View or change plan</span>
+            <span className="mt-0.5 block text-xs font-medium text-[#94A3B8]">Compare plans, prices and included meal credits</span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-[#94A3B8] rtl:rotate-180" />
+        </button>
 
         {/* Settings Section */}
         <SubscriptionManage
@@ -711,29 +517,6 @@ export default function SubscriptionPage() {
         />
       </div>
 
-      <UpgradeBottomSheet
-        open={showUpgradeDialog}
-        onClose={closeUpgradeDialog}
-        selectedPlan={selectedPlan}
-        billingInterval={selectedBillingInterval}
-        walletBalance={wallet?.balance || 0}
-        promoCode={promoCode}
-        promoLoading={promoLoading}
-        promoError={promoError}
-        appliedPromo={appliedPromo}
-        onPromoCodeChange={(code) => {
-          setPromoCode(code);
-          setPromoError(null);
-          if (appliedPromo) setAppliedPromo(null);
-        }}
-        onApplyPromo={applyPromoCode}
-        onClearPromo={() => { setAppliedPromo(null); setPromoCode(""); setPromoError(null); }}
-        selectedPaymentMethod={selectedPaymentMethod}
-        onPaymentMethodChange={setSelectedPaymentMethod}
-        isProcessing={isProcessing}
-        onConfirm={handleUpgrade}
-        currentTier={subscription?.tier}
-      />
     </div>
   );
 }
