@@ -14,18 +14,17 @@ export default defineConfig(({ mode }) => ({
   // the app shows a blank white screen.
   base: process.env.VERCEL ? '/nutrio/' : './',
   server: {
-    host: true,
+    host: process.env.VITE_DEV_HOST?.trim() || '127.0.0.1',
     port: 5173,
     allowedHosts: [
       'localhost',
       '127.0.0.1',
-      '.local',
       ...(process.env.VITE_DEV_ALLOWED_HOSTS || '')
         .split(',')
         .map((host) => host.trim())
         .filter(Boolean),
     ],
-    // Allow access from local network for mobile testing
+    // LAN access for device testing requires an explicit VITE_DEV_HOST override.
     strictPort: true,
     // Improve HMR reliability
     hmr: {

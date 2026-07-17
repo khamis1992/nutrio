@@ -27,8 +27,8 @@
     <!-- Performance: preconnect to critical origins -->
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://api.posthog.com" />
-    <link rel="dns-prefetch" href="https://api.posthog.com" />
+    <link rel="preconnect" href="https://us.i.posthog.com" />
+    <link rel="dns-prefetch" href="https://us.i.posthog.com" />
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
@@ -36,15 +36,9 @@
     <!-- Leaflet Map CSS is imported via npm in components that use maps -->
     <!-- Removed CDN link to prevent blocking on devices with no/slow internet -->
 
-    <!-- Content Security Policy: restrict resource loading to trusted sources.
-         'self' covers https://localhost (Capacitor Android androidScheme:https)
-         and capacitor:// (Capacitor iOS) so no extra origin is needed for
-         local assets.  The connect-src additions allow Supabase realtime and
-         analytics from the mobile app.
-         IMPORTANT: blob: is added to connect-src for Supabase realtime websocket
-         connections. data: is added to worker-src for inline workers used by
-         some polyfills. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' capacitor: https://localhost; script-src 'self' 'unsafe-inline' 'unsafe-eval' capacitor: https://localhost blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com capacitor: https://localhost; font-src 'self' data: https://fonts.gstatic.com capacitor: https://localhost; connect-src 'self' capacitor: https://localhost https://*.supabase.co wss://*.supabase.co https://*.posthog.com https://api.posthog.com https://us.i.posthog.com https://*.sentry.io https://api.mapbox.com https://events.mapbox.com; img-src 'self' data: blob: capacitor: https://localhost https://*.supabase.co https://ui-avatars.com https://images.unsplash.com https://api.mapbox.com https://*.mapbox.com; media-src 'self' capacitor: https://localhost blob: https://assets.mixkit.co; worker-src 'self' blob:; frame-src 'none'; base-uri 'self'; form-action 'self';" />
+    <!-- 'self' resolves to the app origin on web, Android, and iOS. The HTTP-only
+         frame-ancestors directive is enforced by the production response header. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://loepcagitrijlfksawfm.supabase.co wss://loepcagitrijlfksawfm.supabase.co https://us.i.posthog.com https://api.mapbox.com https://events.mapbox.com https://www.googleapis.com https://nominatim.openstreetmap.org; img-src 'self' data: blob: https://loepcagitrijlfksawfm.supabase.co https://ui-avatars.com https://images.unsplash.com https://api.mapbox.com https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org https://unpkg.com; media-src 'self' blob: https://assets.mixkit.co; worker-src 'self' blob:; object-src 'none'; frame-src https://www.openstreetmap.org; base-uri 'self'; form-action 'self'; manifest-src 'self';" />
   </head>
 
   <body>

@@ -61,7 +61,7 @@
     },
     {
       "key": "Content-Security-Policy",
-      "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.amazonaws.com https://images.unsplash.com https://ui-avatars.com https://api.mapbox.com https://*.mapbox.com; media-src 'self' blob: https://assets.mixkit.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.amazonaws.com https://*.posthog.com https://api.posthog.com https://us.i.posthog.com https://*.sentry.io https://api.mapbox.com https://events.mapbox.com; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests"
+      "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://loepcagitrijlfksawfm.supabase.co https://images.unsplash.com https://ui-avatars.com https://api.mapbox.com https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org https://unpkg.com; media-src 'self' blob: https://assets.mixkit.co; connect-src 'self' https://loepcagitrijlfksawfm.supabase.co wss://loepcagitrijlfksawfm.supabase.co https://us.i.posthog.com https://api.mapbox.com https://events.mapbox.com https://www.googleapis.com https://nominatim.openstreetmap.org; worker-src 'self' blob:; object-src 'none'; frame-src https://www.openstreetmap.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests"
     }
   ]
 }
