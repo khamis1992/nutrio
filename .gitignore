@@ -68,3 +68,10 @@ ios/Certificates*
 ios/*.mobileprovision
 ios/App/App.xcworkspace/xcuserdata/
 ios/App/App.xcodeproj/xcuserdata/
+
+# Android signing artifacts - NEVER commit
+*.jks
+*.keystore
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
