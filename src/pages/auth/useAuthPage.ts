@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { biometricAuth, isNative } from "@/lib/capacitor";
 import { z } from "zod";
 import { checkIPLocation } from "@/lib/ipCheck";
 import { recordPartnerEvent, recordPartnerReferralStatus } from "@/lib/partnerTracking";
@@ -32,16 +31,11 @@ export const useAuthPage = () => {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingRole, setCheckingRole] = useState(false);
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricType, setBiometricType] = useState("");
-  const [biometricLoading, setBiometricLoading] = useState(false);
-  const [enableBiometric, setEnableBiometric] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotError, setForgotError] = useState("");
-  const autoTriggered = useRef(false);
   const postSignupOnboardingKey = "nutrio_post_signup_onboarding";
 
   const switchView = (newView: AuthView) => {
@@ -99,26 +93,6 @@ export const useAuthPage = () => {
     const savedEmail = localStorage.getItem("remembered_email");
     if (savedEmail) { setEmail(savedEmail); setRememberMe(true); }
   }, []);
-
-  useEffect(() => {
-    const checkBiometric = async () => {
-      if (!isNative) return;
-      const available = await biometricAuth.isAvailable();
-      if (!available) return;
-      setBiometricAvailable(true);
-      setBiometricType(await biometricAuth.getBiometricType());
-      const hasCredentials = await biometricAuth.hasCredentials();
-      setEnableBiometric(hasCredentials);
-      if (hasCredentials && !autoTriggered.current) {
-        autoTriggered.current = true;
-        switchView("signin");
-        setTimeout(() => {
-          handleBiometricLogin();
-        }, 600);
-      }
-    };
-    checkBiometric();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const checkUserRole = async () => {
@@ -190,35 +164,6 @@ export const useAuthPage = () => {
     checkUserRole();
   }, [user, navigate, location, recordPendingPartnerReferral]);
 
-  const handleBiometricLogin = async () => {
-    setBiometricLoading(true);
-    try {
-      const authenticated = await biometricAuth.authenticate();
-      if (!authenticated) {
-        toast({ title: t("auth_failed"), description: t("biometric_canceled"), variant: "destructive" });
-        return;
-      }
-      const credentials = await biometricAuth.getCredentials();
-      if (!credentials) {
-        toast({ title: t("no_saved_credentials"), description: t("signin_first_desc"), variant: "destructive" });
-        setEnableBiometric(false);
-        return;
-      }
-      const { error } = await signIn(credentials.username, credentials.password);
-      if (error) {
-        toast({ title: t("signin_failed"), description: t("invalid_credentials_retry"), variant: "destructive" });
-        await biometricAuth.deleteCredentials();
-        setEnableBiometric(false);
-      } else {
-        toast({ title: t("welcome_back"), description: `${t("signed_in_with")} ${biometricType}.` });
-      }
-    } catch {
-      toast({ title: t("biometric_error"), description: t("biometric_error_desc"), variant: "destructive" });
-    } finally {
-      setBiometricLoading(false);
-    }
-  };
-
   const handleSignIn = async (values: SignInFormValues) => {
     setLoading(true);
     try {
@@ -238,7 +183,6 @@ export const useAuthPage = () => {
         if (!rememberMe) localStorage.removeItem("nutrio_remember_me");
         toast({ title: t("signin_failed"), description: error.message.includes("Invalid login credentials") ? t("invalid_credentials") : error.message, variant: "destructive" });
       } else {
-        if (enableBiometric) await biometricAuth.setCredentials(values.email, values.password);
         if (rememberMe) {
           localStorage.setItem("remembered_email", values.email);
         } else {
@@ -317,11 +261,6 @@ export const useAuthPage = () => {
     loading,
     setLoading,
     checkingRole,
-    biometricAvailable,
-    biometricType,
-    biometricLoading,
-    enableBiometric,
-    setEnableBiometric,
     rememberMe,
     setRememberMe,
     forgotEmail,
@@ -332,7 +271,6 @@ export const useAuthPage = () => {
     forgotError,
     setForgotError,
     authLoading,
-    handleBiometricLogin,
     handleSignIn,
     handleSignUp,
     handleForgotSubmit,

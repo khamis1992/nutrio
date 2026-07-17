@@ -26,7 +26,10 @@ vi.mock("@/components/ProtectedRoute", () => ({
 }));
 
 vi.mock("@capacitor/core", () => ({
-  Capacitor: { isNativePlatform: () => false },
+  Capacitor: {
+    isNativePlatform: () => false,
+    getPlatform: () => "web",
+  },
 }));
 
 import { supabase } from "@/integrations/supabase/client";

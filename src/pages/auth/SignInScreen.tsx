@@ -10,14 +10,8 @@ import { motion } from 'framer-motion'
 
 interface SignInScreenProps {
   loading: boolean
-  biometricAvailable: boolean
-  biometricType: string
-  biometricLoading: boolean
-  enableBiometric: boolean
   rememberMe: boolean
   initialEmail?: string
-  onBiometricLogin: () => void
-  onEnableBiometric: (value: boolean) => void
   onRememberMe: (value: boolean) => void
   onBack: () => void
   onSwitchToSignUp: () => void

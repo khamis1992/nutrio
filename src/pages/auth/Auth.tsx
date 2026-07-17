@@ -96,14 +96,8 @@ export const Auth = () => {
   return (
     <SignInScreen
       loading={state.loading}
-      biometricAvailable={state.biometricAvailable}
-      biometricType={state.biometricType}
-      biometricLoading={state.biometricLoading}
-      enableBiometric={state.enableBiometric}
       rememberMe={state.rememberMe}
       initialEmail={state.email}
-      onBiometricLogin={state.handleBiometricLogin}
-      onEnableBiometric={state.setEnableBiometric}
       onRememberMe={state.setRememberMe}
       onBack={() => state.setView("welcome")}
       onSwitchToSignUp={() => state.setView("signup")}

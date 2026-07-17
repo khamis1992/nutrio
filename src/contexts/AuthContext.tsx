@@ -14,6 +14,9 @@ import { checkIPLocation, logUserIP } from "@/lib/ipCheck";
 import { Capacitor } from "@capacitor/core";
 import { pushNotificationService } from "@/lib/notifications/push";
 import { clearRoleCache } from "@/components/ProtectedRoute";
+import { clearOfflineMutationsForUser } from "@/lib/offline-mutation-queue";
+import { clearStepData } from "@/lib/stepStore";
+import { clearCachedHealthData } from "@/lib/healthKit";
 
 interface AuthContextType {
   user: User | null;
@@ -198,9 +201,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signOut = useCallback(async () => {
+    const signingOutUserId = user?.id ?? null;
+    if (signingOutUserId) {
+      await pushNotificationService.deactivateForUser(signingOutUserId);
+    }
     try {
-      localStorage.removeItem("remembered_email");
+      // remembered_email intentionally survives sign-out so the sign-in form
+      // stays pre-filled — clearing it here is what made Remember Me look broken.
       localStorage.removeItem("nutrio_remember_me");
+      localStorage.removeItem("nutrio_onboarding_progress");
+      localStorage.removeItem("nutrio_onboarding_draft");
+      localStorage.removeItem("pending_deep_link");
+      if (signingOutUserId) {
+        localStorage.removeItem(`nutrio_onboarding_progress:${signingOutUserId}`);
+        localStorage.removeItem(`nutrio_onboarding_draft:${signingOutUserId}`);
+        clearOfflineMutationsForUser(signingOutUserId);
+        clearStepData(signingOutUserId);
+        clearCachedHealthData(signingOutUserId);
+        for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+          const key = localStorage.key(index);
+          if (
+            key?.startsWith(`tracker_steps_${signingOutUserId}_`) ||
+            key?.startsWith(`tracker_steps_session_id_${signingOutUserId}_`)
+          ) {
+            localStorage.removeItem(key);
+          }
+        }
+      }
       sessionStorage.removeItem("nutrio_session_started_at");
       sessionStorage.removeItem("nutrio_last_activity_at");
     } catch {
@@ -208,7 +235,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
     clearRoleCache();
     await supabase.auth.signOut();
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user || !session) return;
@@ -246,11 +273,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const isPrivilegedPortal = () =>
       /\/(admin|partner|fleet|coach|driver)(\/|$)/i.test(window.location.pathname);
 
+    // "Remember Me" stores the Supabase session in localStorage (see
+    // webSmartStorage in integrations/supabase/client.ts), which for the
+    // customer app means "stay signed in until the refresh token expires".
+    // The idle/absolute guard below must not silently kill those sessions.
+    // Privileged back-office portals always enforce limits — AdminMfaGate
+    // additionally strips the flag via restrictWebSessionToCurrentTab().
+    const isRememberedSession = () => {
+      try {
+        return localStorage.getItem("nutrio_remember_me") === "true";
+      } catch {
+        return false;
+      }
+    };
+
     let signingOut = false;
     const enforceSessionLifetime = () => {
       if (signingOut) return;
       const current = Date.now();
       const privileged = isPrivilegedPortal();
+      if (!privileged && isRememberedSession()) return;
       const idleLimit = privileged ? 15 * 60_000 : 60 * 60_000;
       const absoluteLimit = privileged ? 8 * 60 * 60_000 : 24 * 60 * 60_000;
       if (
