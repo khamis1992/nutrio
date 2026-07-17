@@ -35,8 +35,9 @@ validity must not be inferred from age or from the file's deletion.
 ### Current-tree assessment
 
 - No current Edge Function directly reads a legacy service-role or anon key.
-  A central resolver prefers named Supabase publishable/secret keys and keeps a
-  legacy fallback only for the controlled migration window.
+  The central resolver accepts named Supabase publishable/secret keys (plus the
+  documented local single-key variables) and deliberately has no legacy
+  `service_role` or `anon` fallback.
 - High-confidence repository scanning currently passes. Ignored local env files
   are not versioned and must remain local.
 - Public anon/publishable tokens inside web/mobile bundles are expected client

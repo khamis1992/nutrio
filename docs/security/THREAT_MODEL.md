@@ -1,6 +1,6 @@
 # Nutrio Threat Model
 
-Last reviewed: 2026-07-16
+Last reviewed: 2026-07-17
 
 ## Purpose and scope
 
@@ -32,12 +32,15 @@ provider logs.
 5. File uploads crossing into private storage and downstream document parsers.
 6. GitHub Actions crossing into deployment credentials and mobile signing keys.
 7. Admin users crossing into privileged data after AAL2 MFA verification.
+8. Supabase Auth crossing into the signed Before User Created HTTP Hook and
+   one-time provisioning-grant store before an identity may be created.
 
 ## Threat catalogue and controls
 
 | Threat | Nutrio exposure | Implemented controls | Evidence |
 |---|---|---|---|
 | Credential stuffing and password spraying | Every portal login | Supabase Auth, rate limits, generic errors, mandatory AAL2 for admins, session expiry | Supabase Auth audit entries mirrored as minimized `authentication` ledger events; external Auth logs for failed requests |
+| Direct signup, forged role metadata, and market-control bypass | Public Supabase Auth API and privileged invitations | Signed Before User Created hook, server-side Qatar IP lookup, fail-closed provider handling, rate limits, hashed 5-minute single-use invitation grants bound to email and account kind | Allowed/denied geo decisions, invalid hook signatures, issued/consumed/replayed invitation outcomes |
 | Session theft and replay | Browser storage, native device, stolen refresh token | Native biometric/keychain storage, reduced persistent health data, token verification, admin step-up | User/session/request correlation; revoke sessions during containment |
 | BOLA/BFLA and role escalation | Cross-user records, portal APIs, admin RPCs | RLS, ownership checks, verified Edge principals, AAL2-aware `has_role`, live posture checks | Denied authorization events with actor/resource/request IDs |
 | SQL/command/template injection | RPCs, workflows, email templates, CSV exports | Parameterized Supabase APIs, pinned function search paths, escaped HTML, spreadsheet neutralization, validated workflow inputs | Failure/denial events and CI audit output |
@@ -46,6 +49,9 @@ provider logs.
 | SSRF and unsafe redirects | AI image fetches, anchor webhook, OAuth, Lighthouse CI | HTTPS/host allowlists, private-address rejection, one-time OAuth state, bounded redirects/timeouts | Provider and Edge request IDs |
 | Malicious uploads and parser exploits | PDFs, Office files, images, support/fleet/health documents | Private buckets, server-side authorization, magic-byte checks, 10 MiB bound, SHA-256, fail-closed external malware scanner, no direct client writes | Immutable `sensitive_file_scans` record and storage ledger event |
 | Payment/webhook spoofing and replay | SADAD and SportHub callbacks | HMAC/checksum verification, timestamp and replay constraints, idempotent database operations | Provider event ID, request ID, checksum outcome, payment ledger |
+| Delivery custody manipulation | Driver, partner handover, and fleet assignment transitions | Authorization boundaries plus fail-closed triggers on job status, driver, handover, and assignment history | Actor, job, old/new status and driver, request/session/network context |
+| Pricing, discount, or entitlement tampering | Plans, promotions, settings, and partner meal prices | MFA-protected admin policies plus scoped fail-closed commercial triggers | Actor, changed fields, safe old/new commercial state, setting-value hashes |
+| Partner API credential theft | Server-to-server partner authentication | Hashed secrets, service-role-only verifier, fail-closed success/failure evidence, gateway-observed IP provenance | Partner ID, outcome, request ID, user agent, and explicit IP-source label; never the key or secret |
 | API abuse and denial of service | Public and authenticated Edge endpoints | Atomic rate limits, bounded bodies/responses, timeouts, small batch sizes | `api.rate_limit_blocked` and provider metrics |
 | Supply-chain or CI compromise | npm, GitHub Actions, build tools, signing material | npm audit, CodeQL security-extended analysis, verified Gitleaks commit scans, static security gate, Dependabot, least-privilege jobs, separate publish jobs, full-SHA action pins, pinned CLI versions, temporary signing assets | GitHub audit log, workflow run, artifact digest, release provenance |
 | Mobile backup/extraction or file-provider abuse | Android backup, broad shared storage, iOS/Android local data | Android backup disabled; FileProvider limited to app camera/cache paths; sensitive session material in OS keystore/keychain; raw health cache is session-only | Device/app logs where available |
@@ -63,6 +69,8 @@ provider logs.
 - Provider callbacks never trust a user-supplied identity or amount without a
   provider signature and an idempotent database transition.
 - Security evidence is append-only through normal application/database roles.
+- Delivery custody, commercial controls, and partner API authentication do not
+  succeed when their required evidence write fails.
 - The latest completed-day ledger anchor is copied outside the Supabase trust
   boundary and the receipt is visible in the Admin Security Center.
 - Client bundles never contain service-role, database, scanner, signing, or
@@ -72,6 +80,15 @@ provider logs.
   allowlisted or removed from Git history.
 - Native WebViews never permit cleartext or arbitrary external navigation, and
   unsupported Android WebViews are blocked before application code executes.
+- Qatar signup enforcement is decided from the signed Auth Hook IP, never from
+  SPA checks or caller-supplied forwarding/country headers. A provider outage
+  blocks new signups until verification is restored.
+- Partner, fleet-driver, and fleet-manager Auth users are not created from
+  client metadata alone. They require a random, hashed, email/kind-bound,
+  short-lived grant that the Auth Hook consumes atomically once.
+- Public driver applications are created only after email confirmation and are
+  always pending, inactive, offline, unassigned, and financially zeroed until
+  a separate fleet/admin approval.
 
 ## Evidence and attribution limits
 
@@ -82,6 +99,11 @@ They do not independently prove the natural person behind an action. NAT, VPNs,
 shared devices, stolen sessions, spoofable user agents, and provider proxies
 must be considered. Preserve Supabase, CDN/WAF, identity-provider, payment,
 email, GitHub, and mobile-provider logs so authorities can correlate them.
+
+Client-side Qatar checks remain useful for immediate UX feedback, but they are
+not an authorization control because a caller can invoke Supabase Auth directly.
+Likewise, `user_metadata` is user-controlled input. The signed Auth Hook and
+database/Edge authorization boundaries are the authoritative controls.
 
 ## Residual and operational risks
 
@@ -96,6 +118,11 @@ email, GitHub, and mobile-provider logs so authorities can correlate them.
 - Backups are useful only after a tested restore and documented recovery time.
 - Runtime posture findings must be remediated after deployment; static code
   review cannot see manual dashboard changes or provider configuration drift.
+- Runtime attestation validates the exact trigger function, row/timing/event
+  mask, critical `UPDATE OF` columns, normal-session enablement, and absence of
+  a filtering `WHEN` clause. It also requires independent recent evidence for
+  delivery, commercial configuration, Partner API success, and Partner API
+  rejection paths; one healthy path cannot mask another broken path.
 - Keep database Auth Audit Log storage enabled so `auth.audit_log_entries`
   feeds the Nutrio ledger. Because provider/runtime failures may exist only in
   external Auth logs, retain those logs through an independent Supabase Log
