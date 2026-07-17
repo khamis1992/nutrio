@@ -51,7 +51,9 @@ const readAll = (userId: string): ScheduleTemplate[] => {
 };
 
 const writeAll = (userId: string, templates: ScheduleTemplate[]) => {
-  if (typeof localStorage === "undefined") return;
+  if (typeof localStorage === "undefined") {
+    throw new Error("TEMPLATE_STORAGE_UNAVAILABLE");
+  }
   localStorage.setItem(storageKey(userId), JSON.stringify(templates.slice(-12)));
 };
 
@@ -96,6 +98,9 @@ export function saveScheduleTemplate(
     slots,
   };
   writeAll(userId, [...readAll(userId), template]);
+  if (!readAll(userId).some((savedTemplate) => savedTemplate.id === template.id)) {
+    throw new Error("TEMPLATE_SAVE_FAILED");
+  }
   return template;
 }
 

@@ -33,6 +33,8 @@ import {
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { scheduleMealsAtomic, type ScheduleMealInput } from "@/lib/schedule-meals";
+import ScheduleWeekTools from "@/components/schedule/ScheduleWeekTools";
+import type { ScheduleTemplateSource } from "@/lib/schedule-templates";
 
 interface Meal {
   id: string;
@@ -50,6 +52,29 @@ interface Meal {
   prep_time_minutes: number | null;
   meal_diet_tags?: { diet_tag_id: string }[];
   restaurants?: { name: string } | null;
+}
+
+type PublicMealCatalogRow = Omit<Meal, "meal_diet_tags" | "restaurants"> & {
+  restaurant_name: string | null;
+};
+
+type LegacyMealCatalogRow = Omit<Meal, "meal_diet_tags"> & {
+  restaurants?: { name: string } | { name: string }[] | null;
+};
+
+function isMissingPublicMealCatalog(error: { code?: string; message?: string }): boolean {
+  const message = error.message?.toLowerCase() || "";
+  return error.code === "PGRST205"
+    || error.code === "42P01"
+    || (message.includes("public_meal_catalog")
+      && (message.includes("could not find") || message.includes("does not exist")));
+}
+
+function getLegacyRestaurantName(
+  restaurant: LegacyMealCatalogRow["restaurants"],
+): string | null {
+  if (Array.isArray(restaurant)) return restaurant[0]?.name ?? null;
+  return restaurant?.name ?? null;
 }
 
 interface NutritionGoal {
@@ -139,6 +164,11 @@ interface MealPlanGeneratorProps {
   onClose: () => void;
   onScheduled: () => void;
   isScheduleEmpty: boolean;
+  userId: string;
+  weekStart: Date;
+  weekSchedules: ScheduleTemplateSource[];
+  weekToolsApplying?: boolean;
+  onApplyWeekTemplate: (items: ScheduleMealInput[]) => Promise<void>;
 }
 
 type PlanSlot = {
@@ -151,6 +181,11 @@ export const MealPlanGenerator = ({
   isOpen,
   onClose,
   onScheduled,
+  userId,
+  weekStart,
+  weekSchedules,
+  weekToolsApplying = false,
+  onApplyWeekTemplate,
 }: MealPlanGeneratorProps) => {
   const { user } = useAuth();
   const { isRTL } = useLanguage();
@@ -187,18 +222,52 @@ export const MealPlanGenerator = ({
     setPhase("loading");
 
     try {
-      const [mealsResult, prefsResult, goalsResult, ordersResult] = await Promise.all([
-        supabase
-          .from("public_meal_catalog" as "meals")
+      const publicCatalogResult = await supabase
+        .from("public_meal_catalog" as "meals")
+        .select(`
+          id, name, description, calories, protein_g, carbs_g, fat_g,
+          fiber_g, image_url, is_available, restaurant_id, restaurant_name,
+          meal_type, prep_time_minutes
+        `)
+        .eq("is_available", true)
+        .order("name");
+
+      let catalogMeals: PublicMealCatalogRow[];
+      if (publicCatalogResult.error) {
+        if (!isMissingPublicMealCatalog(publicCatalogResult.error)) {
+          throw publicCatalogResult.error;
+        }
+
+        // Compatibility for environments where the projection migration has
+        // not been applied yet. RLS on meals remains the authorization layer.
+        const legacyCatalogResult = await supabase
+          .from("meals")
           .select(`
             id, name, description, calories, protein_g, carbs_g, fat_g,
             fiber_g, image_url, is_available, restaurant_id, meal_type,
-            prep_time_minutes,
-            meal_diet_tags (diet_tag_id),
-            restaurants (name)
+            prep_time_minutes, restaurants (name)
           `)
           .eq("is_available", true)
-          .order("name"),
+          .order("name");
+
+        if (legacyCatalogResult.error) throw legacyCatalogResult.error;
+
+        const legacyMeals = (legacyCatalogResult.data || []) as LegacyMealCatalogRow[];
+        catalogMeals = legacyMeals.map(({ restaurants, ...meal }) => ({
+          ...meal,
+          restaurant_name: getLegacyRestaurantName(restaurants),
+        }));
+      } else {
+        catalogMeals = (publicCatalogResult.data || []) as unknown as PublicMealCatalogRow[];
+      }
+
+      if (catalogMeals.length === 0) {
+        sonnerToast.error("No meals available to generate a plan.");
+        return;
+      }
+
+      const mealIds = catalogMeals.map((meal) => meal.id);
+      const [prefsResult, goalsResult, ordersResult, tagsResult] = await Promise.all([
         supabase
           .from("user_dietary_preferences")
           .select("diet_tag_id")
@@ -215,15 +284,37 @@ export const MealPlanGenerator = ({
           .eq("user_id", user.id)
           .order("order_created_at", { ascending: false })
           .limit(50),
+        supabase
+          .from("meal_diet_tags")
+          .select("meal_id, diet_tag_id")
+          .in("meal_id", mealIds),
       ]);
 
-      if (mealsResult.error) throw mealsResult.error;
-      if (!mealsResult.data || mealsResult.data.length === 0) {
-        sonnerToast.error("No meals available to generate a plan.");
-        return;
+      if (prefsResult.error) {
+        console.warn("Could not load dietary preferences for meal plan", prefsResult.error);
+      }
+      if (goalsResult.error) {
+        console.warn("Could not load nutrition goal for meal plan", goalsResult.error);
+      }
+      if (ordersResult.error) {
+        console.warn("Could not load order history for meal plan", ordersResult.error);
+      }
+      if (tagsResult.error) {
+        console.warn("Could not load meal diet tags for meal plan", tagsResult.error);
       }
 
-      setMeals(mealsResult.data as Meal[]);
+      const tagsByMeal = new Map<string, { diet_tag_id: string }[]>();
+      for (const tag of tagsResult.data || []) {
+        const currentTags = tagsByMeal.get(tag.meal_id) || [];
+        currentTags.push({ diet_tag_id: tag.diet_tag_id });
+        tagsByMeal.set(tag.meal_id, currentTags);
+      }
+
+      setMeals(catalogMeals.map(({ restaurant_name, ...meal }) => ({
+        ...meal,
+        meal_diet_tags: tagsByMeal.get(meal.id) || [],
+        restaurants: restaurant_name ? { name: restaurant_name } : null,
+      })));
       setDietTagIds((prefsResult.data || []).map((p) => p.diet_tag_id));
       setNutritionGoal(
         (goalsResult.data as NutritionGoal | null) || {
@@ -526,6 +617,30 @@ export const MealPlanGenerator = ({
   const filledSlots = plan.filter((s) => s.meal !== null).length;
   const averageDailyCalories = Math.round(totalPlanCalories / Math.max(weekDays.length, 1));
   const averageDailyProtein = Math.round(totalPlanProtein / Math.max(weekDays.length, 1));
+  const previewTemplateSources = useMemo<ScheduleTemplateSource[]>(() => {
+    const dayKeys = new Map(
+      weekDays.map((day, index) => [format(day, "yyyy-MM-dd"), index]),
+    );
+
+    return plan
+      .filter((slot): slot is PlanSlot & { meal: Meal } => Boolean(slot.meal))
+      .map((slot) => {
+        const dayIndex = dayKeys.get(format(slot.date, "yyyy-MM-dd")) ?? 0;
+        return {
+          scheduled_date: format(addDays(weekStart, dayIndex), "yyyy-MM-dd"),
+          meal_type: slot.mealType,
+          meal_id: slot.meal.id,
+          delivery_time_slot: MEAL_TYPE_TIMES[slot.mealType],
+          meal: {
+            name: slot.meal.name,
+            calories: slot.meal.calories ?? 0,
+            protein_g: slot.meal.protein_g ?? 0,
+          },
+        };
+      });
+  }, [plan, weekDays, weekStart]);
+  const weekToolSchedules =
+    previewTemplateSources.length > 0 ? previewTemplateSources : weekSchedules;
 
   if (!isOpen) return null;
 
@@ -550,7 +665,15 @@ export const MealPlanGenerator = ({
             <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#7C83F6]">Smart planner</p>
             <h1 className="mt-0.5 text-[17px] font-black text-[#020617]">Fill my week</h1>
           </div>
-          <div className="w-11" />
+          <ScheduleWeekTools
+            userId={userId}
+            weekStart={weekStart}
+            schedules={weekToolSchedules}
+            applying={weekToolsApplying}
+            onApply={onApplyWeekTemplate}
+            onCreateSchedule={() => setPhase("preview")}
+            variant="compact"
+          />
         </div>
       </div>
 

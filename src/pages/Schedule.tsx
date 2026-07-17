@@ -58,7 +58,6 @@ import LogMealModal from "@/components/LogMealModal";
 import { MealPlanGenerator } from "@/components/meal/MealPlanGenerator";
 import { SmartSubstitutionBanner } from "@/components/meal/SmartSubstitutionBanner";
 import { useSmartSubstitutions } from "@/hooks/useSmartSubstitutions";
-import ScheduleWeekTools from "@/components/schedule/ScheduleWeekTools";
 
 interface ScheduledMeal {
   id: string;
@@ -863,13 +862,13 @@ const Schedule = () => {
               setShowMealPlanGenerator(true);
             }}
             whileTap={{ scale: 0.98 }}
-            className="mb-3 flex min-h-[76px] w-full items-center gap-3 rounded-[22px] bg-white p-3 text-left shadow-[0_8px_24px_rgba(2,6,23,0.05)] ring-1 ring-[#E5EAF1] transition active:bg-[#F6F8FB]"
+            className="mb-3 flex min-h-[76px] w-full items-center gap-3 rounded-[22px] bg-white p-3 shadow-[0_8px_24px_rgba(2,6,23,0.05)] ring-1 ring-[#E5EAF1]"
             dir={isRTL ? "rtl" : "ltr"}
           >
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[#E9FBF6] text-[#22C7A1] ring-1 ring-[#22C7A1]/15">
               <CalendarPlus className="h-5 w-5" strokeWidth={2.4} />
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 text-left">
               <p className="text-[15px] font-black text-[#020617]">{t("weekly_meals")}</p>
               <p className="mt-0.5 line-clamp-2 text-[11px] font-semibold leading-4 text-[#64748B]">
                 {t("schedule_fill_week_desc")}
@@ -879,16 +878,6 @@ const Schedule = () => {
               <Sparkles className="h-4 w-4" strokeWidth={2.4} />
             </span>
           </motion.button>
-        )}
-
-        {user && (
-          <ScheduleWeekTools
-            userId={user.id}
-            weekStart={currentWeekStart}
-            schedules={thisWeekSchedules}
-            applying={templateApplying}
-            onApply={applyScheduleTemplate}
-          />
         )}
 
         {/* ── Weekly Stats ─────────────────────────────── */}
@@ -1377,6 +1366,11 @@ const Schedule = () => {
               fetchSchedules();
             }}
             isScheduleEmpty={thisWeekSchedules.length === 0}
+            userId={user.id}
+            weekStart={currentWeekStart}
+            weekSchedules={thisWeekSchedules}
+            weekToolsApplying={templateApplying}
+            onApplyWeekTemplate={applyScheduleTemplate}
           />
         )}
       </AnimatePresence>
