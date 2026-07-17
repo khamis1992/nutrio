@@ -61,6 +61,18 @@ export async function startSportHubLink(redirectPath = "/dashboard/activity") {
   return data.authorization_url as string;
 }
 
+export async function completeSportHubLink(completionToken: string) {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(completionToken)) {
+    throw new Error("SportHub completion token is invalid");
+  }
+  const { data, error } = await supabase.functions.invoke("sporthub-link-complete", {
+    body: { completion_token: completionToken },
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || "SportHub link confirmation failed");
+  return data as { ok: true; integration_id: string };
+}
+
 export async function unlinkSportHub() {
   const { data, error } = await supabase.functions.invoke("sporthub-unlink", { body: {} });
   if (error) throw error;

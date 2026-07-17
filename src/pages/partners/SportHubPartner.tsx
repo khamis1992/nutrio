@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Apple,
@@ -24,7 +24,11 @@ import {
   recordSportHubEvent,
   type PartnerIntegrationRecord,
 } from "@/lib/partnerTracking";
-import { startSportHubLink, unlinkSportHub } from "@/lib/sporthubIntegration";
+import {
+  completeSportHubLink,
+  startSportHubLink,
+  unlinkSportHub,
+} from "@/lib/sporthubIntegration";
 
 const SPORTHUB_REFERRAL_CODE = "NUTRIO15";
 const SPORTHUB_BASE_URL = "https://www.sporthubapp.com/";
@@ -82,6 +86,7 @@ export default function SportHubPartner() {
   );
   const [integrationLoading, setIntegrationLoading] = useState(true);
   const [integrationSaving, setIntegrationSaving] = useState(false);
+  const completionHandled = useRef(false);
 
   useEffect(() => {
     document.title = "SportHub Partner - Nutrio";
@@ -99,6 +104,46 @@ export default function SportHubPartner() {
     if (result === "linked") toast.success("SportHub account connected");
     if (result === "failed") toast.error("SportHub connection was not completed");
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!user?.id || completionHandled.current) return;
+
+    const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const completionToken = fragment.get("sporthub_completion");
+    if (searchParams.get("sporthub_link") !== "confirm" || !completionToken) return;
+
+    completionHandled.current = true;
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("sporthub_link");
+    cleanUrl.hash = "";
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${cleanUrl.pathname}${cleanUrl.search}`,
+    );
+
+    let active = true;
+    setIntegrationSaving(true);
+    void completeSportHubLink(completionToken)
+      .then(() => {
+        if (!active) return;
+        setIntegrationStatus("linked");
+        toast.success("SportHub account connected");
+      })
+      .catch((error) => {
+        console.error("Could not confirm SportHub linking", error);
+        if (!active) return;
+        setIntegrationStatus("failed");
+        toast.error("SportHub connection could not be verified. Please try again.");
+      })
+      .finally(() => {
+        if (active) setIntegrationSaving(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [searchParams, user?.id]);
 
   useEffect(() => {
     let isMounted = true;

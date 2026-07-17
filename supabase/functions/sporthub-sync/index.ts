@@ -2,7 +2,9 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 import {
   decryptSecret,
+  encryptSecret,
   getAdminClient,
+  isLegacyEncryptedSecret,
   readLimitedJson,
   requireSportHubUrl,
 } from "../_shared/sporthub.ts";
@@ -64,7 +66,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const { data: credentials, error: credentialError } = await admin
       .from("partner_credentials")
-      .select("access_token_encrypted,token_type,expires_at")
+      .select("access_token_encrypted,refresh_token_encrypted,expires_at")
       .eq("integration_id", integration.id)
       .maybeSingle();
     if (credentialError) throw credentialError;
@@ -76,7 +78,52 @@ serve(async (req: Request): Promise<Response> => {
       throw new HttpError(401, "sporthub_reauthentication_required");
     }
 
-    const accessToken = await decryptSecret(credentials.access_token_encrypted);
+    let accessToken: string;
+    try {
+      accessToken = await decryptSecret(
+        credentials.access_token_encrypted,
+        `sporthub:${principal.user.id}:access`,
+      );
+      if (isLegacyEncryptedSecret(credentials.access_token_encrypted)) {
+        const credentialUpdate: Record<string, string> = {
+          access_token_encrypted: await encryptSecret(
+            accessToken,
+            `sporthub:${principal.user.id}:access`,
+          ),
+          updated_at: new Date().toISOString(),
+        };
+        if (credentials.refresh_token_encrypted) {
+          const refreshToken = await decryptSecret(
+            credentials.refresh_token_encrypted,
+            `sporthub:${principal.user.id}:refresh`,
+          );
+          credentialUpdate.refresh_token_encrypted = await encryptSecret(
+            refreshToken,
+            `sporthub:${principal.user.id}:refresh`,
+          );
+        }
+        const { error: rotationError } = await admin.from("partner_credentials")
+          .update(credentialUpdate)
+          .eq("integration_id", integration.id);
+        if (rotationError) throw rotationError;
+      }
+    } catch {
+      await admin.from("partner_integrations")
+        .update({ consent_status: "reauth_required", updated_at: new Date().toISOString() })
+        .eq("id", integration.id)
+        .eq("user_id", principal.user.id);
+      await recordSecurityEvent(req, {
+        eventType: "integration.sporthub.credentials_invalid",
+        category: "authorization",
+        severity: "high",
+        outcome: "failure",
+        principal,
+        action: "decrypt_partner_credentials",
+        resourceType: "public.partner_credentials",
+        resourceId: integration.id,
+      });
+      throw new HttpError(401, "sporthub_reauthentication_required");
+    }
     const now = new Date();
     const from = new Date(now.getTime() - 30 * 86400000).toISOString();
     const to = new Date(now.getTime() + 90 * 86400000).toISOString();
@@ -88,7 +135,7 @@ serve(async (req: Request): Promise<Response> => {
       redirect: "error",
       signal: AbortSignal.timeout(15_000),
       headers: {
-        Authorization: `${credentials.token_type || "Bearer"} ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
     });

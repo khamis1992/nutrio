@@ -4,6 +4,7 @@ import {
   appRedirect,
   encryptSecret,
   getAdminClient,
+  randomBase64Url,
   readLimitedJson,
   requireHttpsUrl,
   requireSportHubUrl,
@@ -34,10 +35,22 @@ type ConsumedState = {
   expires_at: string;
 };
 
-function redirect(path: string, status: "linked" | "failed", reason?: string) {
+function redirect(path: string, status: "failed", reason?: string) {
   const params: Record<string, string> = { sporthub_link: status };
   if (reason) params.reason = reason;
   return Response.redirect(appRedirect(safeRedirectPath(path), params), 303);
+}
+
+function redirectForAuthenticatedCompletion(path: string, completionToken: string) {
+  const target = new URL(appRedirect(safeRedirectPath(path), {
+    sporthub_link: "confirm",
+  }));
+  // The one-time token belongs in the fragment so it is not sent in HTTP
+  // requests, access logs, or Referer headers during the app redirect.
+  target.hash = new URLSearchParams({
+    sporthub_completion: completionToken,
+  }).toString();
+  return Response.redirect(target.toString(), 303);
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -157,7 +170,7 @@ serve(async (req: Request): Promise<Response> => {
         redirect: "error",
         signal: AbortSignal.timeout(10_000),
         headers: {
-          Authorization: `${tokens.token_type || "Bearer"} ${tokens.access_token}`,
+          Authorization: `Bearer ${tokens.access_token}`,
           Accept: "application/json",
         },
       });
@@ -169,31 +182,25 @@ serve(async (req: Request): Promise<Response> => {
         externalUserId = String(profile.id || profile.user_id || profile.sub || "").trim();
       }
     }
-    if (!externalUserId || externalUserId.length > 255) {
+    if (
+      !/^[A-Za-z0-9][A-Za-z0-9._~:-]{0,199}$/.test(externalUserId)
+    ) {
       throw new HttpError(502, "sporthub_external_identity_missing");
     }
 
+    const pendingId = crypto.randomUUID();
+    const completionToken = randomBase64Url(32);
+    const completionHash = await sha256(completionToken);
     const now = new Date().toISOString();
-    const { data: integration, error: integrationError } = await admin
-      .from("partner_integrations")
-      .upsert({
-        user_id: oauthState.user_id,
-        partner: "sporthub",
-        external_user_id: externalUserId,
-        consent_status: "linked",
-        linked_at: now,
-        unlinked_at: null,
-        last_synced_at: null,
-        metadata: { scope: tokens.scope || null, oauth_version: "2.0-pkce" },
-        updated_at: now,
-      }, { onConflict: "user_id,partner" })
-      .select("id")
-      .single();
-    if (integrationError || !integration) throw integrationError || new Error("integration_save_failed");
-
-    const accessTokenEncrypted = await encryptSecret(tokens.access_token);
+    const accessTokenEncrypted = await encryptSecret(
+      tokens.access_token,
+      `sporthub:${pendingId}:access`,
+    );
     const refreshTokenEncrypted = tokens.refresh_token
-      ? await encryptSecret(tokens.refresh_token)
+      ? await encryptSecret(
+        tokens.refresh_token,
+        `sporthub:${pendingId}:refresh`,
+      )
       : null;
     const expiresIn = Number(tokens.expires_in);
     const expiresAt = Number.isFinite(expiresIn) && expiresIn > 0
@@ -201,39 +208,37 @@ serve(async (req: Request): Promise<Response> => {
         .toISOString()
       : null;
 
-    const { error: credentialError } = await admin.from("partner_credentials").upsert({
-      integration_id: integration.id,
-      access_token_encrypted: accessTokenEncrypted,
-      refresh_token_encrypted: refreshTokenEncrypted,
-      // Do not reflect an arbitrary token scheme into future Authorization headers.
-      token_type: "Bearer",
-      scope: tokens.scope?.slice(0, 1000) || null,
-      expires_at: expiresAt,
-      updated_at: now,
-    });
-    if (credentialError) throw credentialError;
-
-    await admin.from("partner_events").insert({
-      user_id: oauthState.user_id,
-      partner: "sporthub",
-      event_type: "sporthub.account.linked",
-      payload: { external_user_id: externalUserId },
-    });
+    const { error: pendingError } = await admin
+      .from("partner_oauth_pending_links")
+      .insert({
+        id: pendingId,
+        handle_hash: completionHash,
+        user_id: oauthState.user_id,
+        partner: "sporthub",
+        external_user_id: externalUserId,
+        access_token_encrypted: accessTokenEncrypted,
+        refresh_token_encrypted: refreshTokenEncrypted,
+        scope: tokens.scope?.slice(0, 1000) || null,
+        token_expires_at: expiresAt,
+        redirect_path: redirectPath,
+        expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      });
+    if (pendingError) throw pendingError;
 
     await recordSecurityEvent(req, {
-      eventType: "integration.sporthub.linked",
+      eventType: "integration.sporthub.link_confirmation_required",
       category: "authorization",
-      severity: "medium",
+      severity: "info",
       outcome: "success",
       actorUserId: oauthState.user_id,
       actorType: "user",
-      action: "complete_oauth_link",
-      resourceType: "public.partner_integrations",
-      resourceId: integration.id,
+      action: "stage_oauth_link",
+      resourceType: "public.partner_oauth_pending_links",
+      resourceId: pendingId,
       metadata: { token_expires_at: expiresAt, scope_present: Boolean(tokens.scope) },
     });
 
-    return redirect(redirectPath, "linked");
+    return redirectForAuthenticatedCompletion(redirectPath, completionToken);
   } catch (error) {
     const failureCode = error instanceof HttpError ? error.code : "callback_failed";
     console.error("SportHub OAuth callback failed", {

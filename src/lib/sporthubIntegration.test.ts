@@ -9,7 +9,12 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-import { startSportHubLink, syncSportHub, unlinkSportHub } from "./sporthubIntegration";
+import {
+  completeSportHubLink,
+  startSportHubLink,
+  syncSportHub,
+  unlinkSportHub,
+} from "./sporthubIntegration";
 
 describe("SportHub integration client", () => {
   beforeEach(() => invoke.mockReset());
@@ -26,6 +31,29 @@ describe("SportHub integration client", () => {
   it("rejects a link response without an authorization URL", async () => {
     invoke.mockResolvedValue({ data: { error: "not_configured" }, error: null });
     await expect(startSportHubLink()).rejects.toThrow("not_configured");
+  });
+
+  it("completes OAuth only through the authenticated one-time claim", async () => {
+    const completionToken = "a".repeat(43);
+    invoke.mockResolvedValue({
+      data: { ok: true, integration_id: "integration-1" },
+      error: null,
+    });
+
+    await expect(completeSportHubLink(completionToken)).resolves.toMatchObject({
+      ok: true,
+      integration_id: "integration-1",
+    });
+    expect(invoke).toHaveBeenCalledWith("sporthub-link-complete", {
+      body: { completion_token: completionToken },
+    });
+  });
+
+  it("rejects malformed completion handles before calling the backend", async () => {
+    await expect(completeSportHubLink("short")).rejects.toThrow(
+      "completion token is invalid",
+    );
+    expect(invoke).not.toHaveBeenCalled();
   });
 
   it("returns the synchronization result", async () => {

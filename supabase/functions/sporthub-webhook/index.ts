@@ -1,55 +1,63 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 import {
-  getCorsHeaders,
+  enforceRateLimit,
+  getClientIp,
   getServiceClient,
   HttpError,
   recordSecurityEvent,
   requirePost,
 } from "../_shared/security.ts";
 
-const MAX_WEBHOOK_BYTES = 256 * 1024;
+const MAX_WEBHOOK_BYTES = 64 * 1024;
+const MAX_TIMESTAMP_SKEW_MS = 5 * 60 * 1000;
+const SAFE_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._~:-]*$/;
+const SAFE_EVENT_TYPE = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
+const encoder = new TextEncoder();
 
 type SportHubActivityData = {
-  session_id?: string;
-  booking_id?: string;
-  user_id?: string;
-  activity_type?: string;
-  sport_type?: string;
-  venue_name?: string;
-  starts_at?: string;
-  ends_at?: string;
-  duration_minutes?: number;
-  calories_burned?: number;
-  status?: string;
+  session_id?: unknown;
+  booking_id?: unknown;
+  user_id?: unknown;
+  activity_type?: unknown;
+  sport_type?: unknown;
+  venue_name?: unknown;
+  starts_at?: unknown;
+  ends_at?: unknown;
+  duration_minutes?: unknown;
+  calories_burned?: unknown;
+  status?: unknown;
 };
 
 type SportHubWebhookPayload = {
-  type?: string;
-  event_type?: string;
-  id?: string;
-  event_id?: string;
-  created_at?: string;
-  user_id?: string;
-  data?: SportHubActivityData;
+  type?: unknown;
+  event_type?: unknown;
+  id?: unknown;
+  event_id?: unknown;
+  created_at?: unknown;
+  user_id?: unknown;
+  data?: unknown;
 };
 
-const encoder = new TextEncoder();
+type NormalizedActivity = {
+  externalSessionId: string;
+  activityType: string;
+  venueName: string | null;
+  startsAt: Date;
+  endsAt: Date | null;
+  durationMinutes: number | null;
+  caloriesBurned: number | null;
+  status: string;
+};
 
-function webhookHeaders(req: Request): Record<string, string> {
-  return {
-    ...getCorsHeaders(req),
-    "Access-Control-Allow-Headers":
-      "content-type, x-sporthub-signature, x-sporthub-event-id, x-sporthub-timestamp, x-request-id, x-correlation-id",
-  };
-}
-
-function response(req: Request, body: unknown, status = 200): Response {
+function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      ...webhookHeaders(req),
+      "Cache-Control": "no-store",
       "Content-Type": "application/json; charset=utf-8",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }
@@ -71,10 +79,7 @@ function constantTimeEqual(leftValue: string, rightValue: string): boolean {
   return mismatch === 0;
 }
 
-async function createSignature(
-  payload: string,
-  secret: string,
-): Promise<string> {
+async function createSignature(payload: string, secret: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     encoder.encode(secret),
@@ -141,8 +146,67 @@ async function readWebhookBody(req: Request): Promise<string> {
   }
 }
 
-function normalizeStatus(eventType: string, supplied?: string): string {
-  const value = (supplied || "").toLowerCase();
+function cleanText(value: unknown, maxLength: number): string {
+  if (typeof value !== "string") return "";
+  return Array.from(value)
+    .map((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint < 32 || codePoint === 127 ? " " : character;
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function readIdentifier(value: unknown, maxLength: number): string {
+  const normalized = cleanText(value, maxLength + 1);
+  if (
+    !normalized ||
+    normalized.length > maxLength ||
+    !SAFE_IDENTIFIER.test(normalized)
+  ) {
+    throw new HttpError(422, "invalid_external_identifier");
+  }
+  return normalized;
+}
+
+function readOptionalInteger(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new HttpError(422, "invalid_activity_data");
+  }
+  return parsed;
+}
+
+function readTimestamp(value: unknown, optional = false): Date | null {
+  if (optional && (value === null || value === undefined || value === "")) {
+    return null;
+  }
+  if (typeof value !== "string" || value.length > 64) {
+    throw new HttpError(422, "invalid_activity_timestamp");
+  }
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) {
+    throw new HttpError(422, "invalid_activity_timestamp");
+  }
+  const now = Date.now();
+  if (
+    timestamp.getTime() < now - 5 * 365 * 24 * 60 * 60 * 1000 ||
+    timestamp.getTime() > now + 2 * 365 * 24 * 60 * 60 * 1000
+  ) {
+    throw new HttpError(422, "activity_timestamp_out_of_range");
+  }
+  return timestamp;
+}
+
+function normalizeStatus(eventType: string, supplied: unknown): string {
+  const value = cleanText(supplied, 30).toLowerCase();
   if (value === "cancelled" || eventType.endsWith(".cancelled")) {
     return "cancelled";
   }
@@ -156,13 +220,50 @@ function normalizeStatus(eventType: string, supplied?: string): string {
   return "booked";
 }
 
-function qatarDate(isoTimestamp: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Qatar",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(isoTimestamp));
+function normalizeActivity(
+  data: SportHubActivityData,
+  eventType: string,
+): NormalizedActivity | null {
+  const rawSessionId = data.session_id ?? data.booking_id;
+  const rawActivityType = data.activity_type ?? data.sport_type;
+  const hasActivityData = [rawSessionId, rawActivityType, data.starts_at]
+    .some((value) => value !== null && value !== undefined && value !== "");
+  if (!hasActivityData) return null;
+  if (!rawSessionId || !rawActivityType || !data.starts_at) {
+    throw new HttpError(422, "incomplete_activity_data");
+  }
+
+  const externalSessionId = readIdentifier(rawSessionId, 200);
+  const activityType = cleanText(rawActivityType, 101);
+  if (!activityType || activityType.length > 100) {
+    throw new HttpError(422, "invalid_activity_data");
+  }
+
+  const startsAt = readTimestamp(data.starts_at);
+  const endsAt = readTimestamp(data.ends_at, true);
+  if (!startsAt || (endsAt && endsAt < startsAt)) {
+    throw new HttpError(422, "invalid_activity_timestamp");
+  }
+
+  let durationMinutes = readOptionalInteger(data.duration_minutes, 1, 1440);
+  if (durationMinutes === null && endsAt) {
+    const derived = Math.round((endsAt.getTime() - startsAt.getTime()) / 60_000);
+    if (derived < 1 || derived > 1440) {
+      throw new HttpError(422, "invalid_activity_data");
+    }
+    durationMinutes = derived;
+  }
+
+  return {
+    externalSessionId,
+    activityType,
+    venueName: cleanText(data.venue_name, 200) || null,
+    startsAt,
+    endsAt,
+    durationMinutes,
+    caloriesBurned: readOptionalInteger(data.calories_burned, 0, 20_000),
+    status: normalizeStatus(eventType, data.status),
+  };
 }
 
 async function recordRejectedWebhook(
@@ -185,24 +286,40 @@ async function recordRejectedWebhook(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: webhookHeaders(req) });
+    return new Response(null, {
+      status: 405,
+      headers: { Allow: "POST", "Cache-Control": "no-store" },
+    });
   }
 
   try {
     requirePost(req);
+    const contentType = (req.headers.get("content-type") || "")
+      .split(";", 1)[0]
+      .trim()
+      .toLowerCase();
+    if (contentType !== "application/json") {
+      throw new HttpError(415, "application_json_required");
+    }
 
-    const secret = Deno.env.get("SPORTHUB_WEBHOOK_SECRET");
-    if (!secret) return response(req, { error: "webhook_not_configured" }, 500);
+    await enforceRateLimit(
+      req,
+      "sporthub-webhook:ip",
+      getClientIp(req) || "unknown",
+      240,
+      60,
+    );
+
+    const secret = Deno.env.get("SPORTHUB_WEBHOOK_SECRET") || "";
+    if (secret.length < 32 || secret.length > 4096) {
+      throw new HttpError(503, "webhook_not_configured");
+    }
 
     const timestamp = req.headers.get("x-sporthub-timestamp");
     const signature = req.headers.get("x-sporthub-signature");
     if (!timestamp || !/^\d{10,13}$/.test(timestamp)) {
-      await recordRejectedWebhook(
-        req,
-        "webhook.sporthub.timestamp_rejected",
-        "medium",
-      );
-      return response(req, { error: "missing_timestamp" }, 401);
+      await recordRejectedWebhook(req, "webhook.sporthub.timestamp_rejected", "medium");
+      return response({ error: "missing_timestamp" }, 401);
     }
 
     const timestampMs = timestamp.length === 10
@@ -210,216 +327,128 @@ serve(async (req) => {
       : Number(timestamp);
     if (
       !Number.isFinite(timestampMs) ||
-      Math.abs(Date.now() - timestampMs) > 5 * 60 * 1000
+      Math.abs(Date.now() - timestampMs) > MAX_TIMESTAMP_SKEW_MS
     ) {
-      await recordRejectedWebhook(
-        req,
-        "webhook.sporthub.stale_request_rejected",
-        "high",
-      );
-      return response(req, { error: "stale_request" }, 401);
+      await recordRejectedWebhook(req, "webhook.sporthub.stale_request_rejected", "high");
+      return response({ error: "stale_request" }, 401);
     }
 
     const rawBody = await readWebhookBody(req);
     if (!await verifySignature(`${timestamp}.${rawBody}`, signature, secret)) {
-      await recordRejectedWebhook(
-        req,
-        "webhook.sporthub.signature_rejected",
-        "high",
-      );
-      return response(req, { error: "invalid_signature" }, 401);
+      await recordRejectedWebhook(req, "webhook.sporthub.signature_rejected", "high");
+      return response({ error: "invalid_signature" }, 401);
     }
 
     let payload: SportHubWebhookPayload;
     try {
       const parsed: unknown = JSON.parse(rawBody);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        return response(req, { error: "invalid_json" }, 400);
+        throw new Error("invalid");
       }
       payload = parsed as SportHubWebhookPayload;
     } catch {
-      return response(req, { error: "invalid_json" }, 400);
+      throw new HttpError(400, "invalid_json");
     }
 
-    let supabase;
-    try {
-      supabase = getServiceClient();
-    } catch {
-      return response(req, { error: "server_not_configured" }, 500);
-    }
-
-    const rawEventType = payload.type || payload.event_type;
-    const rawEventId = req.headers.get("x-sporthub-event-id") || payload.id ||
-      payload.event_id;
-    if (typeof rawEventType !== "string" || typeof rawEventId !== "string") {
-      return response(req, { error: "event_type_and_id_required" }, 422);
-    }
-    const eventType = rawEventType.trim();
-    const eventId = rawEventId.trim();
+    const rawEventType = payload.type ?? payload.event_type;
+    const eventType = cleanText(rawEventType, 81);
     if (
-      !eventType || !eventId || eventType.length > 160 || eventId.length > 200
+      !eventType ||
+      eventType.length > 80 ||
+      !SAFE_EVENT_TYPE.test(eventType)
     ) {
-      return response(req, { error: "event_type_and_id_required" }, 422);
+      throw new HttpError(422, "invalid_event_type");
     }
+    const eventId = readIdentifier(
+      req.headers.get("x-sporthub-event-id") ?? payload.id ?? payload.event_id,
+      200,
+    );
 
-    const data = payload.data && typeof payload.data === "object"
-      ? payload.data
+    const data: SportHubActivityData = payload.data &&
+        typeof payload.data === "object" &&
+        !Array.isArray(payload.data)
+      ? payload.data as SportHubActivityData
       : {};
-    const rawExternalUserId = data.user_id || payload.user_id;
-    if (typeof rawExternalUserId !== "string" || !rawExternalUserId.trim()) {
-      return response(req, { error: "user_id_required" }, 422);
-    }
-    const externalUserId = rawExternalUserId.trim();
-    if (externalUserId.length > 200) {
-      return response(req, { error: "user_id_required" }, 422);
-    }
+    const externalUserId = readIdentifier(data.user_id ?? payload.user_id, 200);
+    const activity = normalizeActivity(data, eventType);
+    const occurredAt = payload.created_at === undefined
+      ? new Date(timestampMs)
+      : readTimestamp(payload.created_at);
+    if (!occurredAt) throw new HttpError(422, "invalid_event_timestamp");
 
-    const { data: integration, error: integrationError } = await supabase
+    const service = getServiceClient();
+    const { data: integration, error: integrationError } = await service
       .from("partner_integrations")
       .select("id,user_id,consent_status")
       .eq("partner", "sporthub")
       .eq("external_user_id", externalUserId)
       .maybeSingle();
-    if (integrationError) {
-      return response(req, { error: "integration_lookup_failed" }, 500);
-    }
+    if (integrationError) throw new HttpError(503, "integration_lookup_failed");
     if (!integration || integration.consent_status !== "linked") {
-      return response(req, { error: "linked_user_not_found" }, 404);
+      throw new HttpError(404, "linked_user_not_found");
     }
 
-    const { error: eventError } = await supabase.from("partner_events").insert({
-      user_id: integration.user_id,
-      partner: "sporthub",
-      event_type: eventType,
-      external_event_id: eventId,
-      occurred_at: payload.created_at || new Date(timestampMs).toISOString(),
-      payload: { ...payload, source: "sporthub_webhook" },
-    });
-    const duplicateEvent = eventError?.code === "23505";
-    if (eventError && !duplicateEvent) {
-      return response(req, { error: "event_storage_failed" }, 500);
+    const minimizedEventPayload = {
+      source: "sporthub_webhook",
+      projected: Boolean(activity),
+      session_id: activity?.externalSessionId || null,
+      activity_type: activity?.activityType || null,
+      status: activity?.status || null,
+      starts_at: activity?.startsAt.toISOString() || null,
+    };
+    const { data: ingestionResult, error: ingestionError } = await service.rpc(
+      "ingest_sporthub_webhook_event",
+      {
+        p_user_id: integration.user_id,
+        p_external_user_id: externalUserId,
+        p_event_type: eventType,
+        p_external_event_id: eventId,
+        p_occurred_at: occurredAt.toISOString(),
+        p_event_payload: minimizedEventPayload,
+        p_activity: activity
+          ? {
+            external_session_id: activity.externalSessionId,
+            activity_type: activity.activityType,
+            venue_name: activity.venueName,
+            starts_at: activity.startsAt.toISOString(),
+            ends_at: activity.endsAt?.toISOString() || null,
+            duration_minutes: activity.durationMinutes,
+            calories_burned: activity.caloriesBurned,
+            status: activity.status,
+            source: "webhook",
+          }
+          : null,
+      },
+    );
+    if (ingestionError) {
+      console.error("SportHub webhook ingestion rejected", { code: ingestionError.code });
+      throw new HttpError(409, "webhook_ingestion_failed");
     }
-
-    if (duplicateEvent) {
+    if (ingestionResult?.duplicate) {
       await recordSecurityEvent(req, {
         eventType: "webhook.sporthub.replay_ignored",
         category: "detection",
         severity: "high",
         source: "provider",
         outcome: "blocked",
-        actorType: "anonymous",
+        actorType: "service",
         actorUserId: integration.user_id,
         action: "ignore_webhook_replay",
         resourceType: "partner.event",
         resourceId: eventId,
         metadata: { partner: "sporthub", event_type: eventType },
       });
-      return response(req, { ok: true, duplicate: true, projected: false });
+      return response({ ok: true, duplicate: true, projected: false });
     }
 
-    const externalSessionId = data.session_id || data.booking_id;
-    const activityType = data.activity_type || data.sport_type;
-    if (
-      typeof externalSessionId !== "string" ||
-      typeof activityType !== "string" ||
-      typeof data.starts_at !== "string"
-    ) {
-      return response(
-        req,
-        {
-          ok: true,
-          accepted: true,
-          projected: false,
-          reason: "non_activity_event",
-        },
-        202,
-      );
+    if (!activity) {
+      return response({
+        ok: true,
+        accepted: true,
+        projected: false,
+        reason: "non_activity_event",
+      }, 202);
     }
-    if (externalSessionId.length > 200 || activityType.length > 160) {
-      return response(req, { error: "invalid_activity_data" }, 422);
-    }
-
-    const status = normalizeStatus(eventType, data.status);
-    const startsAt = new Date(data.starts_at);
-    if (Number.isNaN(startsAt.getTime())) {
-      return response(req, { error: "invalid_starts_at" }, 422);
-    }
-    const endsAt = data.ends_at ? new Date(data.ends_at) : null;
-    const derivedDuration = endsAt && !Number.isNaN(endsAt.getTime())
-      ? Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 60000))
-      : null;
-    const duration = data.duration_minutes || derivedDuration;
-
-    const { data: partnerSession, error: sessionError } = await supabase
-      .from("partner_activity_sessions")
-      .upsert({
-        user_id: integration.user_id,
-        partner: "sporthub",
-        external_session_id: externalSessionId,
-        external_user_id: externalUserId,
-        activity_type: activityType,
-        venue_name: typeof data.venue_name === "string"
-          ? data.venue_name.slice(0, 500)
-          : null,
-        starts_at: startsAt.toISOString(),
-        ends_at: endsAt && !Number.isNaN(endsAt.getTime())
-          ? endsAt.toISOString()
-          : null,
-        duration_minutes: duration || null,
-        calories_burned: data.calories_burned ?? null,
-        status,
-        raw_payload: payload,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "partner,external_session_id" })
-      .select("id,workout_session_id")
-      .single();
-    if (sessionError || !partnerSession) {
-      return response(req, { error: "session_projection_failed" }, 500);
-    }
-
-    if (status === "completed") {
-      const { data: workout, error: workoutError } = await supabase
-        .from("workout_sessions")
-        .upsert({
-          user_id: integration.user_id,
-          session_date: qatarDate(startsAt.toISOString()),
-          workout_type: activityType,
-          duration_minutes: duration || 1,
-          calories_burned: data.calories_burned ?? 0,
-          source: "sporthub",
-          source_external_id: externalSessionId,
-          confirmed: true,
-          created_at: startsAt.toISOString(),
-          external_metadata: {
-            venue_name: data.venue_name || null,
-            sporthub_event_id: eventId,
-          },
-        }, { onConflict: "source,source_external_id" })
-        .select("id")
-        .single();
-      if (workoutError || !workout) {
-        return response(req, { error: "workout_projection_failed" }, 500);
-      }
-      await supabase
-        .from("partner_activity_sessions")
-        .update({ workout_session_id: workout.id })
-        .eq("id", partnerSession.id);
-    } else if (status === "cancelled" || status === "no_show") {
-      await supabase
-        .from("workout_sessions")
-        .delete()
-        .eq("source", "sporthub")
-        .eq("source_external_id", externalSessionId);
-      await supabase
-        .from("partner_activity_sessions")
-        .update({ workout_session_id: null })
-        .eq("id", partnerSession.id);
-    }
-
-    await supabase.from("partner_integrations").update({
-      last_synced_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }).eq("id", integration.id);
 
     await recordSecurityEvent(req, {
       eventType: "data_change.sporthub_activity_projected",
@@ -432,20 +461,18 @@ serve(async (req) => {
       action: "project_sporthub_activity",
       resourceType: "partner.event",
       resourceId: eventId,
-      metadata: { partner: "sporthub", event_type: eventType, status },
+      metadata: { partner: "sporthub", event_type: eventType, status: activity.status },
     });
 
-    return response(req, {
+    return response({
       ok: true,
       duplicate: false,
       projected: true,
-      status,
+      status: activity.status,
     });
   } catch (error) {
-    if (error instanceof HttpError) {
-      return response(req, { error: error.code }, error.status);
-    }
+    if (error instanceof HttpError) return response({ error: error.code }, error.status);
     console.error("Unexpected SportHub webhook failure");
-    return response(req, { error: "internal_error" }, 500);
+    return response({ error: "internal_error" }, 500);
   }
 });

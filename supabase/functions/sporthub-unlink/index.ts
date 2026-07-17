@@ -28,6 +28,13 @@ serve(async (req: Request): Promise<Response> => {
     });
     if (error) throw error;
 
+    const { error: pendingDeleteError } = await admin
+      .from("partner_oauth_pending_links")
+      .delete()
+      .eq("user_id", principal.user.id)
+      .eq("partner", "sporthub");
+    if (pendingDeleteError) throw pendingDeleteError;
+
     await recordSecurityEvent(req, {
       eventType: "integration.sporthub.unlinked",
       category: "authorization",
