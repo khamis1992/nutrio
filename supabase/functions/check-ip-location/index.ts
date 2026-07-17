@@ -11,23 +11,9 @@ import {
   recordSecurityEvent,
   requirePost,
 } from "../_shared/security.ts";
+import { lookupIpGeo, normalizeIpAddress } from "../_shared/ipGeo.ts";
 
 const ALLOWED_COUNTRY = "QA";
-const IP_LOOKUP_BASE = "https://ipwho.is";
-
-function isValidIpAddress(value: string): boolean {
-  if (value.length > 64) return false;
-  const ipv4Parts = value.split(".");
-  if (
-    ipv4Parts.length === 4 &&
-    ipv4Parts.every(
-      (part) => /^\d{1,3}$/.test(part) && Number(part) >= 0 && Number(part) <= 255,
-    )
-  ) {
-    return true;
-  }
-  return value.includes(":") && /^[0-9a-f:.]+$/i.test(value);
-}
 
 serve(async (req) => {
   const preflight = handlePreflight(req);
@@ -35,8 +21,8 @@ serve(async (req) => {
 
   try {
     requirePost(req);
-    const clientIp = getClientIp(req) || "";
-    if (!isValidIpAddress(clientIp)) {
+    const clientIp = normalizeIpAddress(getClientIp(req));
+    if (!clientIp) {
       return jsonResponse(req, {
         allowed: false,
         blocked: false,
@@ -75,30 +61,10 @@ serve(async (req) => {
     let city: string | null = null;
 
     if (!countryCode || countryCode === "XX") {
-      const geoResponse = await fetch(
-        `${IP_LOOKUP_BASE}/${encodeURIComponent(clientIp)}?fields=success,country_code,country,city`,
-        { signal: AbortSignal.timeout(5000) },
-      );
-      if (!geoResponse.ok) throw new Error("IP lookup failed");
-
-      const geoData = (await geoResponse.json()) as {
-        success?: boolean;
-        country_code?: string;
-        country?: string;
-        city?: string;
-      };
-      if (geoData.success !== true || typeof geoData.country_code !== "string") {
-        return jsonResponse(req, {
-          allowed: false,
-          blocked: false,
-          ip: clientIp,
-          reason: "Unable to verify location",
-        }, 503);
-      }
-
-      countryCode = geoData.country_code.toUpperCase().slice(0, 2);
-      country = typeof geoData.country === "string" ? geoData.country.slice(0, 120) : null;
-      city = typeof geoData.city === "string" ? geoData.city.slice(0, 120) : null;
+      const geoData = await lookupIpGeo(clientIp);
+      countryCode = geoData.countryCode;
+      country = geoData.country;
+      city = geoData.city;
     }
 
     return jsonResponse(req, {
