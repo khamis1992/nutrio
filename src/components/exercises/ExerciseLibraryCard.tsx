@@ -51,7 +51,9 @@ export function ExerciseLibraryCard() {
           >
             <Search className="h-5 w-5 text-[#22A98D]" />
             <span className="min-w-0 flex-1 text-[12px] font-bold text-slate-400">
-              {isRTL ? "ابحث في 1,324 تمرينًا" : "Search 1,324 exercises"}
+              {isRTL
+                ? `ابحث في ${exercises.length.toLocaleString("ar-QA")} تمرينًا`
+                : `Search ${exercises.length.toLocaleString("en-US")} exercises`}
             </span>
             <ArrowUpRight className="h-4 w-4 text-[#020617]" />
           </button>

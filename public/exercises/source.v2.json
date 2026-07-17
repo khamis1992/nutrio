@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-17T23:00:05.944Z",
+  "exerciseCount": 2131,
+  "legacyExerciseCount": 1324,
+  "wgerExerciseCount": 842,
+  "matchedWgerExercises": 35,
+  "addedWgerExercises": 807,
+  "sources": [
+    "https://github.com/hasaneyldrm/exercises-dataset",
+    "https://wger.de/api/v2/exerciseinfo/"
+  ],
+  "licenseNotice": "wger exercise content retains its per-entry Creative Commons attribution/share-alike license."
+}

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   filterExercises,
   formatExerciseLabel,
+  getExerciseVideoUrl,
+  getLocalizedExerciseContent,
   type ExerciseCatalogItem,
 } from "@/lib/exercise-catalog";
 
@@ -53,5 +55,24 @@ describe("exercise catalog helpers", () => {
     expect(formatExerciseLabel("upper legs")).toBe("Upper Legs");
     expect(formatExerciseLabel("3/4 sit-up")).toBe("3/4 Sit-up");
   });
-});
 
+  it("searches aliases and localized names from enriched datasets", () => {
+    const enriched: ExerciseCatalogItem = {
+      ...exercises[0],
+      aliases: ["chest press"],
+      translations: {
+        ar: { name: "ضغط الصدر", description: "وصف", instructions: ["تعليمات"], aliases: [] },
+      },
+    };
+    expect(filterExercises([enriched], "chest press", "all", "all")).toEqual([enriched]);
+    expect(filterExercises([enriched], "ضغط الصدر", "all", "all")).toEqual([enriched]);
+    expect(getLocalizedExerciseContent(enriched, "ar").name).toBe("ضغط الصدر");
+  });
+
+  it("only returns secure exercise videos", () => {
+    const secure = { ...exercises[0], videos: [{ url: "https://wger.de/video.mp4", durationSeconds: 5, width: 720, height: 720, codec: "h264", isMain: true }] };
+    const insecure = { ...secure, videos: [{ ...secure.videos[0], url: "http://example.com/video.mp4" }] };
+    expect(getExerciseVideoUrl(secure)).toBe("https://wger.de/video.mp4");
+    expect(getExerciseVideoUrl(insecure)).toBeNull();
+  });
+});

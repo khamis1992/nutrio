@@ -17,6 +17,7 @@
     "test:ui": "vitest --ui",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "check": "node .opencode/scripts/enforce-patterns.js",
+    "exercises:sync:wger": "node scripts/sync-wger-exercise-catalog.mjs",
     "security:scan": "node scripts/security-static-audit.mjs",
     "check:all": "npm run typecheck && npm run lint && npm run test:run",
     "cap:sync": "cap sync",

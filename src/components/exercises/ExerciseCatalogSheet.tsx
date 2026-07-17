@@ -22,6 +22,7 @@ import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import {
   filterExercises,
   formatExerciseLabel,
+  getLocalizedExerciseContent,
   type ExerciseCatalogItem,
 } from "@/lib/exercise-catalog";
 import { cn } from "@/lib/utils";
@@ -79,7 +80,8 @@ export function ExerciseCatalogSheet({
     [availableExercises],
   );
   const equipmentOptions = useMemo(
-    () => [...new Set(availableExercises.map((exercise) => exercise.equipment))].sort(),
+    () => [...new Set(availableExercises.flatMap((exercise) =>
+      [exercise.equipment, ...(exercise.equipmentList || [])]))].sort(),
     [availableExercises],
   );
   const filtered = useMemo(
@@ -87,12 +89,19 @@ export function ExerciseCatalogSheet({
     [availableExercises, category, deferredQuery, equipment],
   );
   const visibleExercises = filtered.slice(0, visibleCount);
+  const activeContent = activeExercise
+    ? getLocalizedExerciseContent(activeExercise, isRTL ? "ar" : "en")
+    : null;
+  const catalogCount = availableExercises.length.toLocaleString(isRTL ? "ar-QA" : "en-US");
+  const searchPlaceholder = isRTL
+    ? `ابحث في ${catalogCount} تمرينًا`
+    : `Search ${catalogCount} exercises`;
 
   const copy = isRTL
     ? {
         title: title || "مكتبة التمارين",
         description: "ابحث حسب العضلة أو المعدات أو اسم التمرين",
-        search: "ابحث في 1,324 تمرينًا",
+        search: searchPlaceholder,
         allAreas: "كل العضلات",
         allEquipment: "كل المعدات",
         results: "تمرين",
@@ -109,7 +118,7 @@ export function ExerciseCatalogSheet({
     : {
         title: title || "Exercise library",
         description: "Search by muscle, equipment, or exercise name",
-        search: "Search 1,324 exercises",
+        search: searchPlaceholder,
         allAreas: "All body areas",
         allEquipment: "All equipment",
         results: "exercises",
@@ -142,7 +151,8 @@ export function ExerciseCatalogSheet({
             <div className="relative aspect-[16/11] w-full shrink-0 overflow-hidden bg-[#ECFDF8]">
               <ExerciseMedia
                 exercise={activeExercise}
-                alt={activeExercise.name}
+                alt={activeContent?.name || activeExercise.name}
+                preferVideo
                 className="h-full w-full object-contain p-4"
               />
               <button
@@ -167,8 +177,14 @@ export function ExerciseCatalogSheet({
                 </span>
               </div>
               <h2 className="mt-3 text-[24px] font-black leading-tight text-[#020617]">
-                {formatExerciseLabel(activeExercise.name)}
+                {formatExerciseLabel(activeContent?.name || activeExercise.name)}
               </h2>
+
+              {activeContent?.description && (
+                <p className="mt-3 text-[13px] font-medium leading-relaxed text-slate-600">
+                  {activeContent.description}
+                </p>
+              )}
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <DetailMetric label={copy.target} value={formatExerciseLabel(activeExercise.target)} />
@@ -191,7 +207,7 @@ export function ExerciseCatalogSheet({
                   {copy.steps}
                 </p>
                 <ol className="mt-3 space-y-3">
-                  {activeExercise.instructions.map((step, index) => (
+                  {(activeContent?.instructions || activeExercise.instructions).map((step, index) => (
                     <li key={`${activeExercise.id}-${index}`} className="flex gap-3 text-[13px] font-medium leading-relaxed text-slate-600">
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#020617] text-[10px] font-black text-white">
                         {index + 1}
@@ -201,6 +217,45 @@ export function ExerciseCatalogSheet({
                   ))}
                 </ol>
               </div>
+
+              {activeExercise.dataQuality && (
+                <div className="mt-5 flex flex-wrap items-center gap-2 text-[10px] font-extrabold">
+                  <span className="rounded-full bg-[#F1F5F9] px-3 py-1.5 text-slate-600">
+                    {isRTL ? "اكتمال البيانات" : "Data completeness"}: {activeExercise.dataQuality.score}%
+                  </span>
+                  {activeExercise.dataQuality.hasVideo && (
+                    <span className="rounded-full bg-[#EEF6FF] px-3 py-1.5 text-[#1687D9]">
+                      {isRTL ? "فيديو متاح" : "Video available"}
+                    </span>
+                  )}
+                  {!activeExercise.dataQuality.hasVideo && activeExercise.dataQuality.hasAnimation && (
+                    <span className="rounded-full bg-[#EEF6FF] px-3 py-1.5 text-[#1687D9]">
+                      {isRTL ? "شرح متحرك" : "Animated demo"}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {activeExercise.license && (
+                <p className="mt-5 text-[10px] font-semibold leading-relaxed text-slate-400">
+                  {isRTL ? "المصدر والترخيص" : "Source and license"}: {activeExercise.license.name}
+                  {activeExercise.license.author ? ` · ${activeExercise.license.author}` : ""}
+                  {activeExercise.source !== "legacy" ? " · wger" : ""}
+                  {activeExercise.license.url && (
+                    <>
+                      {" · "}
+                      <a
+                        href={activeExercise.license.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#1687D9] underline underline-offset-2"
+                      >
+                        {isRTL ? "عرض الترخيص" : "View license"}
+                      </a>
+                    </>
+                  )}
+                </p>
+              )}
 
               {onSelect && (
                 <button
@@ -231,7 +286,7 @@ export function ExerciseCatalogSheet({
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder={copy.search}
+                  placeholder={searchPlaceholder}
                   className="min-w-0 flex-1 bg-transparent text-[13px] font-bold text-[#020617] outline-none placeholder:text-slate-400"
                 />
               </label>
@@ -299,7 +354,7 @@ export function ExerciseCatalogSheet({
                           </div>
                           <div className="p-3">
                             <p className="line-clamp-2 min-h-[34px] text-[12px] font-black leading-[17px] text-[#020617]">
-                              {formatExerciseLabel(exercise.name)}
+                              {formatExerciseLabel(getLocalizedExerciseContent(exercise, isRTL ? "ar" : "en").name)}
                             </p>
                             <p className="mt-1 truncate text-[10px] font-bold text-[#22A98D]">
                               {formatExerciseLabel(exercise.target)}

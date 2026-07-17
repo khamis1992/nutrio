@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   getExerciseAnimationUrl,
   getExerciseImageUrl,
+  getExerciseVideoUrl,
   type ExerciseCatalogItem,
 } from "@/lib/exercise-catalog";
 
@@ -11,6 +12,7 @@ interface ExerciseMediaProps {
   alt: string;
   className?: string;
   loading?: "eager" | "lazy";
+  preferVideo?: boolean;
 }
 
 export function ExerciseMedia({
@@ -18,11 +20,29 @@ export function ExerciseMedia({
   alt,
   className,
   loading = "eager",
+  preferVideo = false,
 }: ExerciseMediaProps) {
+  const video = getExerciseVideoUrl(exercise);
   const animation = getExerciseAnimationUrl(exercise);
   const staticImage = getExerciseImageUrl(exercise);
+  const [failedVideo, setFailedVideo] = useState<string | null>(null);
   const [failedAnimation, setFailedAnimation] = useState<string | null>(null);
   const source = animation && failedAnimation !== animation ? animation : staticImage;
+
+  if (preferVideo && video && failedVideo !== video) {
+    return (
+      <video
+        src={video}
+        poster={source || undefined}
+        controls
+        muted
+        playsInline
+        preload="metadata"
+        onError={() => setFailedVideo(video)}
+        className={className}
+      />
+    );
+  }
 
   return (
     <img
