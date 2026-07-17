@@ -96,6 +96,10 @@ interface UserIPLog {
   city: string | null;
 }
 
+interface AdminUserIPLogRow extends UserIPLog {
+  user_id: string | null;
+}
+
 interface UserData {
   id: string;
   user_id: string;
@@ -138,6 +142,47 @@ const statusOptions: Array<UserStatus | "all"> = [
 
 const isUserRole = (value: string): value is UserRole =>
   roleOptions.includes(value as UserRole);
+
+const loadAdminUserIPLogs = async (): Promise<AdminUserIPLogRow[]> => {
+  const { data: rpcLogs, error: rpcError } = await supabase.rpc(
+    "admin_list_user_ip_logs" as never,
+  );
+
+  if (!rpcError) {
+    return ((rpcLogs || []) as AdminUserIPLogRow[]).map((log) => ({
+      user_id: log.user_id,
+      ip_address: String(log.ip_address || ""),
+      created_at: log.created_at,
+      country_code: log.country_code,
+      country_name: log.country_name,
+      city: log.city,
+    }));
+  }
+
+  console.warn(
+    "[AdminUsers] admin_list_user_ip_logs RPC failed; falling back to direct table read:",
+    rpcError,
+  );
+
+  const { data: tableLogs, error: tableError } = await supabase
+    .from("user_ip_logs")
+    .select("user_id, ip_address, country_code, country_name, city, created_at")
+    .order("created_at", { ascending: false });
+
+  if (tableError) {
+    console.warn("[AdminUsers] user_ip_logs table read failed:", tableError);
+    return [];
+  }
+
+  return (tableLogs || []).map((log) => ({
+    user_id: log.user_id,
+    ip_address: String(log.ip_address || ""),
+    created_at: log.created_at || new Date(0).toISOString(),
+    country_code: log.country_code,
+    country_name: log.country_name,
+    city: log.city,
+  }));
+};
 
 const AdminUsers = () => {
   const { toast } = useToast();
@@ -200,10 +245,7 @@ const AdminUsers = () => {
       const { data: fleetManagers } = await supabase
         .from("fleet_managers")
         .select("auth_user_id, role");
-      const { data: ipLogs } = await supabase
-        .from("user_ip_logs")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const ipLogs = await loadAdminUserIPLogs();
       const { data: blockedIPsData } = await supabase
         .from("blocked_ips")
         .select("*")
@@ -1568,7 +1610,10 @@ const OverviewContent = ({
                 </p>
                 <p className="mt-1 text-sm font-black text-[#020617]">
                   {user.last_sign_in_at
-                    ? format(new Date(user.last_sign_in_at), "MMM d, yyyy HH:mm")
+                    ? format(
+                        new Date(user.last_sign_in_at),
+                        "MMM d, yyyy HH:mm",
+                      )
                     : "Never"}
                 </p>
               </div>
@@ -1632,7 +1677,8 @@ const OverviewContent = ({
                       : "This IP currently has platform access."}
                   </p>
                   <p className="mt-1 text-sm font-semibold leading-6 text-[#64748B]">
-                    Keep this section as the quick security check before editing sensitive account or subscription details.
+                    Keep this section as the quick security check before editing
+                    sensitive account or subscription details.
                   </p>
                 </div>
 
