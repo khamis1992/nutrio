@@ -16,6 +16,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,6 +97,8 @@ import {
   RefreshCw,
   Loader2,
   Plus,
+  Save,
+  Settings2,
   Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -150,6 +155,20 @@ interface Restaurant {
   } | null;
 }
 
+interface RestaurantBranchRouting {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  address: string | null;
+  is_active: boolean | null;
+  is_accepting_orders?: boolean | null;
+  max_orders_per_slot?: number | null;
+  service_radius_km?: number | null;
+  avg_prep_time_minutes?: number | null;
+  routing_priority?: number | null;
+  routing_notes?: string | null;
+}
+
 const AdminRestaurants = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -181,6 +200,11 @@ const AdminRestaurants = () => {
   >(null);
   const [payoutRate, setPayoutRate] = useState<string>("25.00");
   const [commissionRate, setCommissionRate] = useState<string>("18");
+  const [restaurantBranches, setRestaurantBranches] = useState<
+    RestaurantBranchRouting[]
+  >([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [savingBranchId, setSavingBranchId] = useState<string | null>(null);
 
   // Add restaurant
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -285,6 +309,100 @@ const AdminRestaurants = () => {
   useEffect(() => {
     fetchRestaurants();
   }, [fetchRestaurants]);
+
+  const fetchRestaurantBranches = useCallback(
+    async (restaurantId: string) => {
+      setLoadingBranches(true);
+      try {
+        const { data, error } = await supabase
+          .from("restaurant_branches")
+          .select("*")
+          .eq("restaurant_id", restaurantId)
+          .order("name");
+
+        if (error) throw error;
+
+        setRestaurantBranches(
+          ((data || []) as unknown as RestaurantBranchRouting[]).map(
+            (branch) => ({
+              ...branch,
+              is_accepting_orders: branch.is_accepting_orders ?? true,
+              max_orders_per_slot: branch.max_orders_per_slot ?? 20,
+              service_radius_km: branch.service_radius_km ?? 12,
+              avg_prep_time_minutes: branch.avg_prep_time_minutes ?? 20,
+              routing_priority: branch.routing_priority ?? 0,
+              routing_notes: branch.routing_notes ?? null,
+            }),
+          ),
+        );
+      } catch (error) {
+        console.error("Error fetching restaurant branches:", error);
+        toast({
+          title: "Branch routing unavailable",
+          description: "Could not load branch routing settings.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingBranches(false);
+      }
+    },
+    [toast],
+  );
+
+  useEffect(() => {
+    if (isDetailOpen && selectedRestaurant) {
+      fetchRestaurantBranches(selectedRestaurant.id);
+      return;
+    }
+    setRestaurantBranches([]);
+  }, [fetchRestaurantBranches, isDetailOpen, selectedRestaurant]);
+
+  const updateRestaurantBranch = (
+    branchId: string,
+    updates: Partial<RestaurantBranchRouting>,
+  ) => {
+    setRestaurantBranches((current) =>
+      current.map((branch) =>
+        branch.id === branchId ? { ...branch, ...updates } : branch,
+      ),
+    );
+  };
+
+  const saveRestaurantBranchRouting = async (
+    branch: RestaurantBranchRouting,
+  ) => {
+    setSavingBranchId(branch.id);
+    try {
+      const { error } = await supabase.rpc(
+        "update_restaurant_branch_routing" as never,
+        {
+          p_branch_id: branch.id,
+          p_is_accepting_orders: branch.is_accepting_orders ?? true,
+          p_max_orders_per_slot: branch.max_orders_per_slot ?? 20,
+          p_service_radius_km: branch.service_radius_km ?? 12,
+          p_avg_prep_time_minutes: branch.avg_prep_time_minutes ?? 20,
+          p_routing_priority: branch.routing_priority ?? 0,
+          p_routing_notes: branch.routing_notes ?? null,
+        } as never,
+      );
+
+      if (error) throw error;
+
+      toast({
+        title: "Branch routing saved",
+        description: `${branch.name} will use the updated routing rules.`,
+      });
+    } catch (error) {
+      console.error("Error saving restaurant branch routing:", error);
+      toast({
+        title: "Could not save branch routing",
+        description: "The branch settings were not updated.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingBranchId(null);
+    }
+  };
 
   // Load zones when dialog opens
   useEffect(() => {
@@ -1560,6 +1678,232 @@ const AdminRestaurants = () => {
                         </p>
                       </div>
                     </div>
+                  </section>
+
+                  <section className="rounded-[22px] bg-white p-4 shadow-[0_12px_28px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                          <Settings2 className="h-4 w-4 text-[#22C7A1]" />
+                          Branch routing
+                        </p>
+                        <p className="mt-2 text-sm font-semibold leading-6 text-[#94A3B8]">
+                          Control kitchen capacity, service radius, and routing
+                          priority for multi-branch dispatch.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          fetchRestaurantBranches(selectedRestaurant.id)
+                        }
+                        disabled={loadingBranches}
+                        className="rounded-[14px] border-[#E5EAF1] bg-[#F6F8FB] font-black text-[#020617] hover:bg-white"
+                      >
+                        <RefreshCw
+                          className={`mr-2 h-4 w-4 ${loadingBranches ? "animate-spin" : ""}`}
+                        />
+                        Refresh
+                      </Button>
+                    </div>
+
+                    <Separator className="my-4 bg-[#E5EAF1]" />
+
+                    {loadingBranches ? (
+                      <div className="grid gap-3">
+                        {[1, 2].map((item) => (
+                          <div
+                            key={item}
+                            className="h-32 animate-pulse rounded-[18px] bg-[#F6F8FB]"
+                          />
+                        ))}
+                      </div>
+                    ) : restaurantBranches.length === 0 ? (
+                      <div className="rounded-[18px] border border-dashed border-[#E5EAF1] bg-[#F6F8FB] p-4">
+                        <p className="font-black text-[#020617]">
+                          No branches configured
+                        </p>
+                        <p className="mt-1 text-sm font-semibold leading-6 text-[#94A3B8]">
+                          This restaurant will be treated as a single kitchen
+                          until branches are added.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {restaurantBranches.map((branch) => (
+                          <div
+                            key={branch.id}
+                            className="rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB] p-4"
+                          >
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="font-black text-[#020617]">
+                                    {branch.name}
+                                  </p>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      branch.is_accepting_orders
+                                        ? "border-[#22C7A1]/20 bg-[#22C7A1]/10 font-black text-[#22C7A1]"
+                                        : "border-[#FB6B7A]/20 bg-[#FB6B7A]/10 font-black text-[#FB6B7A]"
+                                    }
+                                  >
+                                    {branch.is_accepting_orders
+                                      ? "Accepting orders"
+                                      : "Paused"}
+                                  </Badge>
+                                </div>
+                                {branch.address && (
+                                  <p className="mt-1 text-xs font-semibold text-[#94A3B8]">
+                                    {branch.address}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 rounded-full bg-white px-3 py-2 ring-1 ring-[#E5EAF1]">
+                                <Label
+                                  htmlFor={`admin-branch-accepting-${branch.id}`}
+                                  className="text-xs font-black text-[#020617]"
+                                >
+                                  Live
+                                </Label>
+                                <Switch
+                                  id={`admin-branch-accepting-${branch.id}`}
+                                  checked={branch.is_accepting_orders ?? true}
+                                  onCheckedChange={(checked) =>
+                                    updateRestaurantBranch(branch.id, {
+                                      is_accepting_orders: checked,
+                                    })
+                                  }
+                                />
+                              </div>
+                            </div>
+
+                            <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                                  Slot capacity
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={500}
+                                  value={branch.max_orders_per_slot ?? 20}
+                                  onChange={(event) =>
+                                    updateRestaurantBranch(branch.id, {
+                                      max_orders_per_slot: Math.min(
+                                        500,
+                                        Math.max(
+                                          1,
+                                          Number(event.target.value) || 1,
+                                        ),
+                                      ),
+                                    })
+                                  }
+                                  className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-bold text-[#020617]"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                                  Radius km
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min={0.1}
+                                  max={250}
+                                  step={0.5}
+                                  value={branch.service_radius_km ?? 12}
+                                  onChange={(event) =>
+                                    updateRestaurantBranch(branch.id, {
+                                      service_radius_km: Math.min(
+                                        250,
+                                        Math.max(
+                                          0.1,
+                                          Number(event.target.value) || 0.1,
+                                        ),
+                                      ),
+                                    })
+                                  }
+                                  className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-bold text-[#020617]"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                                  Prep min
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={240}
+                                  value={branch.avg_prep_time_minutes ?? 20}
+                                  onChange={(event) =>
+                                    updateRestaurantBranch(branch.id, {
+                                      avg_prep_time_minutes: Math.min(
+                                        240,
+                                        Math.max(
+                                          0,
+                                          Number(event.target.value) || 0,
+                                        ),
+                                      ),
+                                    })
+                                  }
+                                  className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-bold text-[#020617]"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                                  Priority
+                                </Label>
+                                <Input
+                                  type="number"
+                                  value={branch.routing_priority ?? 0}
+                                  onChange={(event) =>
+                                    updateRestaurantBranch(branch.id, {
+                                      routing_priority:
+                                        Number(event.target.value) || 0,
+                                    })
+                                  }
+                                  className="h-11 rounded-[14px] border-[#E5EAF1] bg-white font-bold text-[#020617]"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+                              <Textarea
+                                value={branch.routing_notes ?? ""}
+                                onChange={(event) =>
+                                  updateRestaurantBranch(branch.id, {
+                                    routing_notes: event.target.value,
+                                  })
+                                }
+                                placeholder="Internal routing note"
+                                className="min-h-[44px] rounded-[14px] border-[#E5EAF1] bg-white font-semibold text-[#020617]"
+                              />
+                              <Button
+                                variant="outline"
+                                onClick={() =>
+                                  saveRestaurantBranchRouting(branch)
+                                }
+                                disabled={savingBranchId === branch.id}
+                                className="h-11 rounded-[14px] border-[#020617] bg-[#020617] px-5 font-black text-white hover:bg-[#111827] hover:text-white"
+                              >
+                                {savingBranchId === branch.id ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Save className="mr-2 h-4 w-4" />
+                                )}
+                                Save
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </section>
 
                   {/* Actions */}

@@ -25,13 +25,29 @@ import {
   ArrowRight,
   AlertCircle,
   RefreshCw,
+  ListChecks,
+  ShoppingCart,
+  Plus,
+  Minus,
+  Trash2,
+  WifiOff,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { PartnerDeliveryHandoff } from "@/components/partner/PartnerDeliveryHandoff";
 import { getQatarDay } from "@/lib/dateUtils";
+import { formatCurrency } from "@/lib/currency";
+import {
+  createPartnerPosOrderPayload,
+  flushPartnerPosOrders,
+  readPartnerPosOrders,
+  syncOrQueuePartnerPosOrder,
+  type PartnerPosMenuItem,
+  type PartnerPosOfflineOrder,
+} from "@/lib/partner-pos-offline";
 
 // Extended order status type with all new statuses
 type OrderStatus =
@@ -197,6 +213,28 @@ interface ScheduleAddon {
   quantity: number;
 }
 
+type KitchenItemStatus = "queued" | "preparing" | "ready";
+
+interface KitchenOrderItem {
+  item_key: string;
+  item_name: string;
+  quantity: number;
+  status: KitchenItemStatus;
+  started_at: string | null;
+  ready_at: string | null;
+}
+
+interface KitchenItemStatusRow {
+  order_source: "order" | "meal_schedule";
+  order_id: string;
+  item_key: string;
+  item_name: string;
+  quantity: number;
+  status: KitchenItemStatus;
+  started_at: string | null;
+  ready_at: string | null;
+}
+
 interface TransformMaps {
   profilesMap: Record<
     string,
@@ -205,6 +243,69 @@ interface TransformMaps {
   addressesMap: Record<string, Record<string, unknown>>;
   addonsMap: Record<string, ScheduleAddon[]>;
   driversMap: Record<string, Order["driver"]>;
+  kitchenItemsMap: Record<string, KitchenItemStatusRow[]>;
+}
+
+function buildKitchenItemKey(source: Order["source"], orderId: string) {
+  return `${source}:${orderId}`;
+}
+
+function mergeKitchenItems(
+  source: Order["source"],
+  orderId: string,
+  meal: Order["meal"],
+  addons: ScheduleAddon[],
+  kitchenRows: KitchenItemStatusRow[],
+): KitchenOrderItem[] {
+  const persisted = new Map(kitchenRows.map((row) => [row.item_key, row]));
+  const baseItems: KitchenOrderItem[] = [];
+
+  if (meal) {
+    baseItems.push({
+      item_key: `meal:${meal.id}`,
+      item_name: meal.name,
+      quantity: 1,
+      status: "queued",
+      started_at: null,
+      ready_at: null,
+    });
+  }
+
+  for (const addon of addons) {
+    baseItems.push({
+      item_key: `addon:${addon.id}`,
+      item_name: addon.addon_name,
+      quantity: addon.quantity,
+      status: "queued",
+      started_at: null,
+      ready_at: null,
+    });
+  }
+
+  if (baseItems.length === 0) {
+    baseItems.push({
+      item_key: `${source}:${orderId}:item`,
+      item_name: "Kitchen item",
+      quantity: 1,
+      status: "queued",
+      started_at: null,
+      ready_at: null,
+    });
+  }
+
+  return baseItems.map((item) => {
+    const saved = persisted.get(item.item_key);
+    return saved
+      ? {
+          ...item,
+          item_name: saved.item_name || item.item_name,
+          quantity: saved.quantity || item.quantity,
+          status: saved.status,
+          started_at: saved.started_at,
+          ready_at: saved.ready_at,
+        }
+      : item;
+  });
 }
 
 /** Type-safe transform: raw Supabase row to Order. All `as` casts are contained here. */
@@ -212,9 +313,14 @@ function transformScheduleToOrder(
   s: Record<string, unknown>,
   maps: TransformMaps,
 ): Order {
+  const id = s.id as string;
+  const source: Order["source"] = "meal_schedule";
+  const meal = s.meals as Order["meal"];
+  const addons = maps.addonsMap[id] || [];
+
   return {
-    id: s.id as string,
-    source: "meal_schedule",
+    id,
+    source,
     order_status: ((s.order_status as string) || "pending") as OrderStatus,
     scheduled_date: s.scheduled_date as string,
     delivery_time_slot: (s.delivery_time_slot as string) || null,
@@ -225,7 +331,7 @@ function transformScheduleToOrder(
     restaurant_note: (s.restaurant_note as string) || null,
     created_at: s.created_at as string,
     cancellation_reason: null,
-    meal: s.meals as Order["meal"],
+    meal,
     customer: maps.profilesMap[s.user_id as string]
       ? {
           full_name: maps.profilesMap[s.user_id as string].full_name,
@@ -244,8 +350,15 @@ function transformScheduleToOrder(
             .delivery_instructions as string | null,
         }
       : null,
-    addons: maps.addonsMap[s.id as string] || [],
+    addons,
     driver: maps.driversMap[s.id as string] ?? null,
+    kitchen_items: mergeKitchenItems(
+      source,
+      id,
+      meal,
+      addons,
+      maps.kitchenItemsMap[buildKitchenItemKey(source, id)] || [],
+    ),
   };
 }
 
@@ -259,14 +372,18 @@ function transformDirectOrderToOrder(
   order: Record<string, unknown>,
   profilesMap: TransformMaps["profilesMap"],
   mealsMap: Record<string, Order["meal"]>,
+  kitchenItemsMap: TransformMaps["kitchenItemsMap"],
 ): Order {
   const createdAt = order.created_at as string;
   const userId = order.user_id as string | null;
   const profile = userId ? profilesMap[userId] : null;
+  const id = order.id as string;
+  const source: Order["source"] = "order";
+  const meal = mealsMap[order.meal_id as string] || null;
 
   return {
-    id: order.id as string,
-    source: "order",
+    id,
+    source,
     order_status: normalizeDirectOrderStatus(order.status as string | null),
     scheduled_date: getQatarDay(new Date(createdAt)),
     delivery_time_slot: (order.estimated_delivery_time as string) || null,
@@ -277,7 +394,7 @@ function transformDirectOrderToOrder(
     restaurant_note: (order.special_instructions as string) || (order.notes as string) || null,
     created_at: createdAt,
     cancellation_reason: null,
-    meal: mealsMap[order.meal_id as string] || null,
+    meal,
     customer: {
       full_name: profile?.full_name || null,
       phone: (order.phone_number as string) || null,
@@ -293,6 +410,13 @@ function transformDirectOrderToOrder(
       : null,
     addons: [],
     driver: null,
+    kitchen_items: mergeKitchenItems(
+      source,
+      id,
+      meal,
+      [],
+      kitchenItemsMap[buildKitchenItemKey(source, id)] || [],
+    ),
   };
 }
 
@@ -306,7 +430,7 @@ function buildAddonsMap(
     const addon = a.addon as Record<string, unknown> | null;
     if (!acc[scheduleId]) acc[scheduleId] = [];
     acc[scheduleId].push({
-      id: `${scheduleId}-${(addon?.name as string) || ""}`,
+      id: (a.id as string) || `${scheduleId}-${(addon?.name as string) || ""}`,
       addon_name: (addon?.name as string) || "Add-on",
       quantity: a.quantity as number,
     });
@@ -346,11 +470,51 @@ interface Order {
     delivery_instructions: string | null;
   } | null;
   addons: ScheduleAddon[];
+  kitchen_items: KitchenOrderItem[];
   driver: {
     id: string;
     full_name: string | null;
   } | null;
 }
+
+interface PosCartItem {
+  meal: PartnerPosMenuItem;
+  quantity: number;
+}
+
+type KitchenQueryResult<T> = Promise<{
+  data: T[] | null;
+  error: { message: string } | null;
+}>;
+
+type KitchenRpcResult = Promise<{
+  data: unknown;
+  error: Error | null;
+}>;
+
+type KitchenQueueClient = {
+  from: (table: "kitchen_queue_items") => {
+    select: (columns: string) => {
+      in: (column: string, values: string[]) => {
+        in: (column: string, values: string[]) => KitchenQueryResult<KitchenItemStatusRow>;
+      };
+    };
+  };
+  rpc: (
+    functionName: "partner_update_kitchen_item_status",
+    args: {
+      p_source: Order["source"];
+      p_order_id: string;
+      p_item_key: string;
+      p_status: KitchenItemStatus;
+      p_item_name: string;
+      p_quantity: number;
+      p_all_item_keys: string[];
+    },
+  ) => KitchenRpcResult;
+};
+
+const kitchenQueueClient = supabase as unknown as KitchenQueueClient;
 
 const PartnerOrders = () => {
   const navigate = useNavigate();
@@ -364,6 +528,16 @@ const PartnerOrders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState("active");
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [posMenuItems, setPosMenuItems] = useState<PartnerPosMenuItem[]>([]);
+  const [posCart, setPosCart] = useState<PosCartItem[]>([]);
+  const [posCustomerName, setPosCustomerName] = useState("");
+  const [posPhoneNumber, setPosPhoneNumber] = useState("");
+  const [posNotes, setPosNotes] = useState("");
+  const [pendingPosOrders, setPendingPosOrders] = useState<PartnerPosOfflineOrder[]>([]);
+  const [posSyncing, setPosSyncing] = useState(false);
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Manual refresh function
@@ -378,6 +552,32 @@ const PartnerOrders = () => {
     if (user) {
       fetchOrders();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const refreshPendingPosOrders = () => {
+    if (!user) return;
+    setPendingPosOrders(readPartnerPosOrders(user.id, restaurantId));
+  };
+
+  useEffect(() => {
+    refreshPendingPosOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, restaurantId]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      void syncPendingPosOrders();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -510,6 +710,14 @@ const PartnerOrders = () => {
       if (mealsError) throw mealsError;
 
       const mealIds = meals?.map((m) => m.id) || [];
+      setPosMenuItems(
+        (meals || []).map((meal) => ({
+          id: meal.id,
+          name: meal.name,
+          price: meal.price ?? 0,
+          image_url: meal.image_url,
+        })),
+      );
       const partnerMealsMap: Record<string, Order["meal"]> = Object.fromEntries(
         (meals || []).map((meal) => [meal.id, {
           ...meal,
@@ -657,6 +865,7 @@ const PartnerOrders = () => {
           .from("schedule_addons")
           .select(
             `
+            id,
             schedule_id,
             quantity,
             addon:meal_addons (name)
@@ -669,6 +878,34 @@ const PartnerOrders = () => {
         }
       }
 
+      const directOrderIds = ((directOrders || []) as Array<Record<string, unknown>>).map(
+        (order: Record<string, unknown>) => order.id as string,
+      );
+      const allKitchenOrderIds = [...scheduleIds, ...directOrderIds];
+      let kitchenItemsMap: Record<string, KitchenItemStatusRow[]> = {};
+
+      if (allKitchenOrderIds.length > 0) {
+        const { data: kitchenRows, error: kitchenRowsError } = await kitchenQueueClient
+          .from("kitchen_queue_items")
+          .select("order_source, order_id, item_key, item_name, quantity, status, started_at, ready_at")
+          .in("order_id", allKitchenOrderIds)
+          .in("order_source", ["meal_schedule", "order"]);
+
+        if (kitchenRowsError) {
+          console.warn("Kitchen item statuses unavailable:", kitchenRowsError.message);
+        } else {
+          kitchenItemsMap = ((kitchenRows || []) as KitchenItemStatusRow[]).reduce<Record<string, KitchenItemStatusRow[]>>(
+            (acc, row) => {
+              const key = buildKitchenItemKey(row.order_source, row.order_id);
+              if (!acc[key]) acc[key] = [];
+              acc[key].push(row);
+              return acc;
+            },
+            {},
+          );
+        }
+      }
+
       const driversMap: Record<string, Order["driver"]> = {};
 
       // Transform data via typed helper
@@ -677,6 +914,7 @@ const PartnerOrders = () => {
         addressesMap,
         addonsMap,
         driversMap,
+        kitchenItemsMap,
       };
       const transformedOrders: Order[] = ((schedules || []) as Array<Record<string, unknown>>).map(
         (s: Record<string, unknown>) => transformScheduleToOrder(s, maps),
@@ -689,7 +927,7 @@ const PartnerOrders = () => {
           return !isClosed || getQatarDay(new Date(order.created_at as string)) === today;
         })
         .map((order: Record<string, unknown>) =>
-          transformDirectOrderToOrder(order, profilesMap, partnerMealsMap),
+          transformDirectOrderToOrder(order, profilesMap, partnerMealsMap, kitchenItemsMap),
         );
 
       setOrders(
@@ -745,6 +983,165 @@ const PartnerOrders = () => {
           error instanceof Error
             ? error.message
             : "Failed to update order status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateKitchenItemStatus = async (
+    order: Order,
+    item: KitchenOrderItem,
+    status: KitchenItemStatus,
+  ) => {
+    try {
+      const allItemKeys = order.kitchen_items.map((kitchenItem) => kitchenItem.item_key);
+      const { error } = await kitchenQueueClient.rpc("partner_update_kitchen_item_status", {
+        p_source: order.source,
+        p_order_id: order.id,
+        p_item_key: item.item_key,
+        p_status: status,
+        p_item_name: item.item_name,
+        p_quantity: item.quantity,
+        p_all_item_keys: allItemKeys,
+      });
+
+      if (error) throw error;
+
+      const updatedItems = order.kitchen_items.map((kitchenItem) =>
+        kitchenItem.item_key === item.item_key
+          ? {
+              ...kitchenItem,
+              status,
+              started_at: status === "preparing" || status === "ready"
+                ? kitchenItem.started_at || new Date().toISOString()
+                : kitchenItem.started_at,
+              ready_at: status === "ready" ? kitchenItem.ready_at || new Date().toISOString() : null,
+            }
+          : kitchenItem,
+      );
+      const allReady = updatedItems.every((kitchenItem) => kitchenItem.status === "ready");
+
+      setOrders((prev) =>
+        prev.map((existingOrder) =>
+          existingOrder.id === order.id && existingOrder.source === order.source
+            ? {
+                ...existingOrder,
+                order_status: allReady ? "ready" : status === "preparing" ? "preparing" : existingOrder.order_status,
+                kitchen_items: updatedItems,
+              }
+            : existingOrder,
+        ),
+      );
+
+      toast({
+        title: status === "ready" ? "Item ready" : "Item started",
+        description: `${item.item_name} marked as ${status}`,
+      });
+    } catch (error: unknown) {
+      console.error("Error updating kitchen item:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update kitchen item",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addPosItem = (meal: PartnerPosMenuItem) => {
+    setPosCart((current) => {
+      const existing = current.find((item) => item.meal.id === meal.id);
+      if (existing) {
+        return current.map((item) =>
+          item.meal.id === meal.id
+            ? { ...item, quantity: Math.min(99, item.quantity + 1) }
+            : item,
+        );
+      }
+      return [...current, { meal, quantity: 1 }];
+    });
+  };
+
+  const changePosQuantity = (mealId: string, delta: number) => {
+    setPosCart((current) =>
+      current
+        .map((item) =>
+          item.meal.id === mealId
+            ? { ...item, quantity: item.quantity + delta }
+            : item,
+        )
+        .filter((item) => item.quantity > 0),
+    );
+  };
+
+  const posTotal = posCart.reduce(
+    (sum, item) => sum + item.quantity * Number(item.meal.price || 0),
+    0,
+  );
+
+  const syncPendingPosOrders = async () => {
+    if (!user || posSyncing) return;
+    setPosSyncing(true);
+    try {
+      const result = await flushPartnerPosOrders(user.id);
+      refreshPendingPosOrders();
+      if (result.synced > 0) {
+        await fetchOrders();
+        toast({
+          title: "POS synced",
+          description: `${result.synced} offline ticket${result.synced === 1 ? "" : "s"} sent to the kitchen.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "POS sync failed",
+        description: error instanceof Error ? error.message : "Try again when the connection is stable.",
+        variant: "destructive",
+      });
+    } finally {
+      setPosSyncing(false);
+    }
+  };
+
+  const createPosOrder = async () => {
+    if (!user || !restaurantId) return;
+    try {
+      const payload = createPartnerPosOrderPayload({
+        restaurantId,
+        restaurantName,
+        items: posCart,
+        customerName: posCustomerName,
+        phoneNumber: posPhoneNumber,
+        notes: posNotes,
+      });
+
+      const result = await syncOrQueuePartnerPosOrder({ userId: user.id, payload });
+      setPosCart([]);
+      setPosCustomerName("");
+      setPosPhoneNumber("");
+      setPosNotes("");
+      refreshPendingPosOrders();
+
+      if (result.synced) {
+        await fetchOrders();
+        toast({
+          title: "POS order sent",
+          description: "The ticket is now in today's kitchen flow.",
+        });
+      } else {
+        toast({
+          title: "Saved offline",
+          description: "The ticket will sync automatically when connection returns.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Could not create POS order",
+        description: error instanceof Error && error.message === "POS_CART_EMPTY"
+          ? "Add at least one menu item first."
+          : error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
     }
@@ -831,6 +1228,94 @@ const PartnerOrders = () => {
           <span>Order</span>
           <span>Ready</span>
           <span>Complete</span>
+        </div>
+      </div>
+    );
+  };
+
+  const KitchenItemFlow = ({ order }: { order: Order }) => {
+    const readyCount = order.kitchen_items.filter((item) => item.status === "ready").length;
+    const progress = order.kitchen_items.length > 0
+      ? Math.round((readyCount / order.kitchen_items.length) * 100)
+      : 0;
+    const disabled = ["ready", "out_for_delivery", "delivered", "completed", "cancelled"].includes(order.order_status);
+
+    const itemStatusStyle: Record<KitchenItemStatus, string> = {
+      queued: "bg-[#F6F8FB] text-[#64748B] border-[#E5EAF1]",
+      preparing: "bg-[#7C83F6]/10 text-[#7C83F6] border-[#7C83F6]/25",
+      ready: "bg-[#22C7A1]/10 text-[#0B9B7E] border-[#22C7A1]/25",
+    };
+
+    return (
+      <div className="mt-4 rounded-3xl border border-[#E5EAF1] bg-white p-3">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#020617] text-white">
+              <ListChecks className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#7C83F6]">KDS items</p>
+              <p className="text-sm font-black text-[#020617]">{readyCount}/{order.kitchen_items.length} ready</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-[#F6F8FB] px-3 py-1 text-xs font-black text-[#94A3B8] ring-1 ring-[#E5EAF1]">
+            {progress}%
+          </span>
+        </div>
+
+        <div className="mb-3 h-2 overflow-hidden rounded-full bg-[#E5EAF1]">
+          <div className="h-full rounded-full bg-[#22C7A1] transition-all" style={{ width: `${progress}%` }} />
+        </div>
+
+        <div className="space-y-2">
+          {order.kitchen_items.map((item) => {
+            const nextStatus: KitchenItemStatus | null =
+              item.status === "queued" ? "preparing" : item.status === "preparing" ? "ready" : null;
+
+            return (
+              <div key={item.item_key} className="flex flex-col gap-2 rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-black text-[#020617]">{item.item_name}</p>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5EAF1]">
+                      x{item.quantity}
+                    </span>
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black capitalize ${itemStatusStyle[item.status]}`}>
+                      {item.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] font-semibold text-[#94A3B8]">
+                    {item.status === "ready"
+                      ? "Ready for handoff"
+                      : item.status === "preparing"
+                        ? "Cooking in progress"
+                        : "Waiting to start"}
+                  </p>
+                </div>
+
+                {nextStatus && !disabled ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => updateKitchenItemStatus(order, item, nextStatus)}
+                    className={`h-10 rounded-2xl px-4 text-xs font-black ${
+                      nextStatus === "ready"
+                        ? "bg-[#22C7A1] text-white hover:bg-[#1FB492]"
+                        : "bg-[#020617] text-white hover:bg-[#020617]/90"
+                    }`}
+                  >
+                    {nextStatus === "ready" ? <CheckCircle className="mr-1 h-4 w-4" /> : <Play className="mr-1 h-4 w-4" />}
+                    {nextStatus === "ready" ? "Ready" : "Start"}
+                  </Button>
+                ) : (
+                  <span className="inline-flex h-10 items-center justify-center rounded-2xl bg-white px-4 text-xs font-black text-[#22C7A1] ring-1 ring-[#E5EAF1]">
+                    <CheckCheck className="mr-1 h-4 w-4" />
+                    Done
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -974,6 +1459,10 @@ const PartnerOrders = () => {
               <StatusProgressBar currentStatus={order.order_status} />
             </div>
 
+            {order.order_status !== "cancelled" && order.kitchen_items.length > 0 && (
+              <KitchenItemFlow order={order} />
+            )}
+
             {order.order_status === "cancelled" &&
               order.cancellation_reason && (
                 <div className="mt-3 flex items-start gap-2 rounded-3xl border border-[#FB6B7A]/25 bg-[#FB6B7A]/10 p-3 text-sm font-medium text-[#FB6B7A]">
@@ -1080,6 +1569,192 @@ const PartnerOrders = () => {
       );
     });
   };
+
+  const renderPos = () => (
+    <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+      <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_14px_36px_rgba(2,6,23,0.04)]">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#22C7A1]">
+              Offline-first POS
+            </p>
+            <h2 className="mt-1 text-xl font-black text-[#020617]">Counter order</h2>
+            <p className="mt-1 text-sm font-semibold text-[#64748B]">
+              Create walk-in tickets even when the connection drops.
+            </p>
+          </div>
+          <div className={`inline-flex h-10 items-center gap-2 rounded-2xl px-3 text-xs font-black ${
+            isOnline
+              ? "bg-[#22C7A1]/10 text-[#0B9B7E]"
+              : "bg-[#F97316]/10 text-[#F97316]"
+          }`}>
+            {isOnline ? <CheckCircle className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+            {isOnline ? "Online" : "Offline mode"}
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {posMenuItems.map((meal) => (
+            <button
+              key={meal.id}
+              type="button"
+              onClick={() => addPosItem(meal)}
+              className="group flex min-h-[118px] flex-col justify-between rounded-3xl border border-[#E5EAF1] bg-[#F6F8FB] p-3 text-left transition hover:border-[#7C83F6]/40 hover:bg-white hover:shadow-[0_16px_36px_rgba(2,6,23,0.06)]"
+            >
+              <div className="flex items-start gap-3">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-white">
+                  {meal.image_url ? (
+                    <img src={meal.image_url} alt={meal.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <Utensils className="h-5 w-5 text-[#94A3B8]" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="line-clamp-2 text-sm font-black leading-5 text-[#020617]">{meal.name}</p>
+                  <p className="mt-1 text-xs font-bold text-[#64748B]">{formatCurrency(Number(meal.price || 0))}</p>
+                </div>
+              </div>
+              <span className="mt-3 inline-flex h-9 items-center justify-center rounded-2xl bg-white text-xs font-black text-[#020617] ring-1 ring-[#E5EAF1] group-hover:bg-[#020617] group-hover:text-white">
+                <Plus className="mr-1 h-4 w-4" />
+                Add
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <aside className="space-y-4">
+        <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_14px_36px_rgba(2,6,23,0.04)]">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7C83F6]">Ticket</p>
+              <h2 className="mt-1 text-xl font-black text-[#020617]">{formatCurrency(posTotal)}</h2>
+            </div>
+            <span className="flex h-12 w-12 items-center justify-center rounded-3xl bg-[#020617] text-white">
+              <ShoppingCart className="h-5 w-5" />
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {posCart.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-[#E5EAF1] bg-[#F6F8FB] p-5 text-center">
+                <p className="text-sm font-black text-[#020617]">No items yet</p>
+                <p className="mt-1 text-xs font-semibold text-[#94A3B8]">Tap meals to build a counter ticket.</p>
+              </div>
+            ) : (
+              posCart.map((item) => (
+                <div key={item.meal.id} className="rounded-3xl border border-[#E5EAF1] bg-[#F6F8FB] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-[#020617]">{item.meal.name}</p>
+                      <p className="mt-1 text-xs font-bold text-[#64748B]">
+                        {formatCurrency(Number(item.meal.price || 0))} x {item.quantity}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => changePosQuantity(item.meal.id, -item.quantity)}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-[#FB6B7A] ring-1 ring-[#E5EAF1]"
+                      aria-label="Remove item"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => changePosQuantity(item.meal.id, -1)}
+                      className="h-9 w-9 rounded-2xl border-[#E5EAF1] bg-white"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="flex h-9 min-w-12 items-center justify-center rounded-2xl bg-white px-3 text-sm font-black text-[#020617] ring-1 ring-[#E5EAF1]">
+                      {item.quantity}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => changePosQuantity(item.meal.id, 1)}
+                      className="h-9 w-9 rounded-2xl border-[#E5EAF1] bg-white"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            <Input
+              value={posCustomerName}
+              onChange={(event) => setPosCustomerName(event.target.value)}
+              placeholder="Customer name optional"
+              className="h-12 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
+            />
+            <Input
+              value={posPhoneNumber}
+              onChange={(event) => setPosPhoneNumber(event.target.value)}
+              placeholder="Phone optional"
+              className="h-12 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
+            />
+            <Input
+              value={posNotes}
+              onChange={(event) => setPosNotes(event.target.value)}
+              placeholder="Kitchen note optional"
+              className="h-12 rounded-2xl border-[#E5EAF1] bg-[#F6F8FB] font-semibold"
+            />
+          </div>
+
+          <Button
+            type="button"
+            onClick={createPosOrder}
+            disabled={posCart.length === 0}
+            className="mt-4 h-12 w-full rounded-2xl bg-[#020617] font-black text-white hover:bg-[#020617]/90"
+          >
+            {isOnline ? "Send to kitchen" : "Save offline ticket"}
+          </Button>
+        </section>
+
+        <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_14px_36px_rgba(2,6,23,0.04)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F97316]">Sync queue</p>
+              <p className="mt-1 text-lg font-black text-[#020617]">{pendingPosOrders.length} pending</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={syncPendingPosOrders}
+              disabled={posSyncing || pendingPosOrders.length === 0 || !isOnline}
+              className="h-10 rounded-2xl border-[#E5EAF1] bg-white px-4 font-black"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${posSyncing ? "animate-spin" : ""}`} />
+              Sync
+            </Button>
+          </div>
+          {pendingPosOrders.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {pendingPosOrders.slice(0, 4).map((ticket) => (
+                <div key={ticket.id} className="rounded-2xl bg-[#F6F8FB] px-3 py-2">
+                  <p className="text-xs font-black text-[#020617]">POS-{ticket.id.slice(0, 8).toUpperCase()}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-[#64748B]">
+                    {ticket.payload.items.length} item group{ticket.payload.items.length === 1 ? "" : "s"} - {formatCurrency(ticket.payload.totalAmount)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </aside>
+    </div>
+  );
+
   return (
     <PartnerLayout title="Orders">
       <div className="-m-6 min-h-screen bg-[#F6F8FB] p-4 text-[#020617] sm:p-6">
@@ -1174,12 +1849,17 @@ const PartnerOrders = () => {
           </section>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid h-auto grid-cols-3 gap-2 rounded-[28px] border border-[#E5EAF1] bg-white p-2 shadow-[0_14px_36px_rgba(2,6,23,0.04)]">
+            <TabsList className="grid h-auto grid-cols-2 gap-2 rounded-[28px] border border-[#E5EAF1] bg-white p-2 shadow-[0_14px_36px_rgba(2,6,23,0.04)] md:grid-cols-4">
               {[
                 {
                   value: "active",
                   label: "Active",
                   count: activeOrders.length,
+                },
+                {
+                  value: "pos",
+                  label: "POS",
+                  count: pendingPosOrders.length,
                 },
                 {
                   value: "completed",
@@ -1209,6 +1889,9 @@ const PartnerOrders = () => {
 
             <TabsContent value="active" className="mt-4 space-y-4">
               {renderOrders(activeOrders, true)}
+            </TabsContent>
+            <TabsContent value="pos" className="mt-4">
+              {renderPos()}
             </TabsContent>
             <TabsContent value="completed" className="mt-4 space-y-4">
               {renderOrders(completedOrders)}

@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { 
   MapPin, 
   Navigation, 
@@ -12,11 +16,14 @@ import {
   Phone,
   User,
   Truck,
-  CheckCircle
+  CheckCircle,
+  Save,
+  Settings2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistance, calculateDistance } from "@/lib/distance";
+import { toast } from "@/components/ui/use-toast";
 
 interface RestaurantBranch {
   id: string;
@@ -27,6 +34,12 @@ interface RestaurantBranch {
   longitude: number;
   phone_number: string | null;
   is_active: boolean;
+  is_accepting_orders: boolean;
+  max_orders_per_slot: number;
+  service_radius_km: number;
+  avg_prep_time_minutes: number;
+  routing_priority: number;
+  routing_notes: string | null;
 }
 
 interface BranchOrder {
@@ -58,6 +71,7 @@ export function PartnerBranchOrders() {
   const [orders, setOrders] = useState<BranchOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending" | "preparing" | "ready">("all");
+  const [savingRouting, setSavingRouting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -99,9 +113,15 @@ export function PartnerBranchOrders() {
 
       if (branchError) throw branchError;
       
-      const normalizedBranches = (branchData || []).map((branch) => ({
+      const normalizedBranches = ((branchData || []) as unknown as RestaurantBranch[]).map((branch) => ({
         ...branch,
         is_active: branch.is_active ?? false,
+        is_accepting_orders: branch.is_accepting_orders ?? true,
+        max_orders_per_slot: branch.max_orders_per_slot ?? 20,
+        service_radius_km: branch.service_radius_km ?? 12,
+        avg_prep_time_minutes: branch.avg_prep_time_minutes ?? 20,
+        routing_priority: branch.routing_priority ?? 0,
+        routing_notes: branch.routing_notes ?? null,
       }));
       setBranches(normalizedBranches);
       
@@ -113,6 +133,49 @@ export function PartnerBranchOrders() {
       console.error("Error fetching partner branches:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateSelectedBranch = (updates: Partial<RestaurantBranch>) => {
+    if (!selectedBranch) return;
+
+    const nextBranch = { ...selectedBranch, ...updates };
+    setSelectedBranch(nextBranch);
+    setBranches((current) =>
+      current.map((branch) => (branch.id === nextBranch.id ? nextBranch : branch))
+    );
+  };
+
+  const saveRoutingSettings = async () => {
+    if (!selectedBranch) return;
+
+    setSavingRouting(true);
+    try {
+      const { error } = await supabase.rpc("update_restaurant_branch_routing" as never, {
+        p_branch_id: selectedBranch.id,
+        p_is_accepting_orders: selectedBranch.is_accepting_orders,
+        p_max_orders_per_slot: selectedBranch.max_orders_per_slot,
+        p_service_radius_km: selectedBranch.service_radius_km,
+        p_avg_prep_time_minutes: selectedBranch.avg_prep_time_minutes,
+        p_routing_priority: selectedBranch.routing_priority,
+        p_routing_notes: selectedBranch.routing_notes,
+      } as never);
+
+      if (error) throw error;
+
+      toast({
+        title: "Branch routing updated",
+        description: "New orders will use these routing rules automatically.",
+      });
+    } catch (error) {
+      console.error("Error saving branch routing settings:", error);
+      toast({
+        title: "Could not save branch routing",
+        description: "Check your permissions and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingRouting(false);
     }
   };
 
@@ -247,6 +310,132 @@ export function PartnerBranchOrders() {
             </Button>
           ))}
         </div>
+
+        {selectedBranch && (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#020617]">
+                  <Settings2 className="h-4 w-4 text-[#22C7A1]" />
+                  Routing controls
+                </div>
+                <p className="mt-1 text-xs text-[#64748B]">
+                  Capacity and service rules for {selectedBranch.name}.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 rounded-full bg-[#F6F8FB] px-3 py-2">
+                <Label htmlFor="branch-accepting-orders" className="text-xs font-semibold text-[#020617]">
+                  Accepting
+                </Label>
+                <Switch
+                  id="branch-accepting-orders"
+                  checked={selectedBranch.is_accepting_orders}
+                  onCheckedChange={(checked) => updateSelectedBranch({ is_accepting_orders: checked })}
+                />
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            <div className="grid gap-3 sm:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="branch-slot-capacity" className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+                  Slot capacity
+                </Label>
+                <Input
+                  id="branch-slot-capacity"
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={selectedBranch.max_orders_per_slot}
+                  onChange={(event) =>
+                    updateSelectedBranch({
+                      max_orders_per_slot: Math.min(500, Math.max(1, Number(event.target.value) || 1)),
+                    })
+                  }
+                  className="h-11 rounded-xl border-slate-200 bg-[#F6F8FB] text-[#020617]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="branch-service-radius" className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+                  Radius km
+                </Label>
+                <Input
+                  id="branch-service-radius"
+                  type="number"
+                  min={0.1}
+                  max={250}
+                  step={0.5}
+                  value={selectedBranch.service_radius_km}
+                  onChange={(event) =>
+                    updateSelectedBranch({
+                      service_radius_km: Math.min(250, Math.max(0.1, Number(event.target.value) || 0.1)),
+                    })
+                  }
+                  className="h-11 rounded-xl border-slate-200 bg-[#F6F8FB] text-[#020617]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="branch-prep-time" className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+                  Prep min
+                </Label>
+                <Input
+                  id="branch-prep-time"
+                  type="number"
+                  min={0}
+                  max={240}
+                  value={selectedBranch.avg_prep_time_minutes}
+                  onChange={(event) =>
+                    updateSelectedBranch({
+                      avg_prep_time_minutes: Math.min(240, Math.max(0, Number(event.target.value) || 0)),
+                    })
+                  }
+                  className="h-11 rounded-xl border-slate-200 bg-[#F6F8FB] text-[#020617]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="branch-routing-priority" className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+                  Priority
+                </Label>
+                <Input
+                  id="branch-routing-priority"
+                  type="number"
+                  value={selectedBranch.routing_priority}
+                  onChange={(event) =>
+                    updateSelectedBranch({
+                      routing_priority: Number(event.target.value) || 0,
+                    })
+                  }
+                  className="h-11 rounded-xl border-slate-200 bg-[#F6F8FB] text-[#020617]"
+                />
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+              <Input
+                value={selectedBranch.routing_notes ?? ""}
+                onChange={(event) => updateSelectedBranch({ routing_notes: event.target.value })}
+                placeholder="Internal routing note"
+                className="h-11 rounded-xl border-slate-200 bg-[#F6F8FB] text-[#020617]"
+              />
+              <Button
+                onClick={saveRoutingSettings}
+                disabled={savingRouting}
+                className="h-11 rounded-xl bg-[#020617] px-5 text-white hover:bg-[#111827]"
+              >
+                {savingRouting ? (
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Save routing
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Filter Buttons */}
         <div className="flex gap-2 mt-2">
