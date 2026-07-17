@@ -28,6 +28,51 @@ export interface DbSubscriptionPlan {
   updated_at: string | null;
 }
 
+export const normalizeSubscriptionPlanInterval = (
+  interval: string | null | undefined,
+  tier: string | null | undefined,
+) => {
+  const normalizedInterval = String(interval || "").trim().toLowerCase();
+  const normalizedTier = String(tier || "").trim().toLowerCase();
+
+  if (normalizedTier === "weekly") return "weekly";
+  if (["weekly", "monthly", "annual"].includes(normalizedInterval)) {
+    return normalizedInterval;
+  }
+
+  return "monthly";
+};
+
+const getPlanDeduplicationKey = (plan: DbSubscriptionPlan) => [
+  plan.billing_interval,
+  plan.tier.trim().toLowerCase(),
+  plan.price_qar,
+  plan.meals_per_month,
+  plan.meals_per_week,
+  plan.snacks_per_month,
+].join(":");
+
+export const dedupeSubscriptionPlans = (plans: DbSubscriptionPlan[]) => {
+  const deduped = new Map<string, DbSubscriptionPlan>();
+
+  plans.forEach((plan) => {
+    const key = getPlanDeduplicationKey(plan);
+    const existing = deduped.get(key);
+    if (!existing) {
+      deduped.set(key, plan);
+      return;
+    }
+
+    const existingUpdatedAt = existing.updated_at || existing.created_at || "";
+    const planUpdatedAt = plan.updated_at || plan.created_at || "";
+    if (planUpdatedAt > existingUpdatedAt) {
+      deduped.set(key, plan);
+    }
+  });
+
+  return Array.from(deduped.values());
+};
+
 export const useSubscriptionPlans = () => {
   const [plans, setPlans] = useState<DbSubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +100,10 @@ export const useSubscriptionPlans = () => {
           short_description: p.short_description ?? null,
           short_description_ar: p.short_description_ar ?? null,
           price_qar: p.price_qar,
-          billing_interval: p.billing_interval,
+          billing_interval: normalizeSubscriptionPlanInterval(
+            p.billing_interval,
+            p.tier,
+          ),
           meals_per_month: p.meals_per_month,
           meals_per_week: p.meals_per_week ?? Math.round((p.meals_per_month ?? 0) / 4),
           snacks_per_month: p.snacks_per_month ?? 0,
@@ -70,7 +118,7 @@ export const useSubscriptionPlans = () => {
           updated_at: p.updated_at,
         }));
 
-        setPlans(normalized);
+        setPlans(dedupeSubscriptionPlans(normalized));
       } catch (err) {
         console.error("Error fetching subscription plans:", err);
         setError(err as Error);

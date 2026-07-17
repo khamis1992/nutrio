@@ -20,11 +20,13 @@ import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import {
+  normalizeSubscriptionPlanInterval,
   useSubscriptionPlans,
   type DbSubscriptionPlan,
 } from "@/hooks/useSubscriptionPlans";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { shouldShowSubscriptionReactivation } from "@/pages/subscription/subscriptionPlanFlow";
 
 type PlanTone = {
   icon: typeof Zap;
@@ -102,9 +104,12 @@ export default function SubscriptionPlans() {
   const isArabic = language === "ar";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const isReactivation = searchParams.get("source") === "reactivation";
   const { plans, loading, error } = useSubscriptionPlans();
   const { subscription } = useSubscription();
+  const isReactivation = shouldShowSubscriptionReactivation(
+    searchParams.get("source"),
+    subscription?.status,
+  );
 
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedInterval, setSelectedInterval] = useState<string>("monthly");
@@ -193,14 +198,17 @@ export default function SubscriptionPlans() {
 
   useEffect(() => {
     if (plans.length === 0) return;
-    const previousInterval = subscription?.billing_interval;
+    const previousInterval = normalizeSubscriptionPlanInterval(
+      subscription?.billing_interval,
+      subscription?.tier,
+    );
     const nextInterval = previousInterval && intervals.includes(previousInterval)
       ? previousInterval
       : intervals.includes("monthly")
         ? "monthly"
         : intervals[0];
     setSelectedInterval(nextInterval);
-  }, [intervals, plans.length, subscription?.billing_interval]);
+  }, [intervals, plans.length, subscription?.billing_interval, subscription?.tier]);
 
   const filteredPlans = useMemo(
     () => plans
@@ -313,6 +321,10 @@ export default function SubscriptionPlans() {
 
   const selectedDisplay = selectedPlan ? getDisplay(selectedPlan) : null;
   const SelectedIcon = selectedDisplay?.tone.icon ?? Utensils;
+  const currentSubscriptionInterval = normalizeSubscriptionPlanInterval(
+    subscription?.billing_interval,
+    subscription?.tier,
+  );
   const pricePerMeal = selectedPlan && selectedPlan.meals_per_month > 0
     ? selectedPlan.price_per_meal ?? selectedPlan.price_qar / selectedPlan.meals_per_month
     : 0;
@@ -324,7 +336,7 @@ export default function SubscriptionPlans() {
   const isCurrentSelection = Boolean(
     selectedPlan
       && subscription?.tier === selectedPlan.tier
-      && (subscription.billing_interval ?? "monthly") === selectedPlan.billing_interval
+      && currentSubscriptionInterval === selectedPlan.billing_interval
       && subscription.status !== "expired",
   );
 
@@ -414,7 +426,7 @@ export default function SubscriptionPlans() {
               const selected = selectedPlanId === plan.id;
               const wasPrevious = isReactivation
                 && subscription?.tier === plan.tier
-                && (subscription.billing_interval ?? "monthly") === plan.billing_interval;
+                && currentSubscriptionInterval === plan.billing_interval;
 
               return (
                 <button
