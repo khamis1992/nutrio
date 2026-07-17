@@ -111,7 +111,13 @@ BEGIN
       trim(p_activity_type), COALESCE(p_duration_minutes, 1),
       COALESCE(p_calories_burned, 0), 'sporthub', p_external_session_id,
       TRUE, p_starts_at,
-      jsonb_build_object('venue_name', nullif(left(trim(COALESCE(p_venue_name, '')), 200), ''), 'sync_source', 'pull')
+      jsonb_build_object(
+        'venue_name', nullif(left(trim(COALESCE(p_venue_name, '')), 200), ''),
+        'sync_source', CASE
+          WHEN p_raw_payload ->> 'source' = 'webhook' THEN 'webhook'
+          ELSE 'pull'
+        END
+      )
     )
     ON CONFLICT (source, source_external_id) DO UPDATE
     SET session_date = EXCLUDED.session_date,

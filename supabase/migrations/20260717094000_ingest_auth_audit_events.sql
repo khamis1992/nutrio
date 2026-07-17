@@ -12,10 +12,10 @@ SECURITY DEFINER
 SET search_path TO ''
 AS $function$
 DECLARE
-  v_row JSONB := to_jsonb(NEW);
-  v_payload JSONB := COALESCE(to_jsonb(NEW) -> 'payload', '{}'::JSONB);
-  v_traits JSONB := COALESCE(v_payload -> 'traits', '{}'::JSONB);
-  v_metadata JSONB := COALESCE(v_payload -> 'metadata', '{}'::JSONB);
+  v_row JSONB;
+  v_payload JSONB;
+  v_traits JSONB;
+  v_metadata JSONB;
   v_action TEXT;
   v_actor_raw TEXT;
   v_actor UUID;
@@ -33,6 +33,11 @@ DECLARE
   v_user_agent TEXT;
   v_audit_id TEXT;
 BEGIN
+  v_row := to_jsonb(NEW);
+  v_payload := COALESCE(v_row -> 'payload', '{}'::JSONB);
+  v_traits := COALESCE(v_payload -> 'traits', '{}'::JSONB);
+  v_metadata := COALESCE(v_payload -> 'metadata', '{}'::JSONB);
+
   v_action := lower(trim(COALESCE(v_payload ->> 'action', 'unknown')));
   v_action := regexp_replace(v_action, '[^a-z0-9_.-]+', '_', 'g');
   IF v_action = '' THEN
@@ -44,7 +49,7 @@ BEGIN
     v_payload ->> 'user_id',
     v_traits ->> 'actor_id'
   ), '');
-  IF v_actor_raw ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+  IF v_actor_raw ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
     v_actor := v_actor_raw::UUID;
   END IF;
 
@@ -53,7 +58,7 @@ BEGIN
     v_payload ->> 'user_id',
     v_actor_raw
   ), '');
-  IF v_target_raw ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+  IF v_target_raw ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
     v_target := v_target_raw::UUID;
   END IF;
 
@@ -204,7 +209,7 @@ BEGIN
     AFTER INSERT ON auth.audit_log_entries
     FOR EACH ROW EXECUTE FUNCTION security.capture_auth_audit_entry();
   ELSE
-    RAISE WARNING 'auth.audit_log_entries is unavailable; auth events require an external Supabase log drain';
+    RAISE WARNING 'auth.audit_log_entries is unavailable; Admin posture remains action-required and an independent Supabase log drain is also required';
   END IF;
 END;
 $do$;

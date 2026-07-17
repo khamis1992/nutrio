@@ -1,3 +1,4 @@
+-- Reconciled with the applied remote migration version; executable SQL is unchanged.
 -- Preserve extended nutrition for manually logged foods without changing the
 -- existing RPC contract used by older mobile clients.
 

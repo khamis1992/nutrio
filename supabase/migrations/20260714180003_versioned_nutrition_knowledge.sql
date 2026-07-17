@@ -1,3 +1,4 @@
+-- Reconciled with the applied remote migration version; executable SQL is unchanged.
 -- Version-aware, full-text retrieval for nutrition guidance. Publishing is a
 -- service-role/admin workflow; authenticated customers can only read current
 -- published material.

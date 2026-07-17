@@ -1,3 +1,4 @@
+-- Reconciled with the applied remote migration version; executable SQL is unchanged.
 -- PostgreSQL grants EXECUTE on new functions to PUBLIC by default. Restrict
 -- customer-facing RPCs to authenticated users and keep trigger helpers private.
 
