@@ -1,94 +1,76 @@
-import type { BloodMarker } from "@/lib/blood-markers";
-import { runAiTask } from "@/lib/ai-router";
+import { supabase } from "@/integrations/supabase/client";
 
-interface UserProfile {
-  fullName?: string | null;
-  age?: number | null;
-  gender?: string | null;
-  currentWeightKg?: number | null;
-  targetWeightKg?: number | null;
-  heightCm?: number | null;
-  healthGoal?: string | null;
-  activityLevel?: string | null;
-  dailyCalorieTarget?: number | null;
-  proteinTargetG?: number | null;
-  carbsTargetG?: number | null;
-  fatTargetG?: number | null;
-  trendSummary?: string;
+export const BLOOD_WORK_AI_CONSENT_VERSION = "2026-07-health-ai-v1";
+
+type RpcError = { message: string };
+type RpcResult<T> = { data: T; error: RpcError | null };
+
+type BloodWorkAnalysisResponse = {
+  content?: unknown;
+  error?: unknown;
+  message?: unknown;
+};
+
+const invokeRpc = supabase.rpc as unknown as <T>(
+  functionName: string,
+  args: Record<string, unknown>,
+) => PromiseLike<RpcResult<T>>;
+
+async function getFunctionErrorCode(error: unknown): Promise<string | null> {
+  if (!error || typeof error !== "object") return null;
+  const context = (error as { context?: unknown }).context;
+  if (!(context instanceof Response)) return null;
+
+  try {
+    const body = await context.clone().json() as BloodWorkAnalysisResponse;
+    return typeof body.error === "string" ? body.error : null;
+  } catch {
+    return null;
+  }
 }
 
-function formatProfileValue(value: string | number | null | undefined, suffix = "") {
-  if (value === null || value === undefined || value === "") return "Not provided";
-  return `${value}${suffix}`;
-}
-
-function buildCustomerContext(profile: UserProfile) {
-  return [
-    `Name: ${formatProfileValue(profile.fullName)}`,
-    `Age: ${formatProfileValue(profile.age)}`,
-    `Gender: ${formatProfileValue(profile.gender)}`,
-    `Current weight: ${formatProfileValue(profile.currentWeightKg, " kg")}`,
-    `Target weight: ${formatProfileValue(profile.targetWeightKg, " kg")}`,
-    `Height: ${formatProfileValue(profile.heightCm, " cm")}`,
-    `Health goal: ${formatProfileValue(profile.healthGoal)}`,
-    `Activity level: ${formatProfileValue(profile.activityLevel)}`,
-    `Daily calorie target: ${formatProfileValue(profile.dailyCalorieTarget, " kcal")}`,
-    `Macro targets: protein ${formatProfileValue(profile.proteinTargetG, "g")}, carbs ${formatProfileValue(profile.carbsTargetG, "g")}, fat ${formatProfileValue(profile.fatTargetG, "g")}`,
-  ].join("\n");
-}
-
-export async function analyzeBloodWork(
-  markers: BloodMarker[],
-  profile: UserProfile
-): Promise<string> {
-  const systemPrompt = `You are Nutrio's AI nutrition insight assistant. Analyze blood test markers for wellness and nutrition guidance only.
-
-Critical rules:
-- Never mention DeepSeek, OpenRouter, model names, or any third-party AI provider.
-- Do not invent customer demographics. Use only the verified customer context supplied by Nutrio.
-- If name, age, gender, height, weight, or goals are missing, write "not provided" and do not guess.
-- Do not diagnose disease, declare a medical condition, or replace a healthcare professional.
-- Explain that this is an AI-generated guidance summary, not a medical report or diagnosis.
-- Base concerns only on supplied marker values and their normal ranges.
-- If report trend context is available, use it to explain whether relevant markers are improving, stable, or moving in the wrong direction.
-
-Provide:
-1. Summary of findings, including abnormal markers
-2. Potential health considerations without diagnosis
-3. Specific diet and nutrition recommendations
-4. Lifestyle changes suggested
-5. Which markers to watch over time
-
-Use clear, simple language. Be encouraging but honest about concerns.
-Do not create a separate customer profile or customer context section in the final report. Nutrio already displays verified customer details in the app UI.
-Format with markdown headers and bullet points.`;
-
-  const markerList = markers
-    .map(
-      (marker) =>
-        `- ${marker.marker_name}: ${marker.value} ${marker.unit} (Normal: ${marker.normal_min ?? "N/A"} - ${marker.normal_max ?? "N/A"}) [${marker.status.toUpperCase()}]`
-    )
-    .join("\n");
-
-  const userPrompt = `Create a Nutrio AI guidance summary using only this verified customer context and these blood markers.
-
-Verified customer context:
-${buildCustomerContext(profile)}
-
-Blood Test Results:
-${markerList}
-
-Report trend context:
-${profile.trendSummary || "No previous comparable report is available yet."}
-
-Please provide an organized, customer-specific wellness and nutrition summary. Do not add any demographic detail that is not listed above.`;
-
-  const result = await runAiTask({
-    task: "blood_work",
-    systemPrompt,
-    userPrompt,
-    retrievalQuery: "blood test nutrition wellness guidance laboratory markers",
+export async function hasBloodWorkAiConsent(): Promise<boolean> {
+  const { data, error } = await invokeRpc<boolean>("get_ai_data_consent", {
+    p_purpose: "blood_work_analysis",
+    p_policy_version: BLOOD_WORK_AI_CONSENT_VERSION,
   });
+  if (error) throw new Error(error.message);
+  return data === true;
+}
 
-  return result.content;
+export async function setBloodWorkAiConsent(granted: boolean): Promise<void> {
+  const { error } = await invokeRpc<unknown>("set_ai_data_consent", {
+    p_purpose: "blood_work_analysis",
+    p_granted: granted,
+    p_policy_version: BLOOD_WORK_AI_CONSENT_VERSION,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function analyzeBloodWork(recordId: string): Promise<string> {
+  const requestId = crypto.randomUUID();
+  const { data, error } = await supabase.functions.invoke<BloodWorkAnalysisResponse>(
+    "analyze-blood-work",
+    { body: { recordId, requestId } },
+  );
+
+  if (error) {
+    const code = await getFunctionErrorCode(error);
+    if (code === "health_ai_consent_required") {
+      throw new Error("AI health data permission is required before generating this insight.");
+    }
+    if (code === "daily_ai_analysis_limit_reached") {
+      throw new Error("You have reached today's AI health insight limit. Try again tomorrow.");
+    }
+    if (code === "blood_markers_required") {
+      throw new Error("Add blood marker values before generating an AI insight.");
+    }
+    throw new Error("Nutrio could not generate this insight securely. Please try again.");
+  }
+
+  if (typeof data?.content !== "string" || !data.content.trim()) {
+    throw new Error("Nutrio returned an empty insight. Please try again.");
+  }
+
+  return data.content.trim();
 }

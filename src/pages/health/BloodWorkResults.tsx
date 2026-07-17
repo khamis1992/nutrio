@@ -19,6 +19,15 @@ import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useProfile, type Profile } from "@/hooks/useProfile";
@@ -36,7 +45,11 @@ import {
 } from "@/lib/blood-markers";
 import { cn } from "@/lib/utils";
 import { createPrivateStorageUrl } from "@/lib/private-storage";
-import { analyzeBloodWork } from "@/services/blood-work-ai";
+import {
+  analyzeBloodWork,
+  hasBloodWorkAiConsent,
+  setBloodWorkAiConsent,
+} from "@/services/blood-work-ai";
 import { extractBloodMarkersFromPdf } from "@/services/blood-work-extractor";
 import {
   deleteBloodWorkRecord,
@@ -45,7 +58,6 @@ import {
   fetchMarkerHistory,
   fetchMarkersForRecord,
   insertMarkers,
-  updateRecordAnalysis,
 } from "@/services/blood-work";
 
 const NORMAL_MARKER_COLOR = "#22C7A1";
@@ -166,18 +178,6 @@ function buildTrendInsights(
     .filter((item): item is TrendInsight => Boolean(item))
     .sort((a, b) => Math.abs(b.changePercent ?? b.change) - Math.abs(a.changePercent ?? a.change))
     .slice(0, 6);
-}
-
-function formatTrendSummaryForAi(trends: TrendInsight[]) {
-  if (trends.length === 0) return "No previous comparable report is available yet.";
-
-  return trends
-    .map((trend) => {
-      const sign = trend.change > 0 ? "+" : "";
-      const percent = trend.changePercent === null ? "" : ` (${sign}${trend.changePercent.toFixed(1)}%)`;
-      return `- ${trend.markerName}: ${trend.previousValue} -> ${trend.currentValue} ${trend.unit}, change ${sign}${trend.change.toFixed(2)}${percent}, direction ${trend.direction}, current status ${trend.status}`;
-    })
-    .join("\n");
 }
 
 function CustomerProfileCard({ profile }: { profile: Profile | null }) {
@@ -389,6 +389,9 @@ export default function BloodWorkResults() {
   const [readingReport, setReadingReport] = useState<string | null>(null);
   const [trendMarker, setTrendMarker] = useState<string | null>(null);
   const [trendData, setTrendData] = useState<{ test_date: string; value: number }[]>([]);
+  const [aiConsentGranted, setAiConsentGranted] = useState(false);
+  const [consentSaving, setConsentSaving] = useState(false);
+  const [pendingConsentRecord, setPendingConsentRecord] = useState<BloodWorkRecord | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -418,30 +421,32 @@ export default function BloodWorkResults() {
     };
   }, [user, expandedRecord]);
 
-  async function handleAnalyze(record: BloodWorkRecord) {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadConsent() {
+      if (!user) return;
+      try {
+        const granted = await hasBloodWorkAiConsent();
+        if (!cancelled) setAiConsentGranted(granted);
+      } catch (consentError) {
+        console.error("Could not load AI health consent", consentError);
+        if (!cancelled) setAiConsentGranted(false);
+      }
+    }
+
+    void loadConsent();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  async function generateAnalysis(record: BloodWorkRecord) {
     if (!user) return;
 
     setAnalyzing(record.id);
     try {
-      const markers = markersMap[record.id] || [];
-      const trends = buildTrendInsights(record, records, markersMap);
-      const analysis = await analyzeBloodWork(markers, {
-        fullName: profile?.full_name,
-        age: profile?.age,
-        gender: profile?.gender,
-        currentWeightKg: profile?.current_weight_kg,
-        targetWeightKg: profile?.target_weight_kg,
-        heightCm: profile?.height_cm,
-        healthGoal: profile?.health_goal,
-        activityLevel: profile?.activity_level,
-        dailyCalorieTarget: profile?.daily_calorie_target,
-        proteinTargetG: profile?.protein_target_g,
-        carbsTargetG: profile?.carbs_target_g,
-        fatTargetG: profile?.fat_target_g,
-        trendSummary: formatTrendSummaryForAi(trends),
-      });
-
-      await updateRecordAnalysis(record.id, analysis, "analyzed");
+      const analysis = await analyzeBloodWork(record.id);
       setRecords((previous) =>
         previous.map((item) => (item.id === record.id ? { ...item, ai_analysis: analysis, status: "analyzed" } : item))
       );
@@ -530,6 +535,57 @@ export default function BloodWorkResults() {
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
+    }
+  }
+
+  function handleAnalyze(record: BloodWorkRecord) {
+    if (!aiConsentGranted) {
+      setPendingConsentRecord(record);
+      return;
+    }
+    void generateAnalysis(record);
+  }
+
+  async function grantConsentAndAnalyze() {
+    if (!pendingConsentRecord) return;
+
+    setConsentSaving(true);
+    try {
+      await setBloodWorkAiConsent(true);
+      setAiConsentGranted(true);
+      const record = pendingConsentRecord;
+      setPendingConsentRecord(null);
+      await generateAnalysis(record);
+    } catch (consentError) {
+      toast({
+        title: isRTL ? "تعذر حفظ الموافقة" : "Could not save permission",
+        description: consentError instanceof Error ? consentError.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setConsentSaving(false);
+    }
+  }
+
+  async function revokeAiConsent() {
+    setConsentSaving(true);
+    try {
+      await setBloodWorkAiConsent(false);
+      setAiConsentGranted(false);
+      toast({
+        title: isRTL ? "تم إيقاف مشاركة البيانات مع الذكاء الاصطناعي" : "AI data permission revoked",
+        description: isRTL
+          ? "لن يتم إرسال أي قيم جديدة للتحليل حتى توافق مرة أخرى."
+          : "No new health values will be sent for AI analysis until you grant permission again.",
+      });
+    } catch (consentError) {
+      toast({
+        title: isRTL ? "تعذر إلغاء الموافقة" : "Could not revoke permission",
+        description: consentError instanceof Error ? consentError.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setConsentSaving(false);
     }
   }
 
@@ -817,6 +873,28 @@ export default function BloodWorkResults() {
                                   : "This is an AI-generated Nutrio guidance summary, not a medical report or diagnosis. It is approximate and based only on the available values. Please consult a healthcare professional for medical concerns."}
                               </p>
                             </div>
+                            {aiConsentGranted && (
+                              <div className="mb-3 flex items-center justify-between gap-3 rounded-[16px] border border-[#D5F5EC] bg-[#F0FDFA] px-3 py-2.5">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <ShieldCheck className="h-4 w-4 shrink-0 text-[#0EA884]" />
+                                  <p className="text-[10px] font-bold leading-4 text-[#0F766E]">
+                                    {isRTL
+                                      ? "موافقة تحليل AI مفعلة وقابلة للإلغاء"
+                                      : "AI analysis permission is active and revocable"}
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 shrink-0 px-2 text-[10px] font-black text-[#0F766E]"
+                                  onClick={() => void revokeAiConsent()}
+                                  disabled={consentSaving || Boolean(analyzing)}
+                                >
+                                  {isRTL ? "إلغاء" : "Revoke"}
+                                </Button>
+                              </div>
+                            )}
                             <div
                               className="max-h-[360px] overflow-y-auto rounded-[18px] bg-white p-3 text-[12px] font-semibold leading-5 text-[#475569] ring-1 ring-[#E5EAF1]"
                               dangerouslySetInnerHTML={{ __html: formatAnalysisHtml(record.ai_analysis) }}
@@ -892,6 +970,53 @@ export default function BloodWorkResults() {
           </p>
         )}
       </main>
+
+      <AlertDialog
+        open={Boolean(pendingConsentRecord)}
+        onOpenChange={(open) => {
+          if (!open && !consentSaving) setPendingConsentRecord(null);
+        }}
+      >
+        <AlertDialogContent className="bottom-0 top-auto w-[calc(100%-24px)] max-w-[410px] translate-y-0 rounded-t-[28px] rounded-b-none border-[#E5EAF1] p-5 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 sm:rounded-[24px]">
+          <AlertDialogHeader className={cn("text-left", isRTL && "text-right")}>
+            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-[#F3F4FF] text-[#7C83F6]">
+              <Brain className="h-5 w-5" />
+            </div>
+            <AlertDialogTitle className="text-[20px] font-black text-[#020617]">
+              {isRTL ? "السماح بإنشاء ملخص Nutrio الذكي؟" : "Allow Nutrio AI health guidance?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 text-[12px] font-semibold leading-5 text-[#64748B]">
+              <span className="block">
+                {isRTL
+                  ? "سنرسل قيم مؤشرات الدم ومعلومات محدودة ذات صلة مثل العمر والقياسات والهدف إلى مزود ذكاء اصطناعي متعاقد معه لإنشاء هذا الملخص."
+                  : "Nutrio will send blood marker values and limited relevant context such as age, measurements, and goals to our contracted AI processor to create this guidance."}
+              </span>
+              <span className="block rounded-[15px] bg-[#F6F8FB] p-3 text-[#334155]">
+                {isRTL
+                  ? "لن نرسل اسمك أو بريدك أو رقم هاتفك أو ملف PDF. يمكنك إلغاء الموافقة لاحقًا. هذا ملخص تقريبي وليس تقريرًا طبيًا أو تشخيصًا."
+                  : "We do not send your name, email, phone number, or PDF. You can revoke permission later. This is approximate guidance, not a medical report or diagnosis."}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2 gap-2 sm:flex-row">
+            <AlertDialogCancel
+              className="mt-0 h-12 flex-1 rounded-[16px] font-black"
+              disabled={consentSaving}
+            >
+              {isRTL ? "ليس الآن" : "Not now"}
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              className="h-12 flex-1 rounded-[16px] bg-[#020617] font-black text-white"
+              onClick={() => void grantConsentAndAnalyze()}
+              disabled={consentSaving}
+            >
+              {consentSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {isRTL ? "أوافق وأنشئ الملخص" : "Agree and generate"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {trendMarker && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 px-3 pb-safe" onClick={() => setTrendMarker(null)}>
