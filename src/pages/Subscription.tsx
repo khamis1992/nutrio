@@ -490,21 +490,6 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => navigate("/subscription/plans")}
-          className="flex min-h-16 w-full items-center gap-3 rounded-[24px] bg-white p-4 text-start shadow-sm ring-1 ring-[#E5EAF1] transition active:scale-[0.99]"
-        >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EFFFFA] text-[#22C7A1]">
-            <Crown className="h-5 w-5" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-extrabold text-[#020617]">View or change plan</span>
-            <span className="mt-0.5 block text-xs font-medium text-[#94A3B8]">Compare plans, prices and included meal credits</span>
-          </span>
-          <ChevronRight className="h-5 w-5 shrink-0 text-[#94A3B8] rtl:rotate-180" />
-        </button>
-
         {/* Settings Section */}
         <SubscriptionManage
           subscriptionId={subscription?.id ?? null}
