@@ -10,6 +10,7 @@ export interface WorkoutSetLog {
   set_number: number;
   reps: number | null;
   weight_kg: number | null;
+  rpe?: number | null;
   completed: boolean;
   notes: string | null;
 }
@@ -89,6 +90,7 @@ export function useWorkoutSession() {
       set_number: number;
       reps?: number;
       weight_kg?: number;
+      rpe?: number;
       completed?: boolean;
       notes?: string;
     }) => {
@@ -103,9 +105,10 @@ export function useWorkoutSession() {
             set_number: params.set_number,
             reps: params.reps || null,
             weight_kg: params.weight_kg || null,
+            rpe: params.rpe ?? null,
             completed: params.completed !== undefined ? params.completed : true,
             notes: params.notes || null,
-          })
+          } as never)
           .select()
           .single();
 
