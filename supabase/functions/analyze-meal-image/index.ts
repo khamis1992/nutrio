@@ -22,6 +22,9 @@ const MAX_REQUEST_BYTES = 8 * 1024 * 1024;
 const MAX_PROVIDER_RESPONSE_BYTES = 256 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 12_000;
 const PROVIDER_TIMEOUT_MS = 45_000;
+const USDA_TIMEOUT_MS = 5_000;
+const USDA_RESPONSE_BYTES = 128 * 1024;
+const USDA_CROSS_CHECK_LIMIT = 5;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_DIET_TAGS = new Set([
   "dairy-free",
@@ -49,6 +52,8 @@ interface AnalyzeMealRequest {
   mode?: unknown;
   requestId?: unknown;
 }
+
+type AnalyzeMode = "quick_scan" | "nutrition_label" | undefined;
 
 interface PreparedImage {
   base64: string;
@@ -319,7 +324,7 @@ function boundedText(value: unknown, maximumLength: number): string {
   return normalized;
 }
 
-function normalizeQuickScanOutput(value: unknown): Array<Record<string, number | string>> {
+function normalizeQuickScanOutput(value: unknown): QuickScanItem[] {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new HttpError(502, "provider_output_invalid");
   }
@@ -332,14 +337,289 @@ function normalizeQuickScanOutput(value: unknown): Array<Record<string, number |
       throw new HttpError(502, "provider_output_invalid");
     }
     const record = item as Record<string, unknown>;
+    const confidence = optionalBoundedNumber(record.confidence, 0, 1) ?? 0.55;
+    const calories = boundedNumber(record.calories, 0, 5000);
+    const protein = boundedNumber(record.protein_g, 0, 1000);
+    const carbs = boundedNumber(record.carbs_g, 0, 2000);
+    const fat = boundedNumber(record.fat_g, 0, 1000);
+    const spread = 0.12 + ((1 - confidence) * 0.45);
+    const range = (value: number, maximum: number) => ({
+      min: Math.max(0, Math.round(value * (1 - spread) * 100) / 100),
+      max: Math.min(maximum, Math.round(value * (1 + spread) * 100) / 100),
+    });
+
     return {
       name: boundedText(record.name, 120),
-      calories: boundedNumber(record.calories, 0, 5000),
-      protein_g: boundedNumber(record.protein_g, 0, 1000),
-      carbs_g: boundedNumber(record.carbs_g, 0, 2000),
-      fat_g: boundedNumber(record.fat_g, 0, 1000),
+      calories,
+      protein_g: protein,
+      carbs_g: carbs,
+      fat_g: fat,
+      estimated_grams: optionalBoundedNumber(record.estimated_grams, 1, 5000) ?? 100,
+      confidence,
+      source: "ai_estimate",
+      ranges: {
+        calories: range(calories, 5000),
+        protein_g: range(protein, 1000),
+        carbs_g: range(carbs, 2000),
+        fat_g: range(fat, 1000),
+      },
     };
   });
+}
+
+interface NutritionEstimateRange {
+  min: number;
+  max: number;
+}
+
+interface QuickScanItem {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  estimated_grams: number;
+  confidence: number;
+  source: "ai_estimate" | "ai_usda_cross_checked" | "usda_fallback";
+  ranges: Record<"calories" | "protein_g" | "carbs_g" | "fat_g", NutritionEstimateRange>;
+  usda_cross_check?: {
+    status: "matched" | "unavailable" | "no_match";
+    fdc_id?: number;
+    description?: string;
+    data_type?: string;
+    match_confidence?: number;
+  };
+}
+
+interface UsdaFoodSearchResult {
+  fdcId?: unknown;
+  description?: unknown;
+  dataType?: unknown;
+  foodNutrients?: unknown;
+}
+
+function normalizedWords(value: string): Set<string> {
+  return new Set(value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
+    .filter((word) => word.length > 2));
+}
+
+function textMatchConfidence(query: string, description: string): number {
+  const queryWords = normalizedWords(query);
+  const descriptionWords = normalizedWords(description);
+  if (!queryWords.size || !descriptionWords.size) return 0;
+  let matched = 0;
+  for (const word of queryWords) {
+    if (descriptionWords.has(word)) matched += 1;
+  }
+  return Math.round((matched / queryWords.size) * 100) / 100;
+}
+
+function usdaNutrientValue(
+  food: UsdaFoodSearchResult,
+  names: string[],
+  expectedUnit: "KCAL" | "G",
+): number | null {
+  if (!Array.isArray(food.foodNutrients)) return null;
+  const expected = new Set(names.map((name) => name.toLowerCase()));
+  for (const rawNutrient of food.foodNutrients) {
+    if (!rawNutrient || typeof rawNutrient !== "object") continue;
+    const nutrient = rawNutrient as Record<string, unknown>;
+    const name = typeof nutrient.nutrientName === "string"
+      ? nutrient.nutrientName.toLowerCase()
+      : "";
+    const unit = typeof nutrient.unitName === "string"
+      ? nutrient.unitName.toUpperCase()
+      : "";
+    const value = Number(nutrient.value);
+    if (
+      expected.has(name) && unit === expectedUnit && Number.isFinite(value) &&
+      value >= 0
+    ) return value;
+  }
+  return null;
+}
+
+async function searchUsdaFood(
+  apiKey: string,
+  item: QuickScanItem,
+): Promise<QuickScanItem> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), USDA_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(
+      `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: item.name,
+          pageSize: 5,
+          dataType: ["Foundation", "Survey (FNDDS)", "SR Legacy"],
+        }),
+      },
+    );
+    if (!response.ok) {
+      return { ...item, usda_cross_check: { status: "unavailable" } };
+    }
+
+    const bytes = await readBoundedStream(
+      response.body,
+      USDA_RESPONSE_BYTES,
+      502,
+      "usda_response_too_large",
+    );
+    const payload = JSON.parse(new TextDecoder().decode(bytes)) as { foods?: unknown };
+    if (!Array.isArray(payload.foods)) {
+      return { ...item, usda_cross_check: { status: "no_match" } };
+    }
+
+    const candidates = payload.foods
+      .filter((food): food is UsdaFoodSearchResult => Boolean(food && typeof food === "object"))
+      .map((food) => {
+        const description = typeof food.description === "string" ? food.description : "";
+        return { food, description, score: textMatchConfidence(item.name, description) };
+      })
+      .sort((a, b) => b.score - a.score);
+    const best = candidates[0];
+    if (!best || best.score < 0.5) {
+      return { ...item, usda_cross_check: { status: "no_match" } };
+    }
+
+    const per100g = {
+      calories: usdaNutrientValue(best.food, ["Energy"], "KCAL"),
+      protein_g: usdaNutrientValue(best.food, ["Protein"], "G"),
+      carbs_g: usdaNutrientValue(best.food, ["Carbohydrate, by difference"], "G"),
+      fat_g: usdaNutrientValue(best.food, ["Total lipid (fat)"], "G"),
+    };
+    if (Object.values(per100g).some((value) => value === null)) {
+      return { ...item, usda_cross_check: { status: "no_match" } };
+    }
+
+    const portionFactor = item.estimated_grams / 100;
+    const usda = Object.fromEntries(Object.entries(per100g).map(([key, value]) => [
+      key,
+      Math.round((value as number) * portionFactor * 100) / 100,
+    ])) as Record<keyof typeof per100g, number>;
+    const lowConfidence = item.confidence < 0.65;
+    const values = lowConfidence ? usda : {
+      calories: item.calories,
+      protein_g: item.protein_g,
+      carbs_g: item.carbs_g,
+      fat_g: item.fat_g,
+    };
+    const ranges = Object.fromEntries(
+      (Object.keys(item.ranges) as Array<keyof QuickScanItem["ranges"]>).map((key) => [
+        key,
+        {
+          min: Math.round(Math.min(item.ranges[key].min, usda[key] * 0.85) * 100) / 100,
+          max: Math.round(Math.max(item.ranges[key].max, usda[key] * 1.15) * 100) / 100,
+        },
+      ]),
+    ) as QuickScanItem["ranges"];
+
+    return {
+      ...item,
+      ...values,
+      ranges,
+      confidence: lowConfidence ? Math.max(item.confidence, 0.7) : item.confidence,
+      source: lowConfidence ? "usda_fallback" : "ai_usda_cross_checked",
+      usda_cross_check: {
+        status: "matched",
+        fdc_id: Number(best.food.fdcId),
+        description: best.description.slice(0, 160),
+        data_type: typeof best.food.dataType === "string" ? best.food.dataType : undefined,
+        match_confidence: best.score,
+      },
+    };
+  } catch {
+    return { ...item, usda_cross_check: { status: "unavailable" } };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function crossCheckQuickScanItems(items: QuickScanItem[]): Promise<QuickScanItem[]> {
+  const apiKey = Deno.env.get("USDA_FDC_API_KEY");
+  if (!apiKey) {
+    return items.map((item) => ({
+      ...item,
+      usda_cross_check: { status: "unavailable" },
+    }));
+  }
+
+  const checked = await Promise.all(
+    items.slice(0, USDA_CROSS_CHECK_LIMIT).map((item) => searchUsdaFood(apiKey, item)),
+  );
+  return [
+    ...checked,
+    ...items.slice(USDA_CROSS_CHECK_LIMIT).map((item) => ({
+      ...item,
+      usda_cross_check: { status: "unavailable" as const },
+    })),
+  ];
+}
+
+function optionalBoundedNumber(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  return boundedNumber(value, minimum, maximum);
+}
+
+function optionalBoundedText(value: unknown, maximumLength: number): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  return boundedText(value, maximumLength);
+}
+
+function normalizeNutritionLabelOutput(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new HttpError(502, "provider_output_invalid");
+  }
+
+  const record = value as Record<string, unknown>;
+  const isNutritionLabel = record.is_nutrition_label === true;
+  if (!isNutritionLabel) {
+    return {
+      is_nutrition_label: false,
+      confidence: optionalBoundedNumber(record.confidence, 0, 1) ?? 0,
+      note: optionalBoundedText(record.note, 240) ||
+        "No nutrition facts label was detected.",
+    };
+  }
+
+  const notes = Array.isArray(record.notes)
+    ? record.notes
+      .filter((note): note is string => typeof note === "string")
+      .map((note) => note.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .slice(0, 5)
+    : [];
+
+  return {
+    is_nutrition_label: true,
+    product_name: optionalBoundedText(record.product_name, 120) ||
+      "Packaged food",
+    serving_size: optionalBoundedText(record.serving_size, 80) ||
+      "1 serving",
+    servings_per_container: optionalBoundedNumber(
+      record.servings_per_container,
+      0,
+      1000,
+    ),
+    calories: boundedNumber(record.calories, 0, 5000),
+    protein_g: boundedNumber(record.protein_g, 0, 1000),
+    carbs_g: boundedNumber(record.carbs_g, 0, 2000),
+    fat_g: boundedNumber(record.fat_g, 0, 1000),
+    fiber_g: boundedNumber(record.fiber_g ?? 0, 0, 500),
+    sugar_g: boundedNumber(record.sugar_g ?? 0, 0, 1000),
+    sodium_mg: boundedNumber(record.sodium_mg ?? 0, 0, 100000),
+    confidence: optionalBoundedNumber(record.confidence, 0, 1) ?? 0.7,
+    notes,
+  };
 }
 
 function normalizeMealOutput(
@@ -458,7 +738,7 @@ async function logSuccessfulAnalysis(): Promise<void> {
 
 function createFallbackResponse(
   req: Request,
-  mode: string | undefined,
+  mode: AnalyzeMode,
   errorCode = "ai_service_unavailable",
 ): Response {
   const note = "AI analysis unavailable. Please fill in meal details manually.";
@@ -468,6 +748,19 @@ function createFallbackResponse(
       success: true,
       detectedItems: [],
       note,
+      provider: "fallback",
+      error: errorCode,
+    });
+  }
+
+  if (mode === "nutrition_label") {
+    return analyzeJsonResponse(req, {
+      success: true,
+      label: {
+        is_nutrition_label: false,
+        confidence: 0,
+        note,
+      },
       provider: "fallback",
       error: errorCode,
     });
@@ -628,7 +921,11 @@ serve(async (req) => {
       return analyzeJsonResponse(req, { error: "Image URL is required" }, 400);
     }
 
-    const mode = body.mode === "quick_scan" ? "quick_scan" : undefined;
+    const mode: AnalyzeMode = body.mode === "quick_scan"
+      ? "quick_scan"
+      : body.mode === "nutrition_label"
+      ? "nutrition_label"
+      : undefined;
     const availableTags = normalizeTags(body.availableTags);
     if (body.requestId !== undefined && !UUID_PATTERN.test(String(body.requestId))) {
       throw new HttpError(400, "invalid_request_identifier");
@@ -709,13 +1006,17 @@ serve(async (req) => {
     const tagList = availableTags.length
       ? availableTags.join(", ")
       : "vegetarian, vegan, keto, gluten-free, dairy-free, low-carb, high-protein";
-    const systemPrompt = mode === "quick_scan"
+    const systemPrompt = mode === "nutrition_label"
+      ? "You are a nutrition label OCR specialist. Read packaged-food Nutrition Facts labels precisely. Always respond with valid JSON only, no markdown."
+      : mode === "quick_scan"
       ? "You are a nutrition expert. Analyze the food image and identify visible food items with estimated nutrition values. Always respond with valid JSON only, no markdown."
       : "You are a nutrition expert. Analyze the meal image and provide detailed nutritional information. Always respond with valid JSON only, no markdown. Always respond in English.";
-    const userPrompt = mode === "quick_scan"
-      ? `Analyze this food image and list the visible food items with estimated nutrition values. Available diet tags: ${
+    const userPrompt = mode === "nutrition_label"
+      ? 'Read the Nutrition Facts label in this image. Extract values per serving, not per container. If the image does not contain a readable Nutrition Facts label, set is_nutrition_label to false. Use 0 for nutrients that are visible as zero or unavailable. Respond with JSON in this exact format: {"is_nutrition_label": true, "product_name": "Product name or Packaged food", "serving_size": "1 bar (50g)", "servings_per_container": 4, "calories": 210, "protein_g": 12, "carbs_g": 24, "fat_g": 8, "fiber_g": 3, "sugar_g": 9, "sodium_mg": 180, "confidence": 0.86, "notes": ["short uncertainty note"]}'
+      : mode === "quick_scan"
+      ? `Analyze this food image and list the visible food items with estimated portions, nutrition values, uncertainty, and confidence. Available diet tags: ${
         availableTags.length ? tagList : "none"
-      }. Respond with JSON in this exact format: {"items": [{"name": "Food Name", "calories": 100, "protein_g": 10, "carbs_g": 15, "fat_g": 5}]}`
+      }. Confidence must be between 0 and 1. Respond with JSON in this exact format: {"items": [{"name": "Food Name", "estimated_grams": 120, "calories": 100, "protein_g": 10, "carbs_g": 15, "fat_g": 5, "confidence": 0.72}]}`
       : `Analyze this meal image and provide detailed information. Available diet tags to choose from: ${tagList}. Respond with JSON in this exact format: {"name": "Meal Name", "description": "Brief description", "calories": 450, "protein_g": 25, "carbs_g": 40, "fat_g": 18, "fiber_g": 8, "prep_time_minutes": 20, "suggested_price": 35, "diet_tags": ["high-protein", "gluten-free"]}`;
 
     let providerResult: { status: number; content: string | null };
@@ -760,8 +1061,14 @@ serve(async (req) => {
         jsonMatch ? jsonMatch[1].trim() : providerResult.content.trim(),
       );
       const resetAt = new Date(rateLimit.resetAt).toISOString();
-      const normalizedOutput = mode === "quick_scan"
-        ? { detectedItems: normalizeQuickScanOutput(parsed) }
+      const normalizedOutput = mode === "nutrition_label"
+        ? { label: normalizeNutritionLabelOutput(parsed) }
+        : mode === "quick_scan"
+        ? {
+          detectedItems: await crossCheckQuickScanItems(
+            normalizeQuickScanOutput(parsed),
+          ),
+        }
         : { mealDetails: normalizeMealOutput(parsed, availableTags) };
 
       await logSuccessfulAnalysis();
@@ -783,6 +1090,17 @@ serve(async (req) => {
         return analyzeJsonResponse(req, {
           success: true,
           detectedItems,
+          rateLimit: { remaining: rateLimit.remaining, resetAt },
+          requestId: budgetRequestId,
+        });
+      }
+
+      if ("label" in normalizedOutput) {
+        const { label } = normalizedOutput;
+        await completeBudget("completed", JSON.stringify(label).length);
+        return analyzeJsonResponse(req, {
+          success: true,
+          label,
           rateLimit: { remaining: rateLimit.remaining, resetAt },
           requestId: budgetRequestId,
         });

@@ -2,17 +2,19 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ScanLine, Plus, Utensils, Camera, Barcode, X, Loader2 } from "lucide-react";
+import { Search, ScanLine, Plus, Utensils, Camera, Barcode, X, Loader2, ScanText, MessageSquareText, Sparkles } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BarcodeScanner, type ScannedProduct } from "./BarcodeScanner";
 import { FoodPhotoLogSheet } from "./FoodPhotoLogSheet";
+import { NutritionLabelScanSheet } from "./NutritionLabelScanSheet";
 import { flushQueuedMealLogs, logMealItemsResilient } from "@/lib/meal-log-service";
 import { getMealImage } from "@/lib/meal-images";
 import { createFoodProviderRegistry, type FoodSearchItem } from "@/lib/food-providers";
 import { QuickAddFoodForm } from "@/components/QuickAddFoodForm";
+import { FoodTextLogSheet } from "@/components/FoodTextLogSheet";
 
 interface FoodItem {
   id: string;
@@ -43,7 +45,7 @@ interface LogMealModalProps {
 }
 
 const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -52,8 +54,10 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
   const [selectedItems, setSelectedItems] = useState<FoodItem[]>([]);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
+  const [showNutritionLabelSheet, setShowNutritionLabelSheet] = useState(false);
   const [showScanChoice, setShowScanChoice] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showTextLogSheet, setShowTextLogSheet] = useState(false);
   const [searchItems, setSearchItems] = useState<FoodSearchItem[]>([]);
   const [searching, setSearching] = useState(false);
   const providerRegistry = useMemo(
@@ -136,7 +140,9 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
       setSearchQuery("");
       setSelectedItems([]);
       setShowScanChoice(false);
+      setShowNutritionLabelSheet(false);
       setShowQuickAdd(false);
+      setShowTextLogSheet(false);
       setSearchItems([]);
       loadRecentMeals();
     }
@@ -289,6 +295,24 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
 
           {/* Search and quick actions */}
           <div className="px-4 pb-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowTextLogSheet(true)}
+              className="mb-3 flex min-h-[54px] w-full items-center gap-3 rounded-2xl bg-[#E8FBF6] px-3.5 text-left ring-1 ring-[#22C7A1]/20 transition-colors hover:bg-[#DDF8F1]"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#12A987] shadow-sm ring-1 ring-[#22C7A1]/15">
+                <MessageSquareText className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-extrabold text-[#020617]">
+                  {language === "ar" ? "أخبر Nutrio ماذا أكلت" : "Tell Nutrio what you ate"}
+                </span>
+                <span className="block truncate text-[11px] font-semibold text-[#4F6F68]">
+                  {language === "ar" ? "«بيضتين وخبز وكوب رز»" : "“2 eggs, toast and one cup of rice”"}
+                </span>
+              </span>
+              <Sparkles className="h-4 w-4 shrink-0 text-[#12A987]" />
+            </button>
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -463,6 +487,22 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                 </button>
                 <button
                   type="button"
+                  onClick={() => {
+                    setShowScanChoice(false);
+                    setShowNutritionLabelSheet(true);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100/70 transition-colors text-left ring-1 ring-emerald-100"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shrink-0 ring-1 ring-emerald-100">
+                    <ScanText className="w-6 h-6 text-[#22C7A1]" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{t("nutrition_label_scan") || "Nutrition label"}</p>
+                    <p className="text-sm text-gray-500">{t("nutrition_label_scan_desc") || "Read calories and macros from a Nutrition Facts panel"}</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setShowScanChoice(false)}
                   className="w-full py-3 rounded-2xl bg-slate-100 text-slate-600 font-semibold text-sm"
                 >
@@ -495,6 +535,26 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
         onOpenChange={setShowPhotoSheet}
         onLogComplete={() => {
           setShowPhotoSheet(false);
+          onMealLogged();
+          onOpenChange(false);
+        }}
+      />
+
+      <NutritionLabelScanSheet
+        open={showNutritionLabelSheet}
+        onOpenChange={setShowNutritionLabelSheet}
+        onLogComplete={() => {
+          setShowNutritionLabelSheet(false);
+          onMealLogged();
+          onOpenChange(false);
+        }}
+      />
+
+      <FoodTextLogSheet
+        open={showTextLogSheet}
+        onOpenChange={setShowTextLogSheet}
+        onLogComplete={() => {
+          setShowTextLogSheet(false);
           onMealLogged();
           onOpenChange(false);
         }}

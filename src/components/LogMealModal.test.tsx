@@ -17,6 +17,14 @@ vi.mock("@/components/FoodPhotoLogSheet", () => ({
   FoodPhotoLogSheet: () => null,
 }));
 
+vi.mock("@/components/NutritionLabelScanSheet", () => ({
+  NutritionLabelScanSheet: () => null,
+}));
+
+vi.mock("@/components/FoodTextLogSheet", () => ({
+  FoodTextLogSheet: () => null,
+}));
+
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "user-1" } }),
 }));

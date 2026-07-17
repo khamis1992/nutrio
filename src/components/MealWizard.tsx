@@ -1,5 +1,6 @@
 import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +22,6 @@ import { ArrowLeft,
   Lock,
   Clock,
   Search,
-  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
@@ -151,7 +151,8 @@ const MealWizard = ({
   const { toast } = useToast();
   const { t, isRTL } = useLanguage();
   const { NextIcon } = getNavArrows(isRTL);
-  const { subscription, refetch: refetchSubscription } = useSubscription();
+  const navigate = useNavigate();
+  const { subscription, refetch: refetchSubscription, remainingMeals, remainingSnacks, isUnlimited } = useSubscription();
 
   const [phase, setPhase] = useState<"intro" | "meal-selection" | "summary" | "success">(initialPhase);
   const [currentMealType, setCurrentMealType] = useState<string>(MEAL_TYPES[initialStep] || "breakfast");
@@ -229,11 +230,36 @@ const MealWizard = ({
     }));
 
     const currentIndex = MEAL_TYPES.indexOf(currentMealType as (typeof MEAL_TYPES)[number]);
-    if (currentIndex < MEAL_TYPES.length - 1) {
-      setCurrentMealType(MEAL_TYPES[currentIndex + 1]);
+    let nextIndex = currentIndex + 1;
+    while (nextIndex < MEAL_TYPES.length && !canSelectMealType(MEAL_TYPES[nextIndex])) {
+      nextIndex++;
+    }
+    if (nextIndex < MEAL_TYPES.length) {
+      setCurrentMealType(MEAL_TYPES[nextIndex]);
     } else {
       setPhase("summary");
     }
+  };
+
+  const canSelectMealType = (type: string): boolean => {
+    if (isUnlimited) return true;
+    if (type === "snack" || type === "snack2") return remainingSnacks > 0;
+    return remainingMeals > 0;
+  };
+
+  const handleMealTypeTabClick = (type: string) => {
+    if (canSelectMealType(type)) {
+      setCurrentMealType(type);
+      return;
+    }
+    toast({
+      title: type.startsWith("snack") ? "No snack credits" : "No meal credits",
+      description: "Top up your wallet to add more credits.",
+      action: {
+        label: "Top Up",
+        onClick: () => navigate("/wallet"),
+      },
+    });
   };
 
   const handleRemoveMeal = (mealType: string) => {
@@ -249,7 +275,11 @@ const MealWizard = ({
     setPhase("meal-selection");
   };
 
-  const handleComplete = async (timeSlot: string, deliveryAddressId: string | null) => {
+  const handleComplete = async (
+    timeSlot: string,
+    deliveryAddressId: string | null,
+    deliveryQuoteId?: string | null,
+  ) => {
     setScheduling(true);
     try {
       if (!subscription?.id) throw new Error("SUBSCRIPTION_NOT_FOUND");
@@ -260,6 +290,7 @@ const MealWizard = ({
         meal_type: (mealType === "snack2" ? "snack" : mealType) as ScheduleMealInput["meal_type"],
         delivery_time_slot: timeSlot,
         delivery_address_id: deliveryAddressId,
+        delivery_quote_id: deliveryQuoteId,
       }));
 
       await scheduleMealsAtomic(subscription.id, items);
@@ -548,17 +579,24 @@ const MealWizard = ({
                     return (
                       <motion.button
                         key={type}
-                        onClick={() => setCurrentMealType(type)}
+                        onClick={() => handleMealTypeTabClick(type)}
                         whileTap={{ scale: 0.95 }}
+                        disabled={!canSelectMealType(type)}
                         className={`flex-none flex items-center gap-2 px-4 py-3 rounded-2xl transition-all ${
-                          isActive
+                          !canSelectMealType(type)
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                            : isActive
                             ? `${typeConfig.bgColor} text-white shadow-lg`
                             : isSelected
                             ? `${typeConfig.bgColorLight} ${typeConfig.textColor} border-2 ${typeConfig.borderColor} font-semibold`
                             : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
                         }`}
                       >
-                        <Icon className="h-5 w-5" />
+                        {!canSelectMealType(type) ? (
+                          <Lock className="h-4 w-4" />
+                        ) : (
+                          <Icon className="h-5 w-5" />
+                        )}
                         <span className="text-sm font-bold whitespace-nowrap">{typeConfig.label}</span>
                         {isSelected && <Check className="h-4 w-4" />}
                       </motion.button>
@@ -714,10 +752,13 @@ const MealWizard = ({
                 ) : meals.length > 0 ? (
                   <div className="space-y-3">
                     {meals.map((meal) => {
-                      const selectedEntryIndex = selectedMealEntries.findIndex((entry) => entry.meal.id === meal.id);
-                      const selectedEntry = selectedEntryIndex >= 0 ? selectedMealEntries[selectedEntryIndex] : null;
-                      const isSelected = Boolean(selectedEntry);
-                      const selectedOrder = selectedEntryIndex + 1;
+                      const selectedEntriesForMeal = selectedMealEntries.filter(
+                        (entry) => entry.meal.id === meal.id,
+                      );
+                      const selectionCount = selectedEntriesForMeal.length;
+                      const isSelected = selectionCount > 0;
+                      const isSelectedForCurrentType =
+                        selectedMeals[currentMealType]?.id === meal.id;
                       return (
                         <motion.div
                           key={meal.id}
@@ -752,7 +793,7 @@ const MealWizard = ({
                               )}
                               {isSelected && (
                                 <div className="absolute -left-2 -top-2 flex h-9 w-9 items-center justify-center rounded-full bg-[#020617] text-[15px] font-black text-white shadow-[0_10px_20px_rgba(2,6,23,0.24)] ring-4 ring-white">
-                                  {selectedOrder || 1}
+                                  {selectionCount}
                                 </div>
                               )}
                             </div>
@@ -763,9 +804,23 @@ const MealWizard = ({
                                   {meal.name}
                                 </h3>
                                 {isSelected && (
-                                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-[#020617]">
-                                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                                    #{selectedOrder || 1} for {selectedEntry?.config.label || config.label}
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {selectedEntriesForMeal.map((entry) => (
+                                      <button
+                                        key={entry.type}
+                                        type="button"
+                                        aria-label={`Remove ${entry.config.label}`}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          handleRemoveMeal(entry.type);
+                                        }}
+                                        className={`relative inline-flex min-h-7 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ring-1 after:absolute after:-inset-y-2 after:inset-x-0 after:content-[''] ${entry.config.bgGradient} ${entry.config.textColor} ${entry.config.borderColor}`}
+                                      >
+                                        <Check className="h-3 w-3" strokeWidth={3} />
+                                        {entry.config.label}
+                                        <X className="ml-0.5 h-3 w-3 opacity-60" strokeWidth={2.5} />
+                                      </button>
+                                    ))}
                                   </div>
                                 )}
                                 {meal.description && (
@@ -783,21 +838,14 @@ const MealWizard = ({
                                   <p className="truncate text-[11px] font-black leading-none text-[#020617]">{meal.protein_g}g</p>
                                   <p className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">protein</p>
                                 </div>
-                                {isSelected ? (
-                                  <button
-                                    type="button"
-                                    aria-label={`Remove ${selectedEntry?.config.label || config.label}`}
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      handleRemoveMeal(selectedEntry?.type || currentMealType);
-                                    }}
-                                    className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full bg-rose-50 text-rose-500 ring-1 ring-rose-100 transition active:scale-95"
-                                  >
-                                    <Trash2 className="h-4 w-4" strokeWidth={2.3} />
-                                  </button>
+                                {isSelectedForCurrentType ? (
+                                  <span className={`ml-auto inline-flex h-8 items-center gap-1 rounded-full px-3 text-[10px] font-black ring-1 ${config.bgGradient} ${config.textColor} ${config.borderColor}`}>
+                                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                                    {config.label}
+                                  </span>
                                 ) : (
                                   <span className="ml-auto inline-flex h-8 items-center justify-center rounded-full bg-slate-950 px-3 text-[12px] font-black text-white">
-                                    Add
+                                    Add {config.label}
                                   </span>
                                 )}
                               </div>
@@ -1078,9 +1126,9 @@ const MealWizard = ({
                 "5:00 PM", "6:00 PM", "7:00 PM",
               ]}
               timeZone="Qatar (GMT +3)"
-              onSchedule={({ time, deliveryAddressId }) => {
+              onSchedule={({ time, deliveryAddressId, deliveryFeeQuote }) => {
                 setShowDeliveryScheduler(false);
-                handleComplete(time, deliveryAddressId);
+                handleComplete(time, deliveryAddressId, deliveryFeeQuote?.quoteId);
               }}
               onCancel={() => setShowDeliveryScheduler(false)}
             />

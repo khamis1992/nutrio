@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Camera, CameraSource, CameraResultType } from "@capacitor/camera";
 import { isNative } from "@/lib/capacitor";
@@ -7,8 +8,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
-import { cn } from "@/lib/utils";
 import { logMealItems } from "@/lib/meal-log-service";
+import { calculateMealImpact, type MacroValues } from "@/lib/meal-impact-preview";
+import { useTodayProgress } from "@/hooks/useTodayProgress";
 import {
   Camera as CameraIcon,
   GalleryHorizontal,
@@ -19,6 +21,10 @@ import {
   Plus,
   Minus,
   ScanLine,
+  Flame,
+  Drumstick,
+  Wheat,
+  Droplets,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -29,6 +35,27 @@ interface DetectedFoodItem {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  estimated_grams?: number;
+  confidence?: number;
+  source?: "ai_estimate" | "ai_usda_cross_checked" | "usda_fallback";
+  ranges?: {
+    calories: NutritionEstimateRange;
+    protein_g: NutritionEstimateRange;
+    carbs_g: NutritionEstimateRange;
+    fat_g: NutritionEstimateRange;
+  };
+  usda_cross_check?: {
+    status: "matched" | "unavailable" | "no_match";
+    fdc_id?: number;
+    description?: string;
+    data_type?: string;
+    match_confidence?: number;
+  };
+}
+
+interface NutritionEstimateRange {
+  min: number;
+  max: number;
 }
 
 interface AnalyzeFoodResponse {
@@ -50,6 +77,7 @@ interface FoodPhotoLogSheetProps {
 export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPhotoLogSheetProps) {
   const { user } = useAuth();
   const { toast: uiToast } = useToast();
+  const queryClient = useQueryClient();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,6 +87,54 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [detectedItems, setDetectedItems] = useState<DetectedFoodItem[]>([]);
   const [quantities, setQuantities] = useState<Map<number, number>>(new Map());
+  const shouldLoadDailyImpact = open && view === "review";
+  const {
+    todayProgress,
+    loading: todayProgressLoading,
+    error: todayProgressError,
+  } = useTodayProgress(shouldLoadDailyImpact ? user?.id : undefined, new Date(), 0);
+  const {
+    data: dailyTargets,
+    isLoading: dailyTargetsLoading,
+    error: dailyTargetsError,
+  } = useQuery<MacroValues | null>({
+    queryKey: ["food-photo-daily-targets", user?.id],
+    enabled: shouldLoadDailyImpact && !!user,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data: goal, error: goalError } = await supabase
+        .from("nutrition_goals")
+        .select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g")
+        .eq("user_id", user!.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (goalError) throw goalError;
+
+      const { data: profile, error: profileError } = goal
+        ? { data: null, error: null }
+        : await supabase
+            .from("profiles")
+            .select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g")
+            .eq("user_id", user!.id)
+            .maybeSingle();
+
+      if (profileError) throw profileError;
+      const source = goal || profile;
+      if (!source) return null;
+
+      const targets = {
+        calories: Number(source.daily_calorie_target || 0),
+        protein: Number(source.protein_target_g || 0),
+        carbs: Number(source.carbs_target_g || 0),
+        fat: Number(source.fat_target_g || 0),
+      };
+
+      return Object.values(targets).some((value) => value > 0) ? targets : null;
+    },
+  });
 
   // ── Reset state on open ─────────────────────────────────────────────────
 
@@ -199,6 +275,45 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
     },
     { calories: 0, protein: 0, carbs: 0, fat: 0 },
   );
+  const dailyImpact = dailyTargets
+    ? calculateMealImpact(
+        {
+          calories: todayProgress.calories,
+          protein: todayProgress.protein,
+          carbs: todayProgress.carbs,
+          fat: todayProgress.fat,
+        },
+        totals,
+        dailyTargets,
+      )
+    : null;
+
+  const totalRanges = detectedItems.reduce(
+    (acc, item, i) => {
+      const qty = quantities.get(i) ?? 1;
+      return {
+        caloriesMin: acc.caloriesMin + (item.ranges?.calories.min ?? item.calories) * qty,
+        caloriesMax: acc.caloriesMax + (item.ranges?.calories.max ?? item.calories) * qty,
+      };
+    },
+    { caloriesMin: 0, caloriesMax: 0 },
+  );
+
+  const confidenceLabel = (confidence = 0) => {
+    if (confidence >= 0.8) return "High confidence";
+    if (confidence >= 0.6) return "Medium confidence";
+    return "Low confidence";
+  };
+
+  const scaledRange = (
+    range: NutritionEstimateRange | undefined,
+    value: number,
+    qty: number,
+  ) => {
+    const minimum = Math.round((range?.min ?? value) * qty);
+    const maximum = Math.round((range?.max ?? value) * qty);
+    return minimum === maximum ? `${minimum}` : `${minimum}–${maximum}`;
+  };
 
   // ── Log to database ─────────────────────────────────────────────────────
 
@@ -225,6 +340,7 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
         description: `${totals.calories} cal • ${totals.protein}g protein`,
       });
 
+      void queryClient.invalidateQueries({ queryKey: ["todayProgress", user.id] });
       onLogComplete?.();
       handleClose();
     } catch (err) {
@@ -236,18 +352,12 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
 
   // ── Macro color helpers ─────────────────────────────────────────────────
 
-  const macroBar = (label: string, value: number, color: string) => (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="w-10 text-gray-400">{label}</span>
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className={cn("h-full rounded-full transition-all duration-500", color)}
-          style={{ width: `${Math.min(100, (value / Math.max(1, totals.calories)) * 100)}%` }}
-        />
-      </div>
-      <span className="w-10 text-right font-semibold text-gray-700">{value}g</span>
-    </div>
-  );
+  const impactRows = (dailyImpact ? [
+    { key: "calories" as const, label: "Calories", unit: "kcal", color: "#22C7A1", Icon: Flame },
+    { key: "protein" as const, label: "Protein", unit: "g", color: "#7C83F6", Icon: Drumstick },
+    { key: "carbs" as const, label: "Carbs", unit: "g", color: "#38BDF8", Icon: Wheat },
+    { key: "fat" as const, label: "Fat", unit: "g", color: "#FB6B7A", Icon: Droplets },
+  ] : []).filter(({ key }) => dailyImpact && dailyImpact[key].target > 0);
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -380,9 +490,30 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
 
                       {/* Item details */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
+                          {typeof item.confidence === "number" && (
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                              {confidenceLabel(item.confidence)} {Math.round(item.confidence * 100)}%
+                            </span>
+                          )}
+                          {item.usda_cross_check?.status === "matched" && (
+                            <span
+                              className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
+                              title={item.usda_cross_check.description}
+                            >
+                              USDA FoodData Central {item.source === "usda_fallback" ? "fallback" : "checked"}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-400">
                           {Math.round(item.calories * qty)} cal • {Math.round(item.protein_g * qty)}g P • {Math.round(item.carbs_g * qty)}g C • {Math.round(item.fat_g * qty)}g F
+                        </p>
+                        <p className="mt-1 text-[10px] leading-relaxed text-gray-400">
+                          Estimated range: {scaledRange(item.ranges?.calories, item.calories, qty)} cal
+                          {" • "}{scaledRange(item.ranges?.protein_g, item.protein_g, qty)}g P
+                          {" • "}{scaledRange(item.ranges?.carbs_g, item.carbs_g, qty)}g C
+                          {" • "}{scaledRange(item.ranges?.fat_g, item.fat_g, qty)}g F
                         </p>
                       </div>
 
@@ -404,11 +535,76 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-semibold text-gray-700">Total</span>
-                    <span className="text-lg font-extrabold text-[#020617]">{totals.calories} cal</span>
+                    <div className="text-right">
+                      <span className="block text-lg font-extrabold text-[#020617]">{totals.calories} cal</span>
+                      <span className="block text-[10px] font-medium text-gray-400">
+                        estimated {Math.round(totalRanges.caloriesMin)}–{Math.round(totalRanges.caloriesMax)} cal
+                      </span>
+                    </div>
                   </div>
-                  {macroBar("Protein", totals.protein, "bg-[#020617]")}
-                  {macroBar("Carbs", totals.carbs, "bg-amber-400")}
-                  {macroBar("Fat", totals.fat, "bg-rose-400")}
+                  <div className="rounded-2xl border border-slate-200 bg-[#F6F8FB] p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white ring-1 ring-slate-200">
+                        <Sparkles className="h-4 w-4 text-[#22C7A1]" />
+                      </span>
+                      <div>
+                        <p className="text-[13px] font-extrabold text-[#020617]">If you log this</p>
+                        <p className="text-[10px] font-medium text-[#94A3B8]">Your projected daily totals</p>
+                      </div>
+                    </div>
+
+                    {(todayProgressLoading || dailyTargetsLoading) && (
+                      <div className="mt-3 flex h-20 items-center justify-center rounded-xl bg-white">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#22C7A1]" />
+                        <span className="ml-2 text-xs font-semibold text-[#64748B]">Calculating your day...</span>
+                      </div>
+                    )}
+
+                    {!todayProgressLoading && !dailyTargetsLoading && dailyImpact && (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {impactRows.map(({ key, label, unit, color, Icon }) => {
+                          const impact = dailyImpact[key];
+                          const isOver = impact.exceededBy > 0;
+                          return (
+                            <div key={key} className="rounded-xl bg-white p-2.5 ring-1 ring-slate-200/80">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5">
+                                  <Icon className="h-3.5 w-3.5" style={{ color }} />
+                                  <span className="text-[10px] font-bold text-[#64748B]">{label}</span>
+                                </div>
+                                <span className="text-[9px] font-extrabold" style={{ color }}>+{impact.addition}{unit}</span>
+                              </div>
+                              <p className="mt-1 text-[13px] font-black tabular-nums text-[#020617]">
+                                {impact.projected.toLocaleString()}
+                                <span className="text-[9px] font-bold text-[#94A3B8]"> / {impact.target.toLocaleString()}{unit}</span>
+                              </p>
+                              <div className="relative mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                <span
+                                  className="absolute inset-y-0 left-0 rounded-full opacity-35"
+                                  style={{ width: `${impact.currentPercent}%`, backgroundColor: color }}
+                                />
+                                <span
+                                  className="absolute inset-y-0 rounded-full transition-all duration-300"
+                                  style={{ left: `${impact.currentPercent}%`, width: `${impact.additionPercent}%`, backgroundColor: color }}
+                                />
+                              </div>
+                              <p className={`mt-1 text-[9px] font-bold ${isOver ? "text-[#FB6B7A]" : "text-[#64748B]"}`}>
+                                {isOver ? `${impact.exceededBy}${unit} over` : `${impact.remaining}${unit} left`}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {!todayProgressLoading && !dailyTargetsLoading && !dailyImpact && (
+                      <p className="mt-3 rounded-xl bg-white px-3 py-2.5 text-[11px] font-semibold leading-4 text-[#64748B] ring-1 ring-slate-200/80">
+                        {todayProgressError || dailyTargetsError
+                          ? "Daily totals are unavailable. You can still log this meal."
+                          : "Set a nutrition goal to compare this meal with your daily targets."}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Action buttons */}
