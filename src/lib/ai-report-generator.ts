@@ -170,57 +170,27 @@ class AIReportGenerator {
   }
 
   private async generateWithAI(data: WeeklyReportData, locale: ReportLocale): Promise<AIReportContent> {
-    const systemPrompt = [
-      "You are a supportive nutrition coach writing a weekly lifestyle report.",
-      locale === "ar"
-        ? "Write every user-facing value in natural Arabic. Keep the JSON keys exactly in English."
-        : "Write every user-facing value in English.",
-      "",
-      "CRITICAL RULES:",
-      "- NEVER use medical terminology (no hormones, thyroid, metabolic damage, disease, diagnosis)",
-      "- NEVER sound clinical or diagnostic",
-      "- Use lifestyle and performance language only",
-      "- Focus on habits, consistency, and energy",
-      "- Be encouraging and motivational",
-      "- This is NOT a medical report",
-      "",
-      "Return ONLY a valid JSON object with these exact keys:",
-      "{",
-      '  "summary":           "2-3 sentence overview of the week",',
-      '  "weightAnalysis":    "weight trend feedback",',
-      '  "weightCommentary":  "commentary on weight pattern",',
-      '  "metabolicCommentary": "fuel balance and energy intake",',
-      '  "macroCommentary":   "macro distribution analysis",',
-      '  "insights":          "array of type+text objects, 3-4 items",',
-      '  "recommendations":   "array of title+description objects, 3-4 items",',
-      '  "proteinAssessment": "protein status assessment"',
-      "}",
-    ].join("\n");
-
-    const userPrompt = [
-      "Weekly nutrition report data:",
-      `- Days logged: ${data.daysLogged}/${data.totalDays} (${data.consistencyScore}% consistency)`,
-      `- Average calories: ${Math.round(data.avgCalories)}/${data.calorieTarget} kcal`,
-      `- Average protein: ${Math.round(data.avgProtein)}/${data.proteinTarget}g`,
-      `- Average carbs: ${Math.round(data.avgCarbs)}g`,
-      `- Average fat: ${Math.round(data.avgFat)}g`,
-      `- Meal quality score: ${data.mealQualityScore}/100`,
-      `- Water average: ${data.waterAverage.toFixed(1)}/8 glasses`,
-      `- Current streak: ${data.currentStreak} days (best: ${data.bestStreak})`,
-      `- Goal type: ${data.activeGoal || "general health"}`,
-      data.currentWeight ? `- Current weight: ${data.currentWeight.toFixed(1)} kg` : "",
-      data.weightGoal ? `- Goal weight: ${data.weightGoal} kg` : "",
-      data.weightChange !== null
-        ? `- Weekly weight change: ${data.weightChange > 0 ? "+" : ""}${data.weightChange.toFixed(1)} kg`
-        : "",
-      `- Weight progress: ${Math.round(data.weightProgress)}%`,
-      "",
-      "Return ONLY the JSON object. No markdown, no explanation.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    const aiText = await this.callOpenRouter(systemPrompt, userPrompt);
+    const aiText = await this.callAiRouter({
+      locale,
+      daysLogged: data.daysLogged,
+      totalDays: data.totalDays,
+      consistencyScore: data.consistencyScore,
+      avgCalories: data.avgCalories,
+      calorieTarget: data.calorieTarget,
+      avgProtein: data.avgProtein,
+      proteinTarget: data.proteinTarget,
+      avgCarbs: data.avgCarbs,
+      avgFat: data.avgFat,
+      mealQualityScore: data.mealQualityScore,
+      waterAverage: data.waterAverage,
+      currentStreak: data.currentStreak,
+      bestStreak: data.bestStreak,
+      activeGoal: data.activeGoal || "general health",
+      currentWeight: data.currentWeight,
+      weightGoal: data.weightGoal,
+      weightChange: data.weightChange,
+      weightProgress: data.weightProgress,
+    });
     const parsed = this.parseConsolidatedResponse(aiText);
 
     return {
@@ -282,13 +252,11 @@ class AIReportGenerator {
     }));
   }
 
-  private async callOpenRouter(systemPrompt: string, userPrompt: string): Promise<string> {
+  private async callAiRouter(input: Record<string, unknown>): Promise<string> {
     try {
       const result = await runAiTask({
         task: "weekly_report",
-        systemPrompt,
-        userPrompt,
-        retrievalQuery: "healthy adult nutrition calories protein carbohydrates fat hydration weekly guidance",
+        input,
       });
       return result.content;
     } catch (error) {
