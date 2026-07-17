@@ -61,6 +61,8 @@ const WorkoutHistory = lazy(() => import("@/pages/nutrio/WorkoutHistory"));
 const Friends = lazy(() => import("@/pages/Friends"));
 const FriendLeaderboard = lazy(() => import("@/pages/FriendLeaderboard"));
 const AIReport = lazy(() => import("@/pages/AIReport"));
+const AiCoach = lazy(() => import("@/pages/AiCoach"));
+const WeeklyAICheckIn = lazy(() => import("@/pages/WeeklyAICheckIn"));
 const Medications = lazy(() => import("@/pages/Medications"));
 
 export const customerRoutes = (
@@ -446,6 +448,22 @@ export const customerRoutes = (
       element={
         <ProtectedRoute>
           <AIReport />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/ai-coach"
+      element={
+        <ProtectedRoute>
+          <AiCoach />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/weekly-check-in"
+      element={
+        <ProtectedRoute>
+          <WeeklyAICheckIn />
         </ProtectedRoute>
       }
     />

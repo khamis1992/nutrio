@@ -2439,8 +2439,8 @@ const Dashboard = () => {
               fallback={fallbackAiInsight}
               prefersReducedMotion={Boolean(prefersReducedMotion)}
               ArrowIcon={NextIcon}
-              openLabel={t("open_ai_report")}
-              onOpen={() => navigate("/ai-report")}
+              openLabel={t("ai_coach_label")}
+              onOpen={() => navigate("/ai-coach")}
             />
 
             {user && <BodyCorrelationWidget />}
