@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Flame, Star, Salad, Medal, Zap, MoveLeft, Users } from "lucide-react";
+import { Trophy, Flame, Star, Salad, Medal, Zap, MoveLeft, Users, Crown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFriendLeaderboard, FriendLeaderboardEntry } from "@/hooks/useFriendLeaderboard";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLatestNutritionScore } from "@/lib/pending-schema-queries";
+import SocialLeaguePanel from "@/components/friends/SocialLeaguePanel";
 
 type SortMode = "composite" | "streak" | "xp" | "nutrition";
+type BoardMode = "friends" | "league";
 
 const SORT_TABS: { key: SortMode; label: string; icon: typeof Trophy }[] = [
   { key: "composite", label: "Overall", icon: Trophy },
@@ -43,6 +45,7 @@ const MEDAL_EMOJIS = ["🥇", "🥈", "🥉"];
 
 export default function FriendLeaderboard() {
   const { user } = useAuth();
+  const [boardMode, setBoardMode] = useState<BoardMode>("friends");
   const [sortMode, setSortMode] = useState<SortMode>("composite");
   const { data: leaderboard = [], isLoading } = useFriendLeaderboard(user?.id);
 
@@ -92,16 +95,51 @@ export default function FriendLeaderboard() {
           </button>
           <div>
             <h1 className="text-[28px] font-black tracking-[-0.03em] text-white">
-              Friend Leaderboard
+              Social Rankings
             </h1>
             <p className="mt-1 text-[15px] font-medium text-white/80">
-              Compare streaks, XP, and nutrition scores
+              Compete with friends and climb weekly leagues
             </p>
           </div>
         </div>
       </div>
 
       <div className="px-4 py-6">
+        <div
+          role="tablist"
+          aria-label="Leaderboard view"
+          className="mb-4 grid h-12 grid-cols-2 rounded-[18px] bg-white p-1 shadow-sm ring-1 ring-[#E5EAF1]"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={boardMode === "friends"}
+            onClick={() => setBoardMode("friends")}
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-[15px] text-[12px] font-black transition-colors ${
+              boardMode === "friends" ? "bg-[#020617] text-white" : "text-[#64748B]"
+            }`}
+          >
+            <Users className="h-4 w-4" />
+            Friends
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={boardMode === "league"}
+            onClick={() => setBoardMode("league")}
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-[15px] text-[12px] font-black transition-colors ${
+              boardMode === "league" ? "bg-[#020617] text-white" : "text-[#64748B]"
+            }`}
+          >
+            <Crown className="h-4 w-4" />
+            Weekly League
+          </button>
+        </div>
+
+        {boardMode === "league" ? (
+          <SocialLeaguePanel userId={user?.id} active />
+        ) : (
+          <>
         {myStats && (
           <div className="mb-4 rounded-[22px] bg-gradient-to-br from-amber-50 to-amber-100/60 p-4 shadow-sm ring-1 ring-amber-200/60">
             <div className="flex items-center justify-between">
@@ -266,6 +304,8 @@ export default function FriendLeaderboard() {
               );
             })}
           </div>
+        )}
+          </>
         )}
       </div>
     </div>
