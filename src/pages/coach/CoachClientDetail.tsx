@@ -7,6 +7,7 @@ import {
   Flame, Loader2, UtensilsCrossed, ChefHat, AlertCircle, Pencil,
   Lock, Plus, Check, X, Ruler, Camera, Dumbbell, Flag, FileDown,
   ChevronDown, ChevronUp, Search, Trash2, Sun, Moon, Cookie, Zap,
+  ZoomIn, ChevronLeft, ChevronRight, Images,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EditClientTargetsModal } from "@/components/coach/EditClientTargetsModal";
@@ -19,7 +20,7 @@ import {
   type CoachClientView,
 } from "@/components/coach/client/CoachClientShell";
 import { useCoachNotes } from "@/hooks/useCoachNotes";
-import { useBodyMeasurements } from "@/hooks/useBodyMeasurements";
+import { useBodyMeasurements, type ProgressPhoto } from "@/hooks/useBodyMeasurements";
 import { useGoalProposals } from "@/hooks/useGoalProposals";
 import { useCoachPrograms } from "@/hooks/useCoachPrograms";
 import { useClientCompletionStats } from "@/hooks/useClientCompletionStats";
@@ -31,6 +32,12 @@ import {
   formatExerciseLabel,
   type ExerciseCatalogItem,
 } from "@/lib/exercise-catalog";
+import {
+  DEFAULT_PROGRESSION_RULE,
+  normalizeProgressionRule,
+  progressionRuleSummary,
+  type ProgressionStrategy,
+} from "@/lib/workout-progression";
 import { toast } from "sonner";
 
 import "./CoachClientDetail.css";
@@ -76,6 +83,157 @@ const fadeInUp: Variants = {
 };
 
 const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function ProgressionField({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  suffix,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max?: number;
+  step?: number;
+  suffix?: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="rounded-xl bg-white p-2 ring-1 ring-violet-100">
+      <span className="block text-[8px] font-extrabold uppercase tracking-wide text-slate-400">{label}</span>
+      <span className="mt-1 flex items-center gap-1">
+        <input
+          type="number"
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          onChange={(event) => onChange(Number(event.target.value))}
+          className="h-7 min-w-0 flex-1 bg-transparent text-[12px] font-extrabold text-slate-900 outline-none"
+        />
+        {suffix && <span className="text-[8px] font-bold text-slate-400">{suffix}</span>}
+      </span>
+    </label>
+  );
+}
+
+function PrivateProgressPhotoGallery({ photos }: { photos: ProgressPhoto[] }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const activePhoto = typeof activeIndex === "number" ? photos[activeIndex] : null;
+
+  const goToPrevious = () => {
+    setActiveIndex((current) => {
+      if (current === null) return current;
+      return current === 0 ? photos.length - 1 : current - 1;
+    });
+  };
+
+  const goToNext = () => {
+    setActiveIndex((current) => {
+      if (current === null) return current;
+      return current === photos.length - 1 ? 0 : current + 1;
+    });
+  };
+
+  if (photos.length === 0) return null;
+
+  return (
+    <div className="pt-3 border-t border-[#E5EAF1]">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#E5EAF1]">
+            <Images className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">Private gallery</p>
+            <p className="text-[12px] font-black text-[#020617]">{photos.length} progress photo{photos.length === 1 ? "" : "s"}</p>
+          </div>
+        </div>
+        <span className="rounded-full bg-[#F6F8FB] px-2.5 py-1 text-[10px] font-black text-[#94A3B8] ring-1 ring-[#E5EAF1]">Tap to zoom</span>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        {photos.slice(0, 8).map((photo, index) => (
+          <button
+            key={photo.id}
+            type="button"
+            onClick={() => setActiveIndex(index)}
+            className="group relative aspect-square overflow-hidden rounded-2xl bg-[#F6F8FB] ring-1 ring-[#E5EAF1] active:scale-[0.98]"
+            aria-label={`Open progress photo ${index + 1}`}
+          >
+            <img src={photo.url} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            <span className="absolute inset-0 flex items-center justify-center bg-[#020617]/0 opacity-0 transition-all group-hover:bg-[#020617]/25 group-hover:opacity-100">
+              <ZoomIn className="h-5 w-5 text-white" />
+            </span>
+            {index === 0 && (
+              <span className="absolute right-1.5 top-1.5 rounded-full bg-[#22C7A1] px-1.5 py-0.5 text-[8px] font-black text-white shadow-sm">
+                NEW
+              </span>
+            )}
+            <span className="absolute bottom-1 left-1 rounded-full bg-white/90 px-1.5 py-0.5 text-[8px] font-black text-[#64748B]">
+              {new Date(photo.log_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {activePhoto && (
+        <div className="fixed inset-0 z-[1300] bg-[#020617]/92 px-4 py-[max(20px,env(safe-area-inset-top))] pb-[max(20px,env(safe-area-inset-bottom))]" role="dialog" aria-modal="true">
+          <div className="mx-auto flex h-full max-w-md flex-col">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Progress photo</p>
+                <p className="text-[15px] font-black text-white">
+                  {new Date(activePhoto.log_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveIndex(null)}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/15 active:scale-[0.98]"
+                aria-label="Close photo"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] bg-black ring-1 ring-white/10">
+              <img src={activePhoto.url} alt="" className="h-full w-full object-contain" />
+              {photos.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={goToPrevious}
+                    className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#020617] shadow-lg active:scale-[0.98]"
+                    aria-label="Previous photo"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToNext}
+                    className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#020617] shadow-lg active:scale-[0.98]"
+                    aria-label="Next photo"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center justify-between rounded-2xl bg-white/10 px-3 py-2 text-white ring-1 ring-white/10">
+              <span className="text-[11px] font-bold text-[#94A3B8]">Private signed storage preview</span>
+              <span className="text-[12px] font-black">{(activeIndex ?? 0) + 1}/{photos.length}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CoachClientDetail() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -137,6 +295,15 @@ export default function CoachClientDetail() {
   const [exerciseReps, setExerciseReps] = useState("10");
   const [exerciseRest, setExerciseRest] = useState(60);
   const [exerciseNotes, setExerciseNotes] = useState("");
+  const [progressionEnabled, setProgressionEnabled] = useState(false);
+  const [progressionStrategy, setProgressionStrategy] = useState<ProgressionStrategy>("double_progression");
+  const [progressionRepMin, setProgressionRepMin] = useState(8);
+  const [progressionRepMax, setProgressionRepMax] = useState(12);
+  const [progressionLoadIncrement, setProgressionLoadIncrement] = useState(2.5);
+  const [progressionRepIncrement, setProgressionRepIncrement] = useState(1);
+  const [progressionRpeCeiling, setProgressionRpeCeiling] = useState(8.5);
+  const [progressionFailureLimit, setProgressionFailureLimit] = useState(2);
+  const [progressionDeloadPercent, setProgressionDeloadPercent] = useState(10);
   const [programTab, setProgramTab] = useState<"meal" | "workout">("meal");
   const [expandedProgramId, setExpandedProgramId] = useState<string | null>(null);
   const [mealSearch, setMealSearch] = useState("");
@@ -365,6 +532,15 @@ export default function CoachClientDetail() {
     setExerciseReps("10");
     setExerciseRest(60);
     setExerciseNotes("");
+    setProgressionEnabled(DEFAULT_PROGRESSION_RULE.enabled);
+    setProgressionStrategy(DEFAULT_PROGRESSION_RULE.strategy);
+    setProgressionRepMin(DEFAULT_PROGRESSION_RULE.rep_min);
+    setProgressionRepMax(DEFAULT_PROGRESSION_RULE.rep_max);
+    setProgressionLoadIncrement(DEFAULT_PROGRESSION_RULE.load_increment_kg);
+    setProgressionRepIncrement(DEFAULT_PROGRESSION_RULE.rep_increment);
+    setProgressionRpeCeiling(DEFAULT_PROGRESSION_RULE.rpe_ceiling);
+    setProgressionFailureLimit(DEFAULT_PROGRESSION_RULE.failure_sessions_before_deload);
+    setProgressionDeloadPercent(DEFAULT_PROGRESSION_RULE.deload_percent);
   };
 
   const openWorkoutBuilder = (program?: (typeof programs)[number], day = 1) => {
@@ -792,12 +968,17 @@ export default function CoachClientDetail() {
             <div className="h-10 animate-pulse rounded-2xl bg-slate-100" />
           </div>
         ) : measurements.length === 0 ? (
-          <div className="px-5 py-8 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
-              <Ruler className="w-7 h-7 text-slate-300" />
+          <div className="px-5 py-6">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
+                <Ruler className="w-7 h-7 text-slate-300" />
+              </div>
+              <p className="text-[13px] font-semibold text-slate-500">No measurements recorded</p>
+              <p className="text-[11px] text-slate-400 mt-1">Measurements will appear once the client logs their first entry</p>
             </div>
-            <p className="text-[13px] font-semibold text-slate-500">No measurements recorded</p>
-            <p className="text-[11px] text-slate-400 mt-1">Measurements will appear once the client logs their first entry</p>
+            <div className="mt-5">
+              <PrivateProgressPhotoGallery photos={photos} />
+            </div>
           </div>
         ) : (
           <div className="px-5 py-4 space-y-4">
@@ -884,25 +1065,7 @@ export default function CoachClientDetail() {
               </div>
             )}
 
-            {/* Progress photos */}
-            {photos.length > 0 && (
-              <div className="pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Progress Photos</span>
-                  <span className="text-[10px] font-semibold text-slate-400">{photos.length}</span>
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {photos.slice(0, 8).map((p, i) => (
-                    <div key={p.id} className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 ring-1 ring-slate-100">
-                      <img src={p.url} alt="" className="w-full h-full object-cover" />
-                      {i === 0 && (
-                        <div className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <PrivateProgressPhotoGallery photos={photos} />
           </div>
         )}
       </motion.div>
@@ -1849,6 +2012,12 @@ export default function CoachClientDetail() {
                                   <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">{ex.reps} reps</span>
                                   <span className="text-[10px] font-semibold text-slate-400">{ex.rest_seconds ?? 60}s rest</span>
                                 </div>
+                                {normalizeProgressionRule(ex.progression_rule).enabled && (
+                                  <div className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-violet-50 px-2 py-1 text-[9px] font-bold text-violet-700">
+                                    <Zap className="h-3 w-3" />
+                                    <span className="truncate">{progressionRuleSummary(ex.progression_rule)}</span>
+                                  </div>
+                                )}
                                 {ex.notes && <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-slate-500">{ex.notes}</p>}
                                 <div className="mt-2 flex gap-2">
                                   <button
@@ -1862,6 +2031,16 @@ export default function CoachClientDetail() {
                                       setExerciseReps(ex.reps);
                                       setExerciseRest(ex.rest_seconds ?? 60);
                                       setExerciseNotes(ex.notes ?? "");
+                                      const rule = normalizeProgressionRule(ex.progression_rule);
+                                      setProgressionEnabled(rule.enabled);
+                                      setProgressionStrategy(rule.strategy);
+                                      setProgressionRepMin(rule.rep_min);
+                                      setProgressionRepMax(rule.rep_max);
+                                      setProgressionLoadIncrement(rule.load_increment_kg);
+                                      setProgressionRepIncrement(rule.rep_increment);
+                                      setProgressionRpeCeiling(rule.rpe_ceiling);
+                                      setProgressionFailureLimit(rule.failure_sessions_before_deload);
+                                      setProgressionDeloadPercent(rule.deload_percent);
                                     }}
                                     className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-100 text-[11px] font-bold text-slate-700 transition active:scale-[0.98]"
                                   >
@@ -1920,7 +2099,7 @@ export default function CoachClientDetail() {
                                   ? formatExerciseLabel(selectedCatalogExercise.name)
                                   : selectedExerciseId
                                     ? exerciseName
-                                    : "Choose from 1,324 exercises"}
+                                    : `Choose from ${exerciseCatalog.length.toLocaleString("en-US")} exercises`}
                               </span>
                             </span>
                             <ChevronDown className="h-4 w-4 shrink-0 -rotate-90 text-slate-400" />
@@ -1955,6 +2134,68 @@ export default function CoachClientDetail() {
                               <input type="number" min={0} step={15} value={exerciseRest} onChange={(e) => setExerciseRest(Number(e.target.value))} className="w-full h-[40px] px-3 rounded-xl bg-white border border-slate-200 text-[13px] text-slate-900 text-center font-bold focus:outline-none focus:ring-2 focus:ring-purple-500/20" />
                             </div>
                           </div>
+                          <div className="rounded-2xl border border-violet-200 bg-violet-50/70 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-violet-600 ring-1 ring-violet-200">
+                                  <Zap className="h-4 w-4" />
+                                </span>
+                                <div>
+                                  <p className="text-[11px] font-extrabold text-slate-900">Auto progression</p>
+                                  <p className="text-[9px] font-semibold text-slate-500">Set the rule for the next session</p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={progressionEnabled}
+                                onClick={() => setProgressionEnabled((enabled) => !enabled)}
+                                className={cn("relative h-7 w-12 rounded-full transition-colors", progressionEnabled ? "bg-violet-600" : "bg-slate-300")}
+                              >
+                                <span className={cn("absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all", progressionEnabled ? "left-6" : "left-1")} />
+                              </button>
+                            </div>
+
+                            {progressionEnabled && (
+                              <div className="mt-3 space-y-3 border-t border-violet-200 pt-3">
+                                <div className="grid grid-cols-3 gap-1 rounded-xl bg-white p-1 ring-1 ring-violet-100">
+                                  {([
+                                    ["double_progression", "Double"],
+                                    ["linear_load", "Linear"],
+                                    ["reps_only", "Reps"],
+                                  ] as Array<[ProgressionStrategy, string]>).map(([value, label]) => (
+                                    <button
+                                      key={value}
+                                      type="button"
+                                      onClick={() => setProgressionStrategy(value)}
+                                      className={cn("h-9 rounded-lg text-[10px] font-extrabold transition", progressionStrategy === value ? "bg-[#07152F] text-white" : "text-slate-500")}
+                                    >
+                                      {label}
+                                    </button>
+                                  ))}
+                                </div>
+
+                                <p className="rounded-xl bg-white px-3 py-2 text-[10px] font-semibold leading-4 text-slate-600 ring-1 ring-violet-100">
+                                  {progressionStrategy === "double_progression" && "Increase load after every set reaches the top of the rep range within the RPE limit."}
+                                  {progressionStrategy === "linear_load" && "Increase load after all prescribed sets are completed within the RPE limit."}
+                                  {progressionStrategy === "reps_only" && "Increase repetitions while keeping the current load unchanged."}
+                                </p>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <ProgressionField label="Min reps" value={progressionRepMin} min={1} onChange={setProgressionRepMin} />
+                                  <ProgressionField label="Top reps" value={progressionRepMax} min={progressionRepMin} onChange={setProgressionRepMax} />
+                                  {progressionStrategy === "reps_only" ? (
+                                    <ProgressionField label="Add reps" value={progressionRepIncrement} min={1} step={1} onChange={setProgressionRepIncrement} />
+                                  ) : (
+                                    <ProgressionField label="Add weight (kg)" value={progressionLoadIncrement} min={0} step={0.5} onChange={setProgressionLoadIncrement} />
+                                  )}
+                                  <ProgressionField label="Max RPE" value={progressionRpeCeiling} min={6} max={10} step={0.5} onChange={setProgressionRpeCeiling} />
+                                  <ProgressionField label="Deload after" value={progressionFailureLimit} min={1} max={6} step={1} onChange={setProgressionFailureLimit} suffix="sessions" />
+                                  <ProgressionField label="Deload" value={progressionDeloadPercent} min={5} max={30} step={5} onChange={setProgressionDeloadPercent} suffix="%" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
                           <div>
                             <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-slate-400">Coach instructions</label>
                             <textarea
@@ -1968,6 +2209,17 @@ export default function CoachClientDetail() {
                           <button
                             onClick={async () => {
                               if (!workoutProgramId || !exerciseName.trim()) return;
+                              const progressionRule = normalizeProgressionRule({
+                                enabled: progressionEnabled,
+                                strategy: progressionStrategy,
+                                rep_min: progressionRepMin,
+                                rep_max: progressionRepMax,
+                                load_increment_kg: progressionLoadIncrement,
+                                rep_increment: progressionRepIncrement,
+                                rpe_ceiling: progressionRpeCeiling,
+                                failure_sessions_before_deload: progressionFailureLimit,
+                                deload_percent: progressionDeloadPercent,
+                              });
                               if (editingExerciseId) {
                                 await updateExercise(editingExerciseId, {
                                   exercise_catalog_id: selectedExerciseId,
@@ -1976,6 +2228,7 @@ export default function CoachClientDetail() {
                                   reps: exerciseReps,
                                   rest_seconds: exerciseRest,
                                   notes: exerciseNotes.trim(),
+                                  progression_rule: progressionRule,
                                 });
                                 setEditingExerciseId(null);
                               } else {
@@ -1988,6 +2241,7 @@ export default function CoachClientDetail() {
                                   notes: exerciseNotes.trim(),
                                   day_number: selectedWorkoutDay,
                                   order_index: programExercises.filter((e) => e.program_id === workoutProgramId && e.day_number === selectedWorkoutDay).length,
+                                  progression_rule: progressionRule,
                                 });
                               }
                               resetExerciseForm();

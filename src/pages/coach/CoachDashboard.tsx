@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoachClients, type ClientCompliance } from "@/hooks/useCoachClients";
 import { useCoachNotifications } from "@/hooks/useCoachNotifications";
+import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import { InviteClientModal } from "@/components/coach/InviteClientModal";
 import { ExerciseCatalogSheet } from "@/components/exercises/ExerciseCatalogSheet";
 import { useToast } from "@/hooks/use-toast";
@@ -126,6 +127,7 @@ function ClientCard({ client, onClick }: { client: ClientCompliance; onClick: ()
 }
 
 export default function CoachDashboard() {
+  const { exercises: exerciseCatalog } = useExerciseCatalog();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -276,7 +278,9 @@ export default function CoachDashboard() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-[#42E4BC]">Programming library</span>
-          <span className="mt-1 block text-[15px] font-extrabold text-white">Browse 1,324 exercises</span>
+          <span className="mt-1 block text-[15px] font-extrabold text-white">
+            Browse {exerciseCatalog.length.toLocaleString("en-US")} exercises
+          </span>
           <span className="mt-0.5 block text-[10px] font-semibold text-white/55">Form guides, targets, and equipment filters</span>
         </span>
         <Search className="h-5 w-5 shrink-0 text-white/65" />
