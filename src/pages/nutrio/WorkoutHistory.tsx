@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Dumbbell, Clock, Trophy, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Dumbbell, Clock, Trophy, Calendar, ChevronDown, ChevronUp, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -19,6 +20,7 @@ interface SessionSummary {
 
 interface SetLog {
   id: string;
+  session_id: string;
   exercise_name: string;
   set_number: number;
   reps: number | null;
@@ -33,10 +35,27 @@ interface PersonalRecord {
   date: string;
 }
 
+interface ExerciseProgressPoint {
+  date: string;
+  label: string;
+  maxWeight: number;
+  maxReps: number;
+  estimatedOneRepMax: number;
+  bestVolume: number;
+}
+
 const fadeInUp = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
+
+const calculateEstimatedOneRepMax = (weight: number, reps: number) => {
+  if (weight <= 0 || reps <= 0) return 0;
+  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+};
+
+const formatChartDate = (value: string) =>
+  new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 export default function WorkoutHistory() {
   const { user } = useAuth();
@@ -45,6 +64,7 @@ export default function WorkoutHistory() {
   const [setLogs, setSetLogs] = useState<Record<string, SetLog[]>>({});
   const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([]);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -91,7 +111,7 @@ export default function WorkoutHistory() {
         const logsBySession: Record<string, SetLog[]> = {};
         for (const log of logs || []) {
           if (!logsBySession[log.session_id]) logsBySession[log.session_id] = [];
-          logsBySession[log.session_id].push(log);
+          logsBySession[log.session_id].push(log as SetLog);
         }
         setSetLogs(logsBySession);
 
@@ -128,8 +148,83 @@ export default function WorkoutHistory() {
     fetchHistory();
   }, [user?.id]);
 
+  const exerciseProgression = useMemo(() => {
+    const sessionDateById = new Map(sessions.map((session) => [session.id, session.started_at]));
+    const grouped: Record<string, Record<string, ExerciseProgressPoint>> = {};
+
+    for (const [sessionId, logs] of Object.entries(setLogs)) {
+      const sessionDate = sessionDateById.get(sessionId);
+      if (!sessionDate) continue;
+      const dateKey = sessionDate.split("T")[0];
+
+      for (const log of logs) {
+        if (!log.completed) continue;
+        const exerciseName = log.exercise_name.trim();
+        if (!exerciseName) continue;
+
+        const weight = Number(log.weight_kg ?? 0);
+        const reps = Number(log.reps ?? 0);
+        const estimatedOneRepMax = calculateEstimatedOneRepMax(weight, reps);
+        const bestVolume = weight * reps;
+
+        grouped[exerciseName] ??= {};
+        grouped[exerciseName][dateKey] ??= {
+          date: dateKey,
+          label: formatChartDate(dateKey),
+          maxWeight: 0,
+          maxReps: 0,
+          estimatedOneRepMax: 0,
+          bestVolume: 0,
+        };
+
+        const point = grouped[exerciseName][dateKey];
+        point.maxWeight = Math.max(point.maxWeight, weight);
+        point.maxReps = Math.max(point.maxReps, reps);
+        point.estimatedOneRepMax = Math.max(point.estimatedOneRepMax, estimatedOneRepMax);
+        point.bestVolume = Math.max(point.bestVolume, bestVolume);
+      }
+    }
+
+    return Object.fromEntries(
+      Object.entries(grouped).map(([name, pointsByDate]) => [
+        name,
+        Object.values(pointsByDate).sort((a, b) => a.date.localeCompare(b.date)),
+      ])
+    ) as Record<string, ExerciseProgressPoint[]>;
+  }, [sessions, setLogs]);
+
+  const exerciseNames = useMemo(
+    () =>
+      Object.entries(exerciseProgression)
+        .sort((a, b) => {
+          const aLatest = a[1].at(-1)?.date ?? "";
+          const bLatest = b[1].at(-1)?.date ?? "";
+          return bLatest.localeCompare(aLatest);
+        })
+        .map(([name]) => name),
+    [exerciseProgression]
+  );
+
+  useEffect(() => {
+    if (!selectedExercise && exerciseNames.length > 0) {
+      setSelectedExercise(exerciseNames[0]);
+      return;
+    }
+    if (selectedExercise && exerciseNames.length > 0 && !exerciseNames.includes(selectedExercise)) {
+      setSelectedExercise(exerciseNames[0]);
+    }
+  }, [exerciseNames, selectedExercise]);
+
+  const selectedProgress = selectedExercise ? exerciseProgression[selectedExercise] ?? [] : [];
+  const latestProgress = selectedProgress.at(-1);
+  const firstProgress = selectedProgress[0];
+  const bestWeight = selectedProgress.reduce((max, point) => Math.max(max, point.maxWeight), 0);
+  const bestEstimatedStrength = selectedProgress.reduce((max, point) => Math.max(max, point.estimatedOneRepMax), 0);
+  const weightChange = latestProgress && firstProgress ? latestProgress.maxWeight - firstProgress.maxWeight : 0;
+  const hasProgressChart = selectedProgress.some((point) => point.maxWeight > 0 || point.maxReps > 0);
+
   const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "—";
+    if (!seconds) return "--";
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}m ${s}s`;
@@ -196,6 +291,94 @@ export default function WorkoutHistory() {
                 <p className="text-[10px] text-slate-400 font-semibold">Minutes</p>
               </motion.div>
             </div>
+
+            <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">Strength Progression</p>
+                  <h2 className="mt-1 text-[18px] font-black leading-tight text-[#020617]">Per-exercise chart</h2>
+                  <p className="mt-1 text-[12px] font-semibold leading-4 text-[#94A3B8]">Track max weight and estimated strength from completed guided sets.</p>
+                </div>
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#E5EAF1]">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+              </div>
+
+              {exerciseNames.length > 0 ? (
+                <>
+                  <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {exerciseNames.map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => setSelectedExercise(name)}
+                        className={cn(
+                          "h-10 shrink-0 rounded-full px-4 text-[12px] font-black transition-all active:scale-[0.98]",
+                          selectedExercise === name
+                            ? "bg-[#020617] text-white shadow-[0_10px_22px_rgba(2,6,23,0.18)]"
+                            : "bg-[#F6F8FB] text-[#64748B] ring-1 ring-[#E5EAF1]"
+                        )}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="rounded-2xl bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                      <p className="text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">Best weight</p>
+                      <p className="mt-1 text-[18px] font-black text-[#020617]">{bestWeight > 0 ? bestWeight : "--"}<span className="ml-0.5 text-[10px] font-bold text-[#94A3B8]">kg</span></p>
+                    </div>
+                    <div className="rounded-2xl bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                      <p className="text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">Est. strength</p>
+                      <p className="mt-1 text-[18px] font-black text-[#7C83F6]">{bestEstimatedStrength > 0 ? bestEstimatedStrength : "--"}<span className="ml-0.5 text-[10px] font-bold text-[#94A3B8]">kg</span></p>
+                    </div>
+                    <div className="rounded-2xl bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+                      <p className="text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">Change</p>
+                      <p className={cn("mt-1 text-[18px] font-black", weightChange >= 0 ? "text-[#22C7A1]" : "text-[#FB6B7A]")}>
+                        {weightChange > 0 ? "+" : ""}{Number(weightChange.toFixed(1))}<span className="ml-0.5 text-[10px] font-bold text-[#94A3B8]">kg</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 h-[190px] rounded-[20px] bg-[#F6F8FB] px-1 py-3 ring-1 ring-[#E5EAF1]">
+                    {hasProgressChart ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={selectedProgress} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
+                          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#94A3B8", fontSize: 10, fontWeight: 700 }} interval="preserveStartEnd" />
+                          <YAxis hide domain={["dataMin - 2", "dataMax + 2"]} />
+                          <Tooltip
+                            cursor={{ stroke: "#E5EAF1", strokeWidth: 1 }}
+                            contentStyle={{ border: "1px solid #E5EAF1", borderRadius: 16, boxShadow: "0 16px 40px rgba(2,6,23,0.12)" }}
+                            formatter={(value: unknown, name: unknown) => [`${value} kg`, name === "estimatedOneRepMax" ? "Est. strength" : "Max weight"]}
+                            labelStyle={{ color: "#020617", fontWeight: 800 }}
+                          />
+                          <Line type="monotone" dataKey="estimatedOneRepMax" stroke="#7C83F6" strokeWidth={3} dot={false} activeDot={{ r: 5, strokeWidth: 0, fill: "#7C83F6" }} />
+                          <Line type="monotone" dataKey="maxWeight" stroke="#22C7A1" strokeWidth={3} dot={{ r: 3, strokeWidth: 0, fill: "#22C7A1" }} activeDot={{ r: 5, strokeWidth: 0, fill: "#22C7A1" }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                        <Dumbbell className="h-8 w-8 text-[#94A3B8]" />
+                        <p className="mt-2 text-[13px] font-black text-[#020617]">No weighted sets yet</p>
+                        <p className="mt-1 text-[11px] font-semibold leading-4 text-[#94A3B8]">Log weight or reps in a guided workout to build this chart.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-center gap-4 text-[10px] font-black text-[#94A3B8]">
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#22C7A1]" /> Max weight</span>
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#7C83F6]" /> Est. strength</span>
+                  </div>
+                </>
+              ) : (
+                <div className="mt-4 rounded-[20px] bg-[#F6F8FB] p-5 text-center ring-1 ring-[#E5EAF1]">
+                  <Dumbbell className="mx-auto h-9 w-9 text-[#94A3B8]" />
+                  <p className="mt-3 text-[14px] font-black text-[#020617]">No exercise data yet</p>
+                  <p className="mt-1 text-[12px] font-semibold leading-4 text-[#94A3B8]">Complete a guided workout set to start tracking each exercise.</p>
+                </div>
+              )}
+            </motion.div>
 
             <div className="space-y-2">
               {sessions.map((session) => {

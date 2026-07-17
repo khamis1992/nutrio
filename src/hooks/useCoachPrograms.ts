@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import type { ProgressionRule } from "@/lib/workout-progression";
 
 export interface CoachProgram {
   id: string;
@@ -37,6 +38,7 @@ export interface ProgramExercise {
   day_number: number;
   order_index: number;
   created_at: string;
+  progression_rule?: Json | null;
 }
 
 export interface MealInfo {
@@ -106,7 +108,7 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
           supabase.from("program_exercises").select("*").in("program_id", programIds).order("day_number, order_index"),
         ]);
         setProgramMeals(meals || []);
-        setProgramExercises(exercises || []);
+        setProgramExercises((exercises || []) as unknown as ProgramExercise[]);
 
         const mealIds = [...new Set(
           (meals || [])
@@ -304,7 +306,7 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
   );
 
   const assignExercise = useCallback(
-    async (programId: string, exercise: { exercise_catalog_id?: string | null; exercise_name: string; sets: number; reps: string; rest_seconds?: number; notes?: string; day_number: number; order_index: number }) => {
+    async (programId: string, exercise: { exercise_catalog_id?: string | null; exercise_name: string; sets: number; reps: string; rest_seconds?: number; notes?: string; day_number: number; order_index: number; progression_rule?: ProgressionRule }) => {
       try {
         const { data, error } = await supabase
           .from("program_exercises")
@@ -318,12 +320,13 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
             notes: exercise.notes || null,
             day_number: exercise.day_number,
             order_index: exercise.order_index,
-          })
+            progression_rule: exercise.progression_rule as unknown as Json,
+          } as never)
           .select()
           .single();
 
         if (error) throw error;
-        setProgramExercises((prev) => [...prev, data]);
+        setProgramExercises((prev) => [...prev, data as unknown as ProgramExercise]);
         notifyClient(
           `New exercise: ${exercise.exercise_name}`,
           `${exercise.sets}×${exercise.reps} added to Day ${exercise.day_number} of your workout`,
@@ -338,17 +341,17 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
     [notifyClient]
   );
 
-  const updateExercise = useCallback(async (programExerciseId: string, updates: { exercise_catalog_id?: string | null; exercise_name?: string; sets?: number; reps?: string; rest_seconds?: number; notes?: string; day_number?: number; order_index?: number }) => {
+  const updateExercise = useCallback(async (programExerciseId: string, updates: { exercise_catalog_id?: string | null; exercise_name?: string; sets?: number; reps?: string; rest_seconds?: number; notes?: string; day_number?: number; order_index?: number; progression_rule?: ProgressionRule }) => {
     try {
       const { data, error } = await supabase
         .from("program_exercises")
-        .update(updates)
+        .update({ ...updates, progression_rule: updates.progression_rule as unknown as Json } as never)
         .eq("id", programExerciseId)
         .select()
         .single();
 
       if (error) throw error;
-      setProgramExercises((prev) => prev.map((e) => (e.id === programExerciseId ? { ...e, ...data } : e)));
+      setProgramExercises((prev) => prev.map((e) => (e.id === programExerciseId ? { ...e, ...data } as ProgramExercise : e)));
       return data;
     } catch (err) {
       console.error("Error updating exercise:", err);

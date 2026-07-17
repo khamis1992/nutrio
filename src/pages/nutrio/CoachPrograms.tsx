@@ -786,6 +786,7 @@ export default function CoachPrograms() {
 
           {activeTab === "workout" && workoutPrograms.length > 0 && (
             <CoachWorkoutExperience
+              clientId={clientId}
               programs={workoutPrograms}
               exercises={programExercises}
               isExerciseCompleted={isExerciseCompleted}

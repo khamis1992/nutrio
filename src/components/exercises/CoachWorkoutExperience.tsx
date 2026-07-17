@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Clock3,
   Dumbbell,
+  Lock,
   Play,
   Search,
   Sparkles,
@@ -15,10 +16,12 @@ import { ExerciseCatalogSheet } from "@/components/exercises/ExerciseCatalogShee
 import { ExerciseMedia } from "@/components/exercises/ExerciseMedia";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import type { CoachProgram, ProgramExercise } from "@/hooks/useCoachPrograms";
+import { useWorkoutDayLocks } from "@/hooks/useWorkoutDayLocks";
 import { formatExerciseLabel, type ExerciseCatalogItem } from "@/lib/exercise-catalog";
 import { cn } from "@/lib/utils";
 
 interface CoachWorkoutExperienceProps {
+  clientId?: string;
   programs: CoachProgram[];
   exercises: ProgramExercise[];
   isExerciseCompleted: (exerciseId: string) => boolean;
@@ -26,6 +29,7 @@ interface CoachWorkoutExperienceProps {
 }
 
 export function CoachWorkoutExperience({
+  clientId,
   programs,
   exercises,
   isExerciseCompleted,
@@ -36,6 +40,7 @@ export function CoachWorkoutExperience({
   const [selectedDays, setSelectedDays] = useState<Record<string, number>>({});
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [initialExerciseId, setInitialExerciseId] = useState<string | null>(null);
+  const { isDayLogged, isDayUnlocked, getPreviousLockedDay } = useWorkoutDayLocks(clientId, exercises);
 
   const catalogById = useMemo(
     () => new Map(catalog.map((exercise) => [exercise.id, exercise])),
@@ -155,10 +160,14 @@ export function CoachWorkoutExperience({
       {exercises.length === 0 ? null : programs.map((program) => {
         const programExercises = exercises.filter((exercise) => exercise.program_id === program.id);
         const days = [...new Set(programExercises.map((exercise) => exercise.day_number))].sort((a, b) => a - b);
+        const unlockedDays = days.filter((day) => isDayUnlocked(program.id, day));
         const firstIncompleteDay = days.find((day) =>
           programExercises.some((exercise) => exercise.day_number === day && !isExerciseCompleted(exercise.id)),
         );
-        const selectedDay = selectedDays[program.id] ?? firstIncompleteDay ?? days[0];
+        const selectedCandidate = selectedDays[program.id] ?? firstIncompleteDay ?? days[0];
+        const selectedDay = isDayUnlocked(program.id, selectedCandidate)
+          ? selectedCandidate
+          : unlockedDays.at(-1) ?? days[0];
         const dayExercises = programExercises.filter((exercise) => exercise.day_number === selectedDay);
         const programCompleted = programExercises.filter((exercise) => isExerciseCompleted(exercise.id)).length;
         const programProgress = programExercises.length > 0
@@ -194,20 +203,39 @@ export function CoachWorkoutExperience({
                     (exercise) => exercise.day_number === day && isExerciseCompleted(exercise.id),
                   ).length;
                   const active = day === selectedDay;
+                  const unlocked = isDayUnlocked(program.id, day);
+                  const logged = isDayLogged(program.id, day);
+                  const previousLockedDay = getPreviousLockedDay(program.id, day);
                   return (
                     <button
                       type="button"
                       key={day}
-                      onClick={() => setSelectedDays((current) => ({ ...current, [program.id]: day }))}
+                      onClick={() => {
+                        if (!unlocked) return;
+                        setSelectedDays((current) => ({ ...current, [program.id]: day }));
+                      }}
+                      disabled={!unlocked}
                       className={cn(
-                        "min-h-[62px] min-w-[82px] rounded-[18px] px-3 text-left transition active:scale-[0.98]",
-                        active
+                        "min-h-[62px] min-w-[92px] rounded-[18px] px-3 text-left transition active:scale-[0.98] disabled:active:scale-100",
+                        !unlocked
+                          ? "bg-[#F6F8FB] text-[#94A3B8] opacity-75 ring-1 ring-[#E5EAF1]"
+                          : active
                           ? "bg-[#E9FBF7] text-[#087B67] ring-1 ring-[#22C7A1]/35"
                           : "bg-[#F6F8FB] text-[#41506A] ring-1 ring-[#E5EAF1]",
                       )}
+                      title={!unlocked && previousLockedDay ? `Log Day ${previousLockedDay} to unlock Day ${day}` : undefined}
                     >
-                      <span className="block text-[12px] font-extrabold">Day {day}</span>
-                      <span className="mt-1 block text-[10px] font-semibold opacity-65">{complete}/{count} done</span>
+                      <span className="flex items-center gap-1 text-[12px] font-extrabold">
+                        {!unlocked && <Lock className="h-3 w-3" />}
+                        Day {day}
+                      </span>
+                      <span className="mt-1 block text-[10px] font-semibold opacity-65">
+                        {!unlocked && previousLockedDay
+                          ? `Log Day ${previousLockedDay}`
+                          : logged
+                            ? "Logs saved"
+                            : `${complete}/${count} done`}
+                      </span>
                     </button>
                   );
                 })}
@@ -217,7 +245,11 @@ export function CoachWorkoutExperience({
                 <div>
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#7C83F6]">Today&apos;s session</p>
                   <h4 className="mt-1 text-[18px] font-extrabold text-[#07152F]">Day {selectedDay}</h4>
-                  <p className="mt-1 text-[11px] font-medium text-[#8A98AF]">{dayCompleted} of {dayExercises.length} exercises complete</p>
+                  <p className="mt-1 text-[11px] font-medium text-[#8A98AF]">
+                    {isDayLogged(program.id, selectedDay)
+                      ? "Workout logs saved for this day"
+                      : `${dayCompleted} of ${dayExercises.length} exercises complete`}
+                  </p>
                 </div>
                 {dayExercises.length > 0 && (
                   <button

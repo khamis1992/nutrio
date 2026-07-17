@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowUpRight,
   ArrowLeft,
   Check,
   ChevronRight,
@@ -8,6 +9,7 @@ import {
   Dumbbell,
   Info,
   ListChecks,
+  Lock,
   Minus,
   Pause,
   Play,
@@ -27,10 +29,16 @@ import { ExerciseMedia } from "@/components/exercises/ExerciseMedia";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoachPrograms, type ProgramExercise } from "@/hooks/useCoachPrograms";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
+import { useWorkoutDayLocks } from "@/hooks/useWorkoutDayLocks";
 import { useWorkoutSession } from "@/hooks/useWorkoutSession";
 import { supabase } from "@/integrations/supabase/client";
 import { formatExerciseLabel, type ExerciseCatalogItem } from "@/lib/exercise-catalog";
 import { cn } from "@/lib/utils";
+import {
+  fetchProgressionRecommendations,
+  progressionRuleSummary,
+  type ProgressionRecommendation,
+} from "@/lib/workout-progression";
 
 function formatTime(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
@@ -42,6 +50,18 @@ function formatDate(value?: string): string {
   if (!value) return "";
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+
+interface PreviousSetReference {
+  reps: number | null;
+  weight_kg: number | null;
+  completed_at: string | null;
+}
+
+type PreviousSetMap = Record<string, PreviousSetReference>;
+
+const previousSetKey = (exerciseId: string, setNumber: number) => `${exerciseId}:${setNumber}`;
+
+const normalizeExerciseName = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
 
 export default function GuidedWorkout() {
   const { programId, dayNumber: dayParam } = useParams<{
@@ -82,6 +102,11 @@ export default function GuidedWorkout() {
   }, [clientId]);
 
   const { programs, programExercises, loading: programsLoading } = useCoachPrograms(coachId, clientId);
+  const {
+    isDayUnlocked,
+    getPreviousLockedDay,
+    loading: dayLocksLoading,
+  } = useWorkoutDayLocks(clientId, programExercises);
   const { exercises: catalog, loading: catalogLoading } = useExerciseCatalog();
   const {
     session,
@@ -111,12 +136,17 @@ export default function GuidedWorkout() {
   const [currentSetNumber, setCurrentSetNumber] = useState(1);
   const [weightInput, setWeightInput] = useState("");
   const [repsInput, setRepsInput] = useState("");
+  const [rpeInput, setRpeInput] = useState("8");
+  const [progressionRecommendations, setProgressionRecommendations] = useState<Map<string, ProgressionRecommendation>>(new Map());
   const [restTimer, setRestTimer] = useState(0);
   const [restDuration, setRestDuration] = useState(0);
   const [isResting, setIsResting] = useState(false);
+  const [restPaused, setRestPaused] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsExerciseId, setDetailsExerciseId] = useState<string | null>(null);
+  const [previousSets, setPreviousSets] = useState<PreviousSetMap>({});
+  const [previousSetsLoading, setPreviousSetsLoading] = useState(false);
 
   const currentExercise: ProgramExercise | undefined = exercises[currentExerciseIndex];
   const currentCatalogExercise = currentExercise?.exercise_catalog_id
@@ -140,26 +170,142 @@ export default function GuidedWorkout() {
   const workoutProgress = totalPlannedSets > 0
     ? Math.min(100, Math.round((completedSets / totalPlannedSets) * 100))
     : 0;
+  const currentPreviousSet = currentExercise
+    ? previousSets[previousSetKey(currentExercise.id, currentSetNumber)]
+    : undefined;
+  const currentProgression = currentExercise
+    ? progressionRecommendations.get(currentExercise.id)
+    : undefined;
+
+  const loadProgressionRecommendations = useCallback(async (sessionId?: string) => {
+    if (!clientId || exercises.length === 0) return;
+    try {
+      const recommendations = await fetchProgressionRecommendations({
+        userId: clientId,
+        exerciseIds: exercises.map((exercise) => exercise.id),
+        sessionId,
+      });
+      setProgressionRecommendations(recommendations);
+    } catch (error) {
+      console.error("Unable to load workout progression:", error);
+    }
+  }, [clientId, exercises]);
+
+  useEffect(() => {
+    void loadProgressionRecommendations();
+  }, [loadProgressionRecommendations]);
 
   useEffect(() => {
     if (!currentExercise) return;
-    const prescribedReps = Number.parseInt(currentExercise.reps, 10);
-    setRepsInput(Number.isNaN(prescribedReps) ? "" : String(prescribedReps));
-  }, [currentExercise]);
+    const prescribedReps = currentProgression?.recommended_reps ?? Number.parseInt(currentExercise.reps, 10);
+    setRepsInput(currentProgression?.recommended_reps
+      ? String(currentProgression.recommended_reps)
+      : currentPreviousSet?.reps
+        ? String(currentPreviousSet.reps)
+        : Number.isNaN(prescribedReps) ? "" : String(prescribedReps));
+    setWeightInput(currentProgression?.recommended_weight_kg != null
+      ? String(currentProgression.recommended_weight_kg)
+      : currentPreviousSet?.weight_kg ? String(currentPreviousSet.weight_kg) : "");
+    setRpeInput("8");
+  }, [currentExercise, currentPreviousSet, currentProgression, currentSetNumber]);
 
   useEffect(() => {
-    if (!isResting || restTimer <= 0) return;
+    if (!clientId || exercises.length === 0) {
+      setPreviousSets({});
+      return;
+    }
+
+    let active = true;
+    setPreviousSetsLoading(true);
+
+    void (async () => {
+      try {
+        const { data: sessions, error: sessionsError } = await supabase
+          .from("coach_workout_sessions")
+          .select("id, completed_at, started_at")
+          .eq("user_id", clientId)
+          .not("completed_at", "is", null)
+          .order("started_at", { ascending: false })
+          .limit(20);
+
+        if (sessionsError) throw sessionsError;
+        const sessionRows = sessions || [];
+        const sessionIds = sessionRows.map((item) => item.id);
+        if (sessionIds.length === 0) {
+          if (active) setPreviousSets({});
+          return;
+        }
+
+        const { data: logs, error: logsError } = await supabase
+          .from("coach_workout_set_logs")
+          .select("session_id, program_exercise_id, exercise_name, set_number, reps, weight_kg, completed")
+          .in("session_id", sessionIds)
+          .eq("completed", true)
+          .order("created_at", { ascending: false })
+          .limit(600);
+
+        if (logsError) throw logsError;
+        if (!active) return;
+
+        const sessionRank = new Map(sessionRows.map((item, index) => [item.id, index]));
+        const sessionCompletedAt = new Map(sessionRows.map((item) => [item.id, item.completed_at]));
+        const exerciseIds = new Set(exercises.map((exercise) => exercise.id));
+        const exerciseByName = new Map(exercises.map((exercise) => [normalizeExerciseName(exercise.exercise_name), exercise.id]));
+        const nextPreviousSets: PreviousSetMap = {};
+
+        (logs || [])
+          .slice()
+          .sort((a, b) => (sessionRank.get(a.session_id) ?? 999) - (sessionRank.get(b.session_id) ?? 999))
+          .forEach((log) => {
+            const exerciseId = log.program_exercise_id && exerciseIds.has(log.program_exercise_id)
+              ? log.program_exercise_id
+              : exerciseByName.get(normalizeExerciseName(log.exercise_name));
+            if (!exerciseId || !log.set_number) return;
+
+            const key = previousSetKey(exerciseId, log.set_number);
+            if (nextPreviousSets[key]) return;
+            nextPreviousSets[key] = {
+              reps: log.reps,
+              weight_kg: log.weight_kg,
+              completed_at: sessionCompletedAt.get(log.session_id) || null,
+            };
+          });
+
+        setPreviousSets(nextPreviousSets);
+      } catch (error) {
+        console.error("Error loading previous workout set numbers:", error);
+        if (active) setPreviousSets({});
+      } finally {
+        if (active) setPreviousSetsLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [clientId, exercises]);
+
+  useEffect(() => {
+    if (!isResting) return;
+    if (restTimer <= 0) {
+      setIsResting(false);
+      setRestPaused(false);
+      return;
+    }
+    if (restPaused) return;
+
     const timer = window.setInterval(() => {
       setRestTimer((current) => {
         if (current <= 1) {
           setIsResting(false);
+          setRestPaused(false);
           return 0;
         }
         return current - 1;
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [isResting, restTimer]);
+  }, [isResting, restPaused, restTimer]);
 
   const currentExerciseSets = useMemo(
     () => setLogs.filter(
@@ -189,16 +335,43 @@ export default function GuidedWorkout() {
 
   const handleStart = useCallback(async () => {
     if (!clientId || !programId) return;
+    if (!isDayUnlocked(programId, dayNumber)) {
+      const previousLockedDay = getPreviousLockedDay(programId, dayNumber);
+      toast.error(previousLockedDay ? `Complete and log Day ${previousLockedDay} to unlock Day ${dayNumber}.` : "This workout day is locked.");
+      return;
+    }
     const result = await startSession(clientId, programId, dayNumber);
     if (!result.success) toast.error(result.error?.message || "Unable to start this workout.");
-  }, [clientId, dayNumber, programId, startSession]);
+  }, [clientId, dayNumber, getPreviousLockedDay, isDayUnlocked, programId, startSession]);
 
   const beginRest = (seconds: number) => {
     if (seconds <= 0) return;
     setRestDuration(seconds);
     setRestTimer(seconds);
+    setRestPaused(false);
     setIsResting(true);
   };
+
+  const skipRest = useCallback(() => {
+    setIsResting(false);
+    setRestPaused(false);
+    setRestTimer(0);
+  }, []);
+
+  const reduceRestTime = useCallback(() => {
+    setRestTimer((current) => Math.max(0, current - 15));
+  }, []);
+
+  const addRestTime = useCallback(() => {
+    setRestTimer((current) => current + 15);
+    setRestDuration((current) => current + 15);
+  }, []);
+
+  const applyPreviousSet = useCallback(() => {
+    if (!currentPreviousSet) return;
+    if (currentPreviousSet.weight_kg) setWeightInput(String(currentPreviousSet.weight_kg));
+    if (currentPreviousSet.reps) setRepsInput(String(currentPreviousSet.reps));
+  }, [currentPreviousSet]);
 
   const handleCompleteSet = useCallback(async () => {
     if (!currentExercise) return;
@@ -208,6 +381,7 @@ export default function GuidedWorkout() {
       set_number: currentSetNumber,
       reps: Number.parseInt(repsInput, 10) || undefined,
       weight_kg: Number.parseFloat(weightInput) || undefined,
+      rpe: Number.parseFloat(rpeInput) || undefined,
     });
 
     if (!result.success) {
@@ -228,17 +402,18 @@ export default function GuidedWorkout() {
       setWeightInput("");
       beginRest(restSeconds);
     }
-  }, [currentExercise, currentExerciseIndex, currentSetNumber, exercises.length, logSet, repsInput, totalSets, weightInput]);
+  }, [currentExercise, currentExerciseIndex, currentSetNumber, exercises.length, logSet, repsInput, rpeInput, totalSets, weightInput]);
 
   const handleFinish = useCallback(async () => {
     if (!clientId) return;
     const result = await completeSession(clientId, exercises.map((exercise) => exercise.id));
     if (result.success) {
+      await loadProgressionRecommendations(result.data?.id);
       setShowSummary(true);
     } else {
       toast.error(result.error?.message || "Unable to finish this workout.");
     }
-  }, [clientId, completeSession, exercises]);
+  }, [clientId, completeSession, exercises, loadProgressionRecommendations]);
 
   const selectExercise = (index: number) => {
     if (isResting) return;
@@ -258,7 +433,7 @@ export default function GuidedWorkout() {
     return exerciseSets.length >= exercise.sets;
   });
 
-  const loading = assignmentLoading || programsLoading || catalogLoading;
+  const loading = assignmentLoading || programsLoading || catalogLoading || dayLocksLoading;
 
   if (loading) {
     return <WorkoutLoading />;
@@ -278,6 +453,29 @@ export default function GuidedWorkout() {
           </p>
           <button onClick={() => navigate("/coach-programs")} className="mt-6 min-h-12 rounded-[16px] bg-[#22C7A1] px-6 text-[13px] font-extrabold text-white">
             Back to my plan
+          </button>
+        </div>
+      </WorkoutShell>
+    );
+  }
+
+  if (!isDayUnlocked(program.id, dayNumber)) {
+    const previousLockedDay = getPreviousLockedDay(program.id, dayNumber);
+    return (
+      <WorkoutShell>
+        <WorkoutHeader title="Workout locked" onBack={() => navigate(-1)} />
+        <div className="mx-auto w-full max-w-[430px] px-4 py-16 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1]">
+            <Lock className="h-7 w-7" />
+          </div>
+          <h1 className="mt-5 text-[20px] font-extrabold text-[#07152F]">Day {dayNumber} is locked</h1>
+          <p className="mx-auto mt-2 max-w-[300px] text-[13px] font-semibold leading-6 text-[#71809C]">
+            {previousLockedDay
+              ? `Complete and log Day ${previousLockedDay} before starting this session.`
+              : "Complete the previous workout logs before starting this session."}
+          </p>
+          <button onClick={() => navigate("/coach-programs")} className="mt-6 min-h-12 rounded-[16px] bg-[#020617] px-6 text-[13px] font-extrabold text-white">
+            Back to workout plan
           </button>
         </div>
       </WorkoutShell>
@@ -423,6 +621,44 @@ export default function GuidedWorkout() {
             </div>
           </section>
 
+          {progressionRecommendations.size > 0 && (
+            <section className="rounded-[28px] bg-[#F3F1FF] p-4 shadow-[0_16px_38px_rgba(70,60,160,0.08)] ring-1 ring-[#DCD8FF]">
+              <div className="flex items-center gap-2 px-1 pb-3">
+                <ArrowUpRight className="h-4 w-4 text-[#7C83F6]" />
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#656BD8]">Rule evaluated</p>
+                  <h2 className="mt-0.5 text-[16px] font-extrabold text-[#07152F]">Targets for next time</h2>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {exercises.map((exercise) => {
+                  const recommendation = progressionRecommendations.get(exercise.id);
+                  if (!recommendation) return null;
+                  return (
+                    <div key={exercise.id} className="rounded-[18px] bg-white p-3 ring-1 ring-[#E3E0FF]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[11px] font-extrabold text-[#07152F]">{exercise.exercise_name}</p>
+                          <p className="mt-1 text-[9px] font-medium leading-4 text-[#71809C]">{recommendation.reason}</p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-[#ECE9FF] px-2.5 py-1 text-[9px] font-extrabold text-[#656BD8]">
+                          {recommendation.outcome === "increase_load" && "Load up"}
+                          {recommendation.outcome === "increase_reps" && "Reps up"}
+                          {recommendation.outcome === "repeat" && "Repeat"}
+                          {recommendation.outcome === "deload" && "Deload"}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[13px] font-black text-[#31365F]">
+                        {recommendation.recommended_weight_kg != null ? `${recommendation.recommended_weight_kg} kg` : "Current load"}
+                        {recommendation.recommended_reps ? ` x ${recommendation.recommended_reps} reps` : ""}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           <button
             onClick={() => {
               resetSession();
@@ -543,6 +779,25 @@ export default function GuidedWorkout() {
                 <Prescription value={`${currentExercise.rest_seconds ?? 0}s`} label="Rest" color="coral" />
               </div>
 
+              {(currentProgression || progressionRuleSummary(currentExercise.progression_rule) !== "Manual progression") && (
+                <div className="mt-4 flex gap-3 rounded-[18px] bg-[#F3F1FF] p-3.5 ring-1 ring-[#DCD8FF]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-white text-[#7C83F6] ring-1 ring-[#DCD8FF]">
+                    <ArrowUpRight className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#656BD8]">
+                      {currentProgression ? "Next progression target" : "Progression rule"}
+                    </p>
+                    <p className="mt-1 text-[11px] font-bold leading-5 text-[#31365F]">
+                      {currentProgression
+                        ? `${currentProgression.recommended_weight_kg != null ? `${currentProgression.recommended_weight_kg} kg` : "Current load"}${currentProgression.recommended_reps ? ` x ${currentProgression.recommended_reps} reps` : ""}`
+                        : progressionRuleSummary(currentExercise.progression_rule)}
+                    </p>
+                    {currentProgression && <p className="mt-0.5 text-[9px] font-medium leading-4 text-[#737A9B]">{currentProgression.reason}</p>}
+                  </div>
+                </div>
+              )}
+
               <div className="mt-5 flex gap-2">
                 {Array.from({ length: totalSets }, (_, index) => (
                   <div
@@ -570,30 +825,72 @@ export default function GuidedWorkout() {
               )}
 
               {!allExercisesCompleted && (
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <NumberStepper
-                    icon={<Scale className="h-4 w-4" />}
-                    label="Weight"
-                    suffix="kg"
-                    value={weightInput}
-                    placeholder="0"
-                    onChange={setWeightInput}
-                    onDecrease={() => setWeightInput((current) => String(Math.max(0, (Number.parseFloat(current) || 0) - 2.5)))}
-                    onIncrease={() => setWeightInput((current) => String((Number.parseFloat(current) || 0) + 2.5))}
+                <>
+                  <PreviousSetHint
+                    loading={previousSetsLoading}
+                    previousSet={currentPreviousSet}
+                    onApply={applyPreviousSet}
                   />
-                  <NumberStepper
-                    icon={<Target className="h-4 w-4" />}
-                    label="Reps"
-                    value={repsInput}
-                    placeholder="0"
-                    onChange={setRepsInput}
-                    onDecrease={() => setRepsInput((current) => String(Math.max(1, (Number.parseInt(current, 10) || 0) - 1)))}
-                    onIncrease={() => setRepsInput((current) => String((Number.parseInt(current, 10) || 0) + 1))}
-                  />
-                </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <NumberStepper
+                      icon={<Scale className="h-4 w-4" />}
+                      label="Weight"
+                      suffix="kg"
+                      value={weightInput}
+                      placeholder="0"
+                      onChange={setWeightInput}
+                      onDecrease={() => setWeightInput((current) => String(Math.max(0, (Number.parseFloat(current) || 0) - 2.5)))}
+                      onIncrease={() => setWeightInput((current) => String((Number.parseFloat(current) || 0) + 2.5))}
+                    />
+                    <NumberStepper
+                      icon={<Target className="h-4 w-4" />}
+                      label="Reps"
+                      value={repsInput}
+                      placeholder="0"
+                      onChange={setRepsInput}
+                      onDecrease={() => setRepsInput((current) => String(Math.max(1, (Number.parseInt(current, 10) || 0) - 1)))}
+                      onIncrease={() => setRepsInput((current) => String((Number.parseInt(current, 10) || 0) + 1))}
+                    />
+                  </div>
+                  <div className="mt-3 rounded-[18px] bg-[#F8FAFC] p-3 ring-1 ring-[#E5EAF1]">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-extrabold text-[#07152F]">Effort (RPE)</p>
+                        <p className="mt-0.5 text-[9px] font-medium text-[#71809C]">How hard did this set feel?</p>
+                      </div>
+                      <span className="text-[16px] font-black text-[#7C83F6]">{rpeInput}/10</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-5 gap-1.5">
+                      {[6, 7, 8, 9, 10].map((rpe) => (
+                        <button
+                          key={rpe}
+                          type="button"
+                          onClick={() => setRpeInput(String(rpe))}
+                          className={cn("h-9 rounded-xl text-[11px] font-extrabold transition", rpeInput === String(rpe) ? "bg-[#7C83F6] text-white" : "bg-white text-[#71809C] ring-1 ring-[#DDE5EF]")}
+                        >
+                          {rpe}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </motion.section>
+        )}
+
+        {isResting && (
+          <RestTimerCard
+            seconds={restTimer}
+            duration={restDuration}
+            paused={restPaused}
+            nextExercise={currentExercise?.exercise_name || "Next exercise"}
+            nextSet={Math.min(currentSetNumber, totalSets)}
+            onReduce={reduceRestTime}
+            onAdd={addRestTime}
+            onTogglePause={() => setRestPaused((current) => !current)}
+            onSkip={skipRest}
+          />
         )}
 
         <section className="rounded-[28px] bg-white p-4 shadow-[0_16px_38px_rgba(15,23,42,0.05)] ring-1 ring-[#DDE5EF]">
@@ -661,12 +958,13 @@ export default function GuidedWorkout() {
           <RestOverlay
             seconds={restTimer}
             duration={restDuration}
+            paused={restPaused}
             nextExercise={currentExercise?.exercise_name || "Next exercise"}
             nextSet={Math.min(currentSetNumber, totalSets)}
-            onSkip={() => {
-              setIsResting(false);
-              setRestTimer(0);
-            }}
+            onReduce={reduceRestTime}
+            onAdd={addRestTime}
+            onTogglePause={() => setRestPaused((current) => !current)}
+            onSkip={skipRest}
           />
         )}
       </AnimatePresence>
@@ -835,17 +1133,178 @@ function NumberStepper({
   );
 }
 
-function RestOverlay({
+function PreviousSetHint({
+  loading,
+  previousSet,
+  onApply,
+}: {
+  loading: boolean;
+  previousSet?: PreviousSetReference;
+  onApply: () => void;
+}) {
+  if (loading) {
+    return (
+      <div className="mt-5 rounded-[18px] bg-[#F8FAFC] px-3.5 py-3 ring-1 ring-[#E1E7EF]">
+        <div className="flex items-center gap-2">
+          <span className="h-8 w-8 animate-pulse rounded-[12px] bg-[#E5EAF1]" />
+          <span className="min-w-0 flex-1">
+            <span className="block h-3 w-28 animate-pulse rounded-full bg-[#E5EAF1]" />
+            <span className="mt-2 block h-2.5 w-40 animate-pulse rounded-full bg-[#EDF1F5]" />
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!previousSet) {
+    return (
+      <div className="mt-5 flex items-center gap-3 rounded-[18px] bg-[#F8FAFC] px-3.5 py-3 ring-1 ring-[#E1E7EF]">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-white text-[#8A98AF] ring-1 ring-[#DDE5EF]">
+          <Clock3 className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#8A98AF]">Previous set</p>
+          <p className="mt-1 text-[11px] font-semibold text-[#71809C]">No previous numbers for this set yet.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const values = [
+    previousSet.weight_kg ? `${previousSet.weight_kg} kg` : null,
+    previousSet.reps ? `${previousSet.reps} reps` : null,
+  ].filter(Boolean);
+  const dateLabel = previousSet.completed_at
+    ? new Date(previousSet.completed_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : "last session";
+
+  return (
+    <div className="mt-5 rounded-[18px] bg-[#F1FBF8] p-3.5 ring-1 ring-[#BCECDF]">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-white text-[#16A98A] ring-1 ring-[#BCECDF]">
+          <ArrowUpRight className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#0E9F83]">Previous set</p>
+          <p className="mt-1 truncate text-[13px] font-extrabold text-[#07152F]">
+            {values.length ? values.join(" · ") : "Completed"} <span className="text-[#71809C]">on {dateLabel}</span>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onApply}
+          className="min-h-10 shrink-0 rounded-[14px] bg-[#07152F] px-3 text-[11px] font-extrabold text-white active:scale-95"
+        >
+          Use
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RestTimerCard({
   seconds,
   duration,
+  paused,
   nextExercise,
   nextSet,
+  onReduce,
+  onAdd,
+  onTogglePause,
   onSkip,
 }: {
   seconds: number;
   duration: number;
+  paused: boolean;
   nextExercise: string;
   nextSet: number;
+  onReduce: () => void;
+  onAdd: () => void;
+  onTogglePause: () => void;
+  onSkip: () => void;
+}) {
+  const progress = duration > 0 ? Math.max(0, Math.min(100, (seconds / duration) * 100)) : 0;
+
+  return (
+    <section className="rounded-[28px] bg-[#020617] p-4 text-white shadow-[0_18px_40px_rgba(2,6,23,0.18)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#22C7A1]">Rest timer</p>
+          <h2 className="mt-1 text-[18px] font-black tabular-nums">{formatTime(seconds)}</h2>
+          <p className="mt-1 truncate text-[11px] font-semibold text-[#94A3B8]">
+            Up next: {nextExercise} · set {nextSet}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onTogglePause}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-white text-[#020617] active:scale-95"
+          aria-label={paused ? "Resume rest timer" : "Pause rest timer"}
+        >
+          {paused ? <Play className="h-5 w-5 fill-current" /> : <Pause className="h-5 w-5" />}
+        </button>
+      </div>
+
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/12">
+        <div className="h-full rounded-full bg-[#22C7A1] transition-all duration-500" style={{ width: `${progress}%` }} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-4 gap-2">
+        <RestControlButton onClick={onReduce} label="-15s" icon={<Minus className="h-4 w-4" />} />
+        <RestControlButton onClick={onTogglePause} label={paused ? "Resume" : "Pause"} icon={paused ? <Play className="h-4 w-4 fill-current" /> : <Pause className="h-4 w-4" />} />
+        <RestControlButton onClick={onAdd} label="+15s" icon={<Plus className="h-4 w-4" />} />
+        <button
+          type="button"
+          onClick={onSkip}
+          className="min-h-11 rounded-[15px] bg-white text-[11px] font-extrabold text-[#020617] active:scale-95"
+        >
+          Skip
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function RestControlButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-11 items-center justify-center gap-1.5 rounded-[15px] bg-white/10 px-2 text-[11px] font-extrabold text-white ring-1 ring-white/10 active:scale-95"
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function RestOverlay({
+  seconds,
+  duration,
+  paused,
+  nextExercise,
+  nextSet,
+  onReduce,
+  onAdd,
+  onTogglePause,
+  onSkip,
+}: {
+  seconds: number;
+  duration: number;
+  paused: boolean;
+  nextExercise: string;
+  nextSet: number;
+  onReduce: () => void;
+  onAdd: () => void;
+  onTogglePause: () => void;
   onSkip: () => void;
 }) {
   const radius = 56;
@@ -854,8 +1313,8 @@ function RestOverlay({
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-sm sm:items-center sm:p-4">
       <motion.section initial={{ y: 32, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 32, opacity: 0 }} className="w-full max-w-[430px] rounded-t-[32px] bg-white px-6 pb-[calc(24px+env(safe-area-inset-bottom,0px))] pt-6 text-center shadow-2xl sm:rounded-[32px]">
-        <div className="mx-auto flex h-10 w-max items-center gap-2 rounded-full bg-[#FFF8EC] px-4 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#C77B1C] ring-1 ring-[#F8E1B9]">
-          <Pause className="h-4 w-4" /> Recovery
+        <div className="mx-auto flex h-10 w-max items-center gap-2 rounded-full bg-[#ECFDF8] px-4 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#0E9F83] ring-1 ring-[#BCECDF]">
+          <Timer className="h-4 w-4" /> {paused ? "Recovery paused" : "Recovery"}
         </div>
         <div className="relative mx-auto mt-5 h-36 w-36">
           <svg viewBox="0 0 144 144" className="h-full w-full -rotate-90" aria-hidden="true">
@@ -870,7 +1329,15 @@ function RestOverlay({
         <p className="mt-5 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#7C83F6]">Up next</p>
         <h2 className="mt-1 line-clamp-2 text-[18px] font-extrabold text-[#07152F]">{nextExercise}</h2>
         <p className="mt-1 text-[11px] font-semibold text-[#71809C]">Set {nextSet}</p>
-        <button onClick={onSkip} className="mt-6 min-h-12 w-full rounded-[16px] bg-[#F4F7FA] text-[13px] font-extrabold text-[#41506A] ring-1 ring-[#DDE5EF]">Skip rest</button>
+        <div className="mt-6 grid grid-cols-3 gap-2">
+          <button type="button" onClick={onReduce} className="min-h-12 rounded-[16px] bg-[#F6F8FB] text-[12px] font-extrabold text-[#020617] ring-1 ring-[#E5EAF1]">-15s</button>
+          <button type="button" onClick={onTogglePause} className="flex min-h-12 items-center justify-center gap-2 rounded-[16px] bg-[#020617] text-[12px] font-extrabold text-white">
+            {paused ? <Play className="h-4 w-4 fill-current" /> : <Pause className="h-4 w-4" />}
+            {paused ? "Resume" : "Pause"}
+          </button>
+          <button type="button" onClick={onAdd} className="min-h-12 rounded-[16px] bg-[#F6F8FB] text-[12px] font-extrabold text-[#020617] ring-1 ring-[#E5EAF1]">+15s</button>
+        </div>
+        <button onClick={onSkip} className="mt-3 min-h-12 w-full rounded-[16px] bg-[#F6F8FB] text-[13px] font-extrabold text-[#41506A] ring-1 ring-[#DDE5EF]">Skip rest</button>
       </motion.section>
     </motion.div>
   );
