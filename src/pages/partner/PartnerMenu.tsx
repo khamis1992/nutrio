@@ -80,6 +80,21 @@ interface MealAddon {
   price: number;
 }
 
+type MenuPeriod = "breakfast" | "lunch" | "dinner" | "snack";
+
+interface MenuOffering {
+  meal_type: MenuPeriod;
+  price: number;
+  is_available: boolean;
+}
+
+const MENU_PERIODS: Array<{ value: MenuPeriod; label: string; time: string }> = [
+  { value: "breakfast", label: "Breakfast", time: "7-10 AM" },
+  { value: "lunch", label: "Lunch", time: "12-2 PM" },
+  { value: "dinner", label: "Dinner", time: "6-9 PM" },
+  { value: "snack", label: "Snack", time: "Anytime" },
+];
+
 interface Meal {
   id: string;
   name: string;
@@ -107,6 +122,7 @@ interface Meal {
   high_protein_price_adjustment?: number | null;
   diet_tags?: string[];
   category: string;
+  menu_offerings: MenuOffering[];
 }
 
 interface DietTag {
@@ -223,6 +239,14 @@ export default function PartnerMenu() {
     { id: string; name: string; price: number; category: string }[]
   >([]);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [menuPricingEnabled, setMenuPricingEnabled] = useState(false);
+  const [menuOfferings, setMenuOfferings] = useState<MenuOffering[]>(
+    MENU_PERIODS.map((period) => ({
+      meal_type: period.value,
+      price: 0,
+      is_available: true,
+    })),
+  );
 
   // View/filter/sort state
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -338,7 +362,36 @@ export default function PartnerMenu() {
         rating: meal.rating || meal.avg_rating || 0,
         order_count: meal.order_count || 0,
         category: meal.category,
+        menu_offerings: [],
       }));
+
+      if (fetchedMeals.length > 0) {
+        const { data: offeringData, error: offeringError } = await supabase
+          .from("meal_menu_offerings" as "meals")
+          .select("meal_id,meal_type,price,is_available")
+          .in("meal_id", fetchedMeals.map((meal) => meal.id));
+
+        if (!offeringError && offeringData) {
+          const byMeal = new Map<string, MenuOffering[]>();
+          for (const raw of offeringData as unknown as Array<{
+            meal_id: string;
+            meal_type: MenuPeriod;
+            price: number;
+            is_available: boolean;
+          }>) {
+            const current = byMeal.get(raw.meal_id) ?? [];
+            current.push({
+              meal_type: raw.meal_type,
+              price: Number(raw.price),
+              is_available: raw.is_available,
+            });
+            byMeal.set(raw.meal_id, current);
+          }
+          fetchedMeals.forEach((meal) => {
+            meal.menu_offerings = byMeal.get(meal.id) ?? [];
+          });
+        }
+      }
       setMeals(fetchedMeals);
 
       // Batch fetch add-ons for all meals in one query
@@ -411,6 +464,14 @@ export default function PartnerMenu() {
     setFormErrors({});
     setSelectedTags([]);
     setSelectedAddons([]);
+    setMenuPricingEnabled(false);
+    setMenuOfferings(
+      MENU_PERIODS.map((period) => ({
+        meal_type: period.value,
+        price: 0,
+        is_available: true,
+      })),
+    );
     fetchLibraryAddons();
     setDialogOpen(true);
   };
@@ -447,6 +508,19 @@ export default function PartnerMenu() {
       category: meal.category || "Main Course",
     });
     setFormErrors({});
+    setMenuPricingEnabled(meal.menu_offerings.length > 0);
+    setMenuOfferings(
+      MENU_PERIODS.map((period) => {
+        const saved = meal.menu_offerings.find(
+          (offering) => offering.meal_type === period.value,
+        );
+        return saved ?? {
+          meal_type: period.value,
+          price: meal.price || 0,
+          is_available: false,
+        };
+      }),
+    );
 
     const { data } = await supabase
       .from("meal_diet_tags")
@@ -602,9 +676,25 @@ export default function PartnerMenu() {
 
   const handleSave = async () => {
     if (!validateForm() || !restaurantId) return;
+    if (menuPricingEnabled && !menuOfferings.some((item) => item.is_available)) {
+      toast({
+        title: "Choose a menu period",
+        description: "Enable at least one period for this meal.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     try {
-      const needsApproval = (formData.price || 0) > 50;
+      const highestMenuPrice = menuPricingEnabled
+        ? Math.max(
+            0,
+            ...menuOfferings
+              .filter((item) => item.is_available)
+              .map((item) => item.price),
+          )
+        : 0;
+      const needsApproval = Math.max(formData.price || 0, highestMenuPrice) > 50;
       const mealData = {
         restaurant_id: restaurantId,
         name: formData.name,
@@ -662,6 +752,19 @@ export default function PartnerMenu() {
             })),
           );
         }
+        const { error: menuError } = await (supabase.rpc as unknown as (
+          name: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ error: { message?: string } | null }>)(
+          "save_meal_menu_offerings",
+          {
+            p_meal_id: editingMeal.id,
+            p_offerings: menuPricingEnabled
+              ? menuOfferings.filter((item) => item.is_available)
+              : [],
+          },
+        );
+        if (menuError) throw menuError;
         toast({
           title: needsApproval
             ? "Meal submitted for approval"
@@ -702,6 +805,21 @@ export default function PartnerMenu() {
           for (const addonId of selectedAddons) {
             await supabase.rpc("increment_addon_usage", { addon_id: addonId });
           }
+        }
+        if (data) {
+          const { error: menuError } = await (supabase.rpc as unknown as (
+            name: string,
+            args: Record<string, unknown>,
+          ) => Promise<{ error: { message?: string } | null }>)(
+            "save_meal_menu_offerings",
+            {
+              p_meal_id: data.id,
+              p_offerings: menuPricingEnabled
+                ? menuOfferings.filter((item) => item.is_available)
+                : [],
+            },
+          );
+          if (menuError) throw menuError;
         }
         toast({
           title: needsApproval
@@ -1132,6 +1250,18 @@ export default function PartnerMenu() {
                                 </p>
                               </div>
                             </div>
+                            {meal.menu_offerings.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {meal.menu_offerings.map((offering) => (
+                                  <span
+                                    key={offering.meal_type}
+                                    className="rounded-full bg-[#F6F8FB] px-2.5 py-1 text-[10px] font-black capitalize text-[#64748B] ring-1 ring-[#E5EAF1]"
+                                  >
+                                    {offering.meal_type} {formatCurrency(offering.price)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                             <div className="grid grid-cols-4 gap-2">
                               <div className="rounded-2xl bg-[#22C7A1]/10 p-2 text-center">
                                 <Flame className="mx-auto h-4 w-4 text-[#22C7A1]" />
@@ -1341,7 +1471,7 @@ export default function PartnerMenu() {
 
             <div className="space-y-2">
               <Label htmlFor="price">
-                Price (QAR) <span className="text-destructive">*</span>
+                Default price (QAR) <span className="text-destructive">*</span>
               </Label>
               <div className="relative">
                 <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1362,11 +1492,111 @@ export default function PartnerMenu() {
                 <p className="text-sm text-destructive">{formErrors.price}</p>
               )}
               <p className="text-xs text-muted-foreground">
+                Used for every menu unless period pricing is enabled below.
+              </p>
+              <p className="text-xs text-muted-foreground">
                 Platform fee ({commissionRate}%) will be deducted. Your payout per meal:{" "}
                 <span className="font-medium">
                   {formatCurrency((formData.price || 0) * (1 - commissionRate / 100))}
                 </span>
               </p>
+            </div>
+
+            <div className="rounded-[22px] bg-[#F6F8FB] p-4 ring-1 ring-[#E5EAF1]">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="menu-pricing" className="text-sm font-black text-[#020617]">
+                    Prices by menu
+                  </Label>
+                  <p className="mt-1 text-xs font-semibold text-[#94A3B8]">
+                    Offer this meal in selected periods with different prices.
+                  </p>
+                </div>
+                <Switch
+                  id="menu-pricing"
+                  checked={menuPricingEnabled}
+                  onCheckedChange={(checked) => {
+                    setMenuPricingEnabled(checked);
+                    if (checked) {
+                      setMenuOfferings((current) =>
+                        current.map((item) => ({
+                          ...item,
+                          price: item.price || formData.price || 0,
+                        })),
+                      );
+                    }
+                  }}
+                />
+              </div>
+
+              {menuPricingEnabled && (
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {MENU_PERIODS.map((period) => {
+                    const offering = menuOfferings.find(
+                      (item) => item.meal_type === period.value,
+                    )!;
+                    return (
+                      <div
+                        key={period.value}
+                        className={`rounded-[18px] bg-white p-3 ring-1 transition ${
+                          offering.is_available
+                            ? "ring-[#7C83F6]/30"
+                            : "ring-[#E5EAF1] opacity-65"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-black text-[#020617]">
+                              {period.label}
+                            </p>
+                            <p className="text-[10px] font-bold text-[#94A3B8]">
+                              {period.time}
+                            </p>
+                          </div>
+                          <Switch
+                            aria-label={`Offer at ${period.label}`}
+                            checked={offering.is_available}
+                            onCheckedChange={(checked) =>
+                              setMenuOfferings((current) =>
+                                current.map((item) =>
+                                  item.meal_type === period.value
+                                    ? { ...item, is_available: checked }
+                                    : item,
+                                ),
+                              )
+                            }
+                          />
+                        </div>
+                        {offering.is_available && (
+                          <div className="relative mt-3">
+                            <Input
+                              aria-label={`${period.label} price`}
+                              type="number"
+                              min="0"
+                              max="10000"
+                              step="0.01"
+                              value={offering.price || ""}
+                              onChange={(event) =>
+                                setMenuOfferings((current) =>
+                                  current.map((item) =>
+                                    item.meal_type === period.value
+                                      ? { ...item, price: Number(event.target.value) || 0 }
+                                      : item,
+                                  ),
+                                )
+                              }
+                              className="h-11 rounded-[14px] border-0 bg-[#F6F8FB] pr-12 font-black text-[#020617]"
+                            />
+                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#94A3B8]">
+                              QAR
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

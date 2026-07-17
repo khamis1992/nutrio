@@ -4,7 +4,7 @@ const MAX_ITEM_BYTES = 64 * 1024;
 const MAX_ATTEMPTS = 10;
 const QUEUE_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 
-export type OfflineMutationKind = "meal-log" | "schedule-meals";
+export type OfflineMutationKind = "meal-log" | "schedule-meals" | "partner-pos-order";
 
 export interface OfflineMutation<T = unknown> {
   id: string;
@@ -23,7 +23,7 @@ function isValidMutation(value: unknown): value is OfflineMutation {
   const item = value as Partial<OfflineMutation>;
   if (
     typeof item.id !== "string" || item.id.length < 1 || item.id.length > 160 ||
-    (item.kind !== "meal-log" && item.kind !== "schedule-meals") ||
+    (item.kind !== "meal-log" && item.kind !== "schedule-meals" && item.kind !== "partner-pos-order") ||
     typeof item.userId !== "string" || item.userId.length < 1 || item.userId.length > 160 ||
     typeof item.createdAt !== "string" ||
     !Number.isSafeInteger(item.attempts) || Number(item.attempts) < 0 ||
