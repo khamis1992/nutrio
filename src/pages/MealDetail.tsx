@@ -52,6 +52,11 @@ interface MealDetail {
   prep_time_minutes: number;
   is_vip_exclusive: boolean;
   price: number | null;
+  menu_offerings: Array<{
+    meal_type: "breakfast" | "lunch" | "dinner" | "snack";
+    price: number;
+    is_available: boolean;
+  }>;
   supports_large: boolean | null;
   large_calories_increase: number | null;
   large_protein_increase: number | null;
@@ -191,6 +196,18 @@ const MealDetail = () => {
           rating: Number(mealData.rating),
           prep_time_minutes: Number(mealData.prep_time_minutes),
           price: mealData.price ? Number(mealData.price) : null,
+          menu_offerings: Array.isArray(
+            (mealData as unknown as Record<string, unknown>).menu_offerings,
+          )
+            ? ((mealData as unknown as Record<string, unknown>)
+                .menu_offerings as Array<Record<string, unknown>>).map(
+                (offering) => ({
+                  meal_type: String(offering.meal_type) as MealDetail["menu_offerings"][number]["meal_type"],
+                  price: Number(offering.price) || 0,
+                  is_available: offering.is_available !== false,
+                }),
+              )
+            : [],
           restaurant: restaurantData || {
             id: "",
             name: t("unknown_restaurant"),
@@ -241,6 +258,20 @@ const MealDetail = () => {
       setHPVariant(false);
     }
   }, [meal, customization.portionSize, customization.hpVariant, setPortionSize, setHPVariant]);
+
+  useEffect(() => {
+    if (!meal || meal.menu_offerings.length === 0) return;
+    const selectedIsAvailable = meal.menu_offerings.some(
+      (offering) =>
+        offering.meal_type === selectedMealType && offering.is_available,
+    );
+    if (!selectedIsAvailable) {
+      const firstAvailable = meal.menu_offerings.find(
+        (offering) => offering.is_available,
+      );
+      if (firstAvailable) setSelectedMealType(firstAvailable.meal_type);
+    }
+  }, [meal, selectedMealType]);
 
   useEffect(() => {
     const navigationState = location.state as MealDetailNavigationState | null;
@@ -377,7 +408,7 @@ const MealDetail = () => {
     }
   };
 
-  const handleSchedule = async () => {
+  const handleSchedule = async (deliveryQuoteId?: string | null) => {
     if (!selectedDate || !meal) return;
 
     setScheduling(true);
@@ -435,6 +466,7 @@ const MealDetail = () => {
         scheduled_date: scheduledDate,
         meal_type: selectedMealType as ScheduleMealInput["meal_type"],
         delivery_address_id: selectedAddressId,
+        delivery_quote_id: deliveryQuoteId,
         customization_data: getCustomizationData(customizationSummary),
         restaurant_note: restaurantNote.trim() || null,
         ...(selectedTimeSlot ? { delivery_time_slot: selectedTimeSlot } : {}),
@@ -508,6 +540,8 @@ const MealDetail = () => {
         title: "Error",
         description: message.includes("MEAL_NOT_AVAILABLE")
           ? "This meal is no longer available. Please choose another meal."
+          : message.includes("MEAL_NOT_OFFERED_FOR_PERIOD")
+            ? "This meal is not offered in the selected period. Choose another meal type."
           : message.includes("INSUFFICIENT_WALLET_BALANCE")
             ? "Your wallet balance is not enough for the selected add-ons."
             : "Failed to schedule meal. Please try again.",
@@ -1119,6 +1153,7 @@ const MealDetail = () => {
         addonsTotal={getSelectedAddonsTotal()}
         walletBalance={wallet?.balance || 0}
         hasAddons={hasAddons}
+        menuOfferings={meal.menu_offerings}
       />
 
       <BuyMealCreditDialog

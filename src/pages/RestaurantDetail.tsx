@@ -34,7 +34,14 @@ import { useToast } from "@/hooks/use-toast";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "framer-motion";
 import { hapticFeedback } from "@/lib/capacitor";
+import { formatCurrency } from "@/lib/currency";
 import { getMealImage, getRestaurantImage } from "@/lib/meal-images";
+import {
+  getAvailableMenuPeriods,
+  getMenuPrice,
+  type MenuOffering,
+  type MenuPeriod,
+} from "@/lib/menu-pricing";
 
 interface Restaurant {
   id: string;
@@ -68,6 +75,7 @@ interface Meal {
   price: number;
   meal_type: string;
   description?: string;
+  menu_offerings: MenuOffering[];
 }
 
 const RestaurantDetail = () => {
@@ -207,6 +215,13 @@ const RestaurantDetail = () => {
             price: parseFloat(String(meal.price)) || 0,
             meal_type: String(meal.meal_type || "lunch"),
             description: meal.description ? String(meal.description) : undefined,
+            menu_offerings: Array.isArray(meal.menu_offerings)
+              ? meal.menu_offerings.map((offering: Record<string, unknown>) => ({
+                  meal_type: String(offering.meal_type) as MenuPeriod,
+                  price: Number(offering.price) || 0,
+                  is_available: offering.is_available !== false,
+                }))
+              : [],
           }));
           setMeals(transformedMeals);
         } else if (mealsError) {
@@ -267,7 +282,7 @@ const RestaurantDetail = () => {
       if (searchQuery && !meal.name.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
       }
-      if (activeCategory !== "all" && meal.meal_type !== activeCategory) {
+      if (activeCategory !== "all" && !getAvailableMenuPeriods(meal.menu_offerings).includes(activeCategory as MenuPeriod)) {
         return false;
       }
       if (activeDietTags.length > 0 && !activeDietTags.some(tag => meal.diet_tags.includes(tag))) {
@@ -293,7 +308,9 @@ const RestaurantDetail = () => {
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { all: meals.length };
     meals.forEach(meal => {
-      counts[meal.meal_type] = (counts[meal.meal_type] || 0) + 1;
+      getAvailableMenuPeriods(meal.menu_offerings).forEach((period) => {
+        counts[period] = (counts[period] || 0) + 1;
+      });
     });
     return counts;
   }, [meals]);
@@ -708,6 +725,18 @@ const RestaurantDetail = () => {
                           <h4 className="text-[16px] font-black leading-tight text-slate-950 transition-colors group-hover:text-[#020617]">
                             {meal.name}
                           </h4>
+                          <div className="shrink-0 text-right">
+                            <p className="text-[13px] font-black text-[#22C7A1]">
+                              {formatCurrency(getMenuPrice(meal.price, meal.menu_offerings, activeCategory))}
+                            </p>
+                            <p className="text-[8px] font-black uppercase text-[#94A3B8]">
+                              {activeCategory === "all" && meal.menu_offerings.length > 1
+                                ? "from"
+                                : activeCategory === "all"
+                                  ? "all day"
+                                  : activeCategory}
+                            </p>
+                          </div>
                         </div>
                         
                         {meal.description && (

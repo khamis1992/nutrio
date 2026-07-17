@@ -14,6 +14,7 @@ import {
   Scale,
   Search,
   ShieldCheck,
+  Sparkles,
   Star,
   Utensils,
   WheatOff,
@@ -26,6 +27,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useNutritionGoals } from "@/hooks/useNutritionGoals";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useTodayProgress } from "@/hooks/useTodayProgress";
 import { supabase } from "@/integrations/supabase/client";
 import { Haptics } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
@@ -54,8 +56,16 @@ interface MealRecommendation {
   calories: number;
   protein_g: number;
   carbs_g: number;
+  fat_g: number;
   rating: number;
   order_count: number;
+}
+
+interface RemainingMacroFit {
+  meal: MealRecommendation;
+  score: number;
+  reason: string;
+  restaurant?: Restaurant;
 }
 
 const categoryTabs: Array<{ id: RestaurantCategory; label: string; icon: LucideIcon }> = [
@@ -125,6 +135,50 @@ const getMealMatchReason = (meal: MealRecommendation, goalType: string | null | 
   if (goalType === "muscle_gain") return `${Math.round(meal.protein_g)}g protein for your goal`;
   if (goalType === "weight_loss") return `${Math.round(meal.calories)} kcal with ${Math.round(meal.protein_g)}g protein`;
   return "Strong nutrition and customer rating";
+};
+
+const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const scoreMealForRemainingMacros = (
+  meal: MealRecommendation,
+  remaining: { calories: number; protein: number; carbs: number; fat: number },
+) => {
+  if (meal.calories <= 0) return null;
+
+  const nextMealCalories = remaining.calories <= 750
+    ? clampNumber(remaining.calories, 250, 750)
+    : clampNumber(remaining.calories / 2, 450, 750);
+  const calorieFit = Math.max(0, 38 - (Math.abs(meal.calories - nextMealCalories) / Math.max(nextMealCalories, 1)) * 42);
+
+  const proteinNeed = Math.max(remaining.protein, 0);
+  const carbsNeed = Math.max(remaining.carbs, 0);
+  const fatNeed = Math.max(remaining.fat, 0);
+  const proteinFit = proteinNeed > 0 ? Math.min(meal.protein_g / proteinNeed, 1.15) * 28 : Math.min(meal.protein_g / 35, 1) * 12;
+  const carbsFit = carbsNeed > 0 ? Math.max(0, 16 - (Math.max(0, meal.carbs_g - carbsNeed) / Math.max(carbsNeed, 1)) * 18) : meal.carbs_g <= 25 ? 10 : 2;
+  const fatFit = fatNeed > 0 ? Math.max(0, 12 - (Math.max(0, meal.fat_g - fatNeed) / Math.max(fatNeed, 1)) * 16) : meal.fat_g <= 18 ? 8 : 1;
+  const quality = (meal.rating / 5) * 6 + Math.min(meal.order_count, 80) * 0.05;
+
+  return Math.round(clampNumber(calorieFit + proteinFit + carbsFit + fatFit + quality, 0, 99));
+};
+
+const getRemainingMacroReason = (
+  meal: MealRecommendation,
+  remaining: { calories: number; protein: number; carbs: number; fat: number },
+) => {
+  const gaps = [
+    { key: "protein", label: "protein", value: remaining.protein, mealValue: meal.protein_g, unit: "g" },
+    { key: "carbs", label: "carbs", value: remaining.carbs, mealValue: meal.carbs_g, unit: "g" },
+    { key: "fat", label: "fat", value: remaining.fat, mealValue: meal.fat_g, unit: "g" },
+  ].sort((a, b) => b.value - a.value);
+  const topGap = gaps[0];
+
+  if (remaining.calories <= 450) {
+    return `${Math.round(meal.calories)} kcal that stays close to today's remaining calories`;
+  }
+  if (topGap.value > 0 && topGap.mealValue > 0) {
+    return `Covers about ${Math.min(100, Math.round((topGap.mealValue / topGap.value) * 100))}% of remaining ${topGap.label}`;
+  }
+  return "Balanced pick for the rest of your day";
 };
 
 const RestaurantCard = ({
@@ -229,6 +283,7 @@ const Meals = () => {
   const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
   const { user } = useAuth();
   const { activeGoal } = useNutritionGoals(user?.id);
+  const { todayProgress, loading: todayProgressLoading } = useTodayProgress(user?.id, new Date(), 0);
   const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
   const { t, isRTL } = useLanguage();
   const {
@@ -284,7 +339,7 @@ const Meals = () => {
         if (ids.length > 0) {
           const { data: mealsData, error: mealsError } = await supabase
             .from("public_meal_catalog" as "meals")
-            .select("id, restaurant_id, name, image_url, meal_type, calories, protein_g, protein, carbs_g, carbs, rating, avg_rating, order_count")
+            .select("id, restaurant_id, name, image_url, meal_type, calories, protein_g, protein, carbs_g, carbs, fat_g, rating, avg_rating, order_count")
             .in("restaurant_id", ids)
             .eq("approval_status", "approved")
             .eq("is_available", true);
@@ -313,6 +368,7 @@ const Meals = () => {
                 calories: Number(meal.calories || 0),
                 protein_g: Number(meal.protein_g || meal.protein || 0),
                 carbs_g: Number(meal.carbs_g || meal.carbs || 0),
+                fat_g: Number(meal.fat_g || 0),
                 rating: Number(meal.avg_rating || meal.rating || 0),
                 order_count: Number(meal.order_count || 0),
               })),
@@ -399,6 +455,42 @@ const Meals = () => {
   const bestMealRestaurant = bestMeal
     ? restaurants.find((restaurant) => restaurant.id === bestMeal.restaurant_id)
     : undefined;
+  const remainingMacros = useMemo(() => {
+    if (!activeGoal?.daily_calorie_target) return null;
+    return {
+      calories: Math.max(0, activeGoal.daily_calorie_target - todayProgress.calories),
+      protein: Math.max(0, activeGoal.protein_target_g - todayProgress.protein),
+      carbs: Math.max(0, activeGoal.carbs_target_g - todayProgress.carbs),
+      fat: Math.max(0, activeGoal.fat_target_g - todayProgress.fat),
+    };
+  }, [activeGoal, todayProgress.calories, todayProgress.carbs, todayProgress.fat, todayProgress.protein]);
+
+  const macroFitMeals = useMemo<RemainingMacroFit[]>(() => {
+    if (!remainingMacros || todayProgressLoading) return [];
+    const visibleRestaurantIds = new Set(visibleRestaurants.map((restaurant) => restaurant.id));
+    return availableMeals
+      .filter(
+        (meal) =>
+          visibleRestaurantIds.has(meal.restaurant_id) &&
+          meal.calories > 0 &&
+          mealMatchesCategory(meal, selectedCategory),
+      )
+      .flatMap((meal) => {
+        const score = scoreMealForRemainingMacros(meal, remainingMacros);
+        return score == null
+          ? []
+          : {
+              meal,
+              score,
+              reason: getRemainingMacroReason(meal, remainingMacros),
+              restaurant: restaurants.find((restaurant) => restaurant.id === meal.restaurant_id),
+            };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+  }, [availableMeals, remainingMacros, restaurants, selectedCategory, todayProgressLoading, visibleRestaurants]);
+
+  const topMacroFit = macroFitMeals[0];
   const mealBalancePercent = isUnlimited || totalMeals <= 0
     ? 100
     : Math.min(100, Math.round((remainingMeals / totalMeals) * 100));
@@ -573,8 +665,92 @@ const Meals = () => {
           </section>
         ) : visibleRestaurants.length > 0 ? (
           <>
+            {remainingMacros && topMacroFit ? (
+              <section className="mt-3">
+                <div className="mb-3 flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">What should I eat?</p>
+                    <h2 className="mt-0.5 text-[21px] font-black">Fit your remaining macros</h2>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-extrabold text-[#64748B] ring-1 ring-[#E5EAF1]">
+                    Live today
+                  </span>
+                </div>
+
+                <Link
+                  to={`/meals/${topMacroFit.meal.id}`}
+                  data-testid={`macro-fit-meal-${topMacroFit.meal.id}`}
+                  className="group block overflow-hidden rounded-[24px] bg-[#020617] text-white shadow-[0_14px_34px_rgba(2,6,23,0.16)] active:scale-[0.99]"
+                >
+                  <div className="relative h-[170px] overflow-hidden bg-[#111827]">
+                    <img
+                      src={topMacroFit.meal.image_url || "/meals/grilled-chicken-salad.jpg"}
+                      alt={topMacroFit.meal.name}
+                      className="h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-[1.03]"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/35 to-transparent" />
+                    <div className="absolute left-3 right-3 top-3 flex items-center justify-between gap-3">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-black uppercase text-[#020617] shadow-sm backdrop-blur">
+                        <Sparkles className="h-3.5 w-3.5 text-[#22C7A1]" />
+                        {topMacroFit.score}% fit
+                      </span>
+                      <span className="rounded-full bg-[#22C7A1] px-3 py-1.5 text-[10px] font-black text-[#020617]">
+                        Eat next
+                      </span>
+                    </div>
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <p className="truncate text-[11px] font-extrabold uppercase text-white/70">{topMacroFit.restaurant?.name || "Nutrio meal"}</p>
+                      <h3 className="mt-1 line-clamp-2 text-[22px] font-black leading-tight">{topMacroFit.meal.name}</h3>
+                      <p className="mt-1 text-[12px] font-bold text-[#BFEFE4]">{topMacroFit.reason}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 p-3">
+                    {[
+                      { label: "left", value: Math.round(remainingMacros.calories), unit: "kcal", tone: "bg-white/10 text-white" },
+                      { label: "meal", value: Math.round(topMacroFit.meal.calories), unit: "kcal", tone: "bg-[#FFF7ED] text-[#F97316]" },
+                      { label: "protein", value: Math.round(topMacroFit.meal.protein_g), unit: "g", tone: "bg-[#F3F4FF] text-[#7C83F6]" },
+                      { label: "carbs", value: Math.round(topMacroFit.meal.carbs_g), unit: "g", tone: "bg-[#EFFFFA] text-[#12866F]" },
+                    ].map((item) => (
+                      <div key={item.label} className={cn("rounded-[16px] px-2 py-2.5 text-center", item.tone)}>
+                        <p className="text-[15px] font-black leading-none tabular-nums">
+                          {item.value}
+                          <span className="text-[9px] font-extrabold"> {item.unit}</span>
+                        </p>
+                        <p className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] opacity-70">{item.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Link>
+
+                {macroFitMeals.length > 1 && (
+                  <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                    {macroFitMeals.slice(1).map((item) => (
+                      <Link
+                        key={item.meal.id}
+                        to={`/meals/${item.meal.id}`}
+                        className="min-w-[210px] rounded-[18px] bg-white p-3 ring-1 ring-[#E5EAF1] active:scale-[0.99]"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={item.meal.image_url || "/meals/grilled-chicken-salad.jpg"}
+                            alt={item.meal.name}
+                            className="h-14 w-14 rounded-[14px] object-cover"
+                            loading="lazy"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-black text-[#020617]">{item.meal.name}</p>
+                            <p className="mt-1 text-[10px] font-bold text-[#64748B]">{Math.round(item.meal.calories)} kcal · {Math.round(item.meal.protein_g)}g protein</p>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </section>
+            ) : null}
+
             {bestMeal && bestMealRestaurant ? (
-            <section className="mt-3">
+            <section className={cn("mt-7", !topMacroFit && "mt-3")}>
               <div className="mb-3 flex items-end justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">Recommended for you</p>

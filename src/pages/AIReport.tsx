@@ -655,15 +655,19 @@ export default function AIReportPage() {
               </div>
             </div>
           </div>
-          <div className="mt-4 rounded-2xl bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
+          <button
+            type="button"
+            onClick={() => navigate("/weekly-check-in")}
+            className="mt-4 block w-full rounded-2xl bg-[#F6F8FB] p-3 text-start ring-1 ring-[#E5EAF1] transition active:scale-[0.99]"
+          >
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-black text-[#020617]">{t(getGoalAlignmentLabelKey(goalAlignmentScore))}</span>
-              <span className="rounded-full bg-[#020617] px-3 py-1.5 text-[11px] font-black text-white">{t(goalReview.actionKey)}</span>
+              <span className="rounded-full bg-[#020617] px-3 py-1.5 text-[11px] font-black text-white">{isRTL ? "ابدأ المراجعة" : "Start check-in"}</span>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#E5EAF1]">
               <div className="h-full rounded-full bg-[#22C7A1]" style={{ width: `${Math.min(goalAlignmentScore, 100)}%` }} />
             </div>
-          </div>
+          </button>
         </motion.section>
 
         <motion.section variants={fadeIn} initial="hidden" animate="visible" className="mt-4 rounded-[28px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
