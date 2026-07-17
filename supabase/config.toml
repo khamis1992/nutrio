@@ -109,7 +109,12 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.ai-router]
-verify_jwt = false
+verify_jwt = true
+
+# Authenticates the customer session in-function and keeps all AI Coach
+# persistence and health-context reads behind the service boundary.
+[functions.ai-coach]
+verify_jwt = true
 
 # Authenticates the customer session in-function, fetches owned health data
 # server-side, and requires versioned consent before contacting the AI provider.
