@@ -240,7 +240,7 @@ describe("Push Notification Service", () => {
     beforeEach(() => {
       // @ts-expect-error -- testing invalid argument type intentionally
       delete window.location;
-      (window as any).location = { href: "" };
+      (window as any).location = { href: "", pathname: "/" };
     });
 
     afterEach(() => {
@@ -254,7 +254,7 @@ describe("Push Notification Service", () => {
             notification: {
               data: {
                 type: "order_update",
-                orderId: "test-order-123",
+                orderId: "00000000-0000-4000-8000-000000000123",
               } as PushNotificationData,
             },
           });
@@ -263,7 +263,7 @@ describe("Push Notification Service", () => {
 
       await pushNotificationService.initialize();
 
-      expect(window.location.href).toBe("/tracking?id=test-order-123");
+      expect(window.location.href).toBe("/live/00000000-0000-4000-8000-000000000123");
     });
 
     it("navigates to tracking page for delivery_update", async () => {
@@ -273,7 +273,7 @@ describe("Push Notification Service", () => {
             notification: {
               data: {
                 type: "delivery_update",
-                orderId: "test-order-456",
+                orderId: "00000000-0000-4000-8000-000000000456",
               } as PushNotificationData,
             },
           });
@@ -282,7 +282,7 @@ describe("Push Notification Service", () => {
 
       await pushNotificationService.initialize();
 
-      expect(window.location.href).toBe("/tracking?id=test-order-456");
+      expect(window.location.href).toBe("/live/00000000-0000-4000-8000-000000000456");
     });
 
     it("navigates to meals page for promotion", async () => {
@@ -339,6 +339,24 @@ describe("Push Notification Service", () => {
       await pushNotificationService.initialize();
 
       // Should not navigate if orderId is missing
+      expect(window.location.href).toBe("");
+    });
+
+    it("rejects an attacker-controlled order path", async () => {
+      mockAddListener.mockImplementation((event: string, callback: Function) => {
+        if (event === "pushNotificationActionPerformed") {
+          callback({
+            notification: {
+              data: {
+                type: "delivery_update",
+                orderId: "../../admin/security?export=1",
+              } as PushNotificationData,
+            },
+          });
+        }
+      });
+
+      await pushNotificationService.initialize();
       expect(window.location.href).toBe("");
     });
   });

@@ -192,7 +192,7 @@ describe("notification delivery runtime hardening", () => {
 
   it("gates Edge deployment on SQL and uses scoped worker secrets", () => {
     const edgeProbe = edgeWorkflow.indexOf(
-      "Verify notification runtime database contract",
+      "Verify Edge runtime database contracts",
     );
     const edgeDeploy = edgeWorkflow.indexOf("- name: Deploy Edge Functions");
     expect(edgeProbe).toBeGreaterThan(-1);

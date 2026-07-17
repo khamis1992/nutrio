@@ -10,6 +10,9 @@ export interface PushNotificationData {
   body: string;
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 class PushNotificationService {
   private static instance: PushNotificationService;
   private fcmToken: string | null = null;
@@ -109,8 +112,13 @@ class PushNotificationService {
     switch (data.type) {
       case "order_update":
       case "delivery_update":
-        if (data.orderId) {
-          window.location.href = `/tracking?id=${data.orderId}`;
+        if (data.orderId && UUID_PATTERN.test(data.orderId)) {
+          const basePath = window.location.pathname.startsWith("/nutrio")
+            ? "/nutrio"
+            : "";
+          window.location.href = `${basePath}/live/${encodeURIComponent(data.orderId)}`;
+        } else {
+          console.warn("Rejected invalid order identifier from push notification");
         }
         break;
       case "promotion":
@@ -124,6 +132,24 @@ class PushNotificationService {
 
   getToken(): string | null {
     return this.fcmToken;
+  }
+
+  async deactivateForUser(userId: string): Promise<void> {
+    const token = this.fcmToken;
+    if (!token || !UUID_PATTERN.test(userId)) return;
+    try {
+      const { error } = await supabase
+        .from("push_tokens")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .eq("token", token);
+      if (error) console.warn("Could not deactivate this device push token");
+    } catch {
+      console.warn("Could not deactivate this device push token");
+    } finally {
+      this.fcmToken = null;
+      this.initialized = false;
+    }
   }
 
   isInitialized(): boolean {
