@@ -4,23 +4,22 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
-  Award,
-  BadgeCheck,
   CheckCircle2,
   ChevronRight,
   Gift,
-  History,
   Lock,
   RefreshCw,
   ShieldCheck,
   Sparkles,
   Star,
-  TicketPercent,
   WalletCards,
   Zap,
 } from "lucide-react";
 
 import { AchievementsProgressCard } from "@/components/rewards/AchievementsProgressCard";
+import { EarnActionsImageCard } from "@/components/rewards/EarnActionsImageCard";
+import { RewardsTabBar } from "@/components/rewards/RewardsTabBar";
+import type { RewardsTabKey } from "@/components/rewards/RewardsTabBar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useBadges } from "@/hooks/useBadges";
@@ -30,7 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { BadgeRarity, UserBadge } from "@/lib/badges";
 import { cn } from "@/lib/utils";
 
-type HubTab = "earn" | "badges" | "redeem" | "activity";
+type HubTab = RewardsTabKey;
 
 type XpTransaction = {
   id: string;
@@ -332,39 +331,12 @@ export default function Rewards() {
           loading={isBusy}
         />
 
-        <nav
-          aria-label={labels.title}
-          className="sticky top-[76px] z-20 mt-4 grid h-14 grid-cols-4 rounded-[22px] border border-white bg-white/92 p-1.5 shadow-[0_10px_24px_rgba(12,18,34,0.08)] backdrop-blur-xl"
-          role="tablist"
-        >
-          {[
-            { key: "earn", label: labels.market, Icon: Award, color: "#20C7A5" },
-            { key: "badges", label: labels.badges, Icon: BadgeCheck, color: "#6A61F6" },
-            { key: "redeem", label: labels.redeem, Icon: TicketPercent, color: "#F97316" },
-            { key: "activity", label: labels.activity, Icon: History, color: "#38BDF8" },
-          ].map((tab) => {
-            const key = tab.key as HubTab;
-            const selected = activeTab === key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => setActiveTab(key)}
-                className={cn(
-                  "relative flex min-w-0 flex-col items-center justify-center rounded-[16px] text-[10px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22C7A1]/40",
-                  selected
-                    ? "bg-[#E9FBF7] text-[#0F9F83] shadow-[0_7px_16px_rgba(32,199,165,0.12)] ring-1 ring-[#20C7A5]/20"
-                    : "text-[#6E7689] active:bg-[#F6F8FC]",
-                )}
-              >
-                <tab.Icon className="h-4 w-4" style={{ color: selected ? "#0F9F83" : tab.color }} aria-hidden="true" />
-                <span className="mt-0.5 truncate px-1">{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+        <RewardsTabBar
+          activeTab={activeTab}
+          labels={{ earn: labels.market, badges: labels.badges, redeem: labels.redeem, activity: labels.activity }}
+          onTabChange={setActiveTab}
+          ariaLabel={labels.title}
+        />
 
         {loadError && (
           <ErrorState
@@ -395,22 +367,12 @@ export default function Rewards() {
 
             <section>
               <SectionHeading title={labels.waysTitle} subtitle={labels.waysBody} />
-              <div className="grid grid-cols-2 gap-3">
-                <EarnActionCard
-                  icon={<Award className="h-5 w-5" />}
-                  title={labels.logMeal}
-                  body={labels.logMealBody}
-                  tone="mint"
-                  onClick={() => navigate("/meals")}
-                />
-                <EarnActionCard
-                  icon={<Zap className="h-5 w-5" />}
-                  title={labels.hydrate}
-                  body={labels.hydrateBody}
-                  tone="sky"
-                  onClick={() => navigate("/water-tracker")}
-                />
-              </div>
+              <EarnActionsImageCard
+                mealLabel={labels.logMeal}
+                waterLabel={labels.hydrate}
+                onLogMeal={() => navigate("/meals")}
+                onTrackWater={() => navigate("/water-tracker")}
+              />
             </section>
 
             <SectionHeading title={labels.badgeMarket} subtitle={labels.badgeMarketBody} count={featuredBadges.length} />
@@ -615,51 +577,6 @@ function RewardFeatureCard({
         </div>
       </div>
     </article>
-  );
-}
-
-function EarnActionCard({
-  icon,
-  title,
-  body,
-  tone,
-  onClick,
-}: {
-  icon: ReactNode;
-  title: string;
-  body: string;
-  tone: "mint" | "sky";
-  onClick: () => void;
-}) {
-  const tones = {
-    mint: {
-      shell: "border-[#20C7A5]/20 bg-[#20C7A5]/8",
-      icon: "bg-white text-[#20C7A5] ring-[#20C7A5]/18",
-      action: "text-[#138C76]",
-    },
-    sky: {
-      shell: "border-[#2BB9F3]/20 bg-[#2BB9F3]/8",
-      icon: "bg-white text-[#2BB9F3] ring-[#2BB9F3]/18",
-      action: "text-[#167FB0]",
-    },
-  }[tone];
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn("min-h-[132px] rounded-[24px] border p-3.5 text-start shadow-[0_12px_24px_rgba(12,18,34,0.045)] active:scale-[0.99]", tones.shell)}
-    >
-      <div className={cn("grid h-11 w-11 place-items-center rounded-[16px] ring-1", tones.icon)}>
-        {icon}
-      </div>
-      <h3 className="mt-3 text-[14px] font-black leading-tight text-[#0C1222]">{title}</h3>
-      <p className="mt-1 text-[11px] font-bold leading-4 text-[#6E7689]">{body}</p>
-      <span className={cn("mt-3 inline-flex items-center gap-1 text-[11px] font-black", tones.action)}>
-        {title}
-        <ChevronRight className="h-3.5 w-3.5 rtl-flip" />
-      </span>
-    </button>
   );
 }
 

@@ -60,16 +60,16 @@ export function AchievementsProgressCard({
           src={achievementCardArt}
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
+          className="pointer-events-none absolute inset-0 z-0 h-full w-full select-none object-cover"
           draggable={false}
         />
 
         <div
-          className="absolute left-[14.5%] top-[61.2%] h-[21.5%] w-[10.3%] overflow-hidden rounded-full"
+          className="absolute left-[16.2%] top-[54.7%] z-[1] h-[22.5%] w-[9.8%] overflow-hidden rounded-full p-[2px]"
           aria-hidden="true"
         >
           <div
-            className="absolute inset-x-0 bottom-0 rounded-full bg-gradient-to-t from-[#7AD7C8] via-[#20C7A5] to-[#61E8C6] shadow-[0_-10px_28px_rgba(32,199,165,0.24)]"
+            className="absolute bottom-[2px] left-[1px] right-[2px] rounded-full bg-gradient-to-t from-[#7AD7C8] via-[#20C7A5] to-[#61E8C6] shadow-[0_-8px_22px_rgba(32,199,165,0.22)] transition-[height] duration-500"
             style={{ height: `${progress}%` }}
           />
         </div>
@@ -78,15 +78,15 @@ export function AchievementsProgressCard({
           label="Current level"
           value={formatNumber(currentLevel)}
           loading={loading}
-          className="left-[13.6%] top-[66.6%] grid h-[9.2%] w-[12.2%] place-items-center rounded-full bg-white/90 text-center text-[24px] font-black tracking-[-0.04em] text-[#0C1222] shadow-[0_8px_18px_rgba(12,18,34,0.08)] ring-1 ring-white/80 backdrop-blur"
-          skeletonClassName="h-7 w-9"
+          className="left-[16.2%] top-[54.7%] z-10 grid h-[22.5%] w-[9.8%] place-items-center text-center text-[clamp(18px,5.5vw,24px)] font-black tracking-[-0.04em] text-[#0C1222] [text-shadow:0_1px_8px_rgba(255,255,255,0.95)]"
+          skeletonClassName="h-6 w-8"
         />
 
         <DynamicValue
           label="Current XP"
           value={formatNumber(currentXp)}
           loading={loading}
-          className="right-[8.6%] top-[43.1%] w-[24%] text-right text-[22px] font-black tracking-[-0.03em] text-[#0CA891]"
+          className="right-[8%] top-[43.7%] w-[25%] text-right text-[clamp(18px,5.2vw,22px)] font-black tracking-[-0.03em] text-[#0CA891]"
           skeletonClassName="ml-auto h-6 w-20"
         />
 
@@ -94,7 +94,7 @@ export function AchievementsProgressCard({
           label="Lifetime XP"
           value={formatNumber(lifetimeXp)}
           loading={loading}
-          className="right-[8.6%] top-[56.2%] w-[24%] text-right text-[22px] font-black tracking-[-0.03em] text-[#1A86E8]"
+          className="right-[8%] top-[56.8%] w-[25%] text-right text-[clamp(18px,5.2vw,22px)] font-black tracking-[-0.03em] text-[#1A86E8]"
           skeletonClassName="ml-auto h-6 w-20"
         />
 
@@ -102,7 +102,7 @@ export function AchievementsProgressCard({
           label="Wallet balance"
           value={formatCurrency(walletBalance)}
           loading={loading}
-          className="right-[6.4%] top-[69%] w-[33%] text-right text-[19px] font-black tracking-[-0.01em] text-[#F06400]"
+          className="right-[8%] top-[69.9%] w-[31%] text-right text-[clamp(15px,4.7vw,20px)] font-black tracking-[-0.02em] text-[#F06400]"
           skeletonClassName="ml-auto h-6 w-24"
         />
 
@@ -110,7 +110,7 @@ export function AchievementsProgressCard({
           label="Unlocked achievements"
           value={unlockedValue}
           loading={loading}
-          className="left-[23.4%] top-[82.65%] w-[13.4%] text-center text-[17px] font-black tracking-[-0.03em] text-[#0C1222]"
+          className="left-[18.6%] top-[84.35%] w-[14.4%] text-center text-[clamp(14px,4.1vw,17px)] font-black tracking-[-0.03em] text-[#0C1222]"
           skeletonClassName="mx-auto h-5 w-12"
         />
 
@@ -118,7 +118,7 @@ export function AchievementsProgressCard({
           label="Redeemed rewards"
           value={formatNumber(redeemedRewards)}
           loading={loading}
-          className="left-[53.1%] top-[82.65%] w-[10.4%] text-center text-[17px] font-black tracking-[-0.03em] text-[#0C1222]"
+          className="left-[48.5%] top-[84.35%] w-[12.6%] text-center text-[clamp(14px,4.1vw,17px)] font-black tracking-[-0.03em] text-[#0C1222]"
           skeletonClassName="mx-auto h-5 w-8"
         />
 
@@ -126,7 +126,7 @@ export function AchievementsProgressCard({
           label="Level progress"
           value={`${Math.round(progress)}%`}
           loading={loading}
-          className="right-[5.6%] top-[82.65%] w-[15.8%] text-center text-[17px] font-black tracking-[-0.03em] text-[#F06400]"
+          className="right-[8.2%] top-[84.35%] w-[16.2%] text-center text-[clamp(14px,4.1vw,17px)] font-black tracking-[-0.03em] text-[#F06400]"
           skeletonClassName="mx-auto h-5 w-10"
         />
       </div>
