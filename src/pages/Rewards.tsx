@@ -354,10 +354,12 @@ export default function Rewards() {
                 onClick={() => setActiveTab(key)}
                 className={cn(
                   "relative flex min-w-0 flex-col items-center justify-center rounded-[16px] text-[10px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22C7A1]/40",
-                  selected ? "bg-[#0C1222] text-white shadow-[0_7px_16px_rgba(12,18,34,0.18)]" : "text-[#6E7689] active:bg-[#F6F8FC]",
+                  selected
+                    ? "bg-[#E9FBF7] text-[#0F9F83] shadow-[0_7px_16px_rgba(32,199,165,0.12)] ring-1 ring-[#20C7A5]/20"
+                    : "text-[#6E7689] active:bg-[#F6F8FC]",
                 )}
               >
-                <tab.Icon className="h-4 w-4" style={{ color: selected ? "#FFFFFF" : tab.color }} aria-hidden="true" />
+                <tab.Icon className="h-4 w-4" style={{ color: selected ? "#0F9F83" : tab.color }} aria-hidden="true" />
                 <span className="mt-0.5 truncate px-1">{tab.label}</span>
               </button>
             );

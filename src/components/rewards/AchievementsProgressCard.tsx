@@ -102,7 +102,7 @@ export function AchievementsProgressCard({
           label="Wallet balance"
           value={formatCurrency(walletBalance)}
           loading={loading}
-          className="right-[7.2%] top-[69%] w-[31%] text-right text-[19px] font-black tracking-[-0.035em] text-[#F06400]"
+          className="right-[6.4%] top-[69%] w-[33%] text-right text-[19px] font-black tracking-[-0.01em] text-[#F06400]"
           skeletonClassName="ml-auto h-6 w-24"
         />
 
@@ -110,7 +110,7 @@ export function AchievementsProgressCard({
           label="Unlocked achievements"
           value={unlockedValue}
           loading={loading}
-          className="left-[23.6%] top-[84.15%] w-[13%] text-center text-[18px] font-black tracking-[-0.03em] text-[#0C1222]"
+          className="left-[23.4%] top-[82.65%] w-[13.4%] text-center text-[17px] font-black tracking-[-0.03em] text-[#0C1222]"
           skeletonClassName="mx-auto h-5 w-12"
         />
 
@@ -118,7 +118,7 @@ export function AchievementsProgressCard({
           label="Redeemed rewards"
           value={formatNumber(redeemedRewards)}
           loading={loading}
-          className="left-[53.2%] top-[84.15%] w-[10%] text-center text-[18px] font-black tracking-[-0.03em] text-[#0C1222]"
+          className="left-[53.1%] top-[82.65%] w-[10.4%] text-center text-[17px] font-black tracking-[-0.03em] text-[#0C1222]"
           skeletonClassName="mx-auto h-5 w-8"
         />
 
@@ -126,7 +126,7 @@ export function AchievementsProgressCard({
           label="Level progress"
           value={`${Math.round(progress)}%`}
           loading={loading}
-          className="right-[5.8%] top-[84.15%] w-[15.5%] text-center text-[18px] font-black tracking-[-0.03em] text-[#F06400]"
+          className="right-[5.6%] top-[82.65%] w-[15.8%] text-center text-[17px] font-black tracking-[-0.03em] text-[#F06400]"
           skeletonClassName="mx-auto h-5 w-10"
         />
       </div>
