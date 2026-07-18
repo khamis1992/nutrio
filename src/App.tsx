@@ -45,6 +45,7 @@ const PartnerOnboarding = lazy(() => import("./pages/partner/PartnerOnboarding")
 const PartnerBoost = lazy(() => import("./pages/partner/PartnerBoost"));
 const PendingApproval = lazy(() => import("./pages/partner/PendingApproval"));
 const PartnerEarningsDashboard = lazy(() => import("./pages/partner/PartnerEarningsDashboard"));
+const PartnerPortalShell = lazy(() => import("./components/PartnerLayout").then(m => ({ default: m.PartnerPortalShell })));
 const SportHubWelcome = lazy(() => import("./pages/partners/SportHubWelcome"));
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -80,6 +81,7 @@ const AdminPremiumAnalytics = lazy(() => import("./pages/admin/AdminPremiumAnaly
 const AdminCoachApprovals = lazy(() => import("./pages/admin/AdminCoachApprovals"));
 const AdminCoachCommission = lazy(() => import("./pages/admin/AdminCoachCommission"));
 const AdminPartnerIntegrations = lazy(() => import("./pages/admin/AdminPartnerIntegrations"));
+const AdminPortalShell = lazy(() => import("./components/AdminLayout").then(m => ({ default: m.AdminPortalShell })));
 
 // Driver pages
 const DriverAuth = lazy(() => import("./pages/driver/DriverAuth"));
@@ -190,93 +192,28 @@ const App = () => (
               } 
             />
             <Route 
-              path="/partner" 
+              path="/partner"
               element={
                 <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/partner/menu" 
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerMenu />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/partner/addons" 
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <Navigate to="/partner/menu?tab=addons" replace />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/partner/orders"
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerOrders />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/partner/settings" 
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerSettings />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/partner/analytics" 
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerAnalytics />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/partner/notifications" 
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerNotifications />
-                </ProtectedRoute>
-              } 
-            />
-            <Route
-              path="/partner/reviews"
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerReviews />
+                  <Suspense fallback={<AppContentLoader />}>
+                    <PartnerPortalShell />
+                  </Suspense>
                 </ProtectedRoute>
               }
-            />
-            <Route 
-              path="/partner/profile" 
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerProfile />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/partner/payouts" 
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerPayouts />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/partner/boost" 
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerBoost />
-                </ProtectedRoute>
-              } 
-            />
+            >
+              <Route index element={<PartnerDashboard />} />
+              <Route path="menu" element={<PartnerMenu />} />
+              <Route path="addons" element={<Navigate to="/partner/menu?tab=addons" replace />} />
+              <Route path="orders" element={<PartnerOrders />} />
+              <Route path="settings" element={<PartnerSettings />} />
+              <Route path="analytics" element={<PartnerAnalytics />} />
+              <Route path="notifications" element={<PartnerNotifications />} />
+              <Route path="reviews" element={<PartnerReviews />} />
+              <Route path="profile" element={<PartnerProfile />} />
+              <Route path="payouts" element={<PartnerPayouts />} />
+              <Route path="boost" element={<PartnerBoost />} />
+              <Route path="earnings" element={<PartnerEarningsDashboard />} />
+            </Route>
             <Route 
               path="/partner/pending-approval" 
               element={
@@ -285,303 +222,55 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/partner/earnings" 
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerEarningsDashboard />
-                </ProtectedRoute>
-              } 
-            />
             {/* Admin Portal Routes */}
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/restaurants" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminRestaurants />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/restaurants/:id" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminRestaurantDetail />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/featured" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminFeatured />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/meal-approvals" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminMealApprovals />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/users" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminUsers />
-                </ProtectedRoute>
-              } 
-            />
             <Route
-              path="/admin/users/:userId"
+              path="/admin"
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <AdminUsers />
+                  <Suspense fallback={<AppContentLoader />}>
+                    <AdminPortalShell />
+                  </Suspense>
                 </ProtectedRoute>
               }
-            />
-            <Route 
-              path="/admin/orders" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminOrders />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/subscriptions" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminSubscriptions />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/analytics" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminAnalytics />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/income" 
-              element={<Navigate to="/admin/profit" replace />}
-            />
-            <Route 
-              path="/admin/profit" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminProfitDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/settings" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminSettings />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/exports" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminExports />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/payouts" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminPayouts />
-                </ProtectedRoute>
-              } 
-            />
-            <Route
-              path="/admin/customer-wallets"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminCustomerWallets />
-                </ProtectedRoute>
-              }
-            />
-            <Route 
-              path="/admin/affiliate-payouts" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminAffiliatePayouts />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/premium-analytics" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminPremiumAnalytics />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/affiliate-applications" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminAffiliateApplications />
-                </ProtectedRoute>
-              } 
-            />
-            <Route
-              path="/admin/partner-integrations"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminPartnerIntegrations />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/affiliate-milestones"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminMilestones />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/streak-rewards"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminStreakRewards />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/community-challenges"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminCommunityChallenges />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/diet-tags" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminDietTags />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/promotions" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminPromotions />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/announcements" 
-              element={<Navigate to="/admin/notifications" replace />} 
-            />
-            <Route 
-              path="/admin/support" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminSupport />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/notifications" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminNotifications />
-                </ProtectedRoute>
-              } 
-            />
-<Route 
-  path="/admin/drivers" 
-  element={
-    <ProtectedRoute requiredRole="admin">
-      <AdminDrivers />
-    </ProtectedRoute>
-  } 
-/>
-<Route
-  path="/admin/deliveries"
-  element={
-    <ProtectedRoute requiredRole="admin">
-      <AdminDeliveries />
-    </ProtectedRoute>
-  }
-/>
-<Route 
-  path="/admin/ip-management" 
-  element={
-    <ProtectedRoute requiredRole="admin">
-      <AdminIPManagement />
-    </ProtectedRoute>
-  } 
-/>
-<Route
-  path="/admin/security"
-  element={
-    <ProtectedRoute requiredRole="admin">
-      <AdminSecurityCenter />
-    </ProtectedRoute>
-  }
-/>
-<Route 
-  path="/admin/freeze-management" 
-  element={
-    <ProtectedRoute requiredRole="admin">
-      <AdminFreezeManagement />
-    </ProtectedRoute>
-  } 
-/>
-<Route 
-  path="/admin/retention-analytics" 
-  element={
-    <ProtectedRoute requiredRole="admin">
-      <AdminRetentionAnalytics />
-    </ProtectedRoute>
-  } 
-/>
-<Route 
-  path="/admin/coach-applications" 
-  element={
-    <ProtectedRoute requiredRole="admin">
-      <AdminCoachApprovals />
-    </ProtectedRoute>
-  } 
-/>
-<Route 
-  path="/admin/coach-commission" 
-  element={
-    <ProtectedRoute requiredRole="admin">
-      <AdminCoachCommission />
-    </ProtectedRoute>
-  } 
-/>
-<Route 
-  path="/admin/ai-engine" 
-  element={
-    <ProtectedRoute requiredRole="admin">
-      <AdminAIEngineMonitor />
-    </ProtectedRoute>
-  } 
-/>
+            >
+              <Route index element={<AdminDashboard />} />
+              <Route path="restaurants" element={<AdminRestaurants />} />
+              <Route path="restaurants/:id" element={<AdminRestaurantDetail />} />
+              <Route path="featured" element={<AdminFeatured />} />
+              <Route path="meal-approvals" element={<AdminMealApprovals />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="users/:userId" element={<AdminUsers />} />
+              <Route path="orders" element={<AdminOrders />} />
+              <Route path="subscriptions" element={<AdminSubscriptions />} />
+              <Route path="analytics" element={<AdminAnalytics />} />
+              <Route path="income" element={<Navigate to="/admin/profit" replace />} />
+              <Route path="profit" element={<AdminProfitDashboard />} />
+              <Route path="settings" element={<AdminSettings />} />
+              <Route path="exports" element={<AdminExports />} />
+              <Route path="payouts" element={<AdminPayouts />} />
+              <Route path="customer-wallets" element={<AdminCustomerWallets />} />
+              <Route path="affiliate-payouts" element={<AdminAffiliatePayouts />} />
+              <Route path="premium-analytics" element={<AdminPremiumAnalytics />} />
+              <Route path="affiliate-applications" element={<AdminAffiliateApplications />} />
+              <Route path="partner-integrations" element={<AdminPartnerIntegrations />} />
+              <Route path="affiliate-milestones" element={<AdminMilestones />} />
+              <Route path="streak-rewards" element={<AdminStreakRewards />} />
+              <Route path="community-challenges" element={<AdminCommunityChallenges />} />
+              <Route path="diet-tags" element={<AdminDietTags />} />
+              <Route path="promotions" element={<AdminPromotions />} />
+              <Route path="announcements" element={<Navigate to="/admin/notifications" replace />} />
+              <Route path="support" element={<AdminSupport />} />
+              <Route path="notifications" element={<AdminNotifications />} />
+              <Route path="drivers" element={<AdminDrivers />} />
+              <Route path="deliveries" element={<AdminDeliveries />} />
+              <Route path="ip-management" element={<AdminIPManagement />} />
+              <Route path="security" element={<AdminSecurityCenter />} />
+              <Route path="freeze-management" element={<AdminFreezeManagement />} />
+              <Route path="retention-analytics" element={<AdminRetentionAnalytics />} />
+              <Route path="coach-applications" element={<AdminCoachApprovals />} />
+              <Route path="coach-commission" element={<AdminCoachCommission />} />
+              <Route path="ai-engine" element={<AdminAIEngineMonitor />} />
+            </Route>
             {/* Driver Portal Routes */}
             <Route path="/driver/auth" element={<DriverAuth />} />
             <Route 

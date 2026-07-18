@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -63,28 +62,12 @@ const preloadPartnerRoute = (path: string) => {
   void partnerRoutePreloaders[path]?.().catch(() => undefined);
 };
 
-let hasPreloadedPartnerRoutes = false;
-
-const preloadAllPartnerRoutes = () => {
-  if (hasPreloadedPartnerRoutes) return;
-
-  hasPreloadedPartnerRoutes = true;
-  Object.values(partnerRoutePreloaders).forEach((preload) => {
-    void preload().catch(() => undefined);
-  });
-};
-
 export function PartnerSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
-
-  useEffect(() => {
-    const preloadTimer = window.setTimeout(preloadAllPartnerRoutes, 1000);
-    return () => window.clearTimeout(preloadTimer);
-  }, []);
 
   const isActive = (path: string) => {
     if (path === "/partner") {

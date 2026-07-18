@@ -1,5 +1,12 @@
-import { ReactNode, useEffect, useState, useCallback } from "react";
-import { Navigate, useLocation, Link } from "react-router-dom";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { Outlet, useLocation, Link } from "react-router-dom";
 import {
   Activity,
   BarChart3,
@@ -20,10 +27,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Skeleton } from "@/components/ui/skeleton";
 import { AdminSidebar } from "@/components/AdminSidebar";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 interface AdminLayoutProps {
@@ -31,6 +35,17 @@ interface AdminLayoutProps {
   title?: string;
   subtitle?: string;
 }
+
+type AdminPageConfig = {
+  title?: string;
+  subtitle?: string;
+};
+
+type AdminLayoutContextValue = {
+  setPageConfig: (config: AdminPageConfig) => void;
+};
+
+const AdminLayoutContext = createContext<AdminLayoutContextValue | null>(null);
 
 const ADMIN_PAGE_TITLES: Record<string, string> = {
   "/admin": "Admin Dashboard",
@@ -178,58 +193,49 @@ function isWorkflowActive(pathname: string, matchers: string[]) {
 }
 
 export function AdminLayout({ children, title, subtitle }: AdminLayoutProps) {
+  const shell = useContext(AdminLayoutContext);
+
+  useEffect(() => {
+    if (!shell) return;
+    shell.setPageConfig({ title, subtitle });
+  }, [shell, subtitle, title]);
+
+  if (shell) {
+    return <>{children}</>;
+  }
+
+  return (
+    <AdminChrome title={title} subtitle={subtitle}>
+      {children}
+    </AdminChrome>
+  );
+}
+
+export function AdminPortalShell() {
+  const [pageConfig, setPageConfig] = useState<AdminPageConfig>({});
+  const contextValue = useMemo(() => ({ setPageConfig }), []);
   const location = useLocation();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    setPageConfig({});
+  }, [location.pathname]);
+
+  return (
+    <AdminLayoutContext.Provider value={contextValue}>
+      <AdminChrome title={pageConfig.title} subtitle={pageConfig.subtitle}>
+        <Outlet />
+      </AdminChrome>
+    </AdminLayoutContext.Provider>
+  );
+}
+
+function AdminChrome({ children, title, subtitle }: AdminLayoutProps) {
+  const location = useLocation();
   const pageTitle = title || getAdminPageTitle(location.pathname);
   const activeWorkflow =
     ADMIN_WORKFLOWS.find((workflow) =>
       isWorkflowActive(location.pathname, workflow.match),
     ) ?? ADMIN_WORKFLOWS[0];
-
-  const checkAdmin = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (roleError) {
-        console.warn("[AdminLayout] user_roles query failed:", roleError);
-        setIsAdmin(false);
-        return;
-      }
-
-      setIsAdmin(!!roleData);
-    } catch (error) {
-      console.error("Error checking admin:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      // ProtectedRoute already guards this, but guard here too to avoid hanging
-      setLoading(false);
-      return;
-    }
-
-    const checkTimeout = setTimeout(() => {
-      console.warn("[AdminLayout] Admin check timed out - denying access");
-      setIsAdmin(false);
-      setLoading(false);
-    }, 5000);
-
-    checkAdmin().finally(() => {
-      clearTimeout(checkTimeout);
-    });
-  }, [checkAdmin, user]);
 
   useEffect(() => {
     document.body.classList.add("admin-mode");
@@ -237,126 +243,6 @@ export function AdminLayout({ children, title, subtitle }: AdminLayoutProps) {
       document.body.classList.remove("admin-mode");
     };
   }, []);
-
-  if (loading) {
-    return (
-      <div className="admin-console flex min-h-screen bg-[#F6F8FB] text-[#020617]">
-        <aside className="hidden w-64 shrink-0 border-r border-[#E5EAF1] bg-white p-3 md:block">
-          <div className="flex items-center gap-3 rounded-[16px] bg-[#F6F8FB] p-2 ring-1 ring-[#E5EAF1]">
-            <div className="grid h-10 w-10 place-items-center rounded-[14px] bg-[#22C7A1]/10 text-[#22C7A1] ring-1 ring-[#22C7A1]/25">
-              <ShieldCheck className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-2">
-              <Skeleton className="h-3 w-28 rounded-full bg-[#E5EAF1]" />
-              <Skeleton className="h-2.5 w-36 rounded-full bg-[#E5EAF1]" />
-            </div>
-          </div>
-          <div className="mt-5 space-y-5">
-            {["Command", "Operations", "Growth", "Finance", "System"].map(
-              (group) => (
-                <div key={group} className="space-y-2">
-                  <div className="flex items-center gap-2 px-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#22C7A1]" />
-                    <Skeleton className="h-2.5 w-20 rounded-full bg-[#E5EAF1]" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Skeleton className="h-11 rounded-[14px] bg-[#F6F8FB]" />
-                    <Skeleton className="h-11 rounded-[14px] bg-[#F6F8FB]" />
-                  </div>
-                </div>
-              ),
-            )}
-          </div>
-        </aside>
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="border-b border-[#E5EAF1] bg-white/90 px-4 py-4 shadow-[0_16px_40px_rgba(2,6,23,0.04)] backdrop-blur-xl sm:px-6">
-            <div className="flex min-h-[72px] items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <Skeleton className="h-11 w-11 rounded-[18px] bg-[#F6F8FB]" />
-                <div className="space-y-2">
-                  <Skeleton className="h-3 w-32 rounded-full bg-[#E5EAF1]" />
-                  <Skeleton className="h-7 w-48 rounded-full bg-[#E5EAF1]" />
-                </div>
-              </div>
-              <div className="hidden items-center gap-2 lg:flex">
-                <Skeleton className="h-11 w-28 rounded-[16px] bg-[#F6F8FB]" />
-                <Skeleton className="h-11 w-28 rounded-[16px] bg-[#F6F8FB]" />
-                <Skeleton className="h-11 w-11 rounded-[16px] bg-[#E5EAF1]" />
-              </div>
-            </div>
-          </header>
-
-          <main className="admin-main min-w-0 flex-1 p-3 sm:p-6">
-            <div className="mx-auto w-full max-w-[1500px] space-y-4">
-              <section className="overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white p-5 shadow-[0_18px_44px_rgba(2,6,23,0.06)] sm:p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-3">
-                    <Skeleton className="h-3 w-24 rounded-full bg-[#7C83F6]/20" />
-                    <Skeleton className="h-8 w-56 rounded-full bg-[#E5EAF1]" />
-                    <Skeleton className="h-4 w-72 max-w-full rounded-full bg-[#E5EAF1]" />
-                  </div>
-                  <div className="grid h-16 w-16 place-items-center rounded-[22px] bg-[#22C7A1]/10 ring-1 ring-[#22C7A1]/20">
-                    <Activity className="h-6 w-6 text-[#22C7A1]" />
-                  </div>
-                </div>
-              </section>
-
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {["#22C7A1", "#7C83F6", "#38BDF8", "#FB6B7A"].map(
-                  (color, index) => (
-                    <div
-                      key={color}
-                      className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_14px_34px_rgba(2,6,23,0.05)]"
-                    >
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-3 w-20 rounded-full bg-[#E5EAF1]" />
-                        <span
-                          className="h-9 w-9 rounded-[14px]"
-                          style={{ backgroundColor: `${color}1F` }}
-                        />
-                      </div>
-                      <Skeleton className="mt-5 h-8 w-24 rounded-full bg-[#E5EAF1]" />
-                      <Skeleton
-                        className="mt-4 h-1.5 rounded-full"
-                        style={{
-                          backgroundColor: index === 0 ? "#22C7A1" : "#E5EAF1",
-                        }}
-                      />
-                    </div>
-                  ),
-                )}
-              </div>
-
-              <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-4 shadow-[0_18px_44px_rgba(2,6,23,0.06)]">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div className="space-y-2">
-                    <Skeleton className="h-3 w-28 rounded-full bg-[#E5EAF1]" />
-                    <Skeleton className="h-6 w-44 rounded-full bg-[#E5EAF1]" />
-                  </div>
-                  <Skeleton className="h-11 w-28 rounded-[16px] bg-[#E5EAF1]" />
-                </div>
-                <div className="space-y-2">
-                  {[0, 1, 2, 3, 4].map((row) => (
-                    <Skeleton
-                      key={row}
-                      className="h-14 rounded-[18px] bg-[#F6F8FB]"
-                    />
-                  ))}
-                </div>
-              </section>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    // Never return null; that produces a blank screen.
-    // Navigate declaratively so React always renders a meaningful route.
-    return <Navigate to="/dashboard" replace />;
-  }
 
   return (
     <SidebarProvider>

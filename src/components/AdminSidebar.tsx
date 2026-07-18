@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Shield,
@@ -222,6 +222,13 @@ export function AdminSidebar() {
       .filter((group) => group.items.length > 0);
   }, [searchQuery]);
 
+  const isActive = useCallback((path: string) => {
+    if (path === "/admin") {
+      return location.pathname === "/admin";
+    }
+    return location.pathname.startsWith(path);
+  }, [location.pathname]);
+
   useEffect(() => {
     const savedScroll = Number(
       sessionStorage.getItem(ADMIN_SIDEBAR_SCROLL_KEY) || 0,
@@ -276,14 +283,7 @@ export function AdminSidebar() {
       );
       return next;
     });
-  }, [location.pathname, openGroups]);
-
-  const isActive = (path: string) => {
-    if (path === "/admin") {
-      return location.pathname === "/admin";
-    }
-    return location.pathname.startsWith(path);
-  };
+  }, [isActive, openGroups]);
 
   const handleSignOut = async () => {
     await signOut();

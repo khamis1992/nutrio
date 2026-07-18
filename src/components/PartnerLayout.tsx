@@ -1,5 +1,13 @@
-import { ReactNode, useEffect, useRef } from "react";
-import { useLocation, Link } from "react-router-dom";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Outlet, useLocation, Link } from "react-router-dom";
 import { Home } from "lucide-react";
 import { NewOrderNotificationBanner } from "@/components/partner/NewOrderNotificationBanner";
 import {
@@ -20,9 +28,75 @@ interface PartnerLayoutProps {
   action?: ReactNode;
 }
 
+type PartnerPageConfig = {
+  title: string;
+  subtitle?: string;
+  action?: ReactNode;
+};
+
+type PartnerLayoutContextValue = {
+  setPageConfig: (config: PartnerPageConfig) => void;
+};
+
+const defaultPageConfig: PartnerPageConfig = {
+  title: "Partner",
+};
+
+const PartnerLayoutContext = createContext<PartnerLayoutContextValue | null>(null);
+
 export function PartnerLayout({
   children,
   title = "Partner",
+  subtitle,
+  action,
+}: PartnerLayoutProps) {
+  const shell = useContext(PartnerLayoutContext);
+
+  useEffect(() => {
+    if (!shell) return;
+    shell.setPageConfig({ title, subtitle, action });
+  }, [action, shell, subtitle, title]);
+
+  if (shell) {
+    return <>{children}</>;
+  }
+
+  return (
+    <PartnerChrome
+      title={title}
+      subtitle={subtitle}
+      action={action}
+    >
+      {children}
+    </PartnerChrome>
+  );
+}
+
+export function PartnerPortalShell() {
+  const [pageConfig, setPageConfig] = useState<PartnerPageConfig>(defaultPageConfig);
+  const contextValue = useMemo(() => ({ setPageConfig }), []);
+  const location = useLocation();
+
+  useEffect(() => {
+    setPageConfig(defaultPageConfig);
+  }, [location.pathname]);
+
+  return (
+    <PartnerLayoutContext.Provider value={contextValue}>
+      <PartnerChrome
+        title={pageConfig.title}
+        subtitle={pageConfig.subtitle}
+        action={pageConfig.action}
+      >
+        <Outlet />
+      </PartnerChrome>
+    </PartnerLayoutContext.Provider>
+  );
+}
+
+function PartnerChrome({
+  children,
+  title,
   subtitle,
   action,
 }: PartnerLayoutProps) {
