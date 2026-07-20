@@ -1,187 +1,94 @@
-﻿import { test, expect } from '@playwright/test';
-import { waitForNetworkIdle } from '../utils/helpers';
+import { expect } from "@playwright/test";
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
+import { appUrl } from "../config";
+import { test } from "../fixtures/test";
 
-test.describe('System - Security', () => {
+test.describe("System - security and rollback", () => {
+  test("protects customer, partner, and driver routes without a session", async ({ page }) => {
+    const boundaries = [
+      { path: "/dashboard", authPath: /\/auth(?:[/?#]|$)/ },
+      { path: "/partner", authPath: /\/partner\/auth(?:[/?#]|$)/ },
+      { path: "/driver", authPath: /\/driver\/auth(?:[/?#]|$)/ },
+    ];
 
-  test('TC158_Row_Level_Security', async ({ page }) => {
-    // Priority: Critical
-    // Feature: RLS
-    // Expected: Access denied for unauthorized data...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '/');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for RLS
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('RLS');
+    for (const boundary of boundaries) {
+      await page.goto(appUrl(boundary.path), { waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL(boundary.authPath);
+      await expect(page.locator("main, form").first()).toBeVisible();
+    }
   });
 
-  test('TC159_Authentication_Required', async ({ page }) => {
-    // Priority: Critical
-    // Feature: Auth
-    // Expected: Redirected to login page...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '/');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for Auth
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('Auth');
+  test("does not execute or render an untrusted auth redirect", async ({ page }) => {
+    let dialogOpened = false;
+    page.on("dialog", async (dialog) => {
+      dialogOpened = true;
+      await dialog.dismiss();
+    });
+
+    const payload = '<script>alert("phase-one-xss")</script>';
+    await page.goto(appUrl(`/auth?redirect=${encodeURIComponent(payload)}`), {
+      waitUntil: "domcontentloaded",
+    });
+
+    expect(dialogOpened).toBe(false);
+    await expect(page.locator("script", { hasText: "phase-one-xss" })).toHaveCount(0);
+    await expect(page.locator("body")).not.toContainText(payload);
+    await expect(page.locator("main").first()).toBeVisible();
   });
 
-  test('TC278_Test_SQL_Injection_Protection', async ({ page }) => {
-    // Priority: Critical
-    // Feature: SQL Injection
-    // Expected: Injection attempts blocked...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '/');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for SQL Injection
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('SQL Injection');
+  test("removing the authenticated session revokes protected-route access", async ({
+    authenticatedCustomerPage: page,
+  }) => {
+    await page.goto(appUrl("/profile"), { waitUntil: "domcontentloaded" });
+    await expect(page).not.toHaveURL(/\/auth(?:[/?#]|$)/);
+    await page.getByRole("button", { name: /logout/i }).click();
+    await page.waitForURL((url) => /\/nutrio\/?$/.test(url.pathname));
+    await page.goto(appUrl("/dashboard"), { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/auth(?:[/?#]|$)/);
   });
 
-  test('TC279_Test_XSS_Protection', async ({ page }) => {
-    // Priority: Critical
-    // Feature: XSS Protection
-    // Expected: XSS attempts blocked/sanitized...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '/');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for XSS Protection
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('XSS Protection');
+  test("phase-one outdoor entry point rolls back to the legacy activity surface", async ({
+    authenticatedCustomerPage: page,
+  }) => {
+    await page.evaluate(() => {
+      localStorage.removeItem("nutrio_phase_one_flags");
+      localStorage.setItem("nutrio_phase_one_enable_all", "false");
+    });
+    await page.goto(appUrl("/outdoor-activity"), { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/log-activity(?:[/?#]|$)/);
+
+    await page.evaluate(() => localStorage.setItem("nutrio_phase_one_enable_all", "true"));
+    await page.goto(appUrl("/outdoor-activity"), { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/outdoor-activity(?:[/?#]|$)/);
+    await expect(page.getByRole("heading").first()).toBeVisible();
+
+    await page.evaluate(() => {
+      localStorage.removeItem("nutrio_phase_one_flags");
+      localStorage.setItem("nutrio_phase_one_enable_all", "false");
+    });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/log-activity(?:[/?#]|$)/);
+    await expect(page.locator("main").first()).toBeVisible();
   });
 
-  test('TC280_Test_Brute_Force_Protection', async ({ page }) => {
-    // Priority: Critical
-    // Feature: Brute Force
-    // Expected: Account temporarily locked after failed attempts...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '/');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for Brute Force
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('Brute Force');
-  });
+  test("authenticated markup does not expose the persisted bearer token", async ({
+    authenticatedCustomerPage: page,
+  }) => {
+    await page.goto(appUrl("/profile"), { waitUntil: "domcontentloaded" });
+    const accessTokens = await page.evaluate(() => {
+      const entries = [...Object.entries(localStorage), ...Object.entries(sessionStorage)];
+      for (const [key, rawValue] of entries) {
+        if (!key.includes("sb-") || !key.endsWith("-auth-token")) continue;
+        const value = JSON.parse(rawValue) as Record<string, unknown> | null;
+        const candidate = (value?.currentSession ?? value?.session ?? value) as Record<string, unknown> | null;
+        if (typeof candidate?.access_token === "string") return [candidate.access_token];
+      }
+      return [];
+    });
 
-  test('TC281_Test_Session_Timeout', async ({ page }) => {
-    // Priority: High
-    // Feature: Session Timeout
-    // Expected: Session expired, login required...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '/');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for Session Timeout
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('Session Timeout');
-  });
-
-  test('TC320_Test_Row_Level_Security', async ({ page }) => {
-    // Priority: Critical
-    // Feature: RLS Policies
-    // Expected: Access denied...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for RLS Policies
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('RLS Policies');
-  });
-
-  test('TC321_Test_Auth_Required_Routes', async ({ page }) => {
-    // Priority: Critical
-    // Feature: Auth Required
-    // Expected: Redirected to login...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for Auth Required
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('Auth Required');
-  });
-
-  test('TC322_Test_SQL_Injection_Protection_2', async ({ page }) => {
-    // Priority: Critical
-    // Feature: SQL Injection
-    // Expected: Injection blocked...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for SQL Injection
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('SQL Injection');
-  });
-
-  test('TC323_Test_XSS_Protection_2', async ({ page }) => {
-    // Priority: Critical
-    // Feature: XSS Protection
-    // Expected: XSS blocked...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for XSS Protection
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('XSS Protection');
-  });
-
-  test('TC324_Test_Brute_Force_Protection_2', async ({ page }) => {
-    // Priority: Critical
-    // Feature: Brute Force
-    // Expected: Account locked...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for Brute Force
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('Brute Force');
-  });
-
-  test('TC325_Test_Session_Timeout_2', async ({ page }) => {
-    // Priority: High
-    // Feature: Session Timeout
-    // Expected: Session expired...
-    
-    // Navigate to page
-    await page.goto(BASE_URL + '');
-    await waitForNetworkIdle(page);
-    
-    // TODO: Implement specific test steps for Session Timeout
-    // Verify page loaded
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.locator('body')).toContainText('Session Timeout');
+    const markup = await page.locator("html").innerHTML();
+    for (const accessToken of accessTokens) expect(markup).not.toContain(accessToken);
+    expect(markup).not.toMatch(/eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/);
+    await expect(page.locator('[href^="javascript:"], [src^="javascript:"]')).toHaveCount(0);
   });
 });

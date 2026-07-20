@@ -21,7 +21,9 @@ on:
     # dedicated production-environment secret; no provider secret lives in SQL.
     - cron: '*/5 * * * *'
     - cron: '17 * * * *'
+    - cron: '31 * * * *'
     - cron: '23 2 * * *'
+    - cron: '13 3 * * 0'
 
 concurrency:
   group: edge-runtime-${{ github.event_name }}-${{ github.event.inputs.environment || github.event.schedule || 'production' }}
@@ -229,7 +231,43 @@ jobs:
             -H "x-internal-secret: ${WORKER_SECRET}" \
             --data '{"limit":5}' >/dev/null
 
-      # calculate-health-score intentionally remains unscheduled here. Its
-      # gateway has verify_jwt=true, so a custom cron secret alone cannot reach
-      # it. We fail closed instead of storing a long-lived user/service JWT in
-      # GitHub; invoke it through a short-lived authenticated scheduler only.
+      - name: Process subscription lifecycle
+        if: github.event.schedule == '31 * * * *'
+        env:
+          WORKER_SECRET: ${{ secrets.SUBSCRIPTION_RENEWAL_CRON_SECRET }}
+        run: |
+          test -n "$SUPABASE_PROJECT_ID"
+          test -n "$WORKER_SECRET"
+          curl --silent --show-error --fail \
+            "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/process-subscription-renewal" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-internal-secret: ${WORKER_SECRET}" \
+            --data '{"dry_run":false}' >/dev/null
+
+      - name: Calculate weekly health scores
+        if: github.event.schedule == '13 3 * * 0'
+        env:
+          WORKER_SECRET: ${{ secrets.HEALTH_SCORE_CRON_SECRET }}
+        run: |
+          test -n "$SUPABASE_PROJECT_ID"
+          test -n "$WORKER_SECRET"
+          cursor=""
+          while true; do
+            body='{"limit":3}'
+            if [ -n "$cursor" ] && [ "$cursor" != "null" ]; then
+              body="{\"limit\":3,\"after_user_id\":\"${cursor}\"}"
+            fi
+
+            response=$(curl --silent --show-error --fail \
+              "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/calculate-health-score" \
+              -X POST \
+              -H "Content-Type: application/json" \
+              -H "x-internal-secret: ${WORKER_SECRET}" \
+              --data "$body")
+
+            cursor=$(printf '%s' "$response" | node -e "let data=''; process.stdin.on('data', c => data += c); process.stdin.on('end', () => console.log(JSON.parse(data).next_cursor || ''));")
+            if [ -z "$cursor" ]; then
+              break
+            fi
+          done

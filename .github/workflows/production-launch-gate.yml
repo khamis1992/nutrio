@@ -51,6 +51,21 @@ jobs:
       - run: npm ci
       - name: Audit all launch dependencies
         run: npm audit --audit-level=high
+      - name: Require reviewed launch evidence
+        shell: bash
+        run: |
+          if [[ -z "$LAUNCH_EVIDENCE_MANIFEST_B64" ]]; then
+            echo "::error title=Missing launch evidence::Configure LAUNCH_EVIDENCE_MANIFEST_B64 in the protected Production environment."
+            exit 1
+          fi
+
+          evidence_path="$RUNNER_TEMP/launch-evidence.json"
+          trap 'rm -f "$evidence_path"' EXIT
+          printf '%s' "$LAUNCH_EVIDENCE_MANIFEST_B64" | base64 --decode > "$evidence_path"
+          chmod 600 "$evidence_path"
+          npm run launch:readiness:strict -- --skip-environment --evidence="$evidence_path"
+        env:
+          LAUNCH_EVIDENCE_MANIFEST_B64: ${{ secrets.LAUNCH_EVIDENCE_MANIFEST_B64 }}
       - run: npx --no-install playwright install --with-deps chromium
       - name: Initialize redacted launch evidence
         shell: bash

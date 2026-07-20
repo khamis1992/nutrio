@@ -3,6 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test as setup, type Page } from "@playwright/test";
 import {
+  hasAdminTotpSecret,
+  hasTestUser,
+  type TestRole,
+} from "./config";
+import {
   loginAsAdmin,
   loginAsCoach,
   loginAsCustomer,
@@ -18,7 +23,7 @@ const authDirectory = path.join(currentDirectory, ".auth");
 fs.mkdirSync(authDirectory, { recursive: true });
 
 const roleSetups: Array<{
-  role: string;
+  role: TestRole;
   login: (page: Page) => Promise<void>;
 }> = [
   { role: "customer", login: loginAsCustomer },
@@ -31,6 +36,14 @@ const roleSetups: Array<{
 
 for (const roleSetup of roleSetups) {
   setup(`authenticate ${roleSetup.role}`, async ({ page }) => {
+    setup.skip(
+      !hasTestUser(roleSetup.role),
+      `Missing ${roleSetup.role} E2E credentials.`,
+    );
+    setup.skip(
+      roleSetup.role === "admin" && !hasAdminTotpSecret(),
+      "Missing admin E2E TOTP secret; skipping admin storage state.",
+    );
     await roleSetup.login(page);
     await page.context().storageState({
       path: path.join(authDirectory, `${roleSetup.role}.json`),

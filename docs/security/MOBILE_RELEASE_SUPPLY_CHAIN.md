@@ -20,7 +20,9 @@
   `36d87b7fe6b4bcfe89ac47a4354e526cff22480224de426d7b370f6934556976`,
   before extraction or execution.
 - The Android Gradle 8.14.3 distribution and wrapper JAR are checked against the official Gradle SHA-256 values.
-- Gradle dependency verification runs in strict mode against `android/gradle/verification-metadata.xml`.
+- Gradle dependency verification runs in strict mode against
+  `android/gradle/verification-metadata.xml` and the reviewable armored keyring
+  `android/gradle/verification-keyring.keys`.
 - Android release jobs require exactly one APK and one AAB, verify both signatures against the protected keystore certificate, and publish artifact and certificate SHA-256 manifests.
 - Android and iOS release versions are supplied by the protected release workflow; CI build numbers are used as monotonically increasing native build identifiers and verified from the built manifest.
 - iOS release and publication jobs verify the app code signature against `IOS_DISTRIBUTION_CERT_SHA256`. The publish job downloads the detached checksum, verifies the IPA again on macOS, and uses an immutable versioned release tag.
@@ -31,26 +33,24 @@
 
 Configure `Mobile Signing` with required reviewers, deployment branch protection limited to `main`, and no administrator bypass. Keep Android and Apple signing credentials as environment secrets, not repository variables or files.
 
-## Android Provenance Release Blocker
+## Android Provenance Attestation
 
-The current Gradle verification metadata was generated from artifacts already
-present in a build cache. Its checksums are enforced, but that initial trust set
-has not been independently attested and `verify-signatures` remains disabled.
-The signed Android workflow therefore fails before opening signing secrets while
-this condition remains. Changing the XML flag alone is not an attestation.
+The Gradle trust set was regenerated on 2026-07-20 from an empty, isolated
+Gradle home. Signature verification is enabled, the armored publisher keyring is
+committed for review, and SHA-256 remains pinned for artifacts without an
+available usable signature. Every checksum in the prior metadata remains in the
+attested set; no prior digest changed or disappeared.
 
-Clear the blocker only on a disposable, isolated runner with no restored Gradle
-cache:
+Both `assembleRelease` and `bundleRelease` completed with
+`--dependency-verification=strict` and an isolated two-day attestation key. That
+key and its artifacts were never copied into the repository and are not release
+credentials. The protected workflow must repeat both builds with the real
+`Mobile Signing` key and verify its certificate before publication.
 
-1. Resolve every release configuration from the approved `google()` and
-   `mavenCentral()` repositories.
-2. Regenerate checksum and PGP verification metadata, compare every artifact
-   with the committed set, and investigate every addition or changed digest.
-3. Obtain publisher keys through independently authenticated channels, add the
-   reviewed trusted keys, and enable signature verification. Retain SHA-256 for
-   artifacts whose publishers provide no usable signature.
-4. Run both release tasks with `--dependency-verification=strict`, archive the
-   clean-runner logs and metadata diff, and obtain security review approval.
+The recorded procedure, hashes, counts, and residual key-server limitations are
+in `docs/security/2026-07-20-android-gradle-attestation.md`. Any dependency or
+Android Gradle Plugin change invalidates that review and requires a fresh
+isolated regeneration and strict APK/AAB replay.
 
 Gradle dependency locking is not enabled because the current Groovy build scripts do not activate locking for every Capacitor subproject. Direct dependency versions are fixed, and strict checksum verification pins the resolved transitive artifacts without changing project build behavior. Enabling lockfiles later requires a reviewed build-script change and a clean Android SDK build that exercises every release configuration.
 
@@ -58,7 +58,8 @@ Gradle dependency locking is not enabled because the current Groovy build script
 
 1. Confirm the protected environment approval identifies the intended commit.
 2. Require `npm audit signatures` and the Swift lock check to pass.
-3. Confirm the Gradle provenance blocker has been cleared with reviewed clean-runner evidence.
+3. Confirm the committed Gradle metadata and armored keyring match the reviewed
+   attestation and that strict verification passes.
 4. Require the signature-verification step to pass before downloading artifacts.
 5. Compare downloaded APK and AAB hashes with `SHA256SUMS`.
 6. Record the `SIGNING-MANIFEST.txt` commit and certificate fingerprint in the release evidence record.

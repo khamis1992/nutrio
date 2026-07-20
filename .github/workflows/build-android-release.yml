@@ -119,12 +119,16 @@ jobs:
         run: |
           set -euo pipefail
           metadata="android/gradle/verification-metadata.xml"
+          keyring="android/gradle/verification-keyring.keys"
+          test -s "$metadata"
+          test -s "$keyring"
           if grep -Fq '<verify-signatures>false</verify-signatures>' "$metadata"; then
             echo "::error title=Gradle provenance not attested::Regenerate dependency verification metadata on a clean isolated runner, review every checksum, and configure trusted publisher keys before a signed Android release."
             exit 1
           fi
           grep -Fq '<verify-signatures>true</verify-signatures>' "$metadata"
           grep -Eq '<trusted-key([ >])' "$metadata"
+          grep -Fq -- '-----BEGIN PGP PUBLIC KEY BLOCK-----' "$keyring"
 
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew

@@ -28,6 +28,10 @@
 	<string>Nutrio reads your steps, workouts, heart rate, sleep, and recovery data to personalize nutrition, readiness, and progress insights.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Nutrio can write nutrition entries you explicitly log, such as meal calories, to Apple Health.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Nutrio uses your location to record distance and routes during outdoor activities.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Nutrio uses your location while an outdoor activity is active, including when the screen is locked.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -51,6 +55,7 @@
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>location</string>
 		<string>remote-notification</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>

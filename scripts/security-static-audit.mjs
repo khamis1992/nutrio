@@ -179,7 +179,12 @@ function auditTrustedE2EWorkflow(content, { environment, jobName }) {
   for (const step of steps) {
     if (!containsSecretReference(step)) continue;
     const run = String(step?.run || "");
-    if (!/playwright|test:e2e:launch/.test(run)) {
+    const serializedStep = JSON.stringify(step);
+    const isEvidenceGate =
+      /launch:readiness:strict/.test(run) &&
+      /LAUNCH_EVIDENCE_MANIFEST_B64/.test(serializedStep) &&
+      !/E2E_|SADAD_|SUPABASE_/.test(serializedStep);
+    if (!/playwright|test:e2e:launch/.test(run) && !isEvidenceGate) {
       errors.push(`${jobName} exposes a secret outside its Playwright execution step.`);
     }
   }
@@ -471,6 +476,12 @@ if (existsSync(configPath)) {
     ],
     "sadad-payment": [/async function authenticate\s*\(/, /verifyChecksum\s*\(/, /enforceRateLimit\s*\(/],
     "send-push-notification": [/requireInternalSecret\s*\(/, /authenticateRequest\s*\(/, /assertSelfOrAdmin\s*\(/, /enforceRateLimit\s*\(/],
+    "process-notification-events": [
+      /SECRET_PATTERN\.test\(workerSecret\)/,
+      /verify_notification_worker_secret/,
+      /verificationError\s*\|\|\s*verified\s*!==\s*true/,
+      /readJsonBody<WorkerBody>\(req,\s*2\s*\*\s*1024\)/,
+    ],
     "send-whatsapp-proxy": [/requireInternalSecret\s*\(/, /authenticateRequest\s*\(/, /enforceRateLimit\s*\(/],
     "process-whatsapp-notifications": [/requireAdminOrInternal\s*\(/, /enforceRateLimit\s*\(/],
     "subscription-recovery-cron": [/requireAdminOrInternal\s*\(/, /enforceRateLimit\s*\(/],
@@ -701,9 +712,11 @@ if (existsSync(productionLaunchWorkflowPath)) {
   const content = read(productionLaunchWorkflowPath);
   if (
     /(?:test-results|playwright-report)\//.test(content) ||
-    !/production-evidence\/launch-summary\.txt/.test(content)
+    !/production-evidence\/launch-summary\.txt/.test(content) ||
+    !/npm run launch:readiness:strict/.test(content) ||
+    !/LAUNCH_EVIDENCE_MANIFEST_B64/.test(content)
   ) {
-    fail("Production launch artifacts must contain only the redacted summary.");
+    fail("Production launch must require signed readiness evidence and upload only the redacted summary.");
   }
 }
 
