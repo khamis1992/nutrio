@@ -9,7 +9,6 @@ import { SentryErrorBoundary } from "./components/SentryErrorBoundary";
 import DevelopmentErrorBoundary from "./components/DevelopmentErrorBoundary";
 import { SplashVideo } from "./components/SplashVideo";
 import { LanguageProvider } from "./contexts/LanguageContext";
-import { ThemeProvider } from "./contexts/ThemeContext";
 
 // Initialize monitoring and analytics after first paint
 // Deferred from module level to avoid blocking TTFB/TTI
@@ -42,17 +41,15 @@ const Root = () => {
 
   const AppWrapper = (
     <LanguageProvider>
-      <ThemeProvider>
-        <SentryErrorBoundary>
-          {isDevelopment ? (
-            <DevelopmentErrorBoundary>
-              <App />
-            </DevelopmentErrorBoundary>
-          ) : (
+      <SentryErrorBoundary>
+        {isDevelopment ? (
+          <DevelopmentErrorBoundary>
             <App />
-          )}
-        </SentryErrorBoundary>
-      </ThemeProvider>
+          </DevelopmentErrorBoundary>
+        ) : (
+          <App />
+        )}
+      </SentryErrorBoundary>
     </LanguageProvider>
   );
 

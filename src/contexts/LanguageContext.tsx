@@ -75,14 +75,30 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    let attempt = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     setTranslations(null);
-    loadTranslations(language).then((mod) => {
-      if (!cancelled) setTranslations(mod);
-    }).catch((err) => {
-      console.error("[LanguageContext] Failed to load translations:", err);
-      if (!cancelled) setTranslations(FALLBACK[language]);
-    });
-    return () => { cancelled = true; };
+    const load = () => {
+      loadTranslations(language).then((mod) => {
+        if (!cancelled) setTranslations(mod);
+      }).catch((err) => {
+        console.error("[LanguageContext] Failed to load translations:", err);
+        if (cancelled) return;
+        // Show the minimal fallback so the app stays usable, but keep
+        // retrying — a transient chunk-load failure (HMR, flaky network)
+        // must not leave the UI stuck on raw translation keys.
+        setTranslations(FALLBACK[language]);
+        attempt += 1;
+        if (attempt <= 5) {
+          retryTimer = setTimeout(load, Math.min(attempt * 1000, 5000));
+        }
+      });
+    };
+    load();
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [language]);
 
   useEffect(() => {
