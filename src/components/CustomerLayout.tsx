@@ -25,6 +25,7 @@ const HIDDEN_NAV_PATHS = [
   "/settings",
   "/affiliate",
   "/coach-programs",
+  "/programs",
   "/ai-coach",
 ];
 

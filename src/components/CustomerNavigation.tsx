@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { Salad, Utensils, Calendar, Users, User } from "lucide-react";
+import { Calendar, Salad, TrendingUp, User, Users, Utensils } from "lucide-react";
 import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { hapticFeedback } from "@/lib/capacitor";
@@ -55,6 +55,7 @@ export function CustomerNavigation() {
 
   const navItems = [
     { key: "home", icon: Salad, label: t("nav_home"), to: "/dashboard" },
+    { key: "progress", icon: TrendingUp, label: t("progress"), to: "/dashboard/progress" },
     { key: "meals", icon: Utensils, label: t("nav_meals"), to: "/meals" },
     { key: "schedule", icon: Calendar, label: t("nav_schedule"), to: "/schedule" },
     ...(showAffiliateTab ? [{ key: "affiliate", icon: Users, label: t("nav_affiliate"), to: "/affiliate" }] : []),

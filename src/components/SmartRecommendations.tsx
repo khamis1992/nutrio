@@ -1,9 +1,11 @@
 import { motion } from "framer-motion";
-import { Clock, Dumbbell, Flame, RefreshCw, Sparkles, Star, Utensils } from "lucide-react";
+import { CircleAlert, Clock, CloudOff, Dumbbell, Flame, RefreshCw, Sparkles, Star, Utensils } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMealRecommendations } from "@/hooks/useMealRecommendations";
+import { trackEvent } from "@/lib/analytics";
+import type { MealExplanationCode } from "@/lib/mealRanking";
 import { ScoredMeal } from "@/lib/recommendation-engine";
 import { cn } from "@/lib/utils";
 
@@ -21,14 +23,45 @@ const cardMotion = {
   animate: { opacity: 1, y: 0 },
 };
 
+const reasonCopy: Record<"en" | "ar", Partial<Record<MealExplanationCode, string>>> = {
+  en: {
+    calorie_fit: "Calorie fit",
+    protein_gap: "Protein fit",
+    macro_balance: "Balanced",
+    preference_match: "Your taste",
+    variety: "More variety",
+    high_rating: "Highly rated",
+    delivery_fit: "Delivery fit",
+    good_value: "Good value",
+    micronutrient_fit: "Micronutrient fit",
+    health_context_fit: "Your health check-in",
+  },
+  ar: {
+    calorie_fit: "مناسب للسعرات",
+    protein_gap: "مناسب للبروتين",
+    macro_balance: "متوازن",
+    preference_match: "يناسب ذوقك",
+    variety: "تنوع أكبر",
+    high_rating: "عالي التقييم",
+    delivery_fit: "توصيل مناسب",
+    good_value: "قيمة جيدة",
+    micronutrient_fit: "مغذيات مناسبة",
+    health_context_fit: "تسجيلك الصحي",
+  },
+};
+
 function MealTile({
   meal,
   badge,
   index,
+  engineVersion,
+  reasons,
 }: {
   meal: ScoredMeal;
   badge?: string;
   index: number;
+  engineVersion: string;
+  reasons: Partial<Record<MealExplanationCode, string>>;
 }) {
   return (
     <motion.div
@@ -38,6 +71,13 @@ function MealTile({
     >
       <Link
         to={`/meals/${meal.id}`}
+        onClick={() => trackEvent("meal_ranking_result_opened", {
+          engine_version: engineVersion,
+          meal_id: meal.id,
+          rank: index + 1,
+          score: meal.finalScore ?? meal.score,
+          surface: "smart_picks",
+        })}
         className="group block w-[164px] overflow-hidden rounded-[20px] bg-white shadow-[0_12px_28px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80 transition active:scale-[0.98]"
       >
         <div className="relative h-[112px] overflow-hidden bg-slate-100">
@@ -76,6 +116,11 @@ function MealTile({
               <span className="text-[11px] font-black text-slate-950">{Math.round(meal.protein_g)}g P</span>
             ) : null}
           </div>
+          {meal.explanationCodes?.[0] && reasons[meal.explanationCodes[0]] ? (
+            <p className="mt-2 truncate text-[10px] font-extrabold text-[#087f69]">
+              {reasons[meal.explanationCodes[0]]}
+            </p>
+          ) : null}
         </div>
       </Link>
     </motion.div>
@@ -136,8 +181,8 @@ function LoadingState() {
 }
 
 export function SmartMealPicks() {
-  const { recommendations, loading, refresh } = useMealRecommendations();
-  const { t, isRTL } = useLanguage();
+  const { recommendations, ranking, loading, refresh } = useMealRecommendations();
+  const { t, language, isRTL } = useLanguage();
 
   if (loading) return <LoadingState />;
 
@@ -188,6 +233,7 @@ export function SmartMealPicks() {
 
   const primaryGroup = groups[0];
   const secondaryGroups = groups.slice(1, 3);
+  const staleSafety = ranking?.inputFreshness.safety !== "fresh";
 
   return (
     <section className="overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80" dir={isRTL ? "rtl" : "ltr"}>
@@ -203,13 +249,31 @@ export function SmartMealPicks() {
         </span>
       </div>
 
+      {ranking?.offline || staleSafety ? (
+        <div className="mb-4 flex items-start gap-2 rounded-[16px] bg-amber-50 p-3 text-[10px] font-bold leading-4 text-amber-900 ring-1 ring-amber-200">
+          {ranking?.offline ? <CloudOff className="mt-0.5 h-4 w-4 shrink-0" /> : <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />}
+          <span>
+            {language === "ar"
+              ? ranking?.offline ? "نعرض آخر ترشيحات محفوظة؛ تحقق من توفر الوجبة." : "راجع المكونات لأن بعض بيانات السلامة غير مكتملة."
+              : ranking?.offline ? "Showing saved picks; confirm meal availability." : "Review ingredients because some safety data is incomplete."}
+          </span>
+        </div>
+      ) : null}
+
       <SectionHeader group={primaryGroup} onRefresh={refresh} />
       <div
         className="-mx-4 mt-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide"
         style={{ scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
       >
         {primaryGroup.meals.slice(0, 6).map((meal, index) => (
-          <MealTile key={`${primaryGroup.id}-${meal.id}`} meal={meal} badge={primaryGroup.badge(meal, index)} index={index} />
+          <MealTile
+            key={`${primaryGroup.id}-${meal.id}`}
+            meal={meal}
+            badge={primaryGroup.badge(meal, index)}
+            index={index}
+            engineVersion={ranking?.engineVersion ?? "legacy"}
+            reasons={reasonCopy[language]}
+          />
         ))}
       </div>
 

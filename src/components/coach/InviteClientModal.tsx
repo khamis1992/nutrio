@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { X, Copy, Loader2, Check } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  createCareInvite,
+  type CareAssignmentType,
+  type CareConsentScope,
+} from "@/hooks/useCareTeam";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -18,6 +22,8 @@ export function InviteClientModal({ coachId, open, onClose, onInviteCreated }: I
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [assignmentType, setAssignmentType] = useState<CareAssignmentType>("nutrition_guidance");
+  const [consentScopes, setConsentScopes] = useState<CareConsentScope[]>(["macros", "hydration", "meal_adherence", "messages"]);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,15 +32,13 @@ export function InviteClientModal({ coachId, open, onClose, onInviteCreated }: I
     setGenerating(true);
 
     try {
-      const code = `NUTR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      const { error: insertError } = await supabase.from("coach_client_assignments").insert({
-        coach_id: coachId,
-        invite_code: code,
-        status: "pending",
+      void coachId;
+      const result = await createCareInvite({
+        assignmentType,
+        consentScopes,
+        clientLabel: clientIdentifier.trim(),
       });
-
-      if (insertError) throw insertError;
-      setInviteCode(code);
+      setInviteCode(result.invite_code);
       onInviteCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate invite");
@@ -55,6 +59,8 @@ export function InviteClientModal({ coachId, open, onClose, onInviteCreated }: I
     setInviteCode(null);
     setCopied(false);
     setError(null);
+    setAssignmentType("nutrition_guidance");
+    setConsentScopes(["macros", "hydration", "meal_adherence", "messages"]);
     onClose();
   };
 
@@ -141,13 +147,49 @@ export function InviteClientModal({ coachId, open, onClose, onInviteCreated }: I
               </p>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="assignment-type" className="text-sm font-semibold text-[#020617]">
+                Support type
+              </Label>
+              <select
+                id="assignment-type"
+                value={assignmentType}
+                onChange={(event) => setAssignmentType(event.target.value as CareAssignmentType)}
+                className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F6F8FB] px-3 text-sm font-semibold text-[#020617]"
+              >
+                <option value="nutrition_guidance">Nutrition guidance</option>
+                <option value="fitness_coaching">Fitness coaching</option>
+                <option value="integrated_care">Integrated support</option>
+              </select>
+            </div>
+
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-semibold text-[#020617]">Client consent</legend>
+              <div className="grid grid-cols-2 gap-2">
+                {(["macros", "weight", "hydration", "meal_adherence", "workouts", "messages"] as CareConsentScope[]).map((scope) => {
+                  const checked = consentScopes.includes(scope);
+                  return (
+                    <label key={scope} className="flex min-h-11 items-center gap-2 rounded-xl border border-[#E2E8F0] bg-[#F6F8FB] px-3 text-xs font-semibold text-[#020617]">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setConsentScopes((current) => checked ? current.filter((item) => item !== scope) : [...current, scope])}
+                        className="accent-[#22C7A1]"
+                      />
+                      {scope.replace("_", " ")}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+
             {error && (
               <p className="text-sm text-red-500 bg-red-50 rounded-xl px-4 py-3 font-medium">{error}</p>
             )}
 
             <button
               type="submit"
-              disabled={generating || !clientIdentifier.trim()}
+              disabled={generating || !clientIdentifier.trim() || consentScopes.length === 0}
               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:shadow-emerald-600/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {generating ? (

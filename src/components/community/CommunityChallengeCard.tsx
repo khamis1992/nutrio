@@ -15,7 +15,10 @@ import { ChallengeTeamSection } from "@/components/community/ChallengeTeamSectio
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCommunityChallenges } from "@/hooks/useCommunityChallenges";
 import { supabase } from "@/integrations/supabase/client";
+import { challengeProgressReason } from "@/lib/adherence";
 import { fadeInUp } from "@/lib/animations";
+import { formatCurrencyCompact } from "@/lib/currency";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
 
 interface LeaderboardEntry {
   user_name: string;
@@ -24,8 +27,35 @@ interface LeaderboardEntry {
   rank: number;
 }
 
+const agentSevenCopy = {
+  en: {
+    previous: "Previous challenge",
+    next: "Next challenge",
+    active: "Active challenge",
+    position: (current: number, total: number) => `${current} of ${total}`,
+    done: "Done",
+    target: "Target",
+    timeLeft: "Time left",
+    reward: "Reward",
+    walletCredit: "wallet credit",
+  },
+  ar: {
+    previous: "التحدي السابق",
+    next: "التحدي التالي",
+    active: "التحدي النشط",
+    position: (current: number, total: number) => `${current} من ${total}`,
+    done: "مكتمل",
+    target: "الهدف",
+    timeLeft: "الوقت المتبقي",
+    reward: "المكافأة",
+    walletCredit: "رصيد المحفظة",
+  },
+} as const;
+
 export function CommunityChallengeCard() {
-  const { t } = useLanguage();
+  const { t, language, isRTL } = useLanguage();
+  const labels = agentSevenCopy[language];
+  const cooperativeChallengesEnabled = isPhaseOneFeatureEnabled("cooperativeChallenges");
   const { challenges, loading, joiningId, joinChallenge } =
     useCommunityChallenges();
   const [leaderboards, setLeaderboards] = useState<
@@ -155,6 +185,12 @@ export function CommunityChallengeCard() {
     challenge.user_progress >= challenge.target_value &&
     challenge.target_value > 0;
   const ChallengeIcon = challenge.challenge_type === "streak" ? Flame : Trophy;
+  const progressReason = challengeProgressReason(
+    challenge.challenge_type,
+    challenge.user_progress,
+    challenge.target_value,
+    isRTL,
+  );
   const canSwitchChallenges = challenges.length > 1;
   const showPreviousChallenge = () => {
     setActiveIndex((current) =>
@@ -179,30 +215,30 @@ export function CommunityChallengeCard() {
 
   return (
     <motion.div variants={fadeInUp}>
-      <div className="space-y-3">
+      <div dir={isRTL ? "rtl" : "ltr"} className="space-y-3">
         {canSwitchChallenges && (
           <div className="flex items-center justify-between rounded-[26px] bg-white p-1.5 shadow-[0_12px_28px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
             <button
               type="button"
               onClick={showPreviousChallenge}
               className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1] transition active:scale-95"
-              aria-label="Previous challenge"
+              aria-label={labels.previous}
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <div className="min-w-0 flex-1 px-3 text-center">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
-                Active challenge
+                {labels.active}
               </p>
               <p className="mt-0.5 text-[13px] font-black text-[#020617]">
-                {activeIndex + 1} of {challenges.length}
+                {labels.position(activeIndex + 1, challenges.length)}
               </p>
             </div>
             <button
               type="button"
               onClick={showNextChallenge}
               className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1] transition active:scale-95"
-              aria-label="Next challenge"
+              aria-label={labels.next}
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -275,7 +311,7 @@ export function CommunityChallengeCard() {
                     {progressPct}%
                   </span>
                   <span className="mt-0.5 text-[8px] font-black uppercase text-[#94A3B8]">
-                    Done
+                    {labels.done}
                   </span>
                 </div>
               </div>
@@ -291,7 +327,7 @@ export function CommunityChallengeCard() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">
-                    Target
+                    {labels.target}
                   </p>
                   <p className="text-[13px] font-black text-[#020617]">
                     {challenge.user_progress}/{challenge.target_value}
@@ -299,15 +335,20 @@ export function CommunityChallengeCard() {
                 </div>
               </div>
               <div className="h-8 w-px bg-[#E5EAF1]" />
-              <div className="text-right">
+              <div className="text-end">
                 <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">
-                  Time left
+                  {labels.timeLeft}
                 </p>
                 <p className="text-[13px] font-black text-[#020617]">
                   {daysLeft} {t("community_days")}
                 </p>
               </div>
             </div>
+            {cooperativeChallengesEnabled && challenge.is_joined && (
+              <p className="mt-2 rounded-[16px] bg-[#ECFDF8] px-3 py-2 text-[10px] font-bold leading-4 text-[#157A68]">
+                {progressReason}
+              </p>
+            )}
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -347,22 +388,25 @@ export function CommunityChallengeCard() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#94A3B8]">
-                  Reward
+                  {labels.reward}
                 </p>
                 <p className="truncate text-[12px] font-black text-[#020617]">
-                  {(challenge.xp_reward ?? 0) > 0 &&
-                    `${challenge.xp_reward} XP`}
-                  {(challenge.xp_reward ?? 0) > 0 &&
-                    (challenge.wallet_reward_amount ?? 0) > 0 &&
-                    " + "}
-                  {(challenge.wallet_reward_amount ?? 0) > 0 &&
-                    `QAR ${challenge.wallet_reward_amount} wallet credit`}
+                  {[
+                    (challenge.xp_reward ?? 0) > 0
+                      ? `${challenge.xp_reward} XP`
+                      : null,
+                    (challenge.wallet_reward_amount ?? 0) > 0
+                      ? `${formatCurrencyCompact(challenge.wallet_reward_amount)} ${labels.walletCredit}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" + ")}
                 </p>
               </div>
             </div>
           )}
 
-          {challenge.participation_mode === "team" && (
+          {cooperativeChallengesEnabled && challenge.participation_mode === "team" && (
             <ChallengeTeamSection
               challengeId={challenge.id}
               isJoined={challenge.is_joined}
@@ -370,7 +414,7 @@ export function CommunityChallengeCard() {
             />
           )}
 
-          {challenge.participation_mode !== "team" && (
+          {(!cooperativeChallengesEnabled || challenge.participation_mode !== "team") && (
             <div className="relative mt-3 rounded-[24px] bg-white p-4 ring-1 ring-[#E5EAF1]">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#64748B]">

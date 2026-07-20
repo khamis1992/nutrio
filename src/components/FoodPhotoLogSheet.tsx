@@ -37,7 +37,7 @@ interface DetectedFoodItem {
   fat_g: number;
   estimated_grams?: number;
   confidence?: number;
-  source?: "ai_estimate" | "ai_usda_cross_checked" | "usda_fallback";
+  source?: "ai_estimate" | "ai_usda_cross_checked" | "usda_fallback" | "gulf_db_verified";
   ranges?: {
     calories: NutritionEstimateRange;
     protein_g: NutritionEstimateRange;
@@ -50,6 +50,13 @@ interface DetectedFoodItem {
     description?: string;
     data_type?: string;
     match_confidence?: number;
+  };
+  gulf_match?: {
+    dish_id: string;
+    name_en: string;
+    name_ar: string;
+    match_confidence: number;
+    data_source: string;
   };
 }
 
@@ -495,6 +502,14 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
                           {typeof item.confidence === "number" && (
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                               {confidenceLabel(item.confidence)} {Math.round(item.confidence * 100)}%
+                            </span>
+                          )}
+                          {item.source === "gulf_db_verified" && item.gulf_match && (
+                            <span
+                              className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700"
+                              title={`Verified Gulf dish reference: ${item.gulf_match.name_en}`}
+                            >
+                              ✓ {item.gulf_match.name_ar} · Gulf verified
                             </span>
                           )}
                           {item.usda_cross_check?.status === "matched" && (

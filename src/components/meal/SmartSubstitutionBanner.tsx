@@ -1,17 +1,10 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  AlertTriangle,
-  X,
-  Flame,
-  Beef,
-  Clock,
-  ArrowRight,
-  Loader2,
-  Utensils,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertTriangle, ArrowRight, Beef, Clock, Flame, Loader2, Utensils, X } from "lucide-react";
 import { toast } from "sonner";
+
+import { useLanguage } from "@/contexts/LanguageContext";
+import { cn } from "@/lib/utils";
 
 interface Substitute {
   meal: {
@@ -48,8 +41,32 @@ export const SmartSubstitutionBanner = ({
   onDismiss,
   onSubstitute,
 }: SmartSubstitutionBannerProps) => {
+  const { isRTL } = useLanguage();
   const [substitutingId, setSubstitutingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const copy = isRTL ? {
+    unavailable: "لم تعد الوجبة متاحة",
+    safeAlternatives: "بدائل آمنة ومتاحة",
+    noAlternatives: "لا يوجد بديل آمن تلقائياً لهذه الوجبة",
+    suggested: "اختر بديلاً",
+    support: "حافظنا على جدولك دون تغيير. اختر وجبة أخرى يدوياً أو تواصل مع الدعم.",
+    success: "تم استبدال الوجبة",
+    successBody: "تم تحديث الجدول بعد إعادة فحص الأمان والتوصيل.",
+    failed: "تعذر استبدال الوجبة",
+    failedBody: "ربما تغير التوفر. أعد المحاولة لاختيار بديل آمن.",
+    dismiss: "إخفاء التنبيه",
+  } : {
+    unavailable: "is no longer available",
+    safeAlternatives: "safe, deliverable alternatives",
+    noAlternatives: "No automatic safe alternative is available",
+    suggested: "Choose a replacement",
+    support: "Your schedule was left unchanged. Pick another meal manually or contact support.",
+    success: "Meal replaced",
+    successBody: "Your schedule was updated after fresh safety and delivery checks.",
+    failed: "Meal replacement failed",
+    failedBody: "Availability may have changed. Try again to choose a safe replacement.",
+    dismiss: "Dismiss alert",
+  };
 
   const handleSubstitute = async (scheduleId: string, newMealId: string) => {
     setSubstitutingId(scheduleId);
@@ -57,64 +74,70 @@ export const SmartSubstitutionBanner = ({
     setSubstitutingId(null);
 
     if (success) {
-      toast.success("Meal substituted!", {
-        description: "Your schedule has been updated with the new meal.",
-        duration: 4000,
-      });
+      toast.success(copy.success, { description: copy.successBody, duration: 4000 });
     } else {
-      toast.error("Substitution failed", {
-        description: "Could not update the meal. Please try again.",
-      });
+      toast.error(copy.failed, { description: copy.failedBody });
     }
   };
 
   if (unavailableMeals.length === 0) return null;
 
   return (
-    <div className="space-y-3 px-4 max-w-lg mx-auto">
+    <div dir={isRTL ? "rtl" : "ltr"} className="mx-auto max-w-lg space-y-3 px-4">
       {unavailableMeals.map((item, index) => {
         const isExpanded = expandedId === item.scheduleId;
 
         return (
-          <motion.div
+          <motion.section
             key={item.scheduleId}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
             className={cn(
-              "rounded-2xl overflow-hidden shadow-sm border transition-all",
-              isExpanded
-                ? "border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-900"
-                : "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"
+              "overflow-hidden rounded-lg border bg-white shadow-sm transition-colors",
+              isExpanded ? "border-[#FB6B7A]" : "border-[#E5EAF1]",
             )}
           >
-            <button
-              onClick={() => {
-                setExpandedId(isExpanded ? null : item.scheduleId);
-              }}
-              className="w-full flex items-center gap-3 p-4 text-left cursor-pointer"
-            >
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 flex items-center justify-center shrink-0">
-                <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <div className="flex items-center gap-3 p-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FFF0F2]">
+                <AlertTriangle className="h-5 w-5 text-[#FB6B7A]" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-gray-900 dark:text-white">
-                  {item.mealName} is no longer available
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-[#020617]">
+                  {item.mealName} {copy.unavailable}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {item.substitutes.length} similar alternatives found
+                <p className="mt-0.5 text-xs font-semibold text-[#94A3B8]">
+                  {item.substitutes.length > 0
+                    ? `${item.substitutes.length} ${copy.safeAlternatives}`
+                    : copy.noAlternatives}
                 </p>
               </div>
+              {item.substitutes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isExpanded ? null : item.scheduleId)}
+                  className="flex h-11 min-w-11 items-center justify-center rounded-full bg-[#020617] px-3 text-white active:scale-95"
+                  aria-expanded={isExpanded}
+                  aria-label={copy.suggested}
+                >
+                  <ArrowRight className={cn("h-4 w-4 transition-transform", isRTL && "rotate-180", isExpanded && "rotate-90")} />
+                </button>
+              )}
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDismiss(item.scheduleId);
-                }}
-                className="w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shrink-0 cursor-pointer active:scale-95 transition-all"
+                type="button"
+                onClick={() => onDismiss(item.scheduleId)}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E5EAF1] bg-white active:scale-95"
+                aria-label={copy.dismiss}
               >
-                <X className="h-4 w-4 text-gray-400" />
+                <X className="h-4 w-4 text-[#94A3B8]" />
               </button>
-            </button>
+            </div>
+
+            {item.substitutes.length === 0 && (
+              <p className="border-t border-[#E5EAF1] bg-[#F6F8FB] px-4 py-3 text-xs font-semibold leading-5 text-[#64748B]">
+                {copy.support}
+              </p>
+            )}
 
             <AnimatePresence>
               {isExpanded && (
@@ -124,73 +147,57 @@ export const SmartSubstitutionBanner = ({
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="px-4 pb-4 space-y-2">
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">
-                      Suggested replacements
-                    </p>
+                  <div className="space-y-2 px-4 pb-4">
+                    <p className="mb-2 text-xs font-bold text-[#64748B]">{copy.suggested}</p>
                     {item.substitutes.map((sub) => (
                       <motion.div
                         key={sub.meal.id}
-                        initial={{ opacity: 0, x: -10 }}
+                        initial={{ opacity: 0, x: isRTL ? 10 : -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700"
+                        className="flex items-center gap-3 rounded-lg border border-[#E5EAF1] bg-[#F6F8FB] p-3"
                       >
                         {sub.meal.image_url ? (
-                          <img
-                            src={sub.meal.image_url}
-                            alt={sub.meal.name}
-                            className="w-14 h-14 rounded-xl object-cover shrink-0"
-                          />
+                          <img src={sub.meal.image_url} alt={sub.meal.name} className="h-14 w-14 shrink-0 rounded-lg object-cover" />
                         ) : (
-                          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 flex items-center justify-center shrink-0">
-                            <Utensils className="h-6 w-6 text-amber-400" />
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-white">
+                            <Utensils className="h-6 w-6 text-[#7C83F6]" />
                           </div>
                         )}
 
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                            {sub.meal.name}
-                          </h4>
-                          <div className="flex items-center gap-2 mt-1">
-                            {sub.meal.calories && (
-                              <span className="text-[10px] font-semibold text-amber-600 flex items-center gap-0.5">
-                                <Flame className="h-3 w-3" />
-                                {sub.meal.calories} kcal
+                        <div className="min-w-0 flex-1">
+                          <h4 className="truncate text-sm font-bold text-[#020617]">{sub.meal.name}</h4>
+                          <div className="mt-1 flex items-center gap-2">
+                            {sub.meal.calories !== null && (
+                              <span className="flex items-center gap-0.5 text-[10px] font-semibold text-[#FB6B7A]">
+                                <Flame className="h-3 w-3" />{sub.meal.calories} kcal
                               </span>
                             )}
-                            {sub.meal.protein_g && (
-                              <span className="text-[10px] font-semibold text-rose-600 flex items-center gap-0.5">
-                                <Beef className="h-3 w-3" />
-                                {sub.meal.protein_g}g
+                            {sub.meal.protein_g !== null && (
+                              <span className="flex items-center gap-0.5 text-[10px] font-semibold text-[#7C83F6]">
+                                <Beef className="h-3 w-3" />{sub.meal.protein_g}g
                               </span>
                             )}
-                            {sub.meal.prep_time_minutes && (
-                              <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
-                                <Clock className="h-3 w-3" />
-                                {sub.meal.prep_time_minutes}m
+                            {sub.meal.prep_time_minutes !== null && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-[#94A3B8]">
+                                <Clock className="h-3 w-3" />{sub.meal.prep_time_minutes}m
                               </span>
                             )}
                           </div>
-                          {sub.matchReasons.length > 0 && (
-                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
-                              {sub.matchReasons.join(" · ")}
-                            </p>
-                          )}
+                          <p className="mt-0.5 truncate text-[10px] font-semibold text-[#22C7A1]">
+                            {sub.matchReasons.slice(0, 2).join(" · ")}
+                          </p>
                         </div>
 
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSubstitute(item.scheduleId, sub.meal.id);
-                          }}
+                          type="button"
+                          onClick={() => void handleSubstitute(item.scheduleId, sub.meal.id)}
                           disabled={substitutingId === item.scheduleId}
-                          className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shrink-0 cursor-pointer active:scale-95 transition-all disabled:opacity-60 shadow-md shadow-emerald-500/20"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white active:scale-95 disabled:opacity-60"
+                          aria-label={`${copy.suggested}: ${sub.meal.name}`}
                         >
-                          {substitutingId === item.scheduleId ? (
-                            <Loader2 className="h-4 w-4 text-white animate-spin" />
-                          ) : (
-                            <ArrowRight className="h-4 w-4 text-white" />
-                          )}
+                          {substitutingId === item.scheduleId
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <ArrowRight className={cn("h-4 w-4", isRTL && "rotate-180")} />}
                         </button>
                       </motion.div>
                     ))}
@@ -198,7 +205,7 @@ export const SmartSubstitutionBanner = ({
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
+          </motion.section>
         );
       })}
     </div>

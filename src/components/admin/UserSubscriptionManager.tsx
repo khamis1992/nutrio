@@ -365,7 +365,7 @@ export function UserSubscriptionManager({
       p_meals_used_this_week: number;
       p_meals_used_this_month: number;
       p_price: number;
-      p_end_date: string | null;
+      p_end_date: string | undefined;
       p_wallet_balance: number;
     },
   ) => {

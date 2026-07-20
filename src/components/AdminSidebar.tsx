@@ -33,6 +33,9 @@ import {
   DollarSign,
   Cpu,
   ShieldAlert,
+  FlaskConical,
+  HeartPulse,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -51,6 +54,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
 
 const ADMIN_SIDEBAR_SCROLL_KEY = "nutrio:admin-sidebar-scroll";
 const ADMIN_SIDEBAR_GROUPS_KEY = "nutrio:admin-sidebar-open-groups";
@@ -85,10 +89,25 @@ const navGroups: Array<{
         label: "Meal Approvals",
         to: "/admin/meal-approvals",
       },
+      {
+        icon: FlaskConical,
+        label: "Nutrition Quality",
+        to: "/admin/nutrition-quality",
+      },
+      {
+        icon: HeartPulse,
+        label: "Health Programs",
+        to: "/admin/health-programs",
+      },
+      ...(isPhaseOneFeatureEnabled("corporateBenefits") ? [{
+        icon: Building2,
+        label: "Corporate Benefits",
+        to: "/admin/corporate-benefits",
+      }] : []),
       { icon: ShoppingBag, label: "Orders", to: "/admin/orders" },
       { icon: Package, label: "Deliveries", to: "/admin/deliveries" },
       { icon: CreditCard, label: "Subscriptions", to: "/admin/subscriptions" },
-      { icon: Snowflake, label: "Freeze Mgmt", to: "/admin/freeze-management" },
+      { icon: Snowflake, label: "Freeze Mgmt", to: "/admin/subscriptions/freezes" },
     ],
   },
   {
@@ -155,7 +174,8 @@ const navGroups: Array<{
     accent: "#38BDF8",
     items: [
       { icon: BarChart3, label: "Analytics", to: "/admin/analytics" },
-      { icon: Activity, label: "Retention", to: "/admin/retention-analytics" },
+      { icon: Activity, label: "Retention", to: "/admin/analytics/retention" },
+      { icon: ClipboardCheck, label: "Rollover Audit", to: "/admin/audit/rollovers" },
       { icon: Download, label: "Exports", to: "/admin/exports" },
       { icon: Cpu, label: "AI Engine", to: "/admin/ai-engine" },
     ],

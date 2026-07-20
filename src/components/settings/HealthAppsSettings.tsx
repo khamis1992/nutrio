@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, Footprints, Dumbbell, RefreshCw, Smartphone, Apple, HelpCircle, ExternalLink } from "lucide-react";
+import { AlertTriangle, Heart, Footprints, Dumbbell, RefreshCw, Smartphone, Apple, HelpCircle, ExternalLink, Link2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useHealthKitIntegration } from "@/hooks/useHealthKitIntegration";
@@ -44,8 +44,12 @@ export function HealthAppsSettings() {
     enabledTypes,
     lastSyncTimestamp,
     isSyncing,
+    isDisconnecting,
+    serverSyncStatus,
+    serverError,
     toggleDataType,
     disconnect,
+    reconnect,
     syncData,
     formatLastSync,
   } = useHealthKitIntegration();
@@ -54,6 +58,9 @@ export function HealthAppsSettings() {
   const platformLabel = PLATFORM_LABELS[platform];
   const isNativePlatform = platform !== "none";
   const needsPlugin = !isAvailable && isNativePlatform;
+  const needsReconnect = serverSyncStatus === "error"
+    || serverSyncStatus === "stale"
+    || serverSyncStatus === "revoked";
 
   return (
     <Card className="overflow-hidden rounded-[28px] border-[#E5EAF1] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
@@ -91,30 +98,63 @@ export function HealthAppsSettings() {
             <p className="text-xs font-semibold text-[#64748B]">
               {isNativePlatform
                 ? needsPlugin
-                  ? "Plugin installation required for native sync"
+                  ? "Health access is unavailable or not configured on this device"
                   : `${platformLabel} is available on this device`
                 : "Health sync is available on iOS and Android devices"}
             </p>
           </div>
         </div>
 
-        {/* Coming soon notice when plugin is missing */}
+        {needsReconnect && (
+          <div
+            role={serverSyncStatus === "error" ? "alert" : "status"}
+            className="flex items-start gap-3 border-y border-[#F97316]/25 bg-[#FFF7ED] px-3 py-3"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#C2410C]" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black text-[#7C2D12]">
+                {serverSyncStatus === "revoked"
+                  ? "Connection revoked"
+                  : serverSyncStatus === "stale"
+                    ? "Health data is stale"
+                    : "Health sync needs attention"}
+              </p>
+              <p className="mt-0.5 break-words text-xs font-semibold text-[#9A3412]">
+                {serverError || (serverSyncStatus === "revoked"
+                  ? "Reconnect to resume server sync."
+                  : "Retry the connection to refresh your health data.")}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void reconnect()}
+              disabled={isSyncing}
+              className="h-9 shrink-0 border-[#F97316]/30 bg-white text-xs text-[#9A3412]"
+            >
+              <Link2 className="mr-1.5 h-3.5 w-3.5" />
+              Reconnect
+            </Button>
+          </div>
+        )}
+
+        {/* Native availability guidance */}
         {needsPlugin && (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-[#F97316]/25 bg-[#FFF7ED] p-4 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white">
               <HelpCircle className="h-6 w-6 text-[#F97316]" />
             </div>
             <div>
-              <p className="text-sm font-black text-[#020617]">Health Plugin Coming Soon</p>
+              <p className="text-sm font-black text-[#020617]">Health Access Unavailable</p>
               <p className="mt-0.5 max-w-xs text-xs font-semibold text-[#64748B]">
-                {platform === "apple_health" 
-                  ? "The @capacitor-community/health plugin will be installed in the next app update to enable Apple HealthKit integration."
-                  : "The @capacitor-community/google-fit plugin will be installed in the next app update to enable Google Fit integration."}
+                {platform === "apple_health"
+                  ? "Enable Health access for Nutrio in iOS Settings, then return here to connect."
+                  : "Install or update Health Connect and allow Nutrio to read the selected health data."}
               </p>
             </div>
             <button
-              disabled
-              className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-full border border-[#F97316]/25 bg-white px-4 py-2 text-xs font-black text-[#F97316] opacity-70"
+              onClick={() => window.open(platform === "apple_health" ? "app-settings:" : "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata", "_blank")}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#F97316]/25 bg-white px-4 py-2 text-xs font-black text-[#F97316]"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               View Documentation
@@ -199,7 +239,7 @@ export function HealthAppsSettings() {
         </div>
 
         {/* Sync status and actions */}
-        {(isConnected || isSyncing) && (
+        {(isConnected || isSyncing || serverSyncStatus) && (
           <div className="flex items-center justify-between border-t border-[#E5EAF1] pt-2">
             <div>
               {isSyncing ? (
@@ -218,7 +258,7 @@ export function HealthAppsSettings() {
                 variant="ghost"
                 size="sm"
                 onClick={() => syncData()}
-                disabled={isSyncing}
+                disabled={isSyncing || serverSyncStatus === "revoked"}
                 className="h-8 text-xs"
               >
                 <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isSyncing ? "animate-spin" : ""}`} />
@@ -227,10 +267,11 @@ export function HealthAppsSettings() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={disconnect}
+                onClick={() => void disconnect()}
+                disabled={isDisconnecting}
                 className="h-8 text-xs text-destructive hover:text-destructive"
               >
-                Disconnect
+                {isDisconnecting ? "Disconnecting..." : "Disconnect"}
               </Button>
             </div>
           </div>

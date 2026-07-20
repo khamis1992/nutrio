@@ -107,7 +107,7 @@ export function SkipReasonModal({
       // This will only succeed for pending/confirmed orders - others will throw an error
       const { data: cancelData, error: cancelError } = await supabase.rpc("cancel_meal_schedule", {
         p_schedule_id: scheduleId,
-        p_reason: selectedReason || null,
+        p_reason: selectedReason || undefined,
       });
 
       if (cancelError) {

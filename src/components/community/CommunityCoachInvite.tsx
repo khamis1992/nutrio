@@ -5,7 +5,10 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  getParticipantCareAssignments,
+  listVerifiedCareProfessionals,
+} from "@/hooks/useCareTeam";
 
 type CoachPreview = {
   user_id: string;
@@ -24,38 +27,24 @@ export function CommunityCoachInvite() {
   const fetchCoaches = useCallback(async () => {
     if (!user?.id) return;
 
-    const { data: activeAssignment } = await supabase
-      .from("coach_client_assignments")
-      .select("coach_id")
-      .eq("client_id", user.id)
-      .eq("status", "active")
-      .maybeSingle();
-
-    const { data: coachRoles } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "coach")
-      .neq("user_id", user.id)
-      .limit(6);
-
-    const coachIds = Array.from(new Set(
-      [activeAssignment?.coach_id, ...(coachRoles ?? []).map((role) => role.user_id)]
-        .filter((id): id is string => Boolean(id)),
-    ));
-    if (!coachIds.length) {
+    const [assignments, professionals] = await Promise.all([
+      getParticipantCareAssignments({ clientId: user.id, statuses: ["active"] }),
+      listVerifiedCareProfessionals(),
+    ]);
+    const activeIds = new Set(assignments.map((assignment) => assignment.coach_id));
+    if (!professionals.length) {
       setCoaches([]);
       setMyCoach(null);
       return;
     }
-
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("user_id, full_name, avatar_url, specialties")
-      .in("user_id", coachIds);
-
-    const rows = (profiles ?? []) as CoachPreview[];
-    setCoaches(rows.filter((coach) => coach.user_id !== activeAssignment?.coach_id).slice(0, 2));
-    setMyCoach(rows.find((coach) => coach.user_id === activeAssignment?.coach_id) ?? null);
+    const rows: CoachPreview[] = professionals.map((professional) => ({
+      user_id: professional.professional_id,
+      full_name: professional.full_name,
+      avatar_url: professional.avatar_url,
+      specialties: professional.specialties,
+    }));
+    setCoaches(rows.filter((coach) => !activeIds.has(coach.user_id)).slice(0, 2));
+    setMyCoach(rows.find((coach) => activeIds.has(coach.user_id)) ?? null);
   }, [user?.id]);
 
   useEffect(() => {

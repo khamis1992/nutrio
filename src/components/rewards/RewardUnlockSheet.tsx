@@ -14,12 +14,13 @@ interface RewardUnlockSheetProps {
 
 export function RewardUnlockSheet({ unlock, onOpenChange }: RewardUnlockSheetProps) {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const xpReward = unlock?.xpReward ?? 0;
 
   return (
     <Sheet open={Boolean(unlock)} onOpenChange={onOpenChange}>
       <SheetContent
+        dir={isRTL ? "rtl" : "ltr"}
         side="bottom"
         className="mx-auto max-h-[calc(100dvh-5.5rem)] max-w-[480px] overflow-hidden rounded-t-[30px] border-[#E5EAF1] bg-white px-5 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] pt-4 text-[#020617] shadow-[0_-24px_70px_rgba(2,6,23,0.20)]"
         closeButtonClassName="right-5 top-7 grid h-9 w-9 place-items-center rounded-full bg-[#F6F8FB] text-[#94A3B8] opacity-100 ring-1 ring-[#E5EAF1] hover:text-[#020617]"
@@ -89,7 +90,7 @@ export function RewardUnlockSheet({ unlock, onOpenChange }: RewardUnlockSheetPro
                   navigate("/rewards");
                 }}
               >
-                <Wallet className="mr-2 h-4 w-4" strokeWidth={2.2} />
+                <Wallet className="me-2 h-4 w-4" strokeWidth={2.2} />
                 {t("view_rewards")}
               </Button>
             </div>

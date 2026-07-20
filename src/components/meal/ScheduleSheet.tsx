@@ -17,12 +17,18 @@ import {
   Loader2,
   ReceiptText,
   TrendingUp,
+  UserRound,
+  Building2,
+  AlertTriangle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { hapticFeedback } from "@/lib/capacitor";
 import { formatCurrency } from "@/lib/currency";
 import { MEAL_TYPES, generateDateOptions } from "./scheduleUtils";
 import { quoteDeliveryFee, type DeliveryFeeQuote } from "@/lib/delivery-pricing";
+import type { FamilyMember } from "@/hooks/useFamilyMembers";
+import type { CorporateBenefit } from "@/hooks/useCorporateBenefit";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ScheduleSheetProps {
   isOpen: boolean;
@@ -54,6 +60,12 @@ interface ScheduleSheetProps {
     price: number;
     is_available: boolean;
   }>;
+  familyMembers?: FamilyMember[];
+  selectedFamilyMemberId: string | null;
+  setSelectedFamilyMemberId: (id: string | null) => void;
+  corporateBenefit?: CorporateBenefit | null;
+  useCorporateBenefit: boolean;
+  setUseCorporateBenefit: (useBenefit: boolean) => void;
 }
 
 const TIME_SLOTS = [
@@ -88,7 +100,14 @@ export const ScheduleSheet = ({
   walletBalance,
   hasAddons,
   menuOfferings = [],
+  familyMembers = [],
+  selectedFamilyMemberId,
+  setSelectedFamilyMemberId,
+  corporateBenefit,
+  useCorporateBenefit,
+  setUseCorporateBenefit,
 }: ScheduleSheetProps) => {
+  const { isRTL } = useLanguage();
   const [addonsOpen, setAddonsOpen] = useState(false);
   const [addresses, setAddresses] = useState<{ id: string; label: string; address_line1: string; city: string; is_default: boolean }[]>([]);
   const [deliveryFeeQuote, setDeliveryFeeQuote] = useState<DeliveryFeeQuote | null>(null);
@@ -165,6 +184,29 @@ export const ScheduleSheet = ({
 
   const dateOptions = generateDateOptions();
   const selectedType = MEAL_TYPES.find(t => t.id === selectedMealType);
+  const beneficiaryCopy = isRTL ? {
+    eyebrow: "لمن هذه الوجبة؟",
+    title: "اختر المستفيد من الوجبة",
+    safety: "تم فحص السلامة",
+    myself: "لي",
+    useBenefit: "استخدام منفعة",
+    remaining: "وجبة مدعومة متبقية",
+    exhausted: "تم استخدام الحصة الشهرية",
+  } : {
+    eyebrow: "For whom?",
+    title: "Choose the meal beneficiary",
+    safety: "Safety checked",
+    myself: "Myself",
+    useBenefit: "Use",
+    remaining: "sponsored meals remaining",
+    exhausted: "Monthly benefit used",
+  };
+
+  useEffect(() => {
+    if ((corporateBenefit?.remaining_allowance ?? 0) <= 0 && useCorporateBenefit) {
+      setUseCorporateBenefit(false);
+    }
+  }, [corporateBenefit?.remaining_allowance, setUseCorporateBenefit, useCorporateBenefit]);
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -312,6 +354,65 @@ export const ScheduleSheet = ({
           </div>
 
           {/* — Delivery time slot — */}
+          {(familyMembers.length > 0 || corporateBenefit?.status === "active") && (
+            <section dir={isRTL ? "rtl" : "ltr"} className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.04)]">
+              <div className="mb-3 flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">{beneficiaryCopy.eyebrow}</p>
+                  <p className="mt-1 text-sm font-black text-[#020617]">{beneficiaryCopy.title}</p>
+                </div>
+                {selectedFamilyMemberId && (
+                  <span className="rounded-full bg-[#FFF1F3] px-2 py-1 text-[10px] font-black text-[#D94B63]">{beneficiaryCopy.safety}</span>
+                )}
+              </div>
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
+                <button
+                  type="button"
+                  onClick={() => { setSelectedFamilyMemberId(null); hapticFeedback.buttonPress(); }}
+                  className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3.5 text-xs font-black transition-all ${!selectedFamilyMemberId ? "border-[#020617] bg-[#020617] text-white" : "border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]"}`}
+                >
+                  <UserRound className="h-4 w-4" /> {beneficiaryCopy.myself}
+                </button>
+                {familyMembers.map((member) => {
+                  const selected = selectedFamilyMemberId === member.id;
+                  return (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => { setSelectedFamilyMemberId(member.id); setUseCorporateBenefit(false); hapticFeedback.buttonPress(); }}
+                      className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3.5 text-xs font-black transition-all ${selected ? "border-[#7C83F6] bg-[#EEF0FF] text-[#4D55C8]" : "border-[#E5EAF1] bg-[#F6F8FB] text-[#020617]"}`}
+                    >
+                      <UserRound className="h-4 w-4" />
+                      {member.name}
+                      {member.allergies.length > 0 && <AlertTriangle className="h-3.5 w-3.5 text-[#FB6B7A]" />}
+                    </button>
+                  );
+                })}
+              </div>
+              {corporateBenefit?.status === "active" && !selectedFamilyMemberId && (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={useCorporateBenefit}
+                  disabled={(corporateBenefit.remaining_allowance ?? 0) <= 0}
+                  onClick={() => { setUseCorporateBenefit(!useCorporateBenefit); hapticFeedback.buttonPress(); }}
+                  className={`mt-3 flex min-h-14 w-full items-center gap-3 rounded-[18px] border px-3 text-start transition-all disabled:opacity-60 ${useCorporateBenefit ? "border-[#22C7A1] bg-[#EAFBF6]" : "border-[#E5EAF1] bg-[#F6F8FB]"}`}
+                >
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] ${useCorporateBenefit ? "bg-[#22C7A1] text-white" : "bg-white text-[#64748B]"}`}>
+                    <Building2 className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-black text-[#020617]">{beneficiaryCopy.useBenefit} {corporateBenefit.organization_name}</span>
+                    <span className="block text-[10px] font-bold text-[#64748B]">{(corporateBenefit.remaining_allowance ?? 0) > 0 ? `${corporateBenefit.remaining_allowance} ${beneficiaryCopy.remaining}` : beneficiaryCopy.exhausted}</span>
+                  </span>
+                  <span className={`relative h-6 w-11 rounded-full transition-colors ${useCorporateBenefit ? "bg-[#22C7A1]" : "bg-[#CBD5E1]"}`}>
+                    <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${useCorporateBenefit ? "translate-x-6" : "translate-x-1"}`} />
+                  </span>
+                </button>
+              )}
+            </section>
+          )}
+
           <div className="rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.04)]">
             <p className="mb-3 text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Delivery time</p>
             <div className="grid grid-cols-3 gap-2">

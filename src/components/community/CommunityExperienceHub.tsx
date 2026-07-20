@@ -33,6 +33,7 @@ type LeaderboardEntry = {
 type RewardTransaction = {
   reward_type: string;
   reward_value: number;
+  status: string;
 };
 
 type QueryResult = {
@@ -112,7 +113,7 @@ export function CommunityExperienceHub() {
         fetchActiveChallengesFromTable(user.id),
         db
           .from("reward_transactions")
-          .select("reward_type, reward_value")
+          .select("reward_type, reward_value, status")
           .eq("user_id", user.id),
       ]);
 
@@ -142,14 +143,17 @@ export function CommunityExperienceHub() {
       }
 
       const rewardRows = (rewardsResult.data ?? []) as RewardTransaction[];
-      const rewardCredit = rewardRows
+      const activeRewardRows = rewardRows.filter((reward) =>
+        ["granted", "claimed"].includes(reward.status),
+      );
+      const rewardCredit = activeRewardRows
         .filter((reward) => reward.reward_type === "wallet_credit")
         .reduce((sum, reward) => sum + Number(reward.reward_value || 0), 0);
 
       setData({
         profile: profileResult.data as ProfileSummary | null,
         earnedBadges: badgeResult.count ?? 0,
-        rewardCount: rewardRows.length,
+        rewardCount: activeRewardRows.length,
         rewardCredit,
         activeChallengeCount: activeChallenges.length,
         joinedChallengeCount: joinedChallenges.length,

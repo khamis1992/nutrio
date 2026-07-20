@@ -1,4 +1,4 @@
-import { Users, Plus, User, Trash2, Calendar, Utensils, Link2 } from "lucide-react";
+import { Users, Plus, User, Trash2, Calendar, Utensils, ShieldCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { FamilyMember } from "@/hooks/useFamilyMembers";
 
@@ -8,6 +8,17 @@ const FAMILY_MEMBER_COST = 99;
 function getAge(birthYear: number | null): string {
   if (!birthYear) return "—";
   return `${CURRENT_YEAR - birthYear} yrs`;
+}
+
+function getMemberAge(member: FamilyMember): string {
+  if (member.date_of_birth) {
+    const birthDate = new Date(`${member.date_of_birth}T00:00:00`);
+    const now = new Date();
+    let age = now.getFullYear() - birthDate.getFullYear();
+    if (now < new Date(now.getFullYear(), birthDate.getMonth(), birthDate.getDate())) age -= 1;
+    return `${Math.max(age, 0)} yrs`;
+  }
+  return getAge(member.birth_year);
 }
 
 function formatPreferences(prefs: string[] | null): string {
@@ -90,26 +101,30 @@ export function FamilyPlansCard({
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Calendar className="h-3 w-3" />
-                    {getAge(member.birth_year)}
+                    {getMemberAge(member)}
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Utensils className="h-3 w-3" />
                     <span className="truncate max-w-[120px]">{formatPreferences(member.dietary_preferences)}</span>
                   </span>
                 </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#E9FBF6] px-2 py-1 text-[9px] font-black text-[#0A8F73]">
+                    <ShieldCheck className="h-3 w-3" /> {member.authorization_type === "guardian_consent" ? "Guardian consent" : "Authorized"}
+                  </span>
+                  {member.allergies.length > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF1F3] px-2 py-1 text-[9px] font-black text-[#D64D62]">
+                      <AlertTriangle className="h-3 w-3" /> {member.allergies.length} allergies
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => {}}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                  title="Link meal schedule"
-                >
-                  <Link2 className="h-3.5 w-3.5" />
-                </button>
-                <button
                   onClick={() => onRemoveMember(member.id)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                   title="Remove member"
+                  aria-label={`Remove ${member.name}`}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>

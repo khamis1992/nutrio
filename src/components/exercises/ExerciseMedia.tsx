@@ -32,8 +32,11 @@ export function ExerciseMedia({
   if (preferVideo && video && failedVideo !== video) {
     return (
       <video
+        key={video}
         src={video}
         poster={source || undefined}
+        autoPlay
+        loop
         controls
         muted
         playsInline

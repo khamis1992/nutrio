@@ -3,22 +3,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useDeliveredMealNotifications } from "@/hooks/useDeliveredMealNotifications";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Loader2, Plus, X, Utensils, Flame } from "lucide-react";
+import { MealConsumptionSheet } from "@/components/MealConsumptionSheet";
+import { Loader2, CheckCircle2, X, Utensils, Flame } from "lucide-react";
 
 export function DeliveredMealNotifications() {
-  const { pendingMeals, loading, addToProgress, dismissNotification } = useDeliveredMealNotifications();
+  const { pendingMeals, loading, dismissNotification } = useDeliveredMealNotifications();
   const { t } = useLanguage();
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [selectedMeal, setSelectedMeal] = useState<(typeof pendingMeals)[number] | null>(null);
 
   if (pendingMeals.length === 0) {
     return null;
   }
-
-  const handleAddToProgress = async (meal: typeof pendingMeals[0]) => {
-    setProcessingId(meal.id);
-    await addToProgress(meal);
-    setProcessingId(null);
-  };
 
   const handleDismiss = async (id: string) => {
     setProcessingId(id);
@@ -34,7 +30,7 @@ export function DeliveredMealNotifications() {
       </h3>
       
       {pendingMeals.map((meal) => (
-        <Card key={meal.id} className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200">
+        <Card key={meal.id} className="rounded-lg border-[#C7F1E6] bg-[#E8FBF6]">
           <CardContent className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
@@ -71,16 +67,16 @@ export function DeliveredMealNotifications() {
                 <Button
                   variant="default"
                   size="sm"
-                  className="h-8 bg-emerald-600 hover:bg-emerald-700"
-                  onClick={() => handleAddToProgress(meal)}
+                  className="h-9 rounded-lg bg-[#020617] hover:bg-[#020617]/90"
+                  onClick={() => setSelectedMeal(meal)}
                   disabled={processingId === meal.id || loading}
                 >
                   {processingId === meal.id ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                   <>
-                      <Plus className="w-4 h-4 mr-1" />
-                      {t('add')}
+                      <CheckCircle2 className="w-4 h-4 mr-1" />
+                      {t('confirm') === 'confirm' ? 'Confirm' : t('confirm')}
                     </>
                   )}
                 </Button>
@@ -89,6 +85,28 @@ export function DeliveredMealNotifications() {
           </CardContent>
         </Card>
       ))}
+
+      {selectedMeal && (
+        <MealConsumptionSheet
+          open
+          onOpenChange={(open) => { if (!open) setSelectedMeal(null); }}
+          sourceType={selectedMeal.source_type}
+          sourceId={selectedMeal.source_id}
+          sourceMealId={selectedMeal.meal_id}
+          meal={{
+            meal_id: selectedMeal.meal_id,
+            meal_name: selectedMeal.meal_name,
+            calories: selectedMeal.calories,
+            protein_g: selectedMeal.protein_g,
+            carbs_g: selectedMeal.carbs_g,
+            fat_g: selectedMeal.fat_g,
+          }}
+          onSaved={() => {
+            void dismissNotification(selectedMeal.id);
+            setSelectedMeal(null);
+          }}
+        />
+      )}
     </div>
   );
 }

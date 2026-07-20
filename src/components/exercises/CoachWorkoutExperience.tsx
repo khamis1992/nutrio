@@ -8,6 +8,7 @@ import {
   Dumbbell,
   Lock,
   Play,
+  BedDouble,
   Search,
   Sparkles,
 } from "lucide-react";
@@ -15,7 +16,7 @@ import {
 import { ExerciseCatalogSheet } from "@/components/exercises/ExerciseCatalogSheet";
 import { ExerciseMedia } from "@/components/exercises/ExerciseMedia";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
-import type { CoachProgram, ProgramExercise } from "@/hooks/useCoachPrograms";
+import type { CoachProgram, ProgramExercise, ProgramWorkoutDay } from "@/hooks/useCoachPrograms";
 import { useWorkoutDayLocks } from "@/hooks/useWorkoutDayLocks";
 import { formatExerciseLabel, type ExerciseCatalogItem } from "@/lib/exercise-catalog";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ interface CoachWorkoutExperienceProps {
   clientId?: string;
   programs: CoachProgram[];
   exercises: ProgramExercise[];
+  workoutDays: ProgramWorkoutDay[];
   isExerciseCompleted: (exerciseId: string) => boolean;
   toggleExercise: (exerciseId: string) => void | Promise<void>;
 }
@@ -32,6 +34,7 @@ export function CoachWorkoutExperience({
   clientId,
   programs,
   exercises,
+  workoutDays,
   isExerciseCompleted,
   toggleExercise,
 }: CoachWorkoutExperienceProps) {
@@ -159,7 +162,8 @@ export function CoachWorkoutExperience({
 
       {exercises.length === 0 ? null : programs.map((program) => {
         const programExercises = exercises.filter((exercise) => exercise.program_id === program.id);
-        const days = [...new Set(programExercises.map((exercise) => exercise.day_number))].sort((a, b) => a - b);
+        const programDays = workoutDays.filter((day) => day.program_id === program.id);
+        const days = [...new Set([...programExercises.map((exercise) => exercise.day_number), ...programDays.map((day) => day.day_number)])].sort((a, b) => a - b);
         const unlockedDays = days.filter((day) => isDayUnlocked(program.id, day));
         const firstIncompleteDay = days.find((day) =>
           programExercises.some((exercise) => exercise.day_number === day && !isExerciseCompleted(exercise.id)),
@@ -169,6 +173,7 @@ export function CoachWorkoutExperience({
           ? selectedCandidate
           : unlockedDays.at(-1) ?? days[0];
         const dayExercises = programExercises.filter((exercise) => exercise.day_number === selectedDay);
+        const dayDefinition = programDays.find((day) => day.day_number === selectedDay);
         const programCompleted = programExercises.filter((exercise) => isExerciseCompleted(exercise.id)).length;
         const programProgress = programExercises.length > 0
           ? Math.round((programCompleted / programExercises.length) * 100)
@@ -185,6 +190,10 @@ export function CoachWorkoutExperience({
                   <p className="mt-2 text-[11px] font-medium text-[#71809C]">
                     {formatDate(program.start_date)} - {formatDate(program.end_date)}
                   </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <span className="rounded-full bg-white px-2 py-1 text-[9px] font-extrabold text-[#7C83F6] ring-1 ring-[#DDE5EF]">{program.schedule_mode === "flexible" ? "Flexible week" : "Fixed schedule"}</span>
+                    <span className="rounded-full bg-white px-2 py-1 text-[9px] font-extrabold text-[#0E9F83] ring-1 ring-[#DDE5EF]">{program.phase_count ?? 1} phase{(program.phase_count ?? 1) === 1 ? "" : "s"}</span>
+                  </div>
                 </div>
                 <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full border-[5px] border-[#22C7A1] bg-white shadow-sm">
                   <span className="text-[13px] font-extrabold leading-none text-[#07152F]">{programProgress}%</span>
@@ -227,7 +236,7 @@ export function CoachWorkoutExperience({
                     >
                       <span className="flex items-center gap-1 text-[12px] font-extrabold">
                         {!unlocked && <Lock className="h-3 w-3" />}
-                        Day {day}
+                        {programDays.find((item) => item.day_number === day)?.day_type === "rest" ? "Rest" : `Day ${day}`}
                       </span>
                       <span className="mt-1 block text-[10px] font-semibold opacity-65">
                         {!unlocked && previousLockedDay
@@ -244,14 +253,14 @@ export function CoachWorkoutExperience({
               <div className="mt-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#7C83F6]">Today&apos;s session</p>
-                  <h4 className="mt-1 text-[18px] font-extrabold text-[#07152F]">Day {selectedDay}</h4>
+                  <h4 className="mt-1 text-[18px] font-extrabold text-[#07152F]">{dayDefinition?.title || `Day ${selectedDay}`}</h4>
                   <p className="mt-1 text-[11px] font-medium text-[#8A98AF]">
                     {isDayLogged(program.id, selectedDay)
                       ? "Workout logs saved for this day"
                       : `${dayCompleted} of ${dayExercises.length} exercises complete`}
                   </p>
                 </div>
-                {dayExercises.length > 0 && (
+                {dayExercises.length > 0 && dayDefinition?.day_type !== "rest" && (
                   <button
                     type="button"
                     onClick={() => navigate(`/coach-programs/workout/${program.id}/day/${selectedDay}`)}
@@ -262,6 +271,13 @@ export function CoachWorkoutExperience({
                   </button>
                 )}
               </div>
+
+              {dayDefinition?.day_type === "rest" && (
+                <div className="mt-4 flex items-center gap-3 rounded-[20px] bg-[#EFF9FF] p-4 ring-1 ring-[#38BDF8]/25">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-white text-[#38BDF8]"><BedDouble className="h-5 w-5" /></span>
+                  <div><p className="text-[13px] font-extrabold text-[#07152F]">Recovery day</p><p className="mt-1 text-[10px] font-medium text-[#71809C]">{dayDefinition.notes || "Rest, hydrate, and prepare for the next session."}</p></div>
+                </div>
+              )}
 
               <div className="mt-4 space-y-3">
                 {dayExercises.map((exercise, index) => {

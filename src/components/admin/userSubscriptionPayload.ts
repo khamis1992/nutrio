@@ -71,7 +71,7 @@ export interface SubscriptionFormValues {
 
 export interface AdminSubscriptionWalletArgs {
   p_user_id: string;
-  p_subscription_id: string | null;
+  p_subscription_id: string | undefined;
   p_plan: string;
   p_status: SubscriptionStatus;
   p_tier: string;
@@ -80,7 +80,7 @@ export interface AdminSubscriptionWalletArgs {
   p_meals_used_this_week: number;
   p_meals_used_this_month: number;
   p_price: number;
-  p_end_date: string | null;
+  p_end_date: string | undefined;
   p_includes_gym: false;
   p_wallet_balance: number;
 }
@@ -132,7 +132,7 @@ export const buildAdminSubscriptionWalletArgs = ({
   overrides?: SubscriptionSaveOverrides;
 }): AdminSubscriptionWalletArgs => ({
   p_user_id: userId,
-  p_subscription_id: subscriptionId,
+  p_subscription_id: subscriptionId ?? undefined,
   p_plan: normalizeSubscriptionPlan(overrides.plan ?? form.selectedPlan),
   p_status: normalizeSubscriptionStatus(
     overrides.status ?? form.selectedStatus,
@@ -155,7 +155,7 @@ export const buildAdminSubscriptionWalletArgs = ({
     status: overrides.status ?? form.selectedStatus,
     plan: overrides.plan ?? form.selectedPlan,
     endDate: overrides.endDate ?? (form.endDate || null),
-  }),
+  }) ?? undefined,
   p_includes_gym: false,
   p_wallet_balance:
     overrides.walletBalance ??

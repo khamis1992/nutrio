@@ -48,6 +48,9 @@ const newerFactor = {
 };
 
 const mfa = supabase.auth.mfa;
+const rpcMock = supabase.rpc as unknown as {
+  mockResolvedValue: (value: unknown) => void;
+};
 
 function mockFactors() {
   vi.mocked(mfa.listFactors).mockResolvedValue({
@@ -78,7 +81,7 @@ describe("AdminMfaGate", () => {
       data: { access_token: "verified-aal2-token" } as never,
       error: null,
     });
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as never);
+    rpcMock.mockResolvedValue({ data: null, error: null });
     mockFactors();
   });
 

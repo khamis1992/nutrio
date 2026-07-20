@@ -13,6 +13,9 @@ interface AvatarUploadProps {
   currentAvatarUrl: string | null;
   onAvatarUpdate: (url: string) => void;
   size?: "sm" | "md" | "lg";
+  className?: string;
+  containerClassName?: string;
+  badgeClassName?: string;
 }
 
 const sizeMap = {
@@ -25,6 +28,9 @@ export const AvatarUpload = ({
   currentAvatarUrl,
   onAvatarUpdate,
   size = "md",
+  className,
+  containerClassName,
+  badgeClassName,
 }: AvatarUploadProps) => {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -140,11 +146,12 @@ export const AvatarUpload = ({
   };
 
   return (
-    <div className="relative inline-block">
+    <div className={cn("relative inline-block", className)}>
       <div
         className={cn(
           "relative rounded-full overflow-hidden bg-muted border-4 border-background shadow-lg cursor-pointer",
-          sizes.container
+          sizes.container,
+          containerClassName,
         )}
         onClick={handleClick}
       >
@@ -167,9 +174,11 @@ export const AvatarUpload = ({
         type="button"
         onClick={handleClick}
         disabled={uploading}
+        aria-label={t("update_profile_photo")}
         className={cn(
           "absolute flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md border-2 border-background",
-          sizes.badge
+          sizes.badge,
+          badgeClassName,
         )}
       >
         <Camera className={sizes.camera} />
