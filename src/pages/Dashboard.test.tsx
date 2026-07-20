@@ -267,11 +267,11 @@ const createQueryClient = () =>
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
 
-const renderDashboard = () => {
+const renderDashboard = (route = "/dashboard") => {
   const qc = createQueryClient();
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[route]}>
         <Dashboard />
       </MemoryRouter>
     </QueryClientProvider>
@@ -471,9 +471,14 @@ describe("Dashboard Page", () => {
       expect(screen.getByTestId("dashboard-fab-log")).toBeInTheDocument();
       expect(screen.getByTestId("dashboard-fab-coaches")).toBeInTheDocument();
       expect(screen.getByTestId("dashboard-fab-community")).toBeInTheDocument();
-      expect(screen.getByTestId("dashboard-nutrition-card")).toBeInTheDocument();
       fireEvent.click(screen.getByTestId("dashboard-fab-order"));
       expect(mockNavigate).toHaveBeenCalledWith("/meals");
+    });
+
+    it("renders the health apps card on the activity tab", () => {
+      renderDashboard("/dashboard/activity");
+      expect(screen.getByTestId("dashboard-activity-health-apps-card")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "open_health_settings" })).toBeInTheDocument();
     });
   });
 
