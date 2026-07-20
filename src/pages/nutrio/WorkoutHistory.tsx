@@ -3,9 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Dumbbell, Clock, Trophy, Calendar, ChevronDown, ChevronUp, TrendingUp } from "lucide-react";
+import { Activity, ArrowLeft, Dumbbell, Clock, Trophy, Calendar, ChevronDown, ChevronUp, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
+import { didMeetSetTarget } from "@/lib/workout-set-prescription";
+import { calculateDailyTrainingLoad } from "@/lib/strength-training";
 
 interface SessionSummary {
   id: string;
@@ -14,6 +18,8 @@ interface SessionSummary {
   started_at: string;
   completed_at: string | null;
   duration_seconds: number | null;
+  rating: number | null;
+  perceived_effort: number | null;
   notes: string | null;
   programTitle?: string;
 }
@@ -25,6 +31,14 @@ interface SetLog {
   set_number: number;
   reps: number | null;
   weight_kg: number | null;
+  rpe: number | null;
+  rir: number | null;
+  target_reps_min: number | null;
+  target_reps_max: number | null;
+  target_weight_kg: number | null;
+  target_rpe: number | null;
+  target_rest_seconds: number | null;
+  actual_rest_seconds: number | null;
   completed: boolean;
 }
 
@@ -59,12 +73,58 @@ const formatChartDate = (value: string) =>
 
 export default function WorkoutHistory() {
   const { user } = useAuth();
+  const { isRTL } = useLanguage();
+  const trainingEnhancementsEnabled = isPhaseOneFeatureEnabled("trainingEnhancements");
+  const addedCopy = isRTL ? {
+    advancedLoad: "حمل التدريب المتقدم",
+    loadDescription: "عرض اختياري لمجهود الجلسة: المدة × المجهود",
+    sevenDayLoad: "حمل 7 أيام",
+    loadGuidance: "استخدم الحمل لمقارنة أسابيعك فقط. ليس مقياسًا طبيًا للجاهزية ولا يتجاوز وصفة مدربك.",
+    noRated: "لا توجد جلسات مقيّمة بعد",
+    rateNext: "قيّم المجهود بعد تمرينك الموجّه التالي لفتح هذا العرض.",
+    progression: "تطور القوة",
+    chart: "مخطط لكل تمرين",
+    chartDescription: "تتبّع أعلى وزن والقوة المقدّرة من المجموعات الموجّهة المكتملة.",
+    bestWeight: "أفضل وزن",
+    estimated: "القوة المقدّرة",
+    change: "التغيير",
+    noWeighted: "لا توجد مجموعات بأوزان بعد",
+    buildChart: "سجّل الوزن أو التكرارات في تمرين موجّه لبناء هذا المخطط.",
+    noExerciseData: "لا توجد بيانات تمارين بعد",
+    startTracking: "أكمل مجموعة في تمرين موجّه لبدء تتبّع كل تمرين.",
+    onTarget: "ضمن الهدف",
+    belowTarget: "أقل من الهدف",
+    target: "الهدف",
+    rested: "الراحة",
+  } : {
+    advancedLoad: "Advanced training load",
+    loadDescription: "Optional session-RPE view · duration × effort",
+    sevenDayLoad: "7-day load",
+    loadGuidance: "Use load to compare your own weeks. It is not a medical readiness score and does not override your coach's prescription.",
+    noRated: "No effort-rated sessions yet",
+    rateNext: "Rate effort after your next guided workout to unlock this view.",
+    progression: "Strength Progression",
+    chart: "Per-exercise chart",
+    chartDescription: "Track max weight and estimated strength from completed guided sets.",
+    bestWeight: "Best weight",
+    estimated: "Est. strength",
+    change: "Change",
+    noWeighted: "No weighted sets yet",
+    buildChart: "Log weight or reps in a guided workout to build this chart.",
+    noExerciseData: "No exercise data yet",
+    startTracking: "Complete a guided workout set to start tracking each exercise.",
+    onTarget: "On target",
+    belowTarget: "Below target",
+    target: "Target",
+    rested: "Rested",
+  };
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [setLogs, setSetLogs] = useState<Record<string, SetLog[]>>({});
   const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([]);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
+  const [showTrainingLoad, setShowTrainingLoad] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -72,18 +132,26 @@ export default function WorkoutHistory() {
 
     const fetchHistory = async () => {
       try {
-        const { data: sessionData } = await supabase
+        const sessionColumns = trainingEnhancementsEnabled
+          ? "id, program_id, day_number, started_at, completed_at, duration_seconds, rating, perceived_effort, notes"
+          : "id, program_id, day_number, started_at, completed_at, duration_seconds, notes";
+        const { data: rawSessionData } = await supabase
           .from("coach_workout_sessions")
-          .select("id, program_id, day_number, started_at, completed_at, duration_seconds, notes")
+          .select(sessionColumns)
           .eq("user_id", user.id)
           .order("started_at", { ascending: false })
           .limit(30);
 
-        if (!sessionData || sessionData.length === 0) {
+        if (!rawSessionData || rawSessionData.length === 0) {
           setLoading(false);
           return;
         }
 
+        const sessionData = (rawSessionData as unknown as SessionSummary[]).map((session) => ({
+          ...session,
+          rating: session.rating ?? null,
+          perceived_effort: session.perceived_effort ?? null,
+        }));
         const programIds = [...new Set(sessionData.map((s) => s.program_id).filter(Boolean))] as string[];
         const programTitles: Record<string, string> = {};
         if (programIds.length > 0) {
@@ -103,20 +171,35 @@ export default function WorkoutHistory() {
         setSessions(enrichedSessions);
 
         const sessionIds = sessionData.map((s) => s.id);
-        const { data: logs } = await supabase
+        const setLogColumns = trainingEnhancementsEnabled
+          ? "id, session_id, exercise_name, set_number, reps, weight_kg, rpe, rir, target_reps_min, target_reps_max, target_weight_kg, target_rpe, target_rest_seconds, actual_rest_seconds, completed"
+          : "id, session_id, exercise_name, set_number, reps, weight_kg, completed";
+        const { data: rawLogs } = await supabase
           .from("coach_workout_set_logs")
-          .select("id, session_id, exercise_name, set_number, reps, weight_kg, completed")
+          .select(setLogColumns)
           .in("session_id", sessionIds);
 
+        const logs = ((rawLogs || []) as unknown as SetLog[]).map((log) => ({
+          ...log,
+          rpe: log.rpe ?? null,
+          rir: log.rir ?? null,
+          target_reps_min: log.target_reps_min ?? null,
+          target_reps_max: log.target_reps_max ?? null,
+          target_weight_kg: log.target_weight_kg ?? null,
+          target_rpe: log.target_rpe ?? null,
+          target_rest_seconds: log.target_rest_seconds ?? null,
+          actual_rest_seconds: log.actual_rest_seconds ?? null,
+        }));
+
         const logsBySession: Record<string, SetLog[]> = {};
-        for (const log of logs || []) {
+        for (const log of logs) {
           if (!logsBySession[log.session_id]) logsBySession[log.session_id] = [];
           logsBySession[log.session_id].push(log as SetLog);
         }
         setSetLogs(logsBySession);
 
         const exerciseMap: Record<string, { maxWeight: number; maxReps: number; date: string }> = {};
-        for (const log of logs || []) {
+        for (const log of logs) {
           if (!log.completed) continue;
           const key = log.exercise_name;
           if (!exerciseMap[key]) {
@@ -146,7 +229,7 @@ export default function WorkoutHistory() {
     };
 
     fetchHistory();
-  }, [user?.id]);
+  }, [trainingEnhancementsEnabled, user?.id]);
 
   const exerciseProgression = useMemo(() => {
     const sessionDateById = new Map(sessions.map((session) => [session.id, session.started_at]));
@@ -232,12 +315,24 @@ export default function WorkoutHistory() {
 
   const totalWorkouts = sessions.filter((s) => s.completed_at).length;
   const totalMinutes = sessions.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0) / 60;
+  const trainingLoad = trainingEnhancementsEnabled ? calculateDailyTrainingLoad(sessions.map((item) => ({
+    startedAt: item.started_at,
+    durationSeconds: item.duration_seconds,
+    perceivedEffort: item.perceived_effort,
+  }))).slice(-7) : [];
+  const maxTrainingLoad = Math.max(...trainingLoad.map((item) => item.load), 1);
+  const totalTrainingLoad = trainingLoad.reduce((sum, item) => sum + item.load, 0);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-8">
       <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-lg border-b border-slate-100">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center active:scale-95 transition-transform">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 transition-transform active:scale-95"
+            aria-label={isRTL ? "الرجوع" : "Go back"}
+          >
             <ArrowLeft className="w-4 h-4 text-slate-600" />
           </button>
           <div>
@@ -247,7 +342,7 @@ export default function WorkoutHistory() {
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 pt-4 space-y-3">
+      <main className="mx-auto max-w-md space-y-3 px-4 pt-4">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
@@ -292,12 +387,57 @@ export default function WorkoutHistory() {
               </motion.div>
             </div>
 
-            <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
+            {trainingEnhancementsEnabled && <motion.section dir={isRTL ? "rtl" : "ltr"} variants={fadeInUp} initial="hidden" animate="visible" className="overflow-hidden rounded-[24px] bg-white ring-1 ring-[#E5EAF1] shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+              <button
+                type="button"
+                onClick={() => setShowTrainingLoad((value) => !value)}
+                className="flex min-h-[64px] w-full items-center gap-3 px-4 text-start active:bg-[#F8FAFC]"
+                aria-expanded={showTrainingLoad}
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-[#FFF0F2] text-[#FB6B7A]">
+                  <Activity className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-black text-[#020617]">{addedCopy.advancedLoad}</span>
+                  <span className="mt-0.5 block text-[10px] font-semibold text-[#94A3B8]">{addedCopy.loadDescription}</span>
+                </span>
+                <span className="text-end">
+                  <span className="block text-[17px] font-black text-[#FB6B7A]">{totalTrainingLoad}</span>
+                  <span className="text-[8px] font-black uppercase tracking-wide text-[#94A3B8]">{addedCopy.sevenDayLoad}</span>
+                </span>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 text-[#94A3B8] transition", showTrainingLoad && "rotate-180")} />
+              </button>
+              {showTrainingLoad && (
+                <div className="border-t border-[#E5EAF1] bg-[#F6F8FB] px-4 pb-4 pt-3">
+                  {trainingLoad.length > 0 ? (
+                    <>
+                      <div className="flex h-[112px] items-end gap-2">
+                        {trainingLoad.map((day) => (
+                          <div key={day.date} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+                            <span className="text-[8px] font-black text-[#64748B]">{day.load}</span>
+                            <span className="w-full max-w-8 rounded-t-[8px] bg-[#FB6B7A]" style={{ height: `${Math.max(8, (day.load / maxTrainingLoad) * 76)}px` }} />
+                            <span className="text-[8px] font-bold text-[#94A3B8]">{new Date(`${day.date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short" }).slice(0, 2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-3 text-[9px] font-semibold leading-4 text-[#94A3B8]">{addedCopy.loadGuidance}</p>
+                    </>
+                  ) : (
+                    <div className="py-5 text-center">
+                      <p className="text-[12px] font-black text-[#020617]">{addedCopy.noRated}</p>
+                      <p className="mt-1 text-[10px] font-semibold text-[#94A3B8]">{addedCopy.rateNext}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.section>}
+
+            {trainingEnhancementsEnabled && <motion.div dir={isRTL ? "rtl" : "ltr"} variants={fadeInUp} initial="hidden" animate="visible" className="rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">Strength Progression</p>
-                  <h2 className="mt-1 text-[18px] font-black leading-tight text-[#020617]">Per-exercise chart</h2>
-                  <p className="mt-1 text-[12px] font-semibold leading-4 text-[#94A3B8]">Track max weight and estimated strength from completed guided sets.</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">{addedCopy.progression}</p>
+                  <h2 className="mt-1 text-[18px] font-black leading-tight text-[#020617]">{addedCopy.chart}</h2>
+                  <p className="mt-1 text-[12px] font-semibold leading-4 text-[#94A3B8]">{addedCopy.chartDescription}</p>
                 </div>
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#E5EAF1]">
                   <TrendingUp className="h-5 w-5" />
@@ -326,17 +466,17 @@ export default function WorkoutHistory() {
 
                   <div className="mt-4 grid grid-cols-3 gap-2">
                     <div className="rounded-2xl bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
-                      <p className="text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">Best weight</p>
-                      <p className="mt-1 text-[18px] font-black text-[#020617]">{bestWeight > 0 ? bestWeight : "--"}<span className="ml-0.5 text-[10px] font-bold text-[#94A3B8]">kg</span></p>
+                      <p className="text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">{addedCopy.bestWeight}</p>
+                      <p className="mt-1 text-[18px] font-black text-[#020617]">{bestWeight > 0 ? bestWeight : "--"}<span className="ms-0.5 text-[10px] font-bold text-[#94A3B8]">kg</span></p>
                     </div>
                     <div className="rounded-2xl bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
-                      <p className="text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">Est. strength</p>
-                      <p className="mt-1 text-[18px] font-black text-[#7C83F6]">{bestEstimatedStrength > 0 ? bestEstimatedStrength : "--"}<span className="ml-0.5 text-[10px] font-bold text-[#94A3B8]">kg</span></p>
+                      <p className="text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">{addedCopy.estimated}</p>
+                      <p className="mt-1 text-[18px] font-black text-[#7C83F6]">{bestEstimatedStrength > 0 ? bestEstimatedStrength : "--"}<span className="ms-0.5 text-[10px] font-bold text-[#94A3B8]">kg</span></p>
                     </div>
                     <div className="rounded-2xl bg-[#F6F8FB] p-3 ring-1 ring-[#E5EAF1]">
-                      <p className="text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">Change</p>
+                      <p className="text-[9px] font-black uppercase tracking-wide text-[#94A3B8]">{addedCopy.change}</p>
                       <p className={cn("mt-1 text-[18px] font-black", weightChange >= 0 ? "text-[#22C7A1]" : "text-[#FB6B7A]")}>
-                        {weightChange > 0 ? "+" : ""}{Number(weightChange.toFixed(1))}<span className="ml-0.5 text-[10px] font-bold text-[#94A3B8]">kg</span>
+                        {weightChange > 0 ? "+" : ""}{Number(weightChange.toFixed(1))}<span className="ms-0.5 text-[10px] font-bold text-[#94A3B8]">kg</span>
                       </p>
                     </div>
                   </div>
@@ -360,8 +500,8 @@ export default function WorkoutHistory() {
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                         <Dumbbell className="h-8 w-8 text-[#94A3B8]" />
-                        <p className="mt-2 text-[13px] font-black text-[#020617]">No weighted sets yet</p>
-                        <p className="mt-1 text-[11px] font-semibold leading-4 text-[#94A3B8]">Log weight or reps in a guided workout to build this chart.</p>
+                        <p className="mt-2 text-[13px] font-black text-[#020617]">{addedCopy.noWeighted}</p>
+                        <p className="mt-1 text-[11px] font-semibold leading-4 text-[#94A3B8]">{addedCopy.buildChart}</p>
                       </div>
                     )}
                   </div>
@@ -374,11 +514,11 @@ export default function WorkoutHistory() {
               ) : (
                 <div className="mt-4 rounded-[20px] bg-[#F6F8FB] p-5 text-center ring-1 ring-[#E5EAF1]">
                   <Dumbbell className="mx-auto h-9 w-9 text-[#94A3B8]" />
-                  <p className="mt-3 text-[14px] font-black text-[#020617]">No exercise data yet</p>
-                  <p className="mt-1 text-[12px] font-semibold leading-4 text-[#94A3B8]">Complete a guided workout set to start tracking each exercise.</p>
+                  <p className="mt-3 text-[14px] font-black text-[#020617]">{addedCopy.noExerciseData}</p>
+                  <p className="mt-1 text-[12px] font-semibold leading-4 text-[#94A3B8]">{addedCopy.startTracking}</p>
                 </div>
               )}
-            </motion.div>
+            </motion.div>}
 
             <div className="space-y-2">
               {sessions.map((session) => {
@@ -446,18 +586,40 @@ export default function WorkoutHistory() {
                                     const isPR = personalRecords.some(
                                       (pr) => pr.exercise_name === exName && pr.max_weight === log.weight_kg && log.weight_kg !== null && log.weight_kg > 0
                                     );
+                                    const targetResult = didMeetSetTarget({
+                                      reps: log.reps,
+                                      weightKg: log.weight_kg,
+                                      rpe: log.rpe,
+                                      targetRepsMin: log.target_reps_min,
+                                      targetWeightKg: log.target_weight_kg,
+                                      targetRpe: log.target_rpe,
+                                    });
+                                    const targetReps = log.target_reps_min == null
+                                      ? null
+                                      : log.target_reps_min === log.target_reps_max
+                                        ? String(log.target_reps_min)
+                                        : `${log.target_reps_min}-${log.target_reps_max}`;
                                     return (
-                                      <div key={log.id} className="flex items-center gap-2 px-2 py-1">
-                                        <span className="text-[9px] font-bold text-slate-400 w-6">Set {log.set_number}</span>
-                                        <span className="text-[11px] font-mono text-slate-600">{log.reps ?? 0} reps</span>
-                                        <span className="text-[11px] font-mono text-slate-600">{log.weight_kg ?? 0}kg</span>
-                                        {isPR && (
-                                          <span className="text-[8px] font-bold text-amber-600 bg-amber-100 px-1 py-0.5 rounded-full">PR</span>
-                                        )}
-                                        {log.completed ? (
-                                          <span className="text-[9px] text-emerald-500 ml-auto">Done</span>
-                                        ) : (
-                                          <span className="text-[9px] text-slate-300 ml-auto">Skipped</span>
+                                      <div key={log.id} className="rounded-xl bg-white px-2.5 py-2 ring-1 ring-slate-200/80">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[9px] font-bold text-slate-400">Set {log.set_number}</span>
+                                          <span className="text-[11px] font-mono font-bold text-slate-700">{log.reps ?? 0} reps</span>
+                                          <span className="text-[11px] font-mono font-bold text-slate-700">{log.weight_kg ?? 0}kg</span>
+                                          {trainingEnhancementsEnabled && log.rir != null && <span className="text-[9px] font-bold text-[#7C83F6]">RIR {log.rir}</span>}
+                                          {isPR && <span className="rounded-full bg-amber-100 px-1 py-0.5 text-[8px] font-bold text-amber-600">PR</span>}
+                                          {trainingEnhancementsEnabled && targetResult != null && (
+                                            <span className={cn("ms-auto rounded-full px-1.5 py-0.5 text-[8px] font-bold", targetResult ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600") }>
+                                              {targetResult ? addedCopy.onTarget : addedCopy.belowTarget}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {trainingEnhancementsEnabled && (targetReps || log.target_weight_kg != null || log.target_rpe != null || log.actual_rest_seconds != null) && (
+                                          <p className="mt-1 text-[9px] font-semibold text-slate-400">
+                                            {addedCopy.target} {targetReps ? `${targetReps} reps` : "--"}
+                                            {log.target_weight_kg != null ? ` · ${log.target_weight_kg}kg` : ""}
+                                            {log.target_rpe != null ? ` · RPE ≤ ${log.target_rpe}` : ""}
+                                            {log.actual_rest_seconds != null ? ` · ${addedCopy.rested} ${log.actual_rest_seconds}s` : ""}
+                                          </p>
                                         )}
                                       </div>
                                     );
@@ -475,7 +637,7 @@ export default function WorkoutHistory() {
             </div>
           </>
         )}
-      </div>
+      </main>
     </div>
   );
 }

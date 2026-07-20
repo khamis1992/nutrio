@@ -8,10 +8,14 @@ import { useWallet } from "@/hooks/useWallet";
 import { useMealAddons } from "@/hooks/useMealAddons";
 import { useMealCustomization } from "@/hooks/useMealCustomization";
 import { useMealAllergens } from "@/hooks/useDietTags";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
+import { useCorporateBenefit } from "@/hooks/useCorporateBenefit";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { IngredientList } from "@/components/meal/IngredientList";
 import { MealInteractionBanner } from "@/components/meal/MealInteractionBanner";
+import { MealResponseInsightCard } from "@/components/meal/MealResponseInsightCard";
+import { NutrioVerifiedBadge } from "@/components/meal/NutrioVerifiedBadge";
 import { PortionSelector } from "@/components/meal/PortionSelector";
 import { HPVariantToggle } from "@/components/meal/HPVariantToggle";
 import { MealDetailSkeleton } from "@/components/meal/MealDetailSkeleton";
@@ -22,9 +26,10 @@ import { InsufficientBalanceDialog } from "@/components/meal/InsufficientBalance
 import { getSmartDefaultMealType } from "@/components/meal/scheduleUtils";
 import { formatCurrency } from "@/lib/currency";
 import { findCoachMealSuggestion, getCoachMealScheduleFields } from "@/lib/coach-meal-schedule";
-import { scheduleMealsAtomic, type ScheduleMealInput } from "@/lib/schedule-meals";
+import { scheduleMealsForBeneficiaryAtomic, type ScheduleMealInput } from "@/lib/schedule-meals";
 import { scoreMealForGoal } from "@/lib/goal-engine";
 import { cn } from "@/lib/utils";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -98,6 +103,10 @@ const MealDetail = () => {
   } = useSubscription();
 
   const { wallet, refresh: refetchWallet } = useWallet();
+  const familyAccountsEnabled = isPhaseOneFeatureEnabled("familyAccounts");
+  const corporateBenefitsEnabled = isPhaseOneFeatureEnabled("corporateBenefits");
+  const { members: familyMembers } = useFamilyMembers(familyAccountsEnabled);
+  const corporateBenefitQuery = useCorporateBenefit(corporateBenefitsEnabled);
 
   const pricePerMeal = subscription?.price_per_meal ?? 50;
   const [buyMealDialogOpen, setBuyMealDialogOpen] = useState(false);
@@ -149,6 +158,8 @@ const MealDetail = () => {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [selectedAddressLabel, setSelectedAddressLabel] = useState<string>("");
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
+  const [selectedFamilyMemberId, setSelectedFamilyMemberId] = useState<string | null>(null);
+  const [useCorporateBenefitForMeal, setUseCorporateBenefitForMeal] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoOpenHandledRef = useRef(false);
@@ -477,13 +488,19 @@ const MealDetail = () => {
         })),
       };
 
-      await scheduleMealsAtomic(subscription.id, [schedulePayload]);
+      const beneficiary = selectedFamilyMemberId
+        ? { type: "family" as const, familyMemberId: selectedFamilyMemberId }
+        : useCorporateBenefitForMeal && corporateBenefitQuery.data?.membership_id
+          ? { type: "corporate" as const, membershipId: corporateBenefitQuery.data.membership_id }
+          : { type: "self" as const };
+      await scheduleMealsForBeneficiaryAtomic(subscription.id, [schedulePayload], beneficiary);
 
       if (addonsTotal > 0) {
         refetchWallet();
       }
       clearSelectedAddons();
       await refetchSubscription();
+      if (beneficiary.type === "corporate") await corporateBenefitQuery.refetch();
 
       setSuccess(true);
       setSheetOpen(false);
@@ -544,6 +561,18 @@ const MealDetail = () => {
             ? "This meal is not offered in the selected period. Choose another meal type."
           : message.includes("INSUFFICIENT_WALLET_BALANCE")
             ? "Your wallet balance is not enough for the selected add-ons."
+            : message.includes("FAMILY_MEMBER_ALLERGEN_CONFLICT")
+              ? "This meal conflicts with an allergy recorded for the selected family member."
+              : message.includes("FAMILY_ALLOWANCE_EXHAUSTED")
+                ? "This family member has reached their monthly meal allowance."
+                : message.includes("FAMILY_PROFILE_NOT_FOUND")
+                  ? "This family profile is no longer active. Choose another beneficiary."
+                  : message.includes("CORPORATE_ALLOWANCE_EXHAUSTED")
+                    ? "Your workplace meal allowance has been used for this month."
+                    : message.includes("ACTIVE_CORPORATE_BENEFIT_REQUIRED")
+                      ? "Your workplace benefit is not active. Schedule without the benefit or review it in Profile."
+                      : message.includes("SCHEDULE_BENEFICIARY_MISMATCH")
+                        ? "This retry belongs to a different beneficiary. Close the sheet and try again."
             : "Failed to schedule meal. Please try again.",
         variant: "destructive",
       });
@@ -753,6 +782,8 @@ const MealDetail = () => {
               </div>
             </div>
 
+            <NutrioVerifiedBadge mealId={meal.id} />
+
             {!allergensLoading && mealAllergens.length > 0 ? (
               <div className="mt-3 flex items-center gap-2.5 rounded-[15px] bg-[#FFF1F3] px-3 py-2.5 text-[#B4233A] ring-1 ring-[#FB6B7A]/20">
                 <ShieldCheck className="h-4 w-4 shrink-0" />
@@ -946,6 +977,8 @@ const MealDetail = () => {
             </div>
           </motion.section>
           )}
+
+          <MealResponseInsightCard mealId={meal.id} />
 
           {activeGoal && (
             <motion.section
@@ -1154,6 +1187,12 @@ const MealDetail = () => {
         walletBalance={wallet?.balance || 0}
         hasAddons={hasAddons}
         menuOfferings={meal.menu_offerings}
+        familyMembers={familyMembers}
+        selectedFamilyMemberId={selectedFamilyMemberId}
+        setSelectedFamilyMemberId={setSelectedFamilyMemberId}
+        corporateBenefit={corporateBenefitQuery.data ?? null}
+        useCorporateBenefit={useCorporateBenefitForMeal}
+        setUseCorporateBenefit={setUseCorporateBenefitForMeal}
       />
 
       <BuyMealCreditDialog

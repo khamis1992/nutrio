@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Send, Loader2, Check, Users, AlertCircle } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Check, Users, AlertCircle, BadgeCheck, BriefcaseMedical } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import {
+  submitCareProfessionalApplication,
+  type CareProfessionalType,
+} from "@/hooks/useCareTeam";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -22,6 +26,12 @@ export default function ApplyCoach() {
   const [bio, setBio] = useState("");
   const [specialties, setSpecialties] = useState<string[]>([]);
   const [qualifications, setQualifications] = useState("");
+  const [professionalType, setProfessionalType] = useState<CareProfessionalType>("fitness_coach");
+  const [licenseAuthority, setLicenseAuthority] = useState("");
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [licenseExpiresOn, setLicenseExpiresOn] = useState("");
+  const [requestedScope, setRequestedScope] = useState("");
+  const [languages, setLanguages] = useState<string[]>(["en"]);
   const [submitting, setSubmitting] = useState(false);
   const [existingApplication, setExistingApplication] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
@@ -42,17 +52,21 @@ export default function ApplyCoach() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !bio.trim()) return;
+    if (!user || bio.trim().length < 40 || specialties.length === 0) return;
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("coach_applications").insert({
-        user_id: user.id,
+      await submitCareProfessionalApplication({
+        professionalType,
         bio: bio.trim(),
         specialties,
-        qualifications: qualifications.trim() || null,
+        qualifications: qualifications.trim(),
+        licenseAuthority: licenseAuthority.trim(),
+        licenseNumber: licenseNumber.trim(),
+        licenseJurisdiction: "QA",
+        licenseExpiresOn,
+        requestedScope: requestedScope.trim(),
+        languages,
       });
-
-      if (error) throw error;
       setExistingApplication("pending");
       toast({
         title: "Application submitted!",
@@ -72,6 +86,20 @@ export default function ApplyCoach() {
   const toggleSpecialty = (s: string) => {
     setSpecialties((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   };
+
+  const toggleLanguage = (language: string) => {
+    setLanguages((current) => current.includes(language)
+      ? current.length === 1 ? current : current.filter((item) => item !== language)
+      : [...current, language]);
+  };
+
+  const applicationLocked = existingApplication === "pending" || existingApplication === "approved";
+  const formComplete = bio.trim().length >= 40
+    && specialties.length > 0
+    && licenseAuthority.trim().length >= 2
+    && licenseNumber.trim().length >= 3
+    && Boolean(licenseExpiresOn)
+    && requestedScope.trim().length >= 20;
 
   if (checking) {
     return (
@@ -101,33 +129,27 @@ export default function ApplyCoach() {
           </div>
         </div>
 
-        {existingApplication ? (
+        {applicationLocked ? (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-3xl p-10 text-center border border-gray-100 shadow-sm"
+            className="rounded-[28px] bg-white p-8 text-center shadow-[0_14px_34px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1]"
           >
-            <div className="w-16 h-16 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-4">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#22C7A1]/10 text-[#22C7A1]">
               {existingApplication === "approved" ? (
-                <Check className="w-8 h-8 text-emerald-500" />
-              ) : existingApplication === "rejected" ? (
-                <AlertCircle className="w-8 h-8 text-red-500" />
+                <Check className="h-8 w-8" />
               ) : (
-                <Send className="w-8 h-8 text-violet-500" />
+                <Send className="h-8 w-8" />
               )}
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">
               {existingApplication === "approved"
                 ? "You're approved!"
-                : existingApplication === "rejected"
-                ? "Application not accepted"
                 : "Application submitted"}
             </h3>
             <p className="text-sm text-gray-500">
               {existingApplication === "approved"
                 ? "You are now a coach. Sign out and sign in again to access the coach portal."
-                : existingApplication === "rejected"
-                ? "Your application was not accepted at this time."
                 : "We're reviewing your application. You'll be notified when it's processed."}
             </p>
           </motion.div>
@@ -138,6 +160,50 @@ export default function ApplyCoach() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-5"
           >
+            {existingApplication && (
+              <div className="flex gap-3 rounded-[22px] bg-[#FB6B7A]/10 p-4 text-[#020617] ring-1 ring-[#FB6B7A]/20">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#FB6B7A]" />
+                <div>
+                  <p className="text-sm font-black">Update your application</p>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-[#64748B]">
+                    Add complete credential and scope information, then resubmit for a new review.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-[26px] bg-white p-5 shadow-[0_12px_30px_rgba(2,6,23,0.05)] ring-1 ring-[#E5EAF1]">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#7C83F6]/10 text-[#7C83F6]">
+                  <BriefcaseMedical className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-black text-[#020617]">Professional role</h2>
+                  <p className="text-xs font-semibold text-[#94A3B8]">Choose the role your credential supports.</p>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {([
+                  ["fitness_coach", "Fitness"],
+                  ["dietitian", "Dietitian"],
+                  ["wellness_coach", "Wellness"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setProfessionalType(value)}
+                    className={`min-h-11 rounded-[14px] px-2 text-xs font-black ring-1 ${
+                      professionalType === value
+                        ? "bg-[#020617] text-white ring-[#020617]"
+                        : "bg-[#F6F8FB] text-[#64748B] ring-[#E5EAF1]"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
               <h2 className="text-sm font-extrabold text-gray-700">Your Profile</h2>
 
@@ -152,6 +218,7 @@ export default function ApplyCoach() {
                   onChange={(e) => setBio(e.target.value)}
                   rows={5}
                   required
+                  minLength={40}
                   className="rounded-xl resize-none"
                 />
               </div>
@@ -196,10 +263,50 @@ export default function ApplyCoach() {
               </div>
             </div>
 
+            <div className="space-y-4 rounded-[26px] bg-white p-5 shadow-[0_12px_30px_rgba(2,6,23,0.05)] ring-1 ring-[#E5EAF1]">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#22C7A1]/10 text-[#22C7A1]">
+                  <BadgeCheck className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-black text-[#020617]">Credential verification</h2>
+                  <p className="text-xs font-semibold text-[#94A3B8]">Qatar credentials are reviewed by an AAL2 administrator.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="license-authority">License authority</Label>
+                  <Input id="license-authority" value={licenseAuthority} onChange={(event) => setLicenseAuthority(event.target.value)} placeholder="e.g. DHP Qatar" className="min-h-11 rounded-[14px]" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="license-number">License number</Label>
+                  <Input id="license-number" value={licenseNumber} onChange={(event) => setLicenseNumber(event.target.value)} placeholder="Credential number" className="min-h-11 rounded-[14px]" required />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="license-expiry">License expiry</Label>
+                <Input id="license-expiry" type="date" min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)} value={licenseExpiresOn} onChange={(event) => setLicenseExpiresOn(event.target.value)} className="min-h-11 rounded-[14px]" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="requested-scope">Requested scope of service</Label>
+                <Textarea id="requested-scope" value={requestedScope} onChange={(event) => setRequestedScope(event.target.value)} placeholder="Describe what guidance you will provide and where you will refer clients to licensed medical care." minLength={20} rows={4} className="resize-none rounded-[14px]" required />
+              </div>
+              <div className="space-y-2">
+                <Label>Languages</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[["en", "English"], ["ar", "Arabic"]].map(([value, label]) => (
+                    <button key={value} type="button" onClick={() => toggleLanguage(value)} className={`min-h-11 rounded-[14px] text-xs font-black ring-1 ${languages.includes(value) ? "bg-[#38BDF8]/10 text-[#0284C7] ring-[#38BDF8]/30" : "bg-[#F6F8FB] text-[#94A3B8] ring-[#E5EAF1]"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <button
               type="submit"
-              disabled={submitting || !bio.trim()}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white text-sm font-bold shadow-lg shadow-violet-600/20 hover:shadow-xl hover:shadow-violet-600/30 active:scale-[0.98] transition-all disabled:opacity-50"
+              disabled={submitting || !formComplete}
+              className="min-h-12 w-full rounded-[16px] bg-[#020617] text-sm font-black text-white shadow-[0_12px_28px_rgba(2,6,23,0.18)] active:scale-[0.98] disabled:opacity-40"
             >
               {submitting ? (
                 <Loader2 className="w-5 h-5 animate-spin mx-auto" />

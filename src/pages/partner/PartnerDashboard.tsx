@@ -31,7 +31,12 @@ import { PartnerLayout } from "@/components/PartnerLayout";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 import { formatCurrency } from "@/lib/currency";
 import { PartnerBranchOrders } from "@/components/partner/PartnerBranchOrders";
+import { FreezeNotificationCenter } from "@/components/partner/FreezeNotificationCenter";
 import { getQatarDay } from "@/lib/dateUtils";
+import {
+  fetchPartnerCustomerRetentionStatuses,
+  type PartnerCustomerRetentionStatus,
+} from "@/lib/partner-customer-retention";
 interface Restaurant {
   id: string;
   name: string;
@@ -45,6 +50,7 @@ interface Restaurant {
 
 interface ScheduledMeal {
   id: string;
+  user_id: string | null;
   scheduled_date: string;
   delivery_time_slot: string | null;
   meal_type: string;
@@ -75,6 +81,9 @@ const PartnerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [recentSchedules, setRecentSchedules] = useState<ScheduledMeal[]>([]);
+  const [retentionStatuses, setRetentionStatuses] = useState<
+    Record<string, PartnerCustomerRetentionStatus>
+  >({});
   const [stats, setStats] = useState<Stats>({
     totalMeals: 0,
     activeOrders: 0,
@@ -190,6 +199,7 @@ const PartnerDashboard = () => {
           is_completed,
           order_status,
           created_at,
+          user_id,
           meals:meals!meal_schedules_meal_id_fkey (
             name
           )
@@ -203,7 +213,7 @@ const PartnerDashboard = () => {
           : Promise.resolve({ data: [], error: null }),
         supabase
           .from("orders")
-          .select("id, created_at, status, restaurant_payout, meal_id")
+          .select("id, created_at, status, restaurant_payout, meal_id, user_id")
           .eq("restaurant_id", restaurantData.id)
           .neq("status", "cancelled")
           .order("created_at", { ascending: false }),
@@ -218,6 +228,7 @@ const PartnerDashboard = () => {
       const transformedSchedules: ScheduledMeal[] = (schedulesData || []).map(
         (s) => ({
           id: s.id,
+          user_id: s.user_id || null,
           scheduled_date: s.scheduled_date,
           delivery_time_slot: s.delivery_time_slot || null,
           meal_type: s.meal_type,
@@ -237,6 +248,7 @@ const PartnerDashboard = () => {
         .slice(0, 10)
         .map((order) => ({
           id: order.id,
+          user_id: order.user_id || null,
           scheduled_date: getQatarDay(new Date(order.created_at)),
           delivery_time_slot: null,
           meal_type: "order",
@@ -248,14 +260,21 @@ const PartnerDashboard = () => {
             : { name: "Order" },
         }));
 
-      setRecentSchedules(
-        [...transformedSchedules, ...transformedDirectOrders]
-          .sort(
-            (a, b) =>
-              new Date(b.created_at || b.scheduled_date).getTime() -
-              new Date(a.created_at || a.scheduled_date).getTime(),
-          )
-          .slice(0, 10),
+      const nextRecentSchedules = [...transformedSchedules, ...transformedDirectOrders]
+        .sort(
+          (a, b) =>
+            new Date(b.created_at || b.scheduled_date).getTime() -
+            new Date(a.created_at || a.scheduled_date).getTime(),
+        )
+        .slice(0, 10);
+
+      setRecentSchedules(nextRecentSchedules);
+      setRetentionStatuses(
+        await fetchPartnerCustomerRetentionStatuses(
+          nextRecentSchedules
+            .map((schedule) => schedule.user_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
       );
 
       // Fetch all schedules for stats (not limited)
@@ -658,6 +677,9 @@ const PartnerDashboard = () => {
               </div>
             </div>
           </section>
+          <FreezeNotificationCenter
+            statuses={Object.values(retentionStatuses)}
+          />
           <AnnouncementsBanner audience="partners" />
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[

@@ -38,8 +38,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { PartnerDeliveryHandoff } from "@/components/partner/PartnerDeliveryHandoff";
+import { CustomerSubscriptionBadge } from "@/components/partner/CustomerSubscriptionBadge";
 import { getQatarDay } from "@/lib/dateUtils";
 import { formatCurrency } from "@/lib/currency";
+import {
+  fetchPartnerCustomerRetentionStatuses,
+  type PartnerCustomerRetentionStatus,
+} from "@/lib/partner-customer-retention";
 import {
   createPartnerPosOrderPayload,
   flushPartnerPosOrders,
@@ -320,6 +325,7 @@ function transformScheduleToOrder(
 
   return {
     id,
+    user_id: (s.user_id as string) || null,
     source,
     order_status: ((s.order_status as string) || "pending") as OrderStatus,
     scheduled_date: s.scheduled_date as string,
@@ -383,6 +389,7 @@ function transformDirectOrderToOrder(
 
   return {
     id,
+    user_id: userId,
     source,
     order_status: normalizeDirectOrderStatus(order.status as string | null),
     scheduled_date: getQatarDay(new Date(createdAt)),
@@ -440,6 +447,7 @@ function buildAddonsMap(
 
 interface Order {
   id: string;
+  user_id: string | null;
   source: "order" | "meal_schedule";
   order_status: OrderStatus;
   scheduled_date: string;
@@ -526,6 +534,9 @@ const PartnerOrders = () => {
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [restaurantName, setRestaurantName] = useState<string>("");
   const [orders, setOrders] = useState<Order[]>([]);
+  const [retentionStatuses, setRetentionStatuses] = useState<
+    Record<string, PartnerCustomerRetentionStatus>
+  >({});
   const [activeTab, setActiveTab] = useState("active");
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [posMenuItems, setPosMenuItems] = useState<PartnerPosMenuItem[]>([]);
@@ -853,6 +864,10 @@ const PartnerOrders = () => {
           );
         }
       }
+
+      setRetentionStatuses(
+        await fetchPartnerCustomerRetentionStatuses(userIds),
+      );
 
       // Fetch addons for each schedule
       const scheduleIds = ((schedules || []) as Array<Record<string, unknown>>).map(
@@ -1478,6 +1493,13 @@ const PartnerOrders = () => {
                 <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-[#94A3B8]">
                   Customer
                 </p>
+                {order.user_id && (
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <CustomerSubscriptionBadge
+                      status={retentionStatuses[order.user_id]}
+                    />
+                  </div>
+                )}
                 {order.customer?.full_name ? (
                   <p className="font-black text-[#020617]">
                     {order.customer.full_name}

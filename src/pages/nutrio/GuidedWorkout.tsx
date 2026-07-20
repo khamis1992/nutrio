@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowUpRight,
   ArrowLeft,
+  Calculator,
   Check,
   ChevronRight,
   Clock3,
@@ -15,7 +16,10 @@ import {
   Play,
   Plus,
   Scale,
+  Repeat2,
+  SkipForward,
   Sparkles,
+  Star,
   Target,
   Timer,
   Trophy,
@@ -26,19 +30,31 @@ import { toast } from "sonner";
 
 import { ExerciseCatalogSheet } from "@/components/exercises/ExerciseCatalogSheet";
 import { ExerciseMedia } from "@/components/exercises/ExerciseMedia";
+import { PlateCalculatorSheet } from "@/components/workout/PlateCalculatorSheet";
+import {
+  buildReplacementEventInput,
+  buildWorkoutSetLogInput,
+  plateWeightInput,
+} from "@/components/workout/training-enhancement-contract";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useCoachPrograms, type ProgramExercise } from "@/hooks/useCoachPrograms";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import { useWorkoutDayLocks } from "@/hooks/useWorkoutDayLocks";
+import { useWorkoutEquipmentProfiles } from "@/hooks/useWorkoutEquipmentProfiles";
 import { useWorkoutSession } from "@/hooks/useWorkoutSession";
 import { supabase } from "@/integrations/supabase/client";
 import { formatExerciseLabel, type ExerciseCatalogItem } from "@/lib/exercise-catalog";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
 import { cn } from "@/lib/utils";
 import {
   fetchProgressionRecommendations,
   progressionRuleSummary,
   type ProgressionRecommendation,
 } from "@/lib/workout-progression";
+import { rpeToRir } from "@/lib/workout-set-prescription";
+import { buildWorkoutSequence } from "@/lib/workout-sequence";
+import { getSafeExerciseSubstitutions } from "@/lib/strength-training";
 
 function formatTime(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
@@ -71,6 +87,45 @@ export default function GuidedWorkout() {
   const dayNumber = Number(dayParam) || 1;
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isRTL } = useLanguage();
+  const trainingEnhancementsEnabled = isPhaseOneFeatureEnabled("trainingEnhancements");
+  const addedCopy = isRTL ? {
+    quickCheckIn: "تقييم سريع",
+    howWasWorkout: "كيف كان هذا التمرين؟",
+    perceivedEffort: "المجهود المحسوس",
+    optionalCoachNote: "ملاحظة اختيارية لمدربك",
+    feedbackSaved: "تم حفظ التقييم",
+    shareWithCoach: "مشاركة مع المدرب",
+    safeAlternative: "بديل آمن",
+    skip: "تخطي",
+    plateCalculator: "حاسبة الأوزان",
+    effortQuestion: "ما مدى صعوبة هذه المجموعة؟",
+    skipped: "تم التخطي",
+    skipExerciseTitle: "تخطي هذا التمرين؟",
+    skipExerciseBody: "سيرى مدربك هذا التغيير. سيبقى باقي التمرين بالترتيب نفسه.",
+    optionalReason: "السبب (اختياري)",
+    keepExercise: "الاحتفاظ بالتمرين",
+    skipExercise: "تخطي التمرين",
+    chooseAlternative: "اختر بديلاً لهذه الجلسة",
+  } : {
+    quickCheckIn: "Quick check-in",
+    howWasWorkout: "How was this workout?",
+    perceivedEffort: "Perceived effort",
+    optionalCoachNote: "Optional note for your coach",
+    feedbackSaved: "Feedback saved",
+    shareWithCoach: "Share with coach",
+    safeAlternative: "Safe alternative",
+    skip: "Skip",
+    plateCalculator: "Plate calculator",
+    effortQuestion: "How hard did this set feel?",
+    skipped: "Skipped",
+    skipExerciseTitle: "Skip this exercise?",
+    skipExerciseBody: "Your coach will see this change. The rest of the workout stays in sequence.",
+    optionalReason: "Reason (optional)",
+    keepExercise: "Keep exercise",
+    skipExercise: "Skip exercise",
+    chooseAlternative: "Choose a session alternative",
+  };
   const clientId = user?.id;
   const [coachId, setCoachId] = useState<string | undefined>();
   const [assignmentLoading, setAssignmentLoading] = useState(true);
@@ -108,13 +163,19 @@ export default function GuidedWorkout() {
     loading: dayLocksLoading,
   } = useWorkoutDayLocks(clientId, programExercises);
   const { exercises: catalog, loading: catalogLoading } = useExerciseCatalog();
+  const { profiles: equipmentProfiles, defaultProfile: equipmentProfile, saveProfile: saveEquipmentProfile } = useWorkoutEquipmentProfiles(trainingEnhancementsEnabled);
   const {
     session,
     setLogs,
+    exerciseEvents,
     elapsedSeconds,
     loading: sessionLoading,
+    savingSet,
     startSession,
     logSet,
+    updateSetRest,
+    recordExerciseEvent,
+    updateSessionFeedback,
     completeSession,
     resetSession,
   } = useWorkoutSession();
@@ -131,6 +192,10 @@ export default function GuidedWorkout() {
         .sort((a, b) => a.order_index - b.order_index),
     [dayNumber, programExercises, programId],
   );
+  const workoutSequence = useMemo(
+    () => trainingEnhancementsEnabled ? buildWorkoutSequence(exercises) : [],
+    [exercises, trainingEnhancementsEnabled],
+  );
 
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentSetNumber, setCurrentSetNumber] = useState(1);
@@ -142,16 +207,48 @@ export default function GuidedWorkout() {
   const [restDuration, setRestDuration] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const [restPaused, setRestPaused] = useState(false);
+  const restStartedAtRef = useRef<number | null>(null);
+  const restSetLogIdRef = useRef<string | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [replacementOpen, setReplacementOpen] = useState(false);
+  const [plateCalculatorOpen, setPlateCalculatorOpen] = useState(false);
+  const [skipSheetOpen, setSkipSheetOpen] = useState(false);
+  const [skipReason, setSkipReason] = useState("");
+  const [exerciseOverrides, setExerciseOverrides] = useState<Record<string, ExerciseCatalogItem>>({});
+  const [sessionRating, setSessionRating] = useState(5);
+  const [sessionEffort, setSessionEffort] = useState(7);
+  const [sessionFeedback, setSessionFeedback] = useState("");
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
   const [detailsExerciseId, setDetailsExerciseId] = useState<string | null>(null);
   const [previousSets, setPreviousSets] = useState<PreviousSetMap>({});
   const [previousSetsLoading, setPreviousSetsLoading] = useState(false);
 
   const currentExercise: ProgramExercise | undefined = exercises[currentExerciseIndex];
-  const currentCatalogExercise = currentExercise?.exercise_catalog_id
+  const currentOverride = trainingEnhancementsEnabled && currentExercise ? exerciseOverrides[currentExercise.id] : undefined;
+  const currentSequenceStep = trainingEnhancementsEnabled ? workoutSequence.find(
+    (step) => step.exercise.id === currentExercise?.id && step.setNumber === currentSetNumber,
+  ) : undefined;
+  const currentCatalogExercise = currentOverride ?? (currentExercise?.exercise_catalog_id
     ? catalogById.get(currentExercise.exercise_catalog_id)
-    : undefined;
+    : undefined);
+  const currentExerciseName = currentOverride ? formatExerciseLabel(currentOverride.name) : currentExercise?.exercise_name;
+  const safeSubstitutions = useMemo(
+    () => trainingEnhancementsEnabled
+      ? getSafeExerciseSubstitutions(currentCatalogExercise, catalog, equipmentProfile.equipment)
+      : [],
+    [catalog, currentCatalogExercise, equipmentProfile.equipment, trainingEnhancementsEnabled],
+  );
+  const safeSubstitutionIds = useMemo(
+    () => safeSubstitutions.map((item) => item.exercise.id),
+    [safeSubstitutions],
+  );
+  const skippedExerciseIds = useMemo(
+    () => new Set(trainingEnhancementsEnabled
+      ? exerciseEvents.filter((event) => event.event_type === "skipped" && event.program_exercise_id).map((event) => event.program_exercise_id as string)
+      : []),
+    [exerciseEvents, trainingEnhancementsEnabled],
+  );
   const totalSets = currentExercise?.sets || 0;
   const totalPlannedSets = exercises.reduce((total, exercise) => total + exercise.sets, 0);
   const assignedCatalogExercises = exercises
@@ -176,6 +273,22 @@ export default function GuidedWorkout() {
   const currentProgression = currentExercise
     ? progressionRecommendations.get(currentExercise.id)
     : undefined;
+
+  const finalizeRest = useCallback(async () => {
+    const startedAt = restStartedAtRef.current;
+    const setLogId = restSetLogIdRef.current;
+    restStartedAtRef.current = null;
+    restSetLogIdRef.current = null;
+    setIsResting(false);
+    setRestPaused(false);
+    setRestTimer(0);
+
+    if (trainingEnhancementsEnabled && startedAt && setLogId) {
+      const actualSeconds = Math.floor((Date.now() - startedAt) / 1000);
+      const result = await updateSetRest(setLogId, actualSeconds);
+      if (!result.success) console.error("Unable to save actual rest time", result.error);
+    }
+  }, [trainingEnhancementsEnabled, updateSetRest]);
 
   const loadProgressionRecommendations = useCallback(async (sessionId?: string) => {
     if (!clientId || exercises.length === 0) return;
@@ -288,8 +401,7 @@ export default function GuidedWorkout() {
   useEffect(() => {
     if (!isResting) return;
     if (restTimer <= 0) {
-      setIsResting(false);
-      setRestPaused(false);
+      void finalizeRest();
       return;
     }
     if (restPaused) return;
@@ -297,15 +409,17 @@ export default function GuidedWorkout() {
     const timer = window.setInterval(() => {
       setRestTimer((current) => {
         if (current <= 1) {
-          setIsResting(false);
-          setRestPaused(false);
+          if (!trainingEnhancementsEnabled) {
+            setIsResting(false);
+            setRestPaused(false);
+          }
           return 0;
         }
         return current - 1;
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [isResting, restPaused, restTimer]);
+  }, [finalizeRest, isResting, restPaused, restTimer, trainingEnhancementsEnabled]);
 
   const currentExerciseSets = useMemo(
     () => setLogs.filter(
@@ -344,19 +458,27 @@ export default function GuidedWorkout() {
     if (!result.success) toast.error(result.error?.message || "Unable to start this workout.");
   }, [clientId, dayNumber, getPreviousLockedDay, isDayUnlocked, programId, startSession]);
 
-  const beginRest = (seconds: number) => {
+  const beginRest = useCallback((seconds: number, setLogId?: string) => {
     if (seconds <= 0) return;
+    if (trainingEnhancementsEnabled && setLogId) {
+      restStartedAtRef.current = Date.now();
+      restSetLogIdRef.current = setLogId;
+    }
     setRestDuration(seconds);
     setRestTimer(seconds);
     setRestPaused(false);
     setIsResting(true);
-  };
+  }, [trainingEnhancementsEnabled]);
 
   const skipRest = useCallback(() => {
+    if (trainingEnhancementsEnabled) {
+      void finalizeRest();
+      return;
+    }
     setIsResting(false);
     setRestPaused(false);
     setRestTimer(0);
-  }, []);
+  }, [finalizeRest, trainingEnhancementsEnabled]);
 
   const reduceRestTime = useCallback(() => {
     setRestTimer((current) => Math.max(0, current - 15));
@@ -375,14 +497,17 @@ export default function GuidedWorkout() {
 
   const handleCompleteSet = useCallback(async () => {
     if (!currentExercise) return;
-    const result = await logSet({
-      program_exercise_id: currentExercise.id,
-      exercise_name: currentExercise.exercise_name,
-      set_number: currentSetNumber,
-      reps: Number.parseInt(repsInput, 10) || undefined,
-      weight_kg: Number.parseFloat(weightInput) || undefined,
-      rpe: Number.parseFloat(rpeInput) || undefined,
-    });
+    const result = await logSet(buildWorkoutSetLogInput({
+      enhancementsEnabled: trainingEnhancementsEnabled,
+      exercise: currentExercise,
+      exerciseName: currentExerciseName,
+      setNumber: currentSetNumber,
+      repsInput,
+      weightInput,
+      rpeInput,
+      progression: currentProgression,
+      sequenceRestSeconds: currentSequenceStep?.restAfterSeconds,
+    }));
 
     if (!result.success) {
       toast.error(result.error?.message || "Unable to save this set.");
@@ -390,43 +515,134 @@ export default function GuidedWorkout() {
     }
 
     const restSeconds = currentExercise.rest_seconds ?? 0;
-    if (currentSetNumber < totalSets) {
-      setCurrentSetNumber((current) => current + 1);
-      beginRest(restSeconds);
+    if (!trainingEnhancementsEnabled) {
+      if (currentSetNumber < totalSets) {
+        setCurrentSetNumber((current) => current + 1);
+        beginRest(restSeconds);
+        return;
+      }
+      if (currentExerciseIndex < exercises.length - 1) {
+        setCurrentExerciseIndex((current) => current + 1);
+        setCurrentSetNumber(1);
+        setWeightInput("");
+        beginRest(restSeconds);
+      }
       return;
     }
 
-    if (currentExerciseIndex < exercises.length - 1) {
-      setCurrentExerciseIndex((current) => current + 1);
-      setCurrentSetNumber(1);
+    const currentStepIndex = workoutSequence.findIndex(
+      (step) => step.exercise.id === currentExercise.id && step.setNumber === currentSetNumber,
+    );
+    const nextStep = currentStepIndex >= 0
+      ? workoutSequence.slice(currentStepIndex + 1).find((step) => !skippedExerciseIds.has(step.exercise.id))
+      : undefined;
+    const enhancedRestSeconds = currentSequenceStep?.restAfterSeconds ?? restSeconds;
+    const savedSetId = result.data?.id;
+    if (nextStep) {
+      const nextExerciseIndex = exercises.findIndex((exercise) => exercise.id === nextStep.exercise.id);
+      setCurrentExerciseIndex(Math.max(0, nextExerciseIndex));
+      setCurrentSetNumber(nextStep.setNumber);
       setWeightInput("");
-      beginRest(restSeconds);
+      if (savedSetId) beginRest(enhancedRestSeconds, savedSetId);
     }
-  }, [currentExercise, currentExerciseIndex, currentSetNumber, exercises.length, logSet, repsInput, rpeInput, totalSets, weightInput]);
+  }, [beginRest, currentExercise, currentExerciseIndex, currentExerciseName, currentProgression, currentSequenceStep, currentSetNumber, exercises, logSet, repsInput, rpeInput, skippedExerciseIds, totalSets, trainingEnhancementsEnabled, weightInput, workoutSequence]);
+
+  const handleSkipExercise = useCallback(async () => {
+    if (!currentExercise) return;
+    const result = await recordExerciseEvent({
+      program_exercise_id: currentExercise.id,
+      event_type: "skipped",
+      original_exercise_name: currentExercise.exercise_name,
+      reason: skipReason,
+    });
+    if (!result.success) {
+      toast.error(result.error?.message || "Unable to skip this exercise.");
+      return;
+    }
+    const currentStepIndex = workoutSequence.findIndex(
+      (step) => step.exercise.id === currentExercise.id && step.setNumber === currentSetNumber,
+    );
+    const nextSkipped = new Set(skippedExerciseIds).add(currentExercise.id);
+    const nextStep = workoutSequence.slice(Math.max(0, currentStepIndex + 1))
+      .find((step) => !nextSkipped.has(step.exercise.id));
+    if (nextStep) {
+      setCurrentExerciseIndex(exercises.findIndex((exercise) => exercise.id === nextStep.exercise.id));
+      setCurrentSetNumber(nextStep.setNumber);
+      setWeightInput("");
+    }
+    setSkipSheetOpen(false);
+    setSkipReason("");
+    toast.success("Exercise skipped. Your coach will see the reason.");
+  }, [currentExercise, currentSetNumber, exercises, recordExerciseEvent, skipReason, skippedExerciseIds, workoutSequence]);
+
+  const handleReplacement = useCallback(async (replacement: ExerciseCatalogItem) => {
+    if (!currentExercise) return;
+    const replacementName = formatExerciseLabel(replacement.name);
+    const result = await recordExerciseEvent(buildReplacementEventInput(currentExercise, replacement, replacementName));
+    if (!result.success) {
+      toast.error(result.error?.message || "Unable to replace this exercise.");
+      return;
+    }
+    setExerciseOverrides((current) => ({ ...current, [currentExercise.id]: replacement }));
+    setReplacementOpen(false);
+    toast.success(`${replacementName} is active for this session.`);
+  }, [currentExercise, recordExerciseEvent]);
 
   const handleFinish = useCallback(async () => {
     if (!clientId) return;
-    const result = await completeSession(clientId, exercises.map((exercise) => exercise.id));
+    const completedExerciseIds = trainingEnhancementsEnabled
+      ? exercises
+        .filter((exercise) => setLogs.some((set) => set.program_exercise_id === exercise.id && set.completed))
+        .map((exercise) => exercise.id)
+      : exercises.map((exercise) => exercise.id);
+    const result = await completeSession(clientId, completedExerciseIds);
     if (result.success) {
       await loadProgressionRecommendations(result.data?.id);
       setShowSummary(true);
     } else {
       toast.error(result.error?.message || "Unable to finish this workout.");
     }
-  }, [clientId, completeSession, exercises, loadProgressionRecommendations]);
+  }, [clientId, completeSession, exercises, loadProgressionRecommendations, setLogs, trainingEnhancementsEnabled]);
+
+  const handleSaveFeedback = useCallback(async () => {
+    const result = await updateSessionFeedback({
+      rating: sessionRating,
+      perceived_effort: sessionEffort,
+      feedback: sessionFeedback,
+    });
+    if (!result.success) {
+      toast.error(result.error?.message || "Unable to save your workout feedback.");
+      return;
+    }
+    setFeedbackSaved(true);
+    toast.success("Feedback shared with your coach.");
+  }, [sessionEffort, sessionFeedback, sessionRating, updateSessionFeedback]);
 
   const selectExercise = (index: number) => {
     if (isResting) return;
     const exercise = exercises[index];
-    const loggedSets = setLogs.filter(
-      (set) => set.program_exercise_id === exercise.id && set.completed,
-    ).length;
+    if (!trainingEnhancementsEnabled) {
+      const loggedSets = setLogs.filter(
+        (set) => set.program_exercise_id === exercise.id && set.completed,
+      ).length;
+      setCurrentExerciseIndex(index);
+      setCurrentSetNumber(Math.min(loggedSets + 1, exercise.sets));
+      setWeightInput("");
+      return;
+    }
+    const loggedSetNumbers = new Set(setLogs
+      .filter((set) => set.program_exercise_id === exercise.id && set.completed)
+      .map((set) => set.set_number));
+    const nextStep = workoutSequence.find(
+      (step) => step.exercise.id === exercise.id && !loggedSetNumbers.has(step.setNumber),
+    );
     setCurrentExerciseIndex(index);
-    setCurrentSetNumber(Math.min(loggedSets + 1, exercise.sets));
+    setCurrentSetNumber(nextStep?.setNumber ?? exercise.sets);
     setWeightInput("");
   };
 
   const allExercisesCompleted = exercises.length > 0 && exercises.every((exercise) => {
+    if (skippedExerciseIds.has(exercise.id)) return true;
     const exerciseSets = setLogs.filter(
       (set) => set.program_exercise_id === exercise.id && set.completed,
     );
@@ -621,6 +837,31 @@ export default function GuidedWorkout() {
             </div>
           </section>
 
+          {trainingEnhancementsEnabled && <section dir={isRTL ? "rtl" : "ltr"} className="rounded-[28px] bg-white p-4 shadow-[0_16px_38px_rgba(15,23,42,0.06)] ring-1 ring-[#DDE5EF]">
+            <div className="flex items-center gap-2 px-1">
+              <Star className="h-4 w-4 text-[#FB6B7A]" />
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#E94E65]">{addedCopy.quickCheckIn}</p>
+                <h2 className="mt-0.5 text-[16px] font-extrabold text-[#07152F]">{addedCopy.howWasWorkout}</h2>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-5 gap-2">
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <button key={rating} type="button" onClick={() => { setSessionRating(rating); setFeedbackSaved(false); }} className={cn("flex h-11 items-center justify-center rounded-[14px] ring-1", rating <= sessionRating ? "bg-[#FFF0F2] text-[#FB6B7A] ring-[#FFD4DA]" : "bg-[#F6F8FB] text-[#C1CAD7] ring-[#E5EAF1]")} aria-label={`${rating} star rating`}>
+                  <Star className={cn("h-4 w-4", rating <= sessionRating && "fill-current")} />
+                </button>
+              ))}
+            </div>
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-[10px] font-bold text-[#71809C]"><span>{addedCopy.perceivedEffort}</span><span>{sessionEffort}/10</span></div>
+              <input type="range" min={1} max={10} value={sessionEffort} onChange={(event) => { setSessionEffort(Number(event.target.value)); setFeedbackSaved(false); }} className="mt-2 w-full accent-[#7C83F6]" aria-label="Perceived workout effort" />
+            </div>
+            <textarea value={sessionFeedback} onChange={(event) => { setSessionFeedback(event.target.value); setFeedbackSaved(false); }} rows={3} placeholder={addedCopy.optionalCoachNote} className="mt-3 w-full resize-none rounded-[16px] bg-[#F6F8FB] px-3 py-2.5 text-[11px] font-semibold leading-5 text-[#07152F] outline-none ring-1 ring-[#E5EAF1] placeholder:text-[#94A3B8] focus:ring-[#7C83F6]" />
+            <button type="button" onClick={handleSaveFeedback} disabled={feedbackSaved} className="mt-3 min-h-11 w-full rounded-[15px] bg-[#020617] text-[11px] font-extrabold text-white disabled:bg-[#E9EEF4] disabled:text-[#71809C]">
+              {feedbackSaved ? addedCopy.feedbackSaved : addedCopy.shareWithCoach}
+            </button>
+          </section>}
+
           {progressionRecommendations.size > 0 && (
             <section className="rounded-[28px] bg-[#F3F1FF] p-4 shadow-[0_16px_38px_rgba(70,60,160,0.08)] ring-1 ring-[#DCD8FF]">
               <div className="flex items-center gap-2 px-1 pb-3">
@@ -644,6 +885,8 @@ export default function GuidedWorkout() {
                         <span className="shrink-0 rounded-full bg-[#ECE9FF] px-2.5 py-1 text-[9px] font-extrabold text-[#656BD8]">
                           {recommendation.outcome === "increase_load" && "Load up"}
                           {recommendation.outcome === "increase_reps" && "Reps up"}
+                          {recommendation.outcome === "increase_sets" && "Sets up"}
+                          {recommendation.outcome === "adjust_rest" && "Rest down"}
                           {recommendation.outcome === "repeat" && "Repeat"}
                           {recommendation.outcome === "deload" && "Deload"}
                         </span>
@@ -651,6 +894,9 @@ export default function GuidedWorkout() {
                       <p className="mt-2 text-[13px] font-black text-[#31365F]">
                         {recommendation.recommended_weight_kg != null ? `${recommendation.recommended_weight_kg} kg` : "Current load"}
                         {recommendation.recommended_reps ? ` x ${recommendation.recommended_reps} reps` : ""}
+                        {recommendation.recommended_sets ? ` · ${recommendation.recommended_sets} sets` : ""}
+                        {recommendation.recommended_rest_seconds != null ? ` · ${recommendation.recommended_rest_seconds}s rest` : ""}
+                        {recommendation.recommended_rir != null ? ` · ${recommendation.recommended_rir} RIR` : ""}
                       </p>
                     </div>
                   );
@@ -705,6 +951,7 @@ export default function GuidedWorkout() {
                 (set) => set.program_exercise_id === exercise.id && set.completed,
               ).length;
               const done = exerciseSetCount >= exercise.sets;
+              const skipped = skippedExerciseIds.has(exercise.id);
               const active = index === currentExerciseIndex;
               return (
                 <button
@@ -714,12 +961,13 @@ export default function GuidedWorkout() {
                   className={cn(
                     "flex h-11 min-w-11 items-center justify-center rounded-[14px] text-[12px] font-extrabold transition",
                     done && "bg-[#22C7A1] text-white",
+                    skipped && !done && "bg-[#FFF0F2] text-[#E94E65] ring-1 ring-[#FFD4DA]",
                     active && !done && "bg-[#E9FBF7] text-[#087B67] ring-1 ring-[#A9E8D9]",
-                    !active && !done && "bg-[#F4F7FA] text-[#8A98AF] ring-1 ring-[#E1E7EF]",
+                    !active && !done && !skipped && "bg-[#F4F7FA] text-[#8A98AF] ring-1 ring-[#E1E7EF]",
                   )}
                   aria-label={`Go to ${exercise.exercise_name}`}
                 >
-                  {done ? <Check className="h-4 w-4" /> : index + 1}
+                  {done ? <Check className="h-4 w-4" /> : skipped ? <SkipForward className="h-4 w-4" /> : index + 1}
                 </button>
               );
             })}
@@ -738,6 +986,7 @@ export default function GuidedWorkout() {
                 <ExerciseMedia
                   exercise={currentCatalogExercise}
                   alt={formatExerciseLabel(currentCatalogExercise.name)}
+                  preferVideo
                   className="h-full w-full object-contain p-4"
                 />
               ) : (
@@ -761,7 +1010,19 @@ export default function GuidedWorkout() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#7C83F6]">Current movement</p>
-                  <h1 className="mt-1 text-[22px] font-extrabold leading-tight text-[#07152F]">{currentExercise.exercise_name}</h1>
+                  <h1 className="mt-1 text-[22px] font-extrabold leading-tight text-[#07152F]">{currentExerciseName}</h1>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {currentSequenceStep?.supersetGroup && (
+                      <span className="rounded-full bg-[#F3F1FF] px-2.5 py-1 text-[9px] font-extrabold text-[#656BD8] ring-1 ring-[#DCD8FF]">
+                        Superset {currentSequenceStep.supersetGroup} · {currentSequenceStep.roundExerciseNumber}/{currentSequenceStep.roundExerciseCount}
+                      </span>
+                    )}
+                    {trainingEnhancementsEnabled && currentExercise.set_type && currentExercise.set_type !== "normal" && (
+                      <span className="rounded-full bg-[#FFF0F2] px-2.5 py-1 text-[9px] font-extrabold capitalize text-[#E94E65] ring-1 ring-[#FFD4DA]">
+                        {currentExercise.set_type}
+                      </span>
+                    )}
+                  </div>
                   {currentCatalogExercise && (
                     <p className="mt-1.5 text-[11px] font-semibold capitalize text-[#71809C]">
                       {currentCatalogExercise.target} · {currentCatalogExercise.equipment}
@@ -775,8 +1036,8 @@ export default function GuidedWorkout() {
 
               <div className="mt-5 grid grid-cols-3 gap-2">
                 <Prescription value={currentExercise.sets} label="Sets" color="mint" />
-                <Prescription value={currentExercise.reps} label="Reps" color="blue" />
-                <Prescription value={`${currentExercise.rest_seconds ?? 0}s`} label="Rest" color="coral" />
+                <Prescription value={currentExercise.reps} label={currentExercise.prescription_unit ?? "Reps"} color="blue" />
+                <Prescription value={`${currentSequenceStep?.restAfterSeconds ?? currentExercise.rest_seconds ?? 0}s`} label="Rest after" color="coral" />
               </div>
 
               {(currentProgression || progressionRuleSummary(currentExercise.progression_rule) !== "Manual progression") && (
@@ -790,7 +1051,7 @@ export default function GuidedWorkout() {
                     </p>
                     <p className="mt-1 text-[11px] font-bold leading-5 text-[#31365F]">
                       {currentProgression
-                        ? `${currentProgression.recommended_weight_kg != null ? `${currentProgression.recommended_weight_kg} kg` : "Current load"}${currentProgression.recommended_reps ? ` x ${currentProgression.recommended_reps} reps` : ""}`
+                        ? `${currentProgression.recommended_weight_kg != null ? `${currentProgression.recommended_weight_kg} kg` : "Current load"}${currentProgression.recommended_reps ? ` x ${currentProgression.recommended_reps} reps` : ""}${currentProgression.recommended_sets ? ` · ${currentProgression.recommended_sets} sets` : ""}${currentProgression.recommended_rest_seconds != null ? ` · ${currentProgression.recommended_rest_seconds}s rest` : ""}`
                         : progressionRuleSummary(currentExercise.progression_rule)}
                     </p>
                     {currentProgression && <p className="mt-0.5 text-[9px] font-medium leading-4 text-[#737A9B]">{currentProgression.reason}</p>}
@@ -824,6 +1085,19 @@ export default function GuidedWorkout() {
                 </div>
               )}
 
+              {trainingEnhancementsEnabled && !skippedExerciseIds.has(currentExercise.id) && (
+                <div dir={isRTL ? "rtl" : "ltr"} className={cn("mt-3 grid gap-2", safeSubstitutionIds.length > 0 ? "grid-cols-2" : "grid-cols-1")}>
+                  {safeSubstitutionIds.length > 0 && (
+                    <button type="button" onClick={() => setReplacementOpen(true)} className="flex min-h-11 items-center justify-center gap-2 rounded-[15px] bg-[#F3F1FF] text-[11px] font-extrabold text-[#656BD8] ring-1 ring-[#DCD8FF]">
+                      <Repeat2 className="h-4 w-4" /> {addedCopy.safeAlternative}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setSkipSheetOpen(true)} className="flex min-h-11 items-center justify-center gap-2 rounded-[15px] bg-[#FFF0F2] text-[11px] font-extrabold text-[#E94E65] ring-1 ring-[#FFD4DA]">
+                    <SkipForward className="h-4 w-4" /> {addedCopy.skip}
+                  </button>
+                </div>
+              )}
+
               {!allExercisesCompleted && (
                 <>
                   <PreviousSetHint
@@ -852,13 +1126,24 @@ export default function GuidedWorkout() {
                       onIncrease={() => setRepsInput((current) => String((Number.parseInt(current, 10) || 0) + 1))}
                     />
                   </div>
+                  {trainingEnhancementsEnabled && <button
+                    type="button"
+                    onClick={() => setPlateCalculatorOpen(true)}
+                    className="mt-2 flex min-h-11 w-full items-center justify-between rounded-[15px] bg-[#EEF6FF] px-3 text-start text-[#1687D9] ring-1 ring-[#D9ECFF] active:scale-[0.99]"
+                  >
+                    <span className="flex items-center gap-2 text-[11px] font-extrabold"><Calculator className="h-4 w-4" /> {addedCopy.plateCalculator}</span>
+                    <span className="text-[9px] font-bold text-[#64748B]">{equipmentProfile.name} · {equipmentProfile.bar_weight_kg}kg bar</span>
+                  </button>}
                   <div className="mt-3 rounded-[18px] bg-[#F8FAFC] p-3 ring-1 ring-[#E5EAF1]">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-[10px] font-extrabold text-[#07152F]">Effort (RPE)</p>
-                        <p className="mt-0.5 text-[9px] font-medium text-[#71809C]">How hard did this set feel?</p>
+                        <p className="mt-0.5 text-[9px] font-medium text-[#71809C]">{trainingEnhancementsEnabled ? addedCopy.effortQuestion : "How hard did this set feel?"}</p>
                       </div>
-                      <span className="text-[16px] font-black text-[#7C83F6]">{rpeInput}/10</span>
+                      <div className="text-right">
+                        <span className="block text-[16px] font-black text-[#7C83F6]">{rpeInput}/10</span>
+                        {trainingEnhancementsEnabled && <span className="block text-[9px] font-bold text-[#94A3B8]">RIR {rpeToRir(Number.parseFloat(rpeInput)) ?? "--"}</span>}
+                      </div>
                     </div>
                     <div className="mt-2 grid grid-cols-5 gap-1.5">
                       {[6, 7, 8, 9, 10].map((rpe) => (
@@ -884,7 +1169,7 @@ export default function GuidedWorkout() {
             seconds={restTimer}
             duration={restDuration}
             paused={restPaused}
-            nextExercise={currentExercise?.exercise_name || "Next exercise"}
+            nextExercise={currentExerciseName || "Next exercise"}
             nextSet={Math.min(currentSetNumber, totalSets)}
             onReduce={reduceRestTime}
             onAdd={addRestTime}
@@ -907,6 +1192,8 @@ export default function GuidedWorkout() {
                 (set) => set.program_exercise_id === exercise.id && set.completed,
               ).length;
               const done = exerciseSetCount >= exercise.sets;
+              const skipped = skippedExerciseIds.has(exercise.id);
+              const override = exerciseOverrides[exercise.id];
               return (
                 <button
                   key={exercise.id}
@@ -917,13 +1204,13 @@ export default function GuidedWorkout() {
                     index === currentExerciseIndex ? "bg-[#F1FBF8] ring-[#A9E8D9]" : "bg-[#F8FAFC] ring-[#E5EAF1]",
                   )}
                 >
-                  <ExerciseThumb exercise={exercise.exercise_catalog_id ? catalogById.get(exercise.exercise_catalog_id) : undefined} />
+                  <ExerciseThumb exercise={override ?? (exercise.exercise_catalog_id ? catalogById.get(exercise.exercise_catalog_id) : undefined)} />
                   <span className="min-w-0 flex-1">
-                    <span className={cn("block truncate text-[12px] font-extrabold", done ? "text-[#8A98AF] line-through" : "text-[#07152F]")}>{exercise.exercise_name}</span>
-                    <span className="mt-1 block text-[10px] font-semibold text-[#71809C]">{exerciseSetCount}/{exercise.sets} sets · {exercise.reps} reps</span>
+                    <span className={cn("block truncate text-[12px] font-extrabold", (done || skipped) ? "text-[#8A98AF] line-through" : "text-[#07152F]")}>{override ? formatExerciseLabel(override.name) : exercise.exercise_name}</span>
+                    <span className="mt-1 block text-[10px] font-semibold text-[#71809C]">{skipped ? addedCopy.skipped : `${exerciseSetCount}/${exercise.sets} sets · ${exercise.reps} reps`}</span>
                   </span>
-                  <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", done ? "bg-[#22C7A1] text-white" : "bg-white text-[#B0BAC9] ring-1 ring-[#DDE5EF]") }>
-                    {done ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", done ? "bg-[#22C7A1] text-white" : skipped ? "bg-[#FFF0F2] text-[#E94E65]" : "bg-white text-[#B0BAC9] ring-1 ring-[#DDE5EF]") }>
+                    {done ? <Check className="h-4 w-4" /> : skipped ? <SkipForward className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </span>
                 </button>
               );
@@ -944,11 +1231,11 @@ export default function GuidedWorkout() {
         ) : (
           <button
             onClick={handleCompleteSet}
-            disabled={sessionLoading || isResting || isSetLogged(currentSetNumber)}
+            disabled={sessionLoading || savingSet || isResting || isSetLogged(currentSetNumber)}
             className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[18px] bg-[#7C83F6] text-[14px] font-extrabold text-white shadow-[0_12px_26px_rgba(124,131,246,0.25)] transition active:scale-[0.98] disabled:opacity-45"
           >
             <Check className="h-5 w-5" />
-            {sessionLoading ? "Saving set..." : `Complete set ${Math.min(currentSetNumber, totalSets)}`}
+            {savingSet ? "Saving set..." : `Complete set ${Math.min(currentSetNumber, totalSets)}`}
           </button>
         )}
       </div>
@@ -959,7 +1246,7 @@ export default function GuidedWorkout() {
             seconds={restTimer}
             duration={restDuration}
             paused={restPaused}
-            nextExercise={currentExercise?.exercise_name || "Next exercise"}
+            nextExercise={currentExerciseName || "Next exercise"}
             nextSet={Math.min(currentSetNumber, totalSets)}
             onReduce={reduceRestTime}
             onAdd={addRestTime}
@@ -974,6 +1261,35 @@ export default function GuidedWorkout() {
         onOpenChange={setDetailsOpen}
         exerciseId={detailsExerciseId}
       />
+      {trainingEnhancementsEnabled && <ExerciseCatalogSheet
+        open={replacementOpen}
+        onOpenChange={setReplacementOpen}
+        onSelect={handleReplacement}
+        selectedId={currentOverride?.id}
+        title={addedCopy.chooseAlternative}
+        allowedExerciseIds={safeSubstitutionIds}
+      />}
+      {trainingEnhancementsEnabled && <PlateCalculatorSheet
+        open={plateCalculatorOpen}
+        onOpenChange={setPlateCalculatorOpen}
+        targetWeightKg={Number.parseFloat(weightInput) || equipmentProfile.bar_weight_kg}
+        profiles={equipmentProfiles}
+        defaultProfile={equipmentProfile}
+        onApply={(weightKg) => setWeightInput(plateWeightInput(weightKg))}
+        onSaveProfile={saveEquipmentProfile}
+      />}
+      <AnimatePresence>
+        {trainingEnhancementsEnabled && skipSheetOpen && currentExercise && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] flex items-end justify-center bg-[#020617]/40" onClick={() => setSkipSheetOpen(false)}>
+            <motion.section dir={isRTL ? "rtl" : "ltr"} initial={{ y: 60 }} animate={{ y: 0 }} exit={{ y: 60 }} onClick={(event) => event.stopPropagation()} className="w-full max-w-[430px] rounded-t-[30px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl">
+              <div className="mx-auto h-1 w-10 rounded-full bg-[#DDE5EF]" />
+              <div className="mt-5 flex items-start gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-[#FFF0F2] text-[#FB6B7A]"><SkipForward className="h-5 w-5" /></span><div><h2 className="text-[17px] font-extrabold text-[#07152F]">{addedCopy.skipExerciseTitle}</h2><p className="mt-1 text-[11px] font-medium leading-5 text-[#71809C]">{addedCopy.skipExerciseBody}</p></div></div>
+              <textarea value={skipReason} onChange={(event) => setSkipReason(event.target.value)} rows={3} placeholder={addedCopy.optionalReason} className="mt-4 w-full resize-none rounded-[17px] bg-[#F6F8FB] px-4 py-3 text-[12px] font-semibold text-[#07152F] outline-none ring-1 ring-[#E5EAF1] placeholder:text-[#94A3B8] focus:ring-[#FB6B7A]" />
+              <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setSkipSheetOpen(false)} className="min-h-12 rounded-[16px] bg-[#F6F8FB] text-[12px] font-extrabold text-[#41506A] ring-1 ring-[#DDE5EF]">{addedCopy.keepExercise}</button><button type="button" onClick={handleSkipExercise} className="min-h-12 rounded-[16px] bg-[#020617] text-[12px] font-extrabold text-white">{addedCopy.skipExercise}</button></div>
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </WorkoutShell>
   );
 }

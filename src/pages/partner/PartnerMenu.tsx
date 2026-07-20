@@ -46,16 +46,27 @@ import {
   Crown,
   LayoutGrid,
   List,
+  AlertTriangle,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { MealAddonsManager } from "@/components/MealAddonsManager";
 import { formatCurrency } from "@/lib/currency";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
+import {
+  calculateNutrientCompleteness,
+  type NutritionDataSource,
+} from "@/lib/nutrition-quality";
 import { PartnerAddonsContent } from "./PartnerAddons";
+import {
+  PartnerNutritionVerificationControl,
+  usePartnerNutritionVerificationStatuses,
+} from "@/components/partner/PartnerNutritionVerificationControl";
 
 const CATEGORIES = [
   "All",
@@ -106,6 +117,21 @@ interface Meal {
   carbs_g: number;
   fat_g: number;
   fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
+  potassium_mg: number | null;
+  calcium_mg: number | null;
+  iron_mg: number | null;
+  vitamin_d_mcg: number | null;
+  vitamin_b12_mcg: number | null;
+  magnesium_mg: number | null;
+  nutrition_version: number;
+  nutrition_provenance: unknown;
+  nutrient_completeness_score: number;
+  nutrient_missing_codes: string[];
+  nutrient_invalid_codes: string[];
+  correction_status: "requested" | "submitted" | null;
+  correction_reason: string | null;
   image_url: string | null;
   prep_time_minutes: number | null;
   is_available: boolean;
@@ -168,7 +194,24 @@ const mealSchema = z.object({
   protein_g: z.number().min(0),
   carbs_g: z.number().min(0),
   fat_g: z.number().min(0),
-  fiber_g: z.number().min(0).optional(),
+  fiber_g: z.number().min(0).nullable(),
+  sugar_g: z.number().min(0).nullable(),
+  sodium_mg: z.number().min(0).nullable(),
+  potassium_mg: z.number().min(0).nullable(),
+  calcium_mg: z.number().min(0).nullable(),
+  iron_mg: z.number().min(0).nullable(),
+  vitamin_d_mcg: z.number().min(0).nullable(),
+  vitamin_b12_mcg: z.number().min(0).nullable(),
+  magnesium_mg: z.number().min(0).nullable(),
+  nutrition_source: z.enum([
+    "partner_entered",
+    "nutrition_label_ocr",
+    "open_food_facts",
+    "manual",
+    "estimated",
+    "backfilled",
+  ]),
+  nutrition_source_record_id: z.string().max(120).optional(),
   prep_time_minutes: z.number().min(1).optional(),
   image_url: z.string().url().optional().or(z.literal("")),
   is_available: z.boolean(),
@@ -194,7 +237,17 @@ const emptyMeal: MealFormData = {
   protein_g: 0,
   carbs_g: 0,
   fat_g: 0,
-  fiber_g: 0,
+  fiber_g: null,
+  sugar_g: null,
+  sodium_mg: null,
+  potassium_mg: null,
+  calcium_mg: null,
+  iron_mg: null,
+  vitamin_d_mcg: null,
+  vitamin_b12_mcg: null,
+  magnesium_mg: null,
+  nutrition_source: "partner_entered",
+  nutrition_source_record_id: "",
   prep_time_minutes: 15,
   image_url: "",
   is_available: true,
@@ -210,11 +263,75 @@ const emptyMeal: MealFormData = {
   category: "Main Course",
 };
 
+const NUTRITION_SOURCES: Array<{
+  value: NutritionDataSource;
+  label: string;
+}> = [
+  { value: "partner_entered", label: "Entered by restaurant" },
+  { value: "nutrition_label_ocr", label: "Nutrition label / OCR" },
+  { value: "open_food_facts", label: "Open Food Facts" },
+  { value: "manual", label: "Manually verified" },
+  { value: "estimated", label: "Recipe estimate" },
+  { value: "backfilled", label: "System backfill" },
+];
+
+function readProvenanceValue(value: unknown, key: string): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const candidate = (value as Record<string, unknown>)[key];
+  return typeof candidate === "string" ? candidate : "";
+}
+
+export function PartnerNutritionQueueBanner({
+  count,
+  isRTL,
+  queueOnly,
+  onToggle,
+}: {
+  count: number;
+  isRTL: boolean;
+  queueOnly: boolean;
+  onToggle: () => void;
+}) {
+  const copy = isRTL
+    ? {
+        title: "بيانات غذائية تحتاج تصحيحًا",
+        body: `${count} وجبة تحتوي قياسات ناقصة أو غير صالحة. افتح الوجبة لإرسال التصحيح.`,
+        show: "عرض قائمة التصحيح",
+        all: "عرض كل الوجبات",
+      }
+    : {
+        title: "Nutrition data needs correction",
+        body: `${count} meals have missing or invalid measurements. Open a meal to submit corrections.`,
+        show: "Show correction queue",
+        all: "Show all meals",
+      };
+
+  return (
+    <section
+      dir={isRTL ? "rtl" : "ltr"}
+      className="flex flex-col gap-3 rounded-lg border border-[#F59E0B]/30 bg-[#FFF8ED] p-4 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div>
+        <p className="font-black text-[#020617]">{copy.title}</p>
+        <p className="mt-1 text-sm font-semibold text-[#64748B]">{copy.body}</p>
+      </div>
+      <Button type="button" variant="outline" onClick={onToggle} className="min-h-11 bg-white">
+        <AlertTriangle className="me-2 h-4 w-4 text-[#F59E0B]" />
+        {queueOnly ? copy.all : copy.show}
+      </Button>
+    </section>
+  );
+}
+
 export default function PartnerMenu() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+  const { isRTL } = useLanguage();
   const { toast } = useToast();
+  const micronutrientsEnabled = isPhaseOneFeatureEnabled("micronutrients");
+  const { byMeal: verificationByMeal, refresh: refreshVerificationStatuses } =
+    usePartnerNutritionVerificationStatuses(Boolean(user));
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -247,11 +364,45 @@ export default function PartnerMenu() {
       is_available: true,
     })),
   );
+  const formNutritionQuality = useMemo(
+    () =>
+      calculateNutrientCompleteness({
+        calories: formData.calories,
+        protein_g: formData.protein_g,
+        carbs_g: formData.carbs_g,
+        fat_g: formData.fat_g,
+        fiber_g: formData.fiber_g,
+        sugar_g: formData.sugar_g,
+        sodium_mg: formData.sodium_mg,
+        potassium_mg: formData.potassium_mg,
+        calcium_mg: formData.calcium_mg,
+        iron_mg: formData.iron_mg,
+        vitamin_d_mcg: formData.vitamin_d_mcg,
+        vitamin_b12_mcg: formData.vitamin_b12_mcg,
+        magnesium_mg: formData.magnesium_mg,
+      }),
+    [
+      formData.calories,
+      formData.carbs_g,
+      formData.fat_g,
+      formData.fiber_g,
+      formData.protein_g,
+      formData.sodium_mg,
+      formData.sugar_g,
+      formData.potassium_mg,
+      formData.calcium_mg,
+      formData.iron_mg,
+      formData.vitamin_d_mcg,
+      formData.vitamin_b12_mcg,
+      formData.magnesium_mg,
+    ],
+  );
 
   // View/filter/sort state
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [activeCategory, setActiveCategory] = useState<Category>("All");
   const [sortBy, setSortBy] = useState<SortOption>("name_asc");
+  const [nutritionQueueOnly, setNutritionQueueOnly] = useState(false);
   const activeMenuTab =
     searchParams.get("tab") === "addons" ? "addons" : "meals";
 
@@ -344,8 +495,10 @@ export default function PartnerMenu() {
         .order("name");
 
       if (mealsError) throw mealsError;
-      const fetchedMeals: Meal[] = (mealsData || []).map((meal) => ({
-        id: meal.id,
+      const fetchedMeals: Meal[] = (mealsData || []).map((meal) => {
+        const extended = meal as unknown as Record<string, unknown>;
+        return {
+          id: meal.id,
         name: meal.name,
         description: meal.description,
         price: meal.price,
@@ -355,6 +508,21 @@ export default function PartnerMenu() {
         carbs_g: meal.carbs_g || meal.carbs || 0,
         fat_g: meal.fat_g || meal.fats || 0,
         fiber_g: meal.fiber_g,
+        sugar_g: meal.sugar_g,
+        sodium_mg: meal.sodium_mg,
+        potassium_mg: (extended.potassium_mg as number | null) ?? null,
+        calcium_mg: (extended.calcium_mg as number | null) ?? null,
+        iron_mg: (extended.iron_mg as number | null) ?? null,
+        vitamin_d_mcg: (extended.vitamin_d_mcg as number | null) ?? null,
+        vitamin_b12_mcg: (extended.vitamin_b12_mcg as number | null) ?? null,
+        magnesium_mg: (extended.magnesium_mg as number | null) ?? null,
+        nutrition_version: meal.nutrition_version,
+        nutrition_provenance: meal.nutrition_provenance,
+        nutrient_completeness_score: meal.nutrient_completeness_score,
+        nutrient_missing_codes: meal.nutrient_missing_codes,
+        nutrient_invalid_codes: meal.nutrient_invalid_codes,
+        correction_status: null,
+        correction_reason: null,
         image_url: meal.image_url,
         prep_time_minutes: meal.prep_time_minutes,
         is_available: meal.is_available ?? false,
@@ -362,8 +530,9 @@ export default function PartnerMenu() {
         rating: meal.rating || meal.avg_rating || 0,
         order_count: meal.order_count || 0,
         category: meal.category,
-        menu_offerings: [],
-      }));
+          menu_offerings: [],
+        };
+      });
 
       if (fetchedMeals.length > 0) {
         const { data: offeringData, error: offeringError } = await supabase
@@ -392,6 +561,29 @@ export default function PartnerMenu() {
           });
         }
       }
+      if (micronutrientsEnabled && fetchedMeals.length > 0) {
+        const { data: queueData, error: queueError } = await supabase
+          .from("partner_meal_nutrition_missing_queue")
+          .select("meal_id,correction_status,correction_reason")
+          .eq("restaurant_id", restaurant.id);
+        if (queueError) throw queueError;
+
+        const queueByMeal = new Map(
+          ((queueData ?? []) as unknown as Array<{
+            meal_id: string;
+            correction_status: Meal["correction_status"];
+            correction_reason: string | null;
+          }>).map((item) => [item.meal_id, item]),
+        );
+        for (const meal of fetchedMeals) {
+          const queueItem = queueByMeal.get(meal.id);
+          if (queueItem) {
+            meal.correction_status = queueItem.correction_status;
+            meal.correction_reason = queueItem.correction_reason;
+          }
+        }
+      }
+
       setMeals(fetchedMeals);
 
       // Batch fetch add-ons for all meals in one query
@@ -455,8 +647,16 @@ export default function PartnerMenu() {
       return 0;
     });
 
+    if (micronutrientsEnabled && nutritionQueueOnly) {
+      list = list.filter(
+        (meal) =>
+          meal.nutrient_missing_codes.length > 0 ||
+          meal.nutrient_invalid_codes.length > 0,
+      );
+    }
+
     return list;
-  }, [meals, activeCategory, sortBy]);
+  }, [meals, activeCategory, sortBy, micronutrientsEnabled, nutritionQueueOnly]);
 
   const openAddDialog = () => {
     setEditingMeal(null);
@@ -486,7 +686,23 @@ export default function PartnerMenu() {
       protein_g: meal.protein_g,
       carbs_g: meal.carbs_g,
       fat_g: meal.fat_g,
-      fiber_g: meal.fiber_g || 0,
+      fiber_g: meal.fiber_g,
+      sugar_g: meal.sugar_g,
+      sodium_mg: meal.sodium_mg,
+      potassium_mg: meal.potassium_mg,
+      calcium_mg: meal.calcium_mg,
+      iron_mg: meal.iron_mg,
+      vitamin_d_mcg: meal.vitamin_d_mcg,
+      vitamin_b12_mcg: meal.vitamin_b12_mcg,
+      magnesium_mg: meal.magnesium_mg,
+      nutrition_source: (readProvenanceValue(
+        meal.nutrition_provenance,
+        "source",
+      ) || "partner_entered") as NutritionDataSource,
+      nutrition_source_record_id: readProvenanceValue(
+        meal.nutrition_provenance,
+        "source_record_id",
+      ),
       prep_time_minutes: meal.prep_time_minutes || 15,
       image_url: meal.image_url || "",
       is_available: meal.is_available,
@@ -705,7 +921,24 @@ export default function PartnerMenu() {
         protein_g: formData.protein_g,
         carbs_g: formData.carbs_g,
         fat_g: formData.fat_g,
-        fiber_g: formData.fiber_g || null,
+        fiber_g: formData.fiber_g,
+        ...(micronutrientsEnabled
+          ? {
+              sugar_g: formData.sugar_g,
+              sodium_mg: formData.sodium_mg,
+              potassium_mg: formData.potassium_mg,
+              calcium_mg: formData.calcium_mg,
+              iron_mg: formData.iron_mg,
+              vitamin_d_mcg: formData.vitamin_d_mcg,
+              vitamin_b12_mcg: formData.vitamin_b12_mcg,
+              magnesium_mg: formData.magnesium_mg,
+              nutrition_provenance: {
+                source: formData.nutrition_source,
+                source_record_id:
+                  formData.nutrition_source_record_id?.trim() || null,
+              },
+            }
+          : {}),
         prep_time_minutes: formData.prep_time_minutes || null,
         image_url: formData.image_url || null,
         is_available: needsApproval ? false : formData.is_available,
@@ -891,6 +1124,11 @@ export default function PartnerMenu() {
   const rejectedMeals = meals.filter(
     (meal) => meal.approval_status === "rejected",
   ).length;
+  const nutritionQueueCount = meals.filter(
+    (meal) =>
+      meal.nutrient_missing_codes.length > 0 ||
+      meal.nutrient_invalid_codes.length > 0,
+  ).length;
   const activeCategoryCount =
     activeCategory === "All"
       ? meals.length
@@ -1072,6 +1310,14 @@ export default function PartnerMenu() {
             <PartnerAddonsContent embedded />
           ) : (
             <>
+              {micronutrientsEnabled && nutritionQueueCount > 0 && (
+                <PartnerNutritionQueueBanner
+                  count={nutritionQueueCount}
+                  isRTL={isRTL}
+                  queueOnly={nutritionQueueOnly}
+                  onToggle={() => setNutritionQueueOnly((current) => !current)}
+                />
+              )}
               <section className="rounded-[28px] border border-[#E5EAF1] bg-white p-3 shadow-[0_14px_36px_rgba(2,6,23,0.04)]">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <Tabs
@@ -1229,6 +1475,37 @@ export default function PartnerMenu() {
                                       <Crown className="h-3 w-3" /> VIP
                                     </span>
                                   )}
+                                  <PartnerNutritionVerificationControl
+                                    mealId={meal.id}
+                                    mealName={meal.name}
+                                    nutritionVersion={meal.nutrition_version}
+                                    completenessScore={meal.nutrient_completeness_score}
+                                    sourceReference={readProvenanceValue(
+                                      meal.nutrition_provenance,
+                                      "source_record_id",
+                                    )}
+                                    status={verificationByMeal.get(meal.id)}
+                                    onChanged={refreshVerificationStatuses}
+                                  />
+                                  {micronutrientsEnabled &&
+                                    (meal.nutrient_missing_codes.length > 0 ||
+                                      meal.nutrient_invalid_codes.length > 0) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => void openEditDialog(meal)}
+                                        className="inline-flex min-h-8 items-center gap-1 rounded-full bg-[#FFF8ED] px-3 text-xs font-black text-[#B45309]"
+                                        title={meal.correction_reason ?? undefined}
+                                      >
+                                        <AlertTriangle className="h-3 w-3" />
+                                        {meal.correction_status === "requested"
+                                          ? isRTL
+                                            ? "تصحيح مطلوب"
+                                            : "Correction requested"
+                                          : isRTL
+                                            ? "بيانات ناقصة"
+                                            : "Nutrition incomplete"}
+                                      </button>
+                                    )}
                                 </div>
                                 <h3 className="mt-3 truncate text-lg font-black text-[#020617]">
                                   {meal.name}
@@ -1623,7 +1900,7 @@ export default function PartnerMenu() {
               )}
             </div>
 
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="space-y-2">
                 <Label htmlFor="protein">Protein (g)</Label>
                 <Input
@@ -1676,16 +1953,154 @@ export default function PartnerMenu() {
                   type="number"
                   min="0"
                   step="0.1"
-                  value={formData.fiber_g || ""}
+                  value={formData.fiber_g ?? ""}
                   onChange={(e) =>
                     handleInputChange(
                       "fiber_g",
-                      parseFloat(e.target.value) || 0,
+                      e.target.value === "" ? null : Number(e.target.value),
                     )
                   }
                 />
               </div>
             </div>
+
+            {micronutrientsEnabled && (
+            <section className="space-y-4 rounded-2xl border border-[#E5EAF1] bg-[#F6F8FB] p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <Label className="text-base font-semibold text-[#020617]">
+                    Nutrition quality
+                  </Label>
+                  <p className="mt-1 text-xs leading-5 text-[#64748B]">
+                    Leave a field empty when it was not measured. Empty values
+                    are never stored as zero.
+                  </p>
+                </div>
+                <div className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-black text-[#020617] ring-1 ring-[#E5EAF1]">
+                  {formNutritionQuality.score}% complete
+                </div>
+              </div>
+
+              <div className="h-2 overflow-hidden rounded-full bg-white">
+                <div
+                  className="h-full rounded-full bg-[#22C7A1] transition-[width]"
+                  style={{ width: `${formNutritionQuality.score}%` }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="sugar">Sugar (g)</Label>
+                  <Input
+                    id="sugar"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="Not measured"
+                    value={formData.sugar_g ?? ""}
+                    onChange={(event) =>
+                      handleInputChange(
+                        "sugar_g",
+                        event.target.value === "" ? null : Number(event.target.value),
+                      )
+                    }
+                    className="bg-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sodium">Sodium (mg)</Label>
+                  <Input
+                    id="sodium"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Not measured"
+                    value={formData.sodium_mg ?? ""}
+                    onChange={(event) =>
+                      handleInputChange(
+                        "sodium_mg",
+                        event.target.value === "" ? null : Number(event.target.value),
+                      )
+                    }
+                    className="bg-white"
+                  />
+                </div>
+                {(
+                  [
+                    ["potassium_mg", "Potassium", "mg", 1],
+                    ["calcium_mg", "Calcium", "mg", 1],
+                    ["iron_mg", "Iron", "mg", 0.1],
+                    ["vitamin_d_mcg", "Vitamin D", "mcg", 0.1],
+                    ["vitamin_b12_mcg", "Vitamin B12", "mcg", 0.1],
+                    ["magnesium_mg", "Magnesium", "mg", 1],
+                  ] as const
+                ).map(([field, label, unit, step]) => (
+                  <div key={field} className="space-y-2">
+                    <Label htmlFor={field}>{label} ({unit})</Label>
+                    <Input
+                      id={field}
+                      type="number"
+                      min="0"
+                      step={step}
+                      placeholder="Not measured"
+                      value={formData[field] ?? ""}
+                      onChange={(event) =>
+                        handleInputChange(
+                          field,
+                          event.target.value === "" ? null : Number(event.target.value),
+                        )
+                      }
+                      className="bg-white"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="nutrition-source">Data source</Label>
+                  <Select
+                    value={formData.nutrition_source}
+                    onValueChange={(value: NutritionDataSource) =>
+                      handleInputChange("nutrition_source", value)
+                    }
+                  >
+                    <SelectTrigger id="nutrition-source" className="bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NUTRITION_SOURCES.map((source) => (
+                        <SelectItem key={source.value} value={source.value}>
+                          {source.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nutrition-source-id">Source reference</Label>
+                  <Input
+                    id="nutrition-source-id"
+                    value={formData.nutrition_source_record_id || ""}
+                    onChange={(event) =>
+                      handleInputChange(
+                        "nutrition_source_record_id",
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Label, recipe, or record ID"
+                    className="bg-white"
+                  />
+                </div>
+              </div>
+
+              {formNutritionQuality.missingCodes.length > 0 && (
+                <p className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#64748B] ring-1 ring-[#E5EAF1]">
+                  Missing: {formNutritionQuality.missingCodes.join(", ")}
+                </p>
+              )}
+            </section>
+            )}
 
             <div className="space-y-4 rounded-2xl border bg-muted/20 p-4">
               <div>

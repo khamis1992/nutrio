@@ -6,6 +6,7 @@ import {
   Users,
   Store,
   Utensils,
+  Activity,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -99,6 +100,11 @@ const AdminAnalytics = () => {
     totalUsers: 0,
     growthRate: 0,
   });
+  const [retentionStats, setRetentionStats] = useState({
+    activeFreezes: 0,
+    rolloverCredits: 0,
+    averageHealthScore: 0,
+  });
 
   useEffect(() => {
     if (user) {
@@ -172,6 +178,40 @@ const AdminAnalytics = () => {
     const { count: totalUsers } = await supabase
       .from("profiles")
       .select("*", { count: "exact", head: true });
+
+    const [freezeResult, rolloverResult, healthScoreResult] = await Promise.all([
+      supabase
+        .from("subscription_freezes")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active"),
+      supabase
+        .from("subscription_rollovers")
+        .select("rollover_credits")
+        .eq("status", "active")
+        .gt("rollover_credits", 0),
+      supabase
+        .from("user_health_scores")
+        .select("overall_score")
+        .order("calculated_at", { ascending: false })
+        .limit(200),
+    ]);
+
+    const healthScores = healthScoreResult.data || [];
+    setRetentionStats({
+      activeFreezes: freezeResult.count || 0,
+      rolloverCredits: (rolloverResult.data || []).reduce(
+        (sum, row) => sum + (row.rollover_credits || 0),
+        0,
+      ),
+      averageHealthScore: healthScores.length
+        ? Math.round(
+            healthScores.reduce(
+              (sum, row) => sum + (row.overall_score || 0),
+              0,
+            ) / healthScores.length,
+          )
+        : 0,
+    });
 
     const last30Days: DailyData[] = [];
     const dailyMap: Record<
@@ -338,6 +378,43 @@ const AdminAnalytics = () => {
             },
           ]}
         />
+
+        <Panel title="Retention Health" icon={Activity} accent="#22C7A1">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              {
+                label: "Active freezes",
+                value: retentionStats.activeFreezes,
+                helper: "Customers paused now",
+              },
+              {
+                label: "Rollover credits",
+                value: retentionStats.rolloverCredits,
+                helper: "Active meal credits",
+              },
+              {
+                label: "Avg health score",
+                value: `${retentionStats.averageHealthScore}%`,
+                helper: "Latest scored customers",
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="rounded-[18px] border border-[#E5EAF1] bg-[#F6F8FB] p-4"
+              >
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                  {item.label}
+                </p>
+                <p className="mt-2 text-2xl font-black text-[#020617]">
+                  {item.value}
+                </p>
+                <p className="mt-1 text-xs font-bold text-[#64748B]">
+                  {item.helper}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Panel>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Panel title="Revenue Trend" icon={DollarSign} accent="#22C7A1">

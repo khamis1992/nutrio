@@ -11,8 +11,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EditClientTargetsModal } from "@/components/coach/EditClientTargetsModal";
+import { CoachPerformanceDirectivePanel } from "@/components/coach/CoachPerformanceDirectivePanel";
+import { CareGovernancePanel } from "@/components/coach/CareGovernancePanel";
 import { ExerciseCatalogSheet } from "@/components/exercises/ExerciseCatalogSheet";
 import { ExerciseMedia } from "@/components/exercises/ExerciseMedia";
+import { MuscleLoadMap } from "@/components/workout/MuscleLoadMap";
 import {
   CoachClientHero,
   CoachClientSectionNav,
@@ -28,6 +31,7 @@ import { useWorkoutAdherence } from "@/hooks/useWorkoutAdherence";
 import { useCoachReport } from "@/hooks/useCoachReport";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   formatExerciseLabel,
   type ExerciseCatalogItem,
@@ -38,6 +42,9 @@ import {
   progressionRuleSummary,
   type ProgressionStrategy,
 } from "@/lib/workout-progression";
+import type { WorkoutPrescriptionUnit, WorkoutSetType } from "@/lib/workout-sequence";
+import { calculateMuscleVolume } from "@/lib/strength-training";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
 import { toast } from "sonner";
 
 import "./CoachClientDetail.css";
@@ -245,13 +252,116 @@ export default function CoachClientDetail() {
   const [adherenceDays, setAdherenceDays] = useState<DayAdherence[]>([]);
   const [overallAdherence, setOverallAdherence] = useState(0);
   const { user } = useAuth();
+  const { isRTL } = useLanguage();
+  const trainingEnhancementsEnabled = isPhaseOneFeatureEnabled("trainingEnhancements");
+  const trainingCopy = isRTL ? {
+    sessionChanges: "تغييرات الجلسة",
+    prescriptionAccuracy: "دقة الوصفة التدريبية",
+    basedOnSets: (count: number) => `بناءً على ${count} مجموعة مسجلة`,
+    volumeKg: "الحجم بالكيلوغرام",
+    averageRpe: "متوسط RPE",
+    bestOneRepMax: "أفضل 1RM تقديري",
+    restAccuracy: "دقة الراحة",
+    muscleMap: "خريطة العضلات",
+    muscleMapDescription: "المجموعات الموصوفة مقابل المكتملة خلال آخر 7 أيام.",
+    startFromTemplate: "ابدأ من قالب",
+    chooseTemplate: "اختر قالبًا محفوظًا",
+    weeks: "أسابيع",
+    use: "استخدام",
+    templateError: "تعذر تطبيق القالب",
+    schedule: "الجدول",
+    flexible: "مرن",
+    fixed: "ثابت",
+    daysPerWeek: "أيام/أسبوع",
+    phases: "المراحل",
+    dayPurpose: "هدف اليوم",
+    workout: "تمرين",
+    rest: "راحة",
+    recovery: "استشفاء",
+    phase: "المرحلة",
+    setStructure: "بنية المجموعة",
+    setStructureDescription: "تسلسل وقياس ودقة الحمل",
+    setType: "نوع المجموعة",
+    setTypes: {
+      normal: "عادية", dropset: "مجموعة إسقاط", myo: "تكرارات مايو", partial: "تكرارات جزئية",
+      forced: "تكرارات مساعدة", tut: "وقت تحت الشد", isometric: "ثبات", jump: "قفز / قوة",
+    },
+    superset: "مجموعة فائقة",
+    none: "لا يوجد",
+    group: "مجموعة",
+    measureBy: "القياس حسب",
+    measures: { reps: "تكرارات", seconds: "ثوانٍ", minutes: "دقائق", meters: "أمتار", kilometers: "كيلومترات" },
+    weightRounding: "تقريب الوزن",
+    setsOnlyDescription: "أضف المجموعات تدريجيًا مع تثبيت الحمل وعدد التكرارات المستهدف.",
+    rirDescription: "زد الحمل فقط عندما يحافظ العميل على التكرارات الاحتياطية المحددة.",
+    densityDescription: "قلل الراحة تدريجيًا مع الحفاظ على الحجم والجهد الموصوفين.",
+    addSets: "إضافة مجموعات",
+    maximumSets: "الحد الأقصى للمجموعات",
+    targetRir: "RIR المستهدف",
+    reduceRest: "تقليل الراحة",
+    minimumRest: "أقل راحة",
+    secondsShort: "ث",
+    saveTemplate: "حفظ كقالب",
+    templateSaved: "تم حفظ التمرين كقالب قابل لإعادة الاستخدام",
+    templateSaveError: "تعذر حفظ القالب",
+  } : {
+    sessionChanges: "Session changes",
+    prescriptionAccuracy: "Prescription accuracy",
+    basedOnSets: (count: number) => `Based on ${count} logged sets`,
+    volumeKg: "Volume kg",
+    averageRpe: "Average RPE",
+    bestOneRepMax: "Best est. 1RM",
+    restAccuracy: "Rest accuracy",
+    muscleMap: "Muscle map",
+    muscleMapDescription: "Prescribed versus completed working sets in the last 7 days.",
+    startFromTemplate: "Start from template",
+    chooseTemplate: "Choose a saved template",
+    weeks: "weeks",
+    use: "Use",
+    templateError: "Unable to apply template",
+    schedule: "Schedule",
+    flexible: "Flexible",
+    fixed: "Fixed",
+    daysPerWeek: "Days/week",
+    phases: "Phases",
+    dayPurpose: "Day purpose",
+    workout: "Workout",
+    rest: "Rest",
+    recovery: "Recovery",
+    phase: "Phase",
+    setStructure: "Set structure",
+    setStructureDescription: "Sequence, measurement and loading precision",
+    setType: "Set type",
+    setTypes: {
+      normal: "Normal", dropset: "Drop set", myo: "Myo reps", partial: "Partial reps",
+      forced: "Forced reps", tut: "Time under tension", isometric: "Isometric", jump: "Jump / power",
+    },
+    superset: "Superset",
+    none: "None",
+    group: "Group",
+    measureBy: "Measure by",
+    measures: { reps: "Repetitions", seconds: "Seconds", minutes: "Minutes", meters: "Meters", kilometers: "Kilometers" },
+    weightRounding: "Weight rounding",
+    setsOnlyDescription: "Add sets gradually while keeping the current load and repetition target.",
+    rirDescription: "Increase load only when the client maintains the prescribed reps in reserve.",
+    densityDescription: "Reduce rest gradually while the client preserves prescribed volume and effort.",
+    addSets: "Add sets",
+    maximumSets: "Maximum sets",
+    targetRir: "Target RIR",
+    reduceRest: "Reduce rest",
+    minimumRest: "Minimum rest",
+    secondsShort: "sec",
+    saveTemplate: "Save template",
+    templateSaved: "Workout saved as a reusable template",
+    templateSaveError: "Unable to save template",
+  };
   const coachId = user?.id;
   const { notes, loading: notesLoading, addNote, updateNote, deleteNote } = useCoachNotes(coachId, clientId);
   const { measurements, photos, loading: measurementsLoading, uploadPhoto } = useBodyMeasurements(clientId);
   const { proposals, proposeGoal, completeGoal } = useGoalProposals(coachId, clientId);
-  const { programs, programMeals, programExercises, mealInfos, createProgram, updateProgram, assignMeal, updateMeal, removeMeal, assignExercise, updateExercise, removeExercise } = useCoachPrograms(coachId, clientId, true);
+  const { programs, programMeals, programExercises, programWorkoutDays, workoutTemplates, mealInfos, createProgram, updateProgram, assignMeal, updateMeal, removeMeal, assignExercise, updateExercise, removeExercise, upsertWorkoutDay, saveWorkoutTemplate, createProgramFromTemplate } = useCoachPrograms(coachId, clientId, true, trainingEnhancementsEnabled);
   const { getExerciseStat, getMealStat } = useClientCompletionStats(clientId);
-  const { weekAdherence, alerts: workoutAlerts, overallWeeklyPct, loading: adherenceLoading, getExerciseWeightHistory, getExerciseTrend } = useWorkoutAdherence(clientId);
+  const { weekAdherence, exerciseHistory, exerciseEvents: workoutExerciseEvents, alerts: workoutAlerts, overallWeeklyPct, targetAdherencePct, targetSetCount, analytics: workoutAnalytics, loading: adherenceLoading, getExerciseWeightHistory, getExerciseTrend } = useWorkoutAdherence(clientId, trainingEnhancementsEnabled);
   const { generating, generateReport } = useCoachReport();
   const { exercises: exerciseCatalog } = useExerciseCatalog();
   const exerciseCatalogById = useMemo(
@@ -283,6 +393,10 @@ export default function CoachClientDetail() {
   const [workoutPlanTitle, setWorkoutPlanTitle] = useState("");
   const [workoutPlanStartDate, setWorkoutPlanStartDate] = useState("");
   const [workoutPlanEndDate, setWorkoutPlanEndDate] = useState("");
+  const [workoutScheduleMode, setWorkoutScheduleMode] = useState<"fixed" | "flexible">("flexible");
+  const [workoutDaysPerWeek, setWorkoutDaysPerWeek] = useState(3);
+  const [workoutPhaseCount, setWorkoutPhaseCount] = useState(1);
+  const [selectedWorkoutTemplateId, setSelectedWorkoutTemplateId] = useState("");
   const [workoutProgramId, setWorkoutProgramId] = useState<string | null>(null);
   const [workoutStep, setWorkoutStep] = useState<"create" | "assign">("create");
   const [exerciseName, setExerciseName] = useState("");
@@ -294,6 +408,10 @@ export default function CoachClientDetail() {
   const [exerciseSets, setExerciseSets] = useState(3);
   const [exerciseReps, setExerciseReps] = useState("10");
   const [exerciseRest, setExerciseRest] = useState(60);
+  const [exerciseSetType, setExerciseSetType] = useState<WorkoutSetType>("normal");
+  const [exerciseSupersetGroup, setExerciseSupersetGroup] = useState("");
+  const [exercisePrescriptionUnit, setExercisePrescriptionUnit] = useState<WorkoutPrescriptionUnit>("reps");
+  const [exerciseWeightRounding, setExerciseWeightRounding] = useState(0.5);
   const [exerciseNotes, setExerciseNotes] = useState("");
   const [progressionEnabled, setProgressionEnabled] = useState(false);
   const [progressionStrategy, setProgressionStrategy] = useState<ProgressionStrategy>("double_progression");
@@ -301,6 +419,11 @@ export default function CoachClientDetail() {
   const [progressionRepMax, setProgressionRepMax] = useState(12);
   const [progressionLoadIncrement, setProgressionLoadIncrement] = useState(2.5);
   const [progressionRepIncrement, setProgressionRepIncrement] = useState(1);
+  const [progressionSetIncrement, setProgressionSetIncrement] = useState(1);
+  const [progressionMaxSets, setProgressionMaxSets] = useState(6);
+  const [progressionTargetRir, setProgressionTargetRir] = useState(2);
+  const [progressionRestDecrement, setProgressionRestDecrement] = useState(15);
+  const [progressionMinRest, setProgressionMinRest] = useState(30);
   const [progressionRpeCeiling, setProgressionRpeCeiling] = useState(8.5);
   const [progressionFailureLimit, setProgressionFailureLimit] = useState(2);
   const [progressionDeloadPercent, setProgressionDeloadPercent] = useState(10);
@@ -316,6 +439,38 @@ export default function CoachClientDetail() {
   const [editingProgramStartDate, setEditingProgramStartDate] = useState("");
   const [editingProgramEndDate, setEditingProgramEndDate] = useState("");
   const [clientSub, setClientSub] = useState<{ remainingMeals: number; totalMeals: number; remainingMealsWeekly: number; totalMealsWeekly: number; isUnlimited: boolean } | null>(null);
+  const weeklyMuscleVolume = useMemo(() => {
+    if (!trainingEnhancementsEnabled) return [];
+    const activeWorkoutProgramIds = new Set(programs
+      .filter((program) => program.type === "workout_plan" && program.status === "active")
+      .map((program) => program.id));
+    const prescribedExercises = programExercises.filter((exercise) =>
+      activeWorkoutProgramIds.size === 0 || activeWorkoutProgramIds.has(exercise.program_id));
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - 6);
+
+    return calculateMuscleVolume(
+      prescribedExercises.map((exercise) => {
+        const catalogExercise = exercise.exercise_catalog_id
+          ? exerciseCatalogById.get(exercise.exercise_catalog_id)
+          : undefined;
+        return {
+          id: exercise.id,
+          sets: exercise.sets,
+          muscle: catalogExercise?.target
+            ? formatExerciseLabel(catalogExercise.target)
+            : "Other",
+        };
+      }),
+      exerciseHistory
+        .filter((entry) => new Date(entry.completed_at).getTime() >= start.getTime())
+        .map((entry) => ({
+          programExerciseId: entry.program_exercise_id,
+          completed: true,
+        })),
+    );
+  }, [exerciseCatalogById, exerciseHistory, programExercises, programs, trainingEnhancementsEnabled]);
 
   useEffect(() => {
     if (!clientId) return;
@@ -531,6 +686,10 @@ export default function CoachClientDetail() {
     setExerciseSets(3);
     setExerciseReps("10");
     setExerciseRest(60);
+    setExerciseSetType("normal");
+    setExerciseSupersetGroup("");
+    setExercisePrescriptionUnit("reps");
+    setExerciseWeightRounding(0.5);
     setExerciseNotes("");
     setProgressionEnabled(DEFAULT_PROGRESSION_RULE.enabled);
     setProgressionStrategy(DEFAULT_PROGRESSION_RULE.strategy);
@@ -538,6 +697,11 @@ export default function CoachClientDetail() {
     setProgressionRepMax(DEFAULT_PROGRESSION_RULE.rep_max);
     setProgressionLoadIncrement(DEFAULT_PROGRESSION_RULE.load_increment_kg);
     setProgressionRepIncrement(DEFAULT_PROGRESSION_RULE.rep_increment);
+    setProgressionSetIncrement(DEFAULT_PROGRESSION_RULE.set_increment);
+    setProgressionMaxSets(DEFAULT_PROGRESSION_RULE.max_sets);
+    setProgressionTargetRir(DEFAULT_PROGRESSION_RULE.target_rir);
+    setProgressionRestDecrement(DEFAULT_PROGRESSION_RULE.rest_decrement_seconds);
+    setProgressionMinRest(DEFAULT_PROGRESSION_RULE.min_rest_seconds);
     setProgressionRpeCeiling(DEFAULT_PROGRESSION_RULE.rpe_ceiling);
     setProgressionFailureLimit(DEFAULT_PROGRESSION_RULE.failure_sessions_before_deload);
     setProgressionDeloadPercent(DEFAULT_PROGRESSION_RULE.deload_percent);
@@ -550,6 +714,9 @@ export default function CoachClientDetail() {
       setWorkoutPlanTitle(program.title);
       setWorkoutPlanStartDate(program.start_date);
       setWorkoutPlanEndDate(program.end_date);
+      setWorkoutScheduleMode(program.schedule_mode === "flexible" ? "flexible" : "fixed");
+      setWorkoutDaysPerWeek(program.days_per_week ?? 3);
+      setWorkoutPhaseCount(program.phase_count ?? 1);
       setWorkoutProgramId(program.id);
       setWorkoutStep("assign");
       setExpandedProgramId(program.id);
@@ -561,6 +728,10 @@ export default function CoachClientDetail() {
       setWorkoutPlanStartDate(start.toISOString().split("T")[0]);
       setWorkoutPlanEndDate(end.toISOString().split("T")[0]);
       setWorkoutProgramId(null);
+      setWorkoutScheduleMode("flexible");
+      setWorkoutDaysPerWeek(3);
+      setWorkoutPhaseCount(1);
+      setSelectedWorkoutTemplateId("");
       setWorkoutStep("create");
     }
     setWorkoutBuilderOpen(true);
@@ -811,6 +982,19 @@ export default function CoachClientDetail() {
             Build a meal plan
           </button>
         </motion.div>
+      )}
+
+      {activeView === "notes" && coachId && clientId && (
+        <CareGovernancePanel
+          coachId={coachId}
+          clientId={clientId}
+          nutritionSnapshot={{
+            daily_calorie_target: profile.daily_calorie_target,
+            protein_target_g: profile.protein_target_g,
+            carbs_target_g: profile.carbs_target_g,
+            fat_target_g: profile.fat_target_g,
+          }}
+        />
       )}
 
       {/* Private Notes Section */}
@@ -1145,6 +1329,10 @@ export default function CoachClientDetail() {
           </div>
         )}
       </motion.div>
+      )}
+
+      {activeView === "plans" && clientId && (
+        <CoachPerformanceDirectivePanel clientId={clientId} />
       )}
 
       {/* Program Builder Section */}
@@ -1494,6 +1682,54 @@ export default function CoachClientDetail() {
                   {alert.message}
                 </div>
               ))}
+            </div>
+          )}
+
+          {trainingEnhancementsEnabled && workoutExerciseEvents.length > 0 && (
+            <div dir={isRTL ? "rtl" : "ltr"} className="mb-4 space-y-2 rounded-xl bg-[#F6F8FB] p-3 ring-1 ring-slate-200">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{trainingCopy.sessionChanges}</p>
+              {workoutExerciseEvents.slice(0, 4).map((event) => (
+                <div key={event.id} className="flex items-start gap-2 rounded-lg bg-white px-2.5 py-2 ring-1 ring-slate-100">
+                  <span className={cn("mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-black", event.event_type === "skipped" ? "bg-[#FFF0F2] text-[#FB6B7A]" : "bg-[#F3F1FF] text-[#7C83F6]")}>{event.event_type === "skipped" ? "S" : "R"}</span>
+                  <div className="min-w-0"><p className="truncate text-[10px] font-extrabold text-slate-800">{event.original_exercise_name}{event.replacement_exercise_name ? ` → ${event.replacement_exercise_name}` : ""}</p>{event.reason && <p className="mt-0.5 line-clamp-2 text-[9px] font-medium text-slate-500">{event.reason}</p>}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {trainingEnhancementsEnabled && targetAdherencePct != null && (
+            <div dir={isRTL ? "rtl" : "ltr"} className="mb-4 flex items-center justify-between rounded-xl bg-[#F6F8FB] px-3 py-2.5 ring-1 ring-slate-200">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{trainingCopy.prescriptionAccuracy}</p>
+                <p className="mt-0.5 text-[10px] font-semibold text-slate-500">{trainingCopy.basedOnSets(targetSetCount)}</p>
+              </div>
+              <span className={cn("text-[18px] font-black", targetAdherencePct >= 80 ? "text-[#22C7A1]" : targetAdherencePct >= 60 ? "text-amber-500" : "text-[#FB6B7A]")}>{targetAdherencePct}%</span>
+            </div>
+          )}
+
+          {trainingEnhancementsEnabled && workoutAnalytics.completedSets > 0 && (
+            <div dir={isRTL ? "rtl" : "ltr"} className="mb-4 grid grid-cols-2 gap-2">
+              {[
+                [workoutAnalytics.totalVolumeKg.toLocaleString(isRTL ? "ar-QA" : "en-US"), trainingCopy.volumeKg, "text-[#22C7A1]"],
+                [workoutAnalytics.averageRpe ?? "--", trainingCopy.averageRpe, "text-[#FB6B7A]"],
+                [workoutAnalytics.estimatedOneRepMaxKg ?? "--", trainingCopy.bestOneRepMax, "text-[#7C83F6]"],
+                [workoutAnalytics.restAdherencePct != null ? `${workoutAnalytics.restAdherencePct}%` : "--", trainingCopy.restAccuracy, "text-[#38BDF8]"],
+              ].map(([value, label, color]) => (
+                <div key={String(label)} className="rounded-xl bg-[#F6F8FB] px-3 py-2.5 ring-1 ring-slate-200">
+                  <p className={cn("text-[17px] font-black", String(color))}>{value}</p>
+                  <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {trainingEnhancementsEnabled && weeklyMuscleVolume.length > 0 && (
+            <div dir={isRTL ? "rtl" : "ltr"} className="mb-4 rounded-[20px] bg-white p-3 ring-1 ring-[#E5EAF1]">
+              <div className="mb-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#7C83F6]">{trainingCopy.muscleMap}</p>
+                <p className="mt-1 text-[10px] font-semibold text-[#94A3B8]">{trainingCopy.muscleMapDescription}</p>
+              </div>
+              <MuscleLoadMap volumes={weeklyMuscleVolume} compact />
             </div>
           )}
 
@@ -1896,7 +2132,29 @@ export default function CoachClientDetail() {
             </div>
 
             {workoutStep === "create" ? (
-              <div className="px-5 pb-5 space-y-4">
+              <div dir={isRTL ? "rtl" : "ltr"} className="px-5 pb-5 space-y-4">
+                {trainingEnhancementsEnabled && workoutTemplates.length > 0 && (
+                  <div className="rounded-2xl bg-[#F3F1FF] p-3 ring-1 ring-[#DCD8FF]">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#656BD8]">{trainingCopy.startFromTemplate}</label>
+                    <div className="mt-2 flex gap-2">
+                      <select value={selectedWorkoutTemplateId} onChange={(event) => setSelectedWorkoutTemplateId(event.target.value)} className="h-11 min-w-0 flex-1 rounded-xl border border-[#DCD8FF] bg-white px-3 text-[11px] font-bold text-slate-900">
+                        <option value="">{trainingCopy.chooseTemplate}</option>
+                        {workoutTemplates.map((template) => <option key={template.id} value={template.id}>{template.title} · {template.duration_weeks} {trainingCopy.weeks}</option>)}
+                      </select>
+                      <button type="button" disabled={!selectedWorkoutTemplateId || !workoutPlanStartDate || creatingProgram} onClick={async () => {
+                        setCreatingProgram(true);
+                        try {
+                          const program = await createProgramFromTemplate(selectedWorkoutTemplateId, workoutPlanStartDate);
+                          setWorkoutProgramId(program.id);
+                          setWorkoutPlanTitle(program.title);
+                          setWorkoutPlanEndDate(program.end_date);
+                          setWorkoutStep("assign");
+                        } catch (error) { toast.error(error instanceof Error ? error.message : trainingCopy.templateError); }
+                        finally { setCreatingProgram(false); }
+                      }} className="h-11 rounded-xl bg-[#7C83F6] px-4 text-[11px] font-extrabold text-white disabled:opacity-40">{trainingCopy.use}</button>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Plan Name</label>
                   <input type="text" value={workoutPlanTitle} onChange={(e) => setWorkoutPlanTitle(e.target.value)} placeholder="e.g. 4-Week Strength" className="w-full h-[48px] px-5 rounded-2xl bg-slate-50 border border-slate-200 text-[14px] text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
@@ -1911,11 +2169,32 @@ export default function CoachClientDetail() {
                     <input type="date" value={workoutPlanEndDate} onChange={(e) => setWorkoutPlanEndDate(e.target.value)} className="w-full h-[48px] px-4 rounded-2xl bg-slate-50 border border-slate-200 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all" />
                   </div>
                 </div>
+                {trainingEnhancementsEnabled && <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                  <label className="text-[9px] font-bold uppercase text-slate-400">{trainingCopy.schedule}
+                    <select value={workoutScheduleMode} onChange={(event) => setWorkoutScheduleMode(event.target.value as "fixed" | "flexible")} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-[10px] font-bold normal-case text-slate-900"><option value="flexible">{trainingCopy.flexible}</option><option value="fixed">{trainingCopy.fixed}</option></select>
+                  </label>
+                  <label className="text-[9px] font-bold uppercase text-slate-400">{trainingCopy.daysPerWeek}
+                    <input type="number" min={1} max={7} value={workoutDaysPerWeek} onChange={(event) => setWorkoutDaysPerWeek(Number(event.target.value))} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white text-center text-[11px] font-bold text-slate-900" />
+                  </label>
+                  <label className="text-[9px] font-bold uppercase text-slate-400">{trainingCopy.phases}
+                    <input type="number" min={1} max={12} value={workoutPhaseCount} onChange={(event) => setWorkoutPhaseCount(Number(event.target.value))} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white text-center text-[11px] font-bold text-slate-900" />
+                  </label>
+                </div>}
                 <button
                   onClick={async () => {
                     if (!workoutPlanTitle.trim() || !workoutPlanStartDate || !workoutPlanEndDate) return;
                     setCreatingProgram(true);
-                    const result = await createProgram({ title: workoutPlanTitle.trim(), type: "workout_plan", start_date: workoutPlanStartDate, end_date: workoutPlanEndDate });
+                    const result = await createProgram({
+                      title: workoutPlanTitle.trim(),
+                      type: "workout_plan",
+                      start_date: workoutPlanStartDate,
+                      end_date: workoutPlanEndDate,
+                      ...(trainingEnhancementsEnabled ? {
+                        schedule_mode: workoutScheduleMode,
+                        days_per_week: workoutDaysPerWeek,
+                        phase_count: workoutPhaseCount,
+                      } : {}),
+                    });
                     if (result.success && result.data) {
                       setWorkoutProgramId(result.data.id);
                       setWorkoutStep("assign");
@@ -1956,8 +2235,19 @@ export default function CoachClientDetail() {
                     const dayExercises = programExercises
                       .filter((e) => e.program_id === workoutProgramId && e.day_number === selectedWorkoutDay)
                       .sort((a, b) => a.order_index - b.order_index);
+                    const dayDefinition = programWorkoutDays.find((day) => day.program_id === workoutProgramId && day.day_number === selectedWorkoutDay);
                     return (
                       <div className="space-y-2.5">
+                        {trainingEnhancementsEnabled && workoutProgramId && (
+                          <div className="grid grid-cols-[1fr_92px] gap-2 rounded-2xl bg-[#F6F8FB] p-3 ring-1 ring-slate-200">
+                            <label className="text-[9px] font-bold uppercase text-slate-400">{trainingCopy.dayPurpose}
+                              <select value={dayDefinition?.day_type ?? "workout"} onChange={(event) => void upsertWorkoutDay(workoutProgramId, selectedWorkoutDay, { day_type: event.target.value as "workout" | "rest" | "recovery", title: event.target.value === "rest" ? trainingCopy.rest : event.target.value === "recovery" ? trainingCopy.recovery : `${trainingCopy.workout} ${selectedWorkoutDay}`, phase_number: dayDefinition?.phase_number ?? 1 })} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-bold normal-case text-slate-900"><option value="workout">{trainingCopy.workout}</option><option value="rest">{trainingCopy.rest}</option><option value="recovery">{trainingCopy.recovery}</option></select>
+                            </label>
+                            <label className="text-[9px] font-bold uppercase text-slate-400">{trainingCopy.phase}
+                              <input type="number" min={1} max={workoutPhaseCount} value={dayDefinition?.phase_number ?? 1} onChange={(event) => void upsertWorkoutDay(workoutProgramId, selectedWorkoutDay, { day_type: dayDefinition?.day_type ?? "workout", title: dayDefinition?.title ?? `Training day ${selectedWorkoutDay}`, phase_number: Number(event.target.value) })} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white text-center text-[11px] font-bold text-slate-900" />
+                            </label>
+                          </div>
+                        )}
                         {dayExercises.length === 0 && (
                           <div className="py-8 text-center">
                             <div className="w-12 h-12 rounded-2xl bg-emerald-50 mx-auto mb-3 flex items-center justify-center">
@@ -2011,6 +2301,12 @@ export default function CoachClientDetail() {
                                   <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">{ex.sets} sets</span>
                                   <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">{ex.reps} reps</span>
                                   <span className="text-[10px] font-semibold text-slate-400">{ex.rest_seconds ?? 60}s rest</span>
+                                  {trainingEnhancementsEnabled && ex.superset_group && (
+                                    <span className="rounded-md bg-violet-50 px-1.5 py-0.5 text-[10px] font-extrabold text-violet-700">Superset {ex.superset_group}</span>
+                                  )}
+                                  {trainingEnhancementsEnabled && ex.set_type && ex.set_type !== "normal" && (
+                                    <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-extrabold capitalize text-rose-600">{ex.set_type}</span>
+                                  )}
                                 </div>
                                 {normalizeProgressionRule(ex.progression_rule).enabled && (
                                   <div className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-violet-50 px-2 py-1 text-[9px] font-bold text-violet-700">
@@ -2030,6 +2326,10 @@ export default function CoachClientDetail() {
                                       setExerciseSets(ex.sets);
                                       setExerciseReps(ex.reps);
                                       setExerciseRest(ex.rest_seconds ?? 60);
+                                      setExerciseSetType(ex.set_type ?? "normal");
+                                      setExerciseSupersetGroup(ex.superset_group ?? "");
+                                      setExercisePrescriptionUnit(ex.prescription_unit ?? "reps");
+                                      setExerciseWeightRounding(ex.weight_rounding_kg ?? 0.5);
                                       setExerciseNotes(ex.notes ?? "");
                                       const rule = normalizeProgressionRule(ex.progression_rule);
                                       setProgressionEnabled(rule.enabled);
@@ -2038,6 +2338,11 @@ export default function CoachClientDetail() {
                                       setProgressionRepMax(rule.rep_max);
                                       setProgressionLoadIncrement(rule.load_increment_kg);
                                       setProgressionRepIncrement(rule.rep_increment);
+                                      setProgressionSetIncrement(rule.set_increment);
+                                      setProgressionMaxSets(rule.max_sets);
+                                      setProgressionTargetRir(rule.target_rir);
+                                      setProgressionRestDecrement(rule.rest_decrement_seconds);
+                                      setProgressionMinRest(rule.min_rest_seconds);
                                       setProgressionRpeCeiling(rule.rpe_ceiling);
                                       setProgressionFailureLimit(rule.failure_sessions_before_deload);
                                       setProgressionDeloadPercent(rule.deload_percent);
@@ -2134,6 +2439,69 @@ export default function CoachClientDetail() {
                               <input type="number" min={0} step={15} value={exerciseRest} onChange={(e) => setExerciseRest(Number(e.target.value))} className="w-full h-[40px] px-3 rounded-xl bg-white border border-slate-200 text-[13px] text-slate-900 text-center font-bold focus:outline-none focus:ring-2 focus:ring-purple-500/20" />
                             </div>
                           </div>
+                          {trainingEnhancementsEnabled && <div dir={isRTL ? "rtl" : "ltr"} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <div className="mb-2 flex items-center justify-between">
+                              <div>
+                                <p className="text-[11px] font-extrabold text-slate-900">{trainingCopy.setStructure}</p>
+                                <p className="text-[9px] font-semibold text-slate-500">{trainingCopy.setStructureDescription}</p>
+                              </div>
+                              <Dumbbell className="h-4 w-4 text-violet-600" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="space-y-1 text-[9px] font-bold uppercase text-slate-400">
+                                {trainingCopy.setType}
+                                <select
+                                  value={exerciseSetType}
+                                  onChange={(event) => setExerciseSetType(event.target.value as WorkoutSetType)}
+                                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-[11px] font-bold normal-case text-slate-900 outline-none focus:border-violet-400"
+                                >
+                                  <option value="normal">{trainingCopy.setTypes.normal}</option>
+                                  <option value="dropset">{trainingCopy.setTypes.dropset}</option>
+                                  <option value="myo">{trainingCopy.setTypes.myo}</option>
+                                  <option value="partial">{trainingCopy.setTypes.partial}</option>
+                                  <option value="forced">{trainingCopy.setTypes.forced}</option>
+                                  <option value="tut">{trainingCopy.setTypes.tut}</option>
+                                  <option value="isometric">{trainingCopy.setTypes.isometric}</option>
+                                  <option value="jump">{trainingCopy.setTypes.jump}</option>
+                                </select>
+                              </label>
+                              <label className="space-y-1 text-[9px] font-bold uppercase text-slate-400">
+                                {trainingCopy.superset}
+                                <select
+                                  value={exerciseSupersetGroup}
+                                  onChange={(event) => setExerciseSupersetGroup(event.target.value)}
+                                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-[11px] font-bold normal-case text-slate-900 outline-none focus:border-violet-400"
+                                >
+                                  <option value="">{trainingCopy.none}</option>
+                                  {['A', 'B', 'C', 'D'].map((group) => <option key={group} value={group}>{trainingCopy.group} {group}</option>)}
+                                </select>
+                              </label>
+                              <label className="space-y-1 text-[9px] font-bold uppercase text-slate-400">
+                                {trainingCopy.measureBy}
+                                <select
+                                  value={exercisePrescriptionUnit}
+                                  onChange={(event) => setExercisePrescriptionUnit(event.target.value as WorkoutPrescriptionUnit)}
+                                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-[11px] font-bold normal-case text-slate-900 outline-none focus:border-violet-400"
+                                >
+                                  <option value="reps">{trainingCopy.measures.reps}</option>
+                                  <option value="seconds">{trainingCopy.measures.seconds}</option>
+                                  <option value="minutes">{trainingCopy.measures.minutes}</option>
+                                  <option value="meters">{trainingCopy.measures.meters}</option>
+                                  <option value="kilometers">{trainingCopy.measures.kilometers}</option>
+                                </select>
+                              </label>
+                              <label className="space-y-1 text-[9px] font-bold uppercase text-slate-400">
+                                {trainingCopy.weightRounding}
+                                <select
+                                  value={exerciseWeightRounding}
+                                  onChange={(event) => setExerciseWeightRounding(Number(event.target.value))}
+                                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-[11px] font-bold normal-case text-slate-900 outline-none focus:border-violet-400"
+                                >
+                                  {[0.25, 0.5, 1, 1.25, 2, 2.5, 5].map((value) => <option key={value} value={value}>{value} kg</option>)}
+                                </select>
+                              </label>
+                            </div>
+                          </div>}
                           <div className="rounded-2xl border border-violet-200 bg-violet-50/70 p-3">
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-2">
@@ -2163,6 +2531,11 @@ export default function CoachClientDetail() {
                                     ["double_progression", "Double"],
                                     ["linear_load", "Linear"],
                                     ["reps_only", "Reps"],
+                                    ...(trainingEnhancementsEnabled ? [
+                                      ["sets_only", "Sets"],
+                                      ["rir_based", "RIR"],
+                                      ["density", "Density"],
+                                    ] : []),
                                   ] as Array<[ProgressionStrategy, string]>).map(([value, label]) => (
                                     <button
                                       key={value}
@@ -2179,6 +2552,9 @@ export default function CoachClientDetail() {
                                   {progressionStrategy === "double_progression" && "Increase load after every set reaches the top of the rep range within the RPE limit."}
                                   {progressionStrategy === "linear_load" && "Increase load after all prescribed sets are completed within the RPE limit."}
                                   {progressionStrategy === "reps_only" && "Increase repetitions while keeping the current load unchanged."}
+                                  {progressionStrategy === "sets_only" && trainingCopy.setsOnlyDescription}
+                                  {progressionStrategy === "rir_based" && trainingCopy.rirDescription}
+                                  {progressionStrategy === "density" && trainingCopy.densityDescription}
                                 </p>
 
                                 <div className="grid grid-cols-2 gap-2">
@@ -2189,6 +2565,15 @@ export default function CoachClientDetail() {
                                   ) : (
                                     <ProgressionField label="Add weight (kg)" value={progressionLoadIncrement} min={0} step={0.5} onChange={setProgressionLoadIncrement} />
                                   )}
+                                  {trainingEnhancementsEnabled && progressionStrategy === "sets_only" && <>
+                                    <ProgressionField label={trainingCopy.addSets} value={progressionSetIncrement} min={1} max={3} step={1} onChange={setProgressionSetIncrement} />
+                                    <ProgressionField label={trainingCopy.maximumSets} value={progressionMaxSets} min={exerciseSets} max={12} step={1} onChange={setProgressionMaxSets} />
+                                  </>}
+                                  {trainingEnhancementsEnabled && progressionStrategy === "rir_based" && <ProgressionField label={trainingCopy.targetRir} value={progressionTargetRir} min={0} max={5} step={0.5} onChange={setProgressionTargetRir} />}
+                                  {trainingEnhancementsEnabled && progressionStrategy === "density" && <>
+                                    <ProgressionField label={trainingCopy.reduceRest} value={progressionRestDecrement} min={5} max={60} step={5} onChange={setProgressionRestDecrement} suffix={trainingCopy.secondsShort} />
+                                    <ProgressionField label={trainingCopy.minimumRest} value={progressionMinRest} min={0} max={600} step={5} onChange={setProgressionMinRest} suffix={trainingCopy.secondsShort} />
+                                  </>}
                                   <ProgressionField label="Max RPE" value={progressionRpeCeiling} min={6} max={10} step={0.5} onChange={setProgressionRpeCeiling} />
                                   <ProgressionField label="Deload after" value={progressionFailureLimit} min={1} max={6} step={1} onChange={setProgressionFailureLimit} suffix="sessions" />
                                   <ProgressionField label="Deload" value={progressionDeloadPercent} min={5} max={30} step={5} onChange={setProgressionDeloadPercent} suffix="%" />
@@ -2216,6 +2601,13 @@ export default function CoachClientDetail() {
                                 rep_max: progressionRepMax,
                                 load_increment_kg: progressionLoadIncrement,
                                 rep_increment: progressionRepIncrement,
+                                ...(trainingEnhancementsEnabled ? {
+                                  set_increment: progressionSetIncrement,
+                                  max_sets: progressionMaxSets,
+                                  target_rir: progressionTargetRir,
+                                  rest_decrement_seconds: progressionRestDecrement,
+                                  min_rest_seconds: progressionMinRest,
+                                } : {}),
                                 rpe_ceiling: progressionRpeCeiling,
                                 failure_sessions_before_deload: progressionFailureLimit,
                                 deload_percent: progressionDeloadPercent,
@@ -2229,6 +2621,12 @@ export default function CoachClientDetail() {
                                   rest_seconds: exerciseRest,
                                   notes: exerciseNotes.trim(),
                                   progression_rule: progressionRule,
+                                  ...(trainingEnhancementsEnabled ? {
+                                    set_type: exerciseSetType,
+                                    superset_group: exerciseSupersetGroup || null,
+                                    prescription_unit: exercisePrescriptionUnit,
+                                    weight_rounding_kg: exerciseWeightRounding,
+                                  } : {}),
                                 });
                                 setEditingExerciseId(null);
                               } else {
@@ -2242,6 +2640,12 @@ export default function CoachClientDetail() {
                                   day_number: selectedWorkoutDay,
                                   order_index: programExercises.filter((e) => e.program_id === workoutProgramId && e.day_number === selectedWorkoutDay).length,
                                   progression_rule: progressionRule,
+                                  ...(trainingEnhancementsEnabled ? {
+                                    set_type: exerciseSetType,
+                                    superset_group: exerciseSupersetGroup || null,
+                                    prescription_unit: exercisePrescriptionUnit,
+                                    weight_rounding_kg: exerciseWeightRounding,
+                                  } : {}),
                                 });
                               }
                               resetExerciseForm();
@@ -2253,9 +2657,10 @@ export default function CoachClientDetail() {
                           </button>
                         </div>
 
-                        <button onClick={() => { setWorkoutBuilderOpen(false); setWorkoutStep("create"); setWorkoutProgramId(null); resetExerciseForm(); }} className="w-full h-[48px] rounded-2xl bg-slate-100 text-slate-600 text-[13px] font-bold hover:bg-slate-200 active:scale-[0.98] transition-all mt-2">
-                          Done
-                        </button>
+                        <div className={cn("mt-2 grid gap-2", trainingEnhancementsEnabled ? "grid-cols-2" : "grid-cols-1")}>
+                          {trainingEnhancementsEnabled && <button type="button" disabled={!workoutProgramId} onClick={async () => { if (!workoutProgramId) return; try { await saveWorkoutTemplate(workoutProgramId); toast.success(trainingCopy.templateSaved); } catch (error) { toast.error(error instanceof Error ? error.message : trainingCopy.templateSaveError); } }} className="h-[48px] rounded-2xl bg-[#F3F1FF] text-[11px] font-extrabold text-[#656BD8] ring-1 ring-[#DCD8FF] disabled:opacity-40">{trainingCopy.saveTemplate}</button>}
+                          <button onClick={() => { setWorkoutBuilderOpen(false); setWorkoutStep("create"); setWorkoutProgramId(null); resetExerciseForm(); }} className="h-[48px] rounded-2xl bg-slate-100 text-[13px] font-bold text-slate-600 transition-all active:scale-[0.98] hover:bg-slate-200">Done</button>
+                        </div>
                       </div>
                     );
                   })()}

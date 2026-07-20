@@ -177,16 +177,6 @@ export default function AdminPremiumAnalytics() {
           );
         }
 
-        const { error: restaurantError } = await supabase
-          .from("restaurants")
-          .update({ premium_analytics_until: actionTarget.ends_at })
-          .eq("id", actionTarget.restaurant_id);
-        if (restaurantError) {
-          throw new Error(
-            `Failed to activate restaurant access: ${restaurantError.message}`,
-          );
-        }
-
         toast({
           title: "Approved",
           description: "Premium access has been activated.",
@@ -238,15 +228,6 @@ export default function AdminPremiumAnalytics() {
       if (fetchErr || !restaurantData) {
         throw new Error("Could not find restaurant.");
       }
-
-      const { error: updateError } = await supabase
-        .from("restaurants")
-        .update({ premium_analytics_until: endsAt.toISOString() })
-        .eq("id", grantRestaurantId);
-      if (updateError)
-        throw new Error(
-          `Failed to activate restaurant access: ${updateError.message}`,
-        );
 
       const { error: insertError } = await supabase
         .from("premium_analytics_purchases")

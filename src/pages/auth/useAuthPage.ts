@@ -178,11 +178,18 @@ export const useAuthPage = () => {
         localStorage.removeItem("nutrio_remember_me");
       }
 
-      const { error } = await signIn(values.email, values.password);
+      const { error, user: signedInUser } = await signIn(
+        values.email,
+        values.password,
+      );
       if (error) {
+        setCheckingRole(false);
         if (!rememberMe) localStorage.removeItem("nutrio_remember_me");
         toast({ title: t("signin_failed"), description: error.message.includes("Invalid login credentials") ? t("invalid_credentials") : error.message, variant: "destructive" });
       } else {
+        // Keep a single transition screen visible while the user state and
+        // destination role resolve; do not paint the sign-in form again.
+        setCheckingRole(Boolean(signedInUser));
         if (rememberMe) {
           localStorage.setItem("remembered_email", values.email);
         } else {
@@ -191,6 +198,7 @@ export const useAuthPage = () => {
         toast({ title: t("welcome_back"), description: t("sign_in_success") });
       }
     } catch {
+      setCheckingRole(false);
       if (!rememberMe) localStorage.removeItem("nutrio_remember_me");
       toast({ title: t("error"), description: t("unexpected_error"), variant: "destructive" });
     } finally {

@@ -7,6 +7,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { MealConsumptionSheet } from "@/components/MealConsumptionSheet";
 
 import { 
   ArrowLeft, 
@@ -145,7 +146,7 @@ const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   useEffect(() => { document.title = `${t("order_detail_title")} — Nutrio`; }, [t]);
 
   const statusSteps: { key: OrderStatus; label: string; icon: React.ElementType }[] = [
@@ -162,6 +163,7 @@ const OrderDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [driverPhone, setDriverPhone] = useState<string | null>(null);
   const [driverName, setDriverName] = useState<string | null>(null);
+  const [consumptionOpen, setConsumptionOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -382,7 +384,7 @@ const OrderDetail = () => {
     try {
       const { data, error } = await supabase.rpc("cancel_meal_schedule", {
         p_schedule_id: id,
-        p_reason: null,
+        p_reason: undefined,
       });
       
       // Handle specific error for "preparing" status
@@ -716,6 +718,36 @@ const OrderDetail = () => {
         </section>
 
         {/* Actions */}
+        {(order.order_status === "delivered" || order.order_status === "completed") && order.meal && (
+          <section className="rounded-lg border border-[#C7F1E6] bg-[#E8FBF6] p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-[#22C7A1]">
+                <UtensilsCrossed className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-extrabold text-[#020617]">
+                  {isRTL ? "سجّل ما تناولته فعلياً" : "Record what you actually ate"}
+                </p>
+                <p className="mt-1 text-[12px] font-semibold leading-5 text-[#64748B]">
+                  {isRTL
+                    ? "اختر الوجبة كاملة أو جزءاً منها أو وجبة بديلة ليبقى تقدمك دقيقاً."
+                    : "Choose the full meal, a partial portion, or a replacement to keep progress accurate."}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConsumptionOpen(true)}
+              className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#020617] px-4 text-[14px] font-extrabold text-white"
+            >
+              <CheckCircle2 className="h-5 w-5" />
+              {order.is_completed
+                ? (isRTL ? "تعديل الاستهلاك" : "Edit consumption")
+                : (isRTL ? "تأكيد ما تناولته" : "Confirm what you ate")}
+            </button>
+          </section>
+        )}
+
         {canCancel && (
           <Button 
             variant="outline" 
@@ -745,6 +777,34 @@ const OrderDetail = () => {
             )}
             {t("order_mark_completed")}
           </Button>
+        )}
+
+        {order.meal && (
+          <MealConsumptionSheet
+            open={consumptionOpen}
+            onOpenChange={setConsumptionOpen}
+            sourceType="meal_schedule"
+            sourceId={order.id}
+            sourceMealId={order.meal.id}
+            meal={{
+              meal_id: order.meal.id,
+              meal_name: order.meal.name,
+              image_url: order.meal.image_url,
+              calories: order.meal.calories,
+              protein_g: order.meal.protein_g,
+              carbs_g: order.meal.carbs_g,
+              fat_g: order.meal.fat_g,
+              fiber_g: order.meal.fiber_g || 0,
+            }}
+            onSaved={(result) => {
+              setOrder((currentOrder) => currentOrder ? {
+                ...currentOrder,
+                is_completed: result.status === "full"
+                  || result.status === "partial"
+                  || result.status === "substituted",
+              } : currentOrder);
+            }}
+          />
         )}
 
         {/* View Order History Link */}

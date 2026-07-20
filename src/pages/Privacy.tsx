@@ -54,7 +54,7 @@ const Privacy = () => {
           </label>
         </section>
 
-        <div className="prose prose-neutral dark:prose-invert max-w-none space-y-8">
+        <div className="prose prose-neutral max-w-none space-y-8">
           <section>
             <h2 className="text-2xl font-semibold mb-4">{t("privacy_intro_title")}</h2>
             <p className="text-muted-foreground leading-relaxed">
@@ -89,6 +89,23 @@ const Privacy = () => {
               <li>{t("privacy_info_use_item_7")}</li>
               <li>{t("privacy_info_use_item_8")}</li>
               <li>{t("privacy_info_use_item_9")}</li>
+            </ul>
+          </section>
+
+          <section className="rounded-[8px] border border-[#DDDFFF] bg-white p-5">
+            <h2 className="text-2xl font-semibold mb-4 text-[#020617]">
+              {language === "ar" ? "بيانات برامج الدعم الصحي" : "Health support program data"}
+            </h2>
+            <p className="text-muted-foreground leading-relaxed">
+              {language === "ar"
+                ? "إذا انضممت إلى برنامج دعم صحي، نعالج الحد الأدنى اللازم من بيانات خط البداية، والتغذية، والترطيب، والنشاط، وتسجيل الأعراض الذاتي لتقديم البرنامج. هذه بيانات ذات طبيعة خاصة، وليست تشخيصاً طبياً أو وصفة علاجية."
+                : "If you join a health support program, we process the minimum baseline, nutrition, hydration, activity, and self-reported symptom data needed to provide it. This is special-nature data; it is not a medical diagnosis or prescription."}
+            </p>
+            <ul className="mt-4 list-disc space-y-2 ps-5 text-muted-foreground">
+              <li>{language === "ar" ? "لا نشارك الإجابات الخاصة أو الأعراض مع المطاعم أو شركاء التوصيل." : "Private answers and symptoms are not shared with restaurants or delivery partners."}</li>
+              <li>{language === "ar" ? "لا نرسل محتوى البرنامج الصحي إلى أدوات تحليلات الاستخدام." : "Health-program content is excluded from usage analytics."}</li>
+              <li>{language === "ar" ? "يمكنك إيقاف البرنامج أو سحب الموافقة أو تصدير بياناتك أو حذف بيانات البرنامج نهائياً." : "You can pause or leave the program, withdraw future processing consent, export your data, or permanently delete program data."}</li>
+              <li>{language === "ar" ? "قرارات الدواء والجرعة والأعراض الطبية تبقى مع طبيبك المرخص." : "Medication, dose, and clinical symptom decisions remain with your licensed clinician."}</li>
             </ul>
           </section>
 

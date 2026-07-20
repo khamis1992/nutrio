@@ -17,6 +17,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+import { HealthContextPanel } from "@/components/health/HealthContextPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -388,6 +389,27 @@ export default function HealthDashboard() {
             ))}
           </section>
         )}
+
+        <button
+          type="button"
+          onClick={() => navigate("/health/meal-response")}
+          className="flex min-h-[88px] w-full items-center gap-3 rounded-[24px] bg-white p-4 text-start shadow-[0_12px_28px_rgba(15,23,42,0.055)] ring-1 ring-[#E5EAF1] active:scale-[0.99]"
+        >
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#EFFFFA] text-[#22C7A1]">
+            <Activity className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-black text-[#020617]">
+              {isRTL ? "استجابة الوجبات" : "Meal response"}
+            </span>
+            <span className="mt-1 block text-[11px] font-semibold leading-4 text-[#64748B]">
+              {isRTL ? "اربط الوجبات بالتقييمات والقياسات المتاحة" : "Connect meals with check-ins and available measurements"}
+            </span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-[#94A3B8] rtl:rotate-180" />
+        </button>
+
+        <HealthContextPanel />
 
         <section className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.055)] ring-1 ring-[#E5EAF1]">
           <h3 className="mb-4 flex items-center gap-2 text-[17px] font-black text-[#020617]">

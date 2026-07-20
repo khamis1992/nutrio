@@ -736,7 +736,7 @@ const AdminOrders = () => {
         p_source: order.source,
         p_order_id: orderId,
         p_new_status: "cancelled",
-        p_reason: null,
+        p_reason: undefined,
       });
 
       if (error) throw error;
@@ -788,7 +788,7 @@ const AdminOrders = () => {
             p_source: selected.source,
             p_order_id: id,
             p_new_status: "cancelled",
-            p_reason: null,
+            p_reason: undefined,
           },
         );
         const result = data as { success?: boolean } | null;
@@ -825,7 +825,7 @@ const AdminOrders = () => {
           p_source: selected.source,
           p_order_id: id,
           p_new_status: "completed",
-          p_reason: null,
+          p_reason: undefined,
         });
         if (!error) {
           successCount++;

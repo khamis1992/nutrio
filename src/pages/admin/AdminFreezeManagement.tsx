@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 
 import { AdminLayout } from "@/components/AdminLayout";
+import { FreezesDataTable } from "@/components/admin/FreezesDataTable";
 import {
   AdminEmptyState,
   AdminFilterBar,
@@ -32,16 +33,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllSubscriptionFreezes } from "@/services/subscriptionFreezeService";
+import type { SubscriptionFreeze } from "@/types/retention";
 
-interface FreezeRequest {
-  id: string;
-  user_id: string;
-  subscription_id: string;
-  freeze_start_date: string;
-  freeze_end_date: string;
-  freeze_days: number;
-  status: string;
-  requested_at: string;
+interface FreezeRequest extends SubscriptionFreeze {
   user_email?: string;
 }
 
@@ -90,12 +85,7 @@ export default function AdminFreezeManagement() {
   const fetchFreezes = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("subscription_freezes")
-        .select("*")
-        .order("requested_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await fetchAllSubscriptionFreezes();
 
       const userIds = [
         ...new Set((data || []).map((freeze) => freeze.user_id)),
@@ -385,6 +375,22 @@ export default function AdminFreezeManagement() {
             </AdminPanel>
           )}
         </div>
+
+        {!isLoading && currentList.length > 0 && (
+          <AdminPanel>
+            <div className="border-b border-[#E5EAF1] px-5 py-4">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">
+                Operational table
+              </p>
+              <h3 className="mt-1 text-lg font-black text-[#020617]">
+                Freeze requests detail
+              </h3>
+            </div>
+            <div className="p-4">
+              <FreezesDataTable freezes={currentList} />
+            </div>
+          </AdminPanel>
+        )}
       </div>
     </AdminLayout>
   );

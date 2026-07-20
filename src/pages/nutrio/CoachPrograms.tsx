@@ -86,7 +86,7 @@ export default function CoachPrograms() {
     })();
   }, [clientId]);
 
-  const { programs, programMeals, programExercises, mealInfos, loading: programsLoading, replaceMeal } =
+  const { programs, programMeals, programExercises, programWorkoutDays, mealInfos, loading: programsLoading, replaceMeal } =
     useCoachPrograms(coachId, clientId);
   const {
     isExerciseCompleted,
@@ -789,6 +789,7 @@ export default function CoachPrograms() {
               clientId={clientId}
               programs={workoutPrograms}
               exercises={programExercises}
+              workoutDays={programWorkoutDays}
               isExerciseCompleted={isExerciseCompleted}
               toggleExercise={toggleExercise}
             />

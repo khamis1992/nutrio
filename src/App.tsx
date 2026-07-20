@@ -73,10 +73,16 @@ const AdminIPManagement = lazy(() => import("./pages/admin/AdminIPManagement"));
 const AdminSecurityCenter = lazy(() => import("./pages/admin/AdminSecurityCenter"));
 const AdminFreezeManagement = lazy(() => import("./pages/admin/AdminFreezeManagement"));
 const AdminRetentionAnalytics = lazy(() => import("./pages/admin/AdminRetentionAnalytics"));
+const FreezeManagementPanel = lazy(() => import("./pages/admin/subscriptions/FreezeManagementPanel"));
+const RolloverAuditLogViewer = lazy(() => import("./pages/admin/audit/RolloverAuditLogViewer"));
+const RetentionAnalyticsDashboard = lazy(() => import("./pages/admin/analytics/RetentionAnalyticsDashboard"));
 const AdminStreakRewards = lazy(() => import("./pages/admin/AdminStreakRewards"));
 const AdminCommunityChallenges = lazy(() => import("./pages/admin/AdminCommunityChallenges"));
 const AdminProfitDashboard = lazy(() => import("./pages/admin/AdminProfitDashboard"));
 const AdminMealApprovals = lazy(() => import("./pages/admin/AdminMealApprovals"));
+const AdminNutritionQuality = lazy(() => import("./pages/admin/AdminNutritionQuality"));
+const AdminHealthPrograms = lazy(() => import("./pages/admin/AdminHealthPrograms"));
+const AdminCorporateBenefits = lazy(() => import("./pages/admin/AdminCorporateBenefits"));
 const AdminPremiumAnalytics = lazy(() => import("./pages/admin/AdminPremiumAnalytics"));
 const AdminCoachApprovals = lazy(() => import("./pages/admin/AdminCoachApprovals"));
 const AdminCoachCommission = lazy(() => import("./pages/admin/AdminCoachCommission"));
@@ -238,6 +244,9 @@ const App = () => (
               <Route path="restaurants/:id" element={<AdminRestaurantDetail />} />
               <Route path="featured" element={<AdminFeatured />} />
               <Route path="meal-approvals" element={<AdminMealApprovals />} />
+              <Route path="nutrition-quality" element={<AdminNutritionQuality />} />
+              <Route path="health-programs" element={<AdminHealthPrograms />} />
+              <Route path="corporate-benefits" element={<AdminCorporateBenefits />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="users/:userId" element={<AdminUsers />} />
               <Route path="orders" element={<AdminOrders />} />
@@ -266,7 +275,10 @@ const App = () => (
               <Route path="ip-management" element={<AdminIPManagement />} />
               <Route path="security" element={<AdminSecurityCenter />} />
               <Route path="freeze-management" element={<AdminFreezeManagement />} />
+              <Route path="subscriptions/freezes" element={<FreezeManagementPanel />} />
               <Route path="retention-analytics" element={<AdminRetentionAnalytics />} />
+              <Route path="audit/rollovers" element={<RolloverAuditLogViewer />} />
+              <Route path="analytics/retention" element={<RetentionAnalyticsDashboard />} />
               <Route path="coach-applications" element={<AdminCoachApprovals />} />
               <Route path="coach-commission" element={<AdminCoachCommission />} />
               <Route path="ai-engine" element={<AdminAIEngineMonitor />} />

@@ -70,7 +70,7 @@ export default function SubscriptionPage() {
     return () => { cancelled = true; };
   }, [user]);
 
-  const effectiveMealsLeft = isUnlimited ? Infinity : remainingMeals + rolloverCredits;
+  const effectiveMealsLeft = remainingMeals;
 
   const [isProcessing, setIsProcessing] = useState(false);
   const { data: freezeDays } = useFreezeDaysRemaining(subscription?.id);

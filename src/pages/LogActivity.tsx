@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import {
   Search, ArrowLeft, Flame, Clock, Loader2,
-  Dumbbell, Link, RefreshCw, X, Plus, History, Target,
+  Dumbbell, Link, RefreshCw, X, Plus, History, Target, Footprints, Gauge, Bike, ChevronRight,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge
 import { syncWorkoutSessionsToHealthDailyMetrics } from "@/lib/health-daily-metrics";
 import { isGoogleFitConnected } from "@/lib/google-fit-workout-service";
 import { getAuthUrl, getGoogleFitRedirectUri } from "@/services/health/googleFit";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
 
 // ─── Activity Database ───────────────────────────────────────────────────────
 interface Activity {
@@ -134,6 +135,7 @@ export default function LogActivity() {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { t, isRTL } = useLanguage();
+  const outdoorRecordingEnabled = isPhaseOneFeatureEnabled("outdoorRecording");
   const activityName = (a: Activity) => isRTL ? a.nameAr : a.name;
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const weightKg = profile?.current_weight_kg ?? 70;
@@ -253,8 +255,9 @@ export default function LogActivity() {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="-mt-4 rounded-t-[28px] bg-[#F8FFFB] px-5 pt-6">
+      <main>
+        {/* Tabs */}
+        <div className="-mt-4 rounded-t-[28px] bg-[#F8FFFB] px-5 pt-6">
         <div className="flex gap-1 rounded-full bg-[#EAF5EF] p-1">
           <button
             onClick={() => setTab("log")}
@@ -275,11 +278,37 @@ export default function LogActivity() {
             Sessions ({sessions.length})
           </button>
         </div>
-      </div>
+        </div>
 
       {/* Workout Log Tab */}
-      {tab === "log" && (
+        {tab === "log" && (
         <div className="bg-[#F8FFFB] px-5 pb-4">
+          {outdoorRecordingEnabled && <section className="mt-5 rounded-[22px] border border-[#DDE6EC] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#0AA975]">GPS</p>
+                <h2 className="mt-1 text-[18px] font-black text-[#020617]">{t("outdoor_record_movement")}</h2>
+                <p className="mt-1 text-xs text-[#7A869A]">{t("outdoor_precise_location_desc")}</p>
+              </div>
+              <ChevronRight className={`h-5 w-5 text-[#94A3B8] ${isRTL ? "rotate-180" : ""}`} />
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                { type: "walking", label: t("outdoor_walk"), icon: Footprints, color: "text-[#0AA975]", bg: "bg-[#E7FAF3]" },
+                { type: "running", label: t("outdoor_run"), icon: Gauge, color: "text-[#7C83F6]", bg: "bg-[#F0F0FF]" },
+                { type: "cycling", label: t("outdoor_cycle"), icon: Bike, color: "text-[#FF7A1A]", bg: "bg-[#FFF3E8]" },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button key={item.type} onClick={() => navigate(`/outdoor-activity?type=${item.type}`)} className="flex min-h-[72px] flex-col items-center justify-center gap-2 rounded-[16px] border border-[#E5EAF0] bg-[#F9FBFC] text-xs font-black text-[#334155]">
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-full ${item.bg} ${item.color}`}><Icon className="h-4 w-4" /></span>
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>}
+
           {/* Search */}
           <div className="relative mt-5">
             <Search className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-[#7A869A]" strokeWidth={2} />
@@ -343,10 +372,10 @@ export default function LogActivity() {
             ))}
           </div>
         </div>
-      )}
+        )}
 
       {/* Sessions Tab */}
-      {tab === "sessions" && (
+        {tab === "sessions" && (
         <div className="bg-[#F8FFFB] px-5 pb-4">
           {/* Google Fit */}
           <div className="mt-5 rounded-[24px] border border-[#CDEBE0] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
@@ -428,7 +457,8 @@ export default function LogActivity() {
             )}
           </div>
         </div>
-      )}
+        )}
+      </main>
     </div>
   );
 }

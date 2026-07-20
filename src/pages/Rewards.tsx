@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { AchievementsProgressCard } from "@/components/rewards/AchievementsProgressCard";
+import { AdherenceStrengthCard } from "@/components/rewards/AdherenceStrengthCard";
 import { EarnActionsImageCard } from "@/components/rewards/EarnActionsImageCard";
 import { RewardsTabBar } from "@/components/rewards/RewardsTabBar";
 import type { RewardsTabKey } from "@/components/rewards/RewardsTabBar";
@@ -27,6 +28,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
 import type { BadgeRarity, UserBadge } from "@/lib/badges";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
 import { cn } from "@/lib/utils";
 
 type HubTab = RewardsTabKey;
@@ -125,8 +127,8 @@ function rewardLabel(type: string, value: number, t: (key: string, params?: Reco
   return t("reward_badge_only");
 }
 
-function copy() {
-  return {
+const rewardsCopy = {
+  en: {
     title: "Rewards Hub",
     subtitle: "Achievements, badges, and wallet perks",
     market: "Earn",
@@ -173,17 +175,70 @@ function copy() {
     rare: "Rare",
     epic: "Epic",
     legendary: "Legendary",
-  };
-}
+    retry: "Try again",
+  },
+  ar: {
+    title: "مركز المكافآت",
+    subtitle: "الإنجازات والشارات ومزايا المحفظة",
+    market: "اكسب",
+    badges: "الشارات",
+    redeem: "استبدال",
+    activity: "النشاط",
+    heroEyebrow: "إنجازات نوتريو",
+    heroTitle: "تقدمك وإنجازاتك",
+    heroBody: "اكسب نقاط الخبرة من العادات الصحية وحوّل الاستمرارية إلى مكافآت واضحة.",
+    lifetime: "إجمالي نقاط الخبرة",
+    current: "نقاط الخبرة الحالية",
+    wallet: "المحفظة",
+    unlocked: "مفتوح",
+    nextReward: "أقرب مكافأة",
+    nextRewardBody: "أقرب مكافأة يمكنك فتحها بناءً على تقدمك الفعلي.",
+    badgeMarket: "سوق الشارات",
+    badgeMarketBody: "اطّلع على المتطلبات والندرة وحالة الفتح.",
+    ready: "جاهزة",
+    locked: "مقفلة",
+    earned: "مكتسبة",
+    xpLeft: "نقطة متبقية",
+    levelsLeft: "مستويات متبقية",
+    rewardStore: "المزايا القابلة للاستبدال",
+    rewardStoreBody: "مزايا تُفتح بنقاط الخبرة أو إنجازات الشارات.",
+    noRewards: "لا توجد مكافآت مفتوحة بعد",
+    noRewardsBody: "استمر في تسجيل الوجبات والماء لفتح أول مكافأة.",
+    noDefinitions: "لا توجد مكافآت نشطة الآن",
+    noDefinitionsBody: "ستظهر تعريفات المكافآت النشطة هنا عند إعدادها.",
+    noActivity: "لا يوجد سجل لنقاط الخبرة",
+    noActivityBody: "سيظهر أول حدث لنقاط الخبرة هنا.",
+    viewWallet: "فتح المحفظة",
+    refresh: "تحديث",
+    allBadges: "كل الشارات",
+    startEarning: "ابدأ الكسب",
+    waysTitle: "طرق الكسب",
+    waysBody: "إجراءات مرتبطة بالفعل بحسابك في نوتريو.",
+    logMeal: "سجّل وجبة",
+    logMealBody: "اكسب نقاط الخبرة من الوجبات المكتملة.",
+    hydrate: "تتبّع الماء",
+    hydrateBody: "حافظ على وضوح تقدم الترطيب.",
+    visitMeals: "فتح الوجبات",
+    currentPass: "المستوى الحالي",
+    common: "شائعة",
+    rare: "نادرة",
+    epic: "ملحمية",
+    legendary: "أسطورية",
+    retry: "إعادة المحاولة",
+  },
+} as const;
+
+type RewardsCopy = (typeof rewardsCopy)["en" | "ar"];
 
 export default function Rewards() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { t, language } = useLanguage();
+  const { t, language, isRTL } = useLanguage();
   const { profile } = useProfile();
   const { wallet } = useWallet();
   const { badges, loading: badgesLoading, unlockedCount, totalCount } = useBadges(user?.id);
-  const labels = copy();
+  const labels: RewardsCopy = rewardsCopy[language];
+  const cooperativeChallengesEnabled = isPhaseOneFeatureEnabled("cooperativeChallenges");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
@@ -291,7 +346,7 @@ export default function Rewards() {
   const isBusy = loading || badgesLoading;
 
   return (
-    <div className="min-h-[100dvh] bg-[#F6F8FC] pb-[calc(28px+env(safe-area-inset-bottom,0px))] pt-safe text-[#0C1222]">
+    <div dir={isRTL ? "rtl" : "ltr"} className="min-h-[100dvh] bg-[#F6F8FC] pb-[calc(28px+env(safe-area-inset-bottom,0px))] pt-safe text-[#0C1222]">
       <header className="sticky top-0 z-30 border-b border-[#E5EAF1] bg-[#F6F8FC]/92 backdrop-blur-xl">
         <div className="mx-auto flex min-h-[68px] max-w-[430px] items-center gap-3 px-4">
           <button
@@ -342,13 +397,14 @@ export default function Rewards() {
           <ErrorState
             title={t("rewards_load_failed")}
             subtitle={t("rewards_load_failed_desc")}
-            action={t("Try again")}
+            action={labels.retry}
             onRetry={() => setRefreshToken((value) => value + 1)}
           />
         )}
 
         {!loadError && activeTab === "earn" && (
           <div className="mt-5 space-y-5">
+            {cooperativeChallengesEnabled && <AdherenceStrengthCard />}
             <SectionHeading title={labels.nextReward} subtitle={labels.nextRewardBody} />
             {isBusy ? (
               <LoadingBlock />
@@ -369,7 +425,10 @@ export default function Rewards() {
               <SectionHeading title={labels.waysTitle} subtitle={labels.waysBody} />
               <EarnActionsImageCard
                 mealLabel={labels.logMeal}
+                mealDescription={labels.logMealBody}
                 waterLabel={labels.hydrate}
+                waterDescription={labels.hydrateBody}
+                isRTL={isRTL}
                 onLogMeal={() => navigate("/meals")}
                 onTrackWater={() => navigate("/water-tracker")}
               />
@@ -484,7 +543,7 @@ function getRewardRequirement(
   reward: RewardDefinition,
   lifetimeXp: number,
   currentLevel: number,
-  labels: ReturnType<typeof copy>,
+  labels: RewardsCopy,
 ) {
   if (reward.xp_required) {
     return {
@@ -534,7 +593,7 @@ function RewardFeatureCard({
   progress: number;
   requirement: ReturnType<typeof getRewardRequirement>;
   unlocked: boolean;
-  labels: ReturnType<typeof copy>;
+  labels: RewardsCopy;
   t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   return (
@@ -580,7 +639,7 @@ function RewardFeatureCard({
   );
 }
 
-function BadgeMarketCard({ badge, labels, compact = false }: { badge: UserBadge; labels: ReturnType<typeof copy>; compact?: boolean }) {
+function BadgeMarketCard({ badge, labels, compact = false }: { badge: UserBadge; labels: RewardsCopy; compact?: boolean }) {
   const style = rarityStyle[badge.rarity];
   const rarityLabel = labels[badge.rarity];
 

@@ -297,7 +297,7 @@ const OrderHistory = () => {
       if (source === "meal_schedule") {
         const { data, error } = await supabase.rpc("cancel_meal_schedule", {
             p_schedule_id: orderId,
-            p_reason: null,
+            p_reason: undefined,
           });
 
         if (error) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Check, X, Loader2, Users, AlertCircle } from "lucide-react";
+import { Check, X, Loader2, Users, AlertCircle, BadgeCheck, ShieldCheck } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import {
   AdminEmptyState,
@@ -9,6 +9,12 @@ import {
 } from "@/components/admin/AdminPrimitives";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { reviewCareProfessionalApplication } from "@/hooks/useCareTeam";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface Application {
   id: string;
@@ -20,13 +26,44 @@ interface Application {
   qualifications: string | null;
   status: string;
   created_at: string;
+  professional_type: "dietitian" | "fitness_coach" | "wellness_coach";
+  license_authority: string | null;
+  license_number: string | null;
+  license_jurisdiction: string;
+  license_expires_on: string | null;
+  requested_scope: string | null;
+  languages: string[];
 }
+
+const ACTION_OPTIONS = [
+  ["view_macros", "Macros"],
+  ["view_weight", "Weight"],
+  ["view_hydration", "Hydration"],
+  ["view_meal_adherence", "Meal adherence"],
+  ["view_workouts", "Workouts"],
+  ["view_health_context", "Health context"],
+  ["view_labs", "Lab reports"],
+  ["view_meal_response", "Meal response"],
+  ["approve_nutrition_plan", "Approve nutrition plans"],
+  ["approve_training_plan", "Approve training plans"],
+  ["send_guidance", "Secure guidance"],
+  ["schedule_sessions", "Schedule sessions"],
+] as const;
+
+type ReviewDecision = "approved" | "needs_info" | "rejected";
 
 export default function AdminCoachApprovals() {
   const { toast } = useToast();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState<Application | null>(null);
+  const [decision, setDecision] = useState<ReviewDecision>("approved");
+  const [displayTitle, setDisplayTitle] = useState("");
+  const [scopeStatement, setScopeStatement] = useState("");
+  const [adminNote, setAdminNote] = useState("");
+  const [allowedActions, setAllowedActions] = useState<string[]>([]);
+  const [responseSlaHours, setResponseSlaHours] = useState(24);
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -52,7 +89,7 @@ export default function AdminCoachApprovals() {
       const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
 
       setApplications(
-        apps.map((a) => ({
+        (apps as unknown as Application[]).map((a) => ({
           id: a.id,
           user_id: a.user_id,
           full_name: profileMap.get(a.user_id)?.full_name || "Unknown",
@@ -62,6 +99,13 @@ export default function AdminCoachApprovals() {
           qualifications: a.qualifications,
           status: a.status,
           created_at: a.created_at,
+          professional_type: a.professional_type || "wellness_coach",
+          license_authority: a.license_authority,
+          license_number: a.license_number,
+          license_jurisdiction: a.license_jurisdiction || "QA",
+          license_expires_on: a.license_expires_on,
+          requested_scope: a.requested_scope,
+          languages: a.languages || ["en"],
         })),
       );
     } catch (err) {
@@ -75,75 +119,47 @@ export default function AdminCoachApprovals() {
     fetchApplications();
   }, []);
 
-  const handleApprove = async (app: Application) => {
-    setProcessingId(app.id);
-    try {
-      // Update application status
-      await supabase
-        .from("coach_applications")
-        .update({
-          status: "approved",
-          reviewed_by: (await supabase.auth.getUser()).data.user?.id,
-        })
-        .eq("id", app.id);
-
-      // Add coach role
-      await supabase.from("user_roles").insert({
-        user_id: app.user_id,
-        role: "coach",
-      });
-
-      // Copy bio and specialties to profile
-      await supabase
-        .from("profiles")
-        .update({
-          bio: app.bio,
-          specialties: app.specialties,
-        })
-        .eq("user_id", app.user_id);
-
-      toast({
-        title: "Approved!",
-        description: `${app.full_name} is now a coach.`,
-      });
-      setApplications((prev) =>
-        prev.map((a) => (a.id === app.id ? { ...a, status: "approved" } : a)),
-      );
-    } catch (err) {
-      toast({
-        title: "Failed",
-        description:
-          err instanceof Error ? err.message : "Could not approve. Try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setProcessingId(null);
-    }
+  const openReview = (app: Application, nextDecision: ReviewDecision) => {
+    const nutrition = app.professional_type === "dietitian";
+    setReviewing(app);
+    setDecision(nextDecision);
+    setDisplayTitle(nutrition ? "Licensed Dietitian" : app.professional_type === "fitness_coach" ? "Verified Fitness Coach" : "Verified Wellness Coach");
+    setScopeStatement(app.requested_scope || "");
+    setAdminNote("");
+    setResponseSlaHours(24);
+    setAllowedActions(nutrition
+      ? ["view_macros", "view_weight", "view_hydration", "view_meal_adherence", "view_health_context", "view_labs", "view_meal_response", "approve_nutrition_plan", "send_guidance", "schedule_sessions"]
+      : ["view_macros", "view_weight", "view_hydration", "view_meal_adherence", "view_workouts", "approve_training_plan", "send_guidance", "schedule_sessions"]);
   };
 
-  const handleReject = async (app: Application) => {
-    setProcessingId(app.id);
+  const submitReview = async () => {
+    if (!reviewing) return;
+    setProcessingId(reviewing.id);
     try {
-      await supabase
-        .from("coach_applications")
-        .update({
-          status: "rejected",
-          reviewed_by: (await supabase.auth.getUser()).data.user?.id,
-        })
-        .eq("id", app.id);
+      await reviewCareProfessionalApplication({
+        applicationId: reviewing.id,
+        decision,
+        displayTitle: displayTitle.trim(),
+        scopeStatement: scopeStatement.trim(),
+        allowedActions,
+        adminNote: adminNote.trim(),
+        responseSlaMinutes: responseSlaHours * 60,
+        escalationSlaMinutes: Math.max(responseSlaHours * 120, 60),
+      });
 
       toast({
-        title: "Rejected",
-        description: `${app.full_name}'s application was declined.`,
+        title: decision === "approved" ? "Professional verified" : decision === "needs_info" ? "More information requested" : "Application rejected",
+        description: `${reviewing.full_name}'s application was updated atomically.`,
       });
       setApplications((prev) =>
-        prev.map((a) => (a.id === app.id ? { ...a, status: "rejected" } : a)),
+        prev.map((app) => (app.id === reviewing.id ? { ...app, status: decision } : app)),
       );
+      setReviewing(null);
     } catch (err) {
       toast({
         title: "Failed",
         description:
-          err instanceof Error ? err.message : "Could not reject. Try again.",
+          err instanceof Error ? err.message : "Could not record this review.",
         variant: "destructive",
       });
     } finally {
@@ -227,7 +243,7 @@ export default function AdminCoachApprovals() {
                         </div>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => handleApprove(app)}
+                            onClick={() => openReview(app, "approved")}
                             disabled={processingId === app.id}
                             className="flex min-h-11 items-center gap-1 rounded-full border border-[#22C7A1]/30 bg-[#22C7A1]/10 px-4 text-xs font-black text-[#020617] transition-opacity hover:bg-[#22C7A1]/15 disabled:opacity-50"
                           >
@@ -239,7 +255,7 @@ export default function AdminCoachApprovals() {
                             Approve
                           </button>
                           <button
-                            onClick={() => handleReject(app)}
+                            onClick={() => openReview(app, "rejected")}
                             disabled={processingId === app.id}
                             className="flex min-h-11 items-center gap-1 rounded-full border border-[#FB6B7A]/20 bg-white px-4 text-xs font-black text-[#FB6B7A] transition-colors hover:bg-[#FB6B7A]/10 disabled:opacity-50"
                           >
@@ -268,6 +284,18 @@ export default function AdminCoachApprovals() {
                           {app.qualifications}
                         </p>
                       )}
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="rounded-2xl bg-white p-4 ring-1 ring-[#E5EAF1]">
+                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">Credential</p>
+                          <p className="mt-2 text-sm font-black text-[#020617]">{app.license_authority || "Missing authority"}</p>
+                          <p className="mt-1 text-xs font-semibold text-[#64748B]">{app.license_number || "Missing number"} · {app.license_jurisdiction}</p>
+                          <p className="mt-1 text-xs font-semibold text-[#64748B]">Expires {app.license_expires_on ? new Date(app.license_expires_on).toLocaleDateString() : "not provided"}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white p-4 ring-1 ring-[#E5EAF1]">
+                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">Requested scope</p>
+                          <p className="mt-2 text-xs font-semibold leading-5 text-[#020617]">{app.requested_scope || "No scope statement provided."}</p>
+                        </div>
+                      </div>
                     </motion.div>
                   ))}
                 </div>
@@ -311,6 +339,53 @@ export default function AdminCoachApprovals() {
           </>
         )}
       </div>
+
+      <Dialog open={Boolean(reviewing)} onOpenChange={(open) => !open && setReviewing(null)}>
+        <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto rounded-[28px] border-[#E5EAF1] bg-white text-[#020617]">
+          <DialogHeader>
+            <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#22C7A1]/10 text-[#22C7A1]">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <DialogTitle className="pt-2 text-xl font-black">Credential review</DialogTitle>
+            <DialogDescription className="font-semibold text-[#64748B]">
+              Record a traceable decision. Approval grants only the actions selected below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="grid grid-cols-3 gap-2">
+              {(["approved", "needs_info", "rejected"] as ReviewDecision[]).map((value) => (
+                <button key={value} type="button" onClick={() => setDecision(value)} className={cn("min-h-11 rounded-[14px] px-2 text-[11px] font-black ring-1", decision === value ? "bg-[#020617] text-white ring-[#020617]" : "bg-[#F6F8FB] text-[#64748B] ring-[#E5EAF1]")}>{value.replace("_", " ")}</button>
+              ))}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2"><Label htmlFor="care-title">Public title</Label><Input id="care-title" value={displayTitle} onChange={(event) => setDisplayTitle(event.target.value)} className="min-h-11 rounded-[14px]" /></div>
+              <div className="space-y-2"><Label htmlFor="care-sla">Response SLA (hours)</Label><Input id="care-sla" type="number" min={1} max={72} value={responseSlaHours} onChange={(event) => setResponseSlaHours(Number(event.target.value))} className="min-h-11 rounded-[14px]" /></div>
+            </div>
+
+            <div className="space-y-2"><Label htmlFor="care-scope">Approved scope statement</Label><Textarea id="care-scope" value={scopeStatement} onChange={(event) => setScopeStatement(event.target.value)} rows={4} className="resize-none rounded-[14px]" /></div>
+
+            {decision === "approved" && (
+              <div className="space-y-2">
+                <Label>Allowed actions</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {ACTION_OPTIONS.map(([value, label]) => {
+                    const active = allowedActions.includes(value);
+                    return <button key={value} type="button" onClick={() => setAllowedActions((current) => active ? current.filter((item) => item !== value) : [...current, value])} className={cn("min-h-11 rounded-[14px] px-3 text-left text-[11px] font-black ring-1", active ? "bg-[#7C83F6]/10 text-[#5B63DD] ring-[#7C83F6]/25" : "bg-[#F6F8FB] text-[#94A3B8] ring-[#E5EAF1]")}><BadgeCheck className="mr-1.5 inline h-3.5 w-3.5" />{label}</button>;
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2"><Label htmlFor="care-note">Review note</Label><Textarea id="care-note" value={adminNote} onChange={(event) => setAdminNote(event.target.value)} placeholder="Evidence checked, missing information, or reason for rejection" rows={3} className="resize-none rounded-[14px]" /></div>
+
+            <button type="button" onClick={() => void submitReview()} disabled={Boolean(processingId) || (decision === "approved" && (displayTitle.trim().length < 3 || scopeStatement.trim().length < 20 || allowedActions.length === 0)) || (decision !== "approved" && adminNote.trim().length < 3)} className="min-h-12 w-full rounded-[16px] bg-[#020617] text-sm font-black text-white shadow-[0_12px_28px_rgba(2,6,23,0.16)] disabled:opacity-40">
+              {processingId ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : <><Check className="mr-2 inline h-4 w-4" />Record decision</>}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

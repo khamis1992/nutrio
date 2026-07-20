@@ -56,6 +56,9 @@ import {
   CheckCircle2,
   CalendarDays,
   Flame,
+  RotateCcw,
+  Scale,
+  Snowflake,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -113,6 +116,7 @@ interface UserData {
   latest_ip: string | null;
   ip_logs: UserIPLog[];
   is_blocked_ip: boolean;
+  health_score: number | null;
 }
 
 interface BlockedIP {
@@ -250,6 +254,16 @@ const AdminUsers = () => {
         .from("blocked_ips")
         .select("*")
         .eq("is_active", true);
+      const profileUserIds = (profiles || [])
+        .map((profile) => profile.user_id)
+        .filter(Boolean);
+      const { data: healthScores } = profileUserIds.length
+        ? await supabase
+            .from("user_health_scores")
+            .select("user_id, overall_score, calculated_at")
+            .in("user_id", profileUserIds)
+            .order("calculated_at", { ascending: false })
+        : { data: [] };
 
       const blockedIPsMap = new Map<string, BlockedIP>(
         (blockedIPsData || []).map((ip) => [
@@ -298,6 +312,13 @@ const AdminUsers = () => {
         }
       });
 
+      const healthScoreMap = new Map<string, number>();
+      (healthScores || []).forEach((score) => {
+        if (score.user_id && !healthScoreMap.has(score.user_id)) {
+          healthScoreMap.set(score.user_id, Number(score.overall_score || 0));
+        }
+      });
+
       const mergedUsers: UserData[] = (profiles || []).map((profile) => {
         const userIPLogs = ipLogsMap[profile.user_id] || [];
         const latestIP =
@@ -318,6 +339,7 @@ const AdminUsers = () => {
           latest_ip: latestIP,
           ip_logs: userIPLogs,
           is_blocked_ip: latestIP ? blockedIPsMap.has(latestIP) : false,
+          health_score: healthScoreMap.get(profile.user_id) ?? null,
         };
       });
 
@@ -470,6 +492,13 @@ const AdminUsers = () => {
       default:
         return "bg-[#F6F8FB] text-[#94A3B8] border-[#E5EAF1]";
     }
+  };
+
+  const getHealthScoreBadge = (score: number | null) => {
+    if (score === null) return "bg-[#F6F8FB] text-[#94A3B8] border-[#E5EAF1]";
+    if (score >= 80) return "bg-[#22C7A1]/10 text-[#22C7A1] border-[#22C7A1]/20";
+    if (score >= 60) return "bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20";
+    return "bg-[#FB6B7A]/10 text-[#FB6B7A] border-[#FB6B7A]/20";
   };
 
   const filteredUsers = users.filter((user) => {
@@ -884,6 +913,9 @@ const AdminUsers = () => {
                     Status
                   </TableHead>
                   <TableHead className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                    Health Score
+                  </TableHead>
+                  <TableHead className="text-xs font-black uppercase tracking-[0.12em] text-[#94A3B8]">
                     <button
                       onClick={() => handleSort("last_sign_in_at")}
                       className="flex items-center gap-1 transition-colors hover:text-[#020617]"
@@ -908,13 +940,13 @@ const AdminUsers = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="p-0">
+                    <TableCell colSpan={8} className="p-0">
                       <AdminListSkeleton rows={5} />
                     </TableCell>
                   </TableRow>
                 ) : filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="p-0">
+                    <TableCell colSpan={8} className="p-0">
                       <AdminEmptyState
                         icon={Search}
                         title="No users found"
@@ -992,6 +1024,16 @@ const AdminUsers = () => {
                           className={`rounded-full px-2.5 py-1 text-xs font-bold capitalize ${getStatusBadge(userData.status)}`}
                         >
                           {userData.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full px-2.5 py-1 text-xs font-black ${getHealthScoreBadge(userData.health_score)}`}
+                        >
+                          {userData.health_score === null
+                            ? "No score"
+                            : `${Math.round(userData.health_score)}/100`}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -1242,6 +1284,16 @@ const AdminUsers = () => {
                     </p>
                     <p className="mt-1 truncate font-mono text-xs font-black text-[#020617]">
                       {userData.latest_ip || "No IP"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">
+                      Health score
+                    </p>
+                    <p className="mt-1 text-xs font-black text-[#020617]">
+                      {userData.health_score === null
+                        ? "No score"
+                        : `${Math.round(userData.health_score)}/100`}
                     </p>
                   </div>
                 </div>
@@ -1726,6 +1778,8 @@ const OverviewContent = ({
       </div>
 
       <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
+        <UserRetentionHealthSummary userId={user.user_id} />
+
         <UserSubscriptionManager
           userId={user.user_id}
           userName={user.full_name}
@@ -1790,6 +1844,187 @@ const OverviewContent = ({
         </AdminPanel>
       </aside>
     </div>
+  );
+};
+
+type UserRetentionHealthState = {
+  loading: boolean;
+  healthScore: number | null;
+  weightKg: number | null;
+  waistCm: number | null;
+  bodyFatPercent: number | null;
+  rolloverCredits: number;
+  activeFreezes: number;
+  scheduledFreezes: number;
+};
+
+const UserRetentionHealthSummary = ({ userId }: { userId: string }) => {
+  const [state, setState] = useState<UserRetentionHealthState>({
+    loading: true,
+    healthScore: null,
+    weightKg: null,
+    waistCm: null,
+    bodyFatPercent: null,
+    rolloverCredits: 0,
+    activeFreezes: 0,
+    scheduledFreezes: 0,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSummary = async () => {
+      setState((current) => ({ ...current, loading: true }));
+
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const [scoreResult, measurementResult, rolloverResult, freezeResult] =
+          await Promise.all([
+            supabase
+              .from("user_health_scores")
+              .select("overall_score")
+              .eq("user_id", userId)
+              .order("calculated_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            supabase
+              .from("body_measurements")
+              .select("weight_kg, waist_cm, body_fat_percent")
+              .eq("user_id", userId)
+              .order("log_date", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            supabase
+              .from("subscription_rollovers")
+              .select("rollover_credits")
+              .eq("user_id", userId)
+              .eq("status", "active")
+              .gte("expiry_date", today),
+            supabase
+              .from("subscription_freezes")
+              .select("status")
+              .eq("user_id", userId)
+              .in("status", ["active", "scheduled"]),
+          ]);
+
+        if (cancelled) return;
+
+        if (scoreResult.error) throw scoreResult.error;
+        if (measurementResult.error) throw measurementResult.error;
+        if (rolloverResult.error) throw rolloverResult.error;
+        if (freezeResult.error) throw freezeResult.error;
+
+        const rollovers = rolloverResult.data || [];
+        const freezes = freezeResult.data || [];
+
+        setState({
+          loading: false,
+          healthScore: scoreResult.data?.overall_score ?? null,
+          weightKg: measurementResult.data?.weight_kg ?? null,
+          waistCm: measurementResult.data?.waist_cm ?? null,
+          bodyFatPercent: measurementResult.data?.body_fat_percent ?? null,
+          rolloverCredits: rollovers.reduce(
+            (sum, rollover) => sum + (rollover.rollover_credits || 0),
+            0,
+          ),
+          activeFreezes: freezes.filter((freeze) => freeze.status === "active")
+            .length,
+          scheduledFreezes: freezes.filter(
+            (freeze) => freeze.status === "scheduled",
+          ).length,
+        });
+      } catch (error) {
+        console.error("Error loading user retention summary:", error);
+        if (!cancelled) {
+          setState((current) => ({ ...current, loading: false }));
+        }
+      }
+    };
+
+    void loadSummary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const metrics = [
+    {
+      label: "Health score",
+      value: state.healthScore === null ? "--" : `${state.healthScore}%`,
+      icon: Activity,
+      tone: "text-[#22C7A1] bg-[#22C7A1]/10",
+    },
+    {
+      label: "Latest weight",
+      value: state.weightKg === null ? "--" : `${state.weightKg} kg`,
+      icon: Scale,
+      tone: "text-[#7C83F6] bg-[#7C83F6]/10",
+    },
+    {
+      label: "Rollover",
+      value: `${state.rolloverCredits}`,
+      icon: RotateCcw,
+      tone: "text-[#38BDF8] bg-[#38BDF8]/10",
+    },
+    {
+      label: "Freezes",
+      value: `${state.activeFreezes}/${state.scheduledFreezes}`,
+      icon: Snowflake,
+      tone: "text-sky-600 bg-sky-50",
+    },
+  ];
+
+  return (
+    <AdminPanel className="rounded-[24px]">
+      <AdminPanelHeader
+        title="Health & retention"
+        eyebrow="Customer access"
+        description="Latest body progress, health score, rollover credits, and freeze state for this customer."
+        className="bg-[#F6F8FB] py-4"
+      />
+      <div className="space-y-3 p-4">
+        {metrics.map((metric) => {
+          const Icon = metric.icon;
+          return (
+            <div
+              key={metric.label}
+              className="flex items-center justify-between rounded-[18px] border border-[#E5EAF1] bg-white p-3"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <span
+                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-[14px] ${metric.tone}`}
+                >
+                  <Icon className="h-4 w-4" />
+                </span>
+                <p className="truncate text-sm font-black text-[#020617]">
+                  {metric.label}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-black text-[#020617]">
+                {state.loading ? "..." : metric.value}
+              </span>
+            </div>
+          );
+        })}
+        <div className="rounded-[18px] bg-[#F6F8FB] p-3">
+          <p className="text-xs font-bold leading-5 text-[#64748B]">
+            Body fat{" "}
+            <span className="font-black text-[#020617]">
+              {state.bodyFatPercent === null || state.loading
+                ? "--"
+                : `${state.bodyFatPercent}%`}
+            </span>{" "}
+            · Waist{" "}
+            <span className="font-black text-[#020617]">
+              {state.waistCm === null || state.loading
+                ? "--"
+                : `${state.waistCm} cm`}
+            </span>
+          </p>
+        </div>
+      </div>
+    </AdminPanel>
   );
 };
 

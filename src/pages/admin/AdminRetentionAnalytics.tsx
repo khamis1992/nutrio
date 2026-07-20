@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  AdminEmptyState,
-  AdminMetricTile,
   AdminPanel,
   AdminPanelHeader,
   AdminWorkbenchHeader,
@@ -19,28 +17,27 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 import {
   TrendingUp,
   Users,
-  RotateCcw,
-  Snowflake,
   Activity,
-  Calendar,
   Download,
   RefreshCw,
-  Award,
   Target,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { downloadCsv } from "@/lib/csv";
 import { AdminLayout } from "@/components/AdminLayout";
+import { HealthScoreDistributionChart } from "@/components/admin/HealthScoreDistributionChart";
+import { RetentionMetricsCards } from "@/components/admin/RetentionMetricsCards";
+import { fetchRetentionAnalytics } from "@/services/retentionAnalyticsService";
+import type {
+  HealthScoreDistributionBucket,
+  RetentionAnalyticsSummary,
+} from "@/types/retention";
 
 const C = {
   text: "#020617",
@@ -52,15 +49,6 @@ const C = {
   progress: "#22C7A1",
 };
 
-interface RetentionMetrics {
-  totalRollovers: number;
-  totalRolloverCredits: number;
-  activeFreezes: number;
-  completedFreezes: number;
-  averageHealthScore: number;
-  usersWithMetrics: number;
-}
-
 interface MonthlyData {
   month: string;
   rollovers: number;
@@ -68,10 +56,8 @@ interface MonthlyData {
   healthScores: number;
 }
 
-const COLORS = [C.progress, C.water, C.protein, C.fat];
-
 export default function AdminRetentionAnalytics() {
-  const [metrics, setMetrics] = useState<RetentionMetrics>({
+  const [metrics, setMetrics] = useState<RetentionAnalyticsSummary>({
     totalRollovers: 0,
     totalRolloverCredits: 0,
     activeFreezes: 0,
@@ -80,63 +66,16 @@ export default function AdminRetentionAnalytics() {
     usersWithMetrics: 0,
   });
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
-  const [healthScoreDistribution, setHealthScoreDistribution] = useState<
-    { name: string; value: number }[]
-  >([]);
+  const [healthScoreDistribution, setHealthScoreDistribution] = useState<HealthScoreDistributionBucket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
   const fetchAnalytics = async () => {
     setIsLoading(true);
     try {
-      // Fetch rollover stats
-      const { data: rolloverData, error: rolloverError } = await supabase
-        .from("subscription_rollovers")
-        .select("rollover_credits, status");
-
-      if (rolloverError) throw rolloverError;
-
-      const totalRollovers = rolloverData?.length || 0;
-      const totalCredits =
-        rolloverData?.reduce((sum, r) => sum + r.rollover_credits, 0) || 0;
-
-      // Fetch freeze stats
-      const { data: freezeData } = await supabase
-        .from("subscription_freezes")
-        .select("status");
-
-      const activeFreezes =
-        freezeData?.filter((f) => f.status === "active").length || 0;
-      const completedFreezes =
-        freezeData?.filter((f) => f.status === "completed").length || 0;
-
-      // Fetch health score stats
-      const { data: healthData } = await supabase
-        .from("user_health_scores")
-        .select("overall_score");
-
-      const avgScore = healthData?.length
-        ? Math.round(
-            healthData.reduce((sum, h) => sum + h.overall_score, 0) /
-              healthData.length,
-          )
-        : 0;
-
-      // Fetch unique users with metrics
-      const { data: metricsData } = await supabase
-        .from("body_measurements")
-        .select("user_id");
-
-      const uniqueUsers = new Set(metricsData?.map((m) => m.user_id)).size;
-
-      setMetrics({
-        totalRollovers,
-        totalRolloverCredits: totalCredits,
-        activeFreezes,
-        completedFreezes,
-        averageHealthScore: avgScore,
-        usersWithMetrics: uniqueUsers,
-      });
+      const analytics = await fetchRetentionAnalytics();
+      setMetrics(analytics.summary);
+      setHealthScoreDistribution(analytics.healthScoreDistribution);
 
       // Monthly data — fetched from real tables when available
       const months = [];
@@ -151,32 +90,6 @@ export default function AdminRetentionAnalytics() {
       }
       setMonthlyData(months);
 
-      // Health score distribution
-      const distribution = [
-        {
-          name: "Excellent (80-100%)",
-          value: healthData?.filter((h) => h.overall_score >= 80).length || 0,
-        },
-        {
-          name: "Good (60-79%)",
-          value:
-            healthData?.filter(
-              (h) => h.overall_score >= 60 && h.overall_score < 80,
-            ).length || 0,
-        },
-        {
-          name: "Fair (40-59%)",
-          value:
-            healthData?.filter(
-              (h) => h.overall_score >= 40 && h.overall_score < 60,
-            ).length || 0,
-        },
-        {
-          name: "Needs Improvement (<40%)",
-          value: healthData?.filter((h) => h.overall_score < 40).length || 0,
-        },
-      ];
-      setHealthScoreDistribution(distribution);
     } catch (error) {
       console.error("Error fetching analytics:", error);
       toast.error("Failed to load retention analytics");
@@ -222,50 +135,6 @@ export default function AdminRetentionAnalytics() {
     );
     toast.success("Retention analytics export downloaded");
   };
-
-  const metricCards = [
-    {
-      label: "Total Rollovers",
-      value: metrics.totalRollovers,
-      icon: RotateCcw,
-      accent: C.progress,
-    },
-    {
-      label: "Rollover Credits",
-      value: metrics.totalRolloverCredits,
-      icon: Award,
-      accent: C.progress,
-    },
-    {
-      label: "Active Freezes",
-      value: metrics.activeFreezes,
-      icon: Snowflake,
-      accent: C.water,
-    },
-    {
-      label: "Completed Freezes",
-      value: metrics.completedFreezes,
-      icon: Calendar,
-      accent: C.water,
-    },
-    {
-      label: "Avg Health Score",
-      value: `${metrics.averageHealthScore}%`,
-      icon: Activity,
-      accent:
-        metrics.averageHealthScore >= 80
-          ? C.progress
-          : metrics.averageHealthScore >= 60
-            ? C.protein
-            : C.fat,
-    },
-    {
-      label: "Users Tracking",
-      value: metrics.usersWithMetrics,
-      icon: Users,
-      accent: C.protein,
-    },
-  ];
 
   return (
     <AdminLayout
@@ -314,20 +183,8 @@ export default function AdminRetentionAnalytics() {
         />
 
         <div className="py-2">
-          {/* Overview Stats */}
-          <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-            {metricCards.map((metric) => (
-              <AdminMetricTile
-                key={metric.label}
-                label={metric.label}
-                value={metric.value}
-                icon={metric.icon}
-                accent={
-                  metric.accent as "#22C7A1" | "#7C83F6" | "#38BDF8" | "#FB6B7A"
-                }
-                className="bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-[0_18px_44px_rgba(2,6,23,0.075)]"
-              />
-            ))}
+          <div className="mb-5">
+            <RetentionMetricsCards metrics={metrics} />
           </div>
 
           {/* Tabs */}
@@ -421,68 +278,15 @@ export default function AdminRetentionAnalytics() {
 
             <TabsContent value="health" className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
-                <AdminPanel>
-                  <AdminPanelHeader
-                    title="Health Score Distribution"
-                    eyebrow="Health scores"
-                    actions={<Activity className="h-5 w-5 text-[#7C83F6]" />}
-                  />
-                  <div className="p-5">
-                    {isLoading ? (
-                      <div className="flex items-center justify-center py-12">
-                        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#22C7A1]" />
-                      </div>
-                    ) : healthScoreDistribution.some((d) => d.value > 0) ? (
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={healthScoreDistribution}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={60}
-                              outerRadius={80}
-                              paddingAngle={5}
-                              dataKey="value"
-                            >
-                              {healthScoreDistribution.map((_entry, index) => (
-                                <Cell
-                                  key={`cell-${index}`}
-                                  fill={COLORS[index % COLORS.length]}
-                                />
-                              ))}
-                            </Pie>
-                            <Tooltip />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <AdminEmptyState
-                        icon={Activity}
-                        title="No health score data yet"
-                        className="rounded-[24px] bg-[#F6F8FB] py-12"
-                      />
-                    )}
-                    <div className="mt-4 flex flex-wrap justify-center gap-3">
-                      {healthScoreDistribution.map((item, index) => (
-                        <div
-                          key={item.name}
-                          className="flex items-center gap-2"
-                        >
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{
-                              backgroundColor: COLORS[index % COLORS.length],
-                            }}
-                          />
-                          <span className="text-sm font-semibold text-[#94A3B8]">
-                            {item.name}
-                          </span>
-                        </div>
-                      ))}
+                {isLoading ? (
+                  <AdminPanel>
+                    <div className="flex items-center justify-center py-12">
+                      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#22C7A1]" />
                     </div>
-                  </div>
-                </AdminPanel>
+                  </AdminPanel>
+                ) : (
+                  <HealthScoreDistributionChart data={healthScoreDistribution} />
+                )}
 
                 <AdminPanel>
                   <AdminPanelHeader

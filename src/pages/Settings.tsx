@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { HealthAppsSettings } from "@/components/settings/HealthAppsSettings";
+import { BehaviorSupportSettings } from "@/components/settings/BehaviorSupportSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -365,6 +366,8 @@ const Settings = () => {
             </div>
           </CardContent>
         </Card>
+
+        <BehaviorSupportSettings />
 
         {/* Health Apps Integration */}
         <HealthAppsSettings />

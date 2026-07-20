@@ -16,9 +16,16 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "@/contexts/LanguageContext";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import {
+  getParticipantCareAssignments,
+  listVerifiedCareProfessionals,
+  requestCareProfessional,
+  type CareAssignmentType,
+  type CareConsentScope,
+  type CareProfessionalType,
+} from "@/hooks/useCareTeam";
 import { cn } from "@/lib/utils";
 
 interface CoachProfile {
@@ -31,6 +38,10 @@ interface CoachProfile {
   rating: number;
   verified: boolean;
   goalTypes: string[];
+  professionalType: CareProfessionalType;
+  displayTitle: string;
+  scopeStatement: string;
+  acceptingClients: boolean;
 }
 
 type CoachAvailability = {
@@ -85,7 +96,7 @@ export default function CoachesDirectory() {
   const [coaches, setCoaches] = useState<CoachProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState<string | null>(null);
-  const [myCoach, setMyCoach] = useState<string | null>(null);
+  const [activeConnections, setActiveConnections] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSpecialty, setActiveSpecialty] = useState("All");
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(() => {
@@ -101,121 +112,39 @@ export default function CoachesDirectory() {
   const fetchCoaches = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const { data: coachRoles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "coach");
-
-      if (!coachRoles?.length) {
-        setCoaches([]);
-        setLoading(false);
-        return;
-      }
-
-      const coachIds = coachRoles.map((role) => role.user_id);
-
-      const [{ data: profiles }, { data: assignments }, { data: goals }, { data: reviews }, { data: myAssignments }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("user_id, full_name, avatar_url, bio, specialties")
-          .in("user_id", coachIds),
-        supabase
-          .from("coach_client_assignments")
-          .select("coach_id, client_id, status")
-          .in("coach_id", coachIds),
-        supabase
-          .from("nutrition_goals")
-          .select("user_id, goal_type")
-          .in("user_id", coachIds)
-          .eq("is_active", true),
-        supabase
-          .from("coach_reviews")
-          .select("coach_id, rating")
-          .in("coach_id", coachIds),
-        supabase
-          .from("coach_client_assignments")
-          .select("coach_id, status")
-          .eq("client_id", user.id)
-          .in("status", ["pending", "active"]),
+      const [professionals, myAssignments] = await Promise.all([
+        listVerifiedCareProfessionals(),
+        getParticipantCareAssignments({ clientId: user.id, statuses: ["pending", "active"] }),
       ]);
-
-      const clientCounts = new Map<string, number>();
-      const myActiveCoach = new Set<string>();
-      const myPending = new Set<string>();
-      const goalMap = new Map<string, string[]>();
-      const ratingMap = new Map<string, { sum: number; count: number }>();
-
-      for (const review of reviews || []) {
-        const entry = ratingMap.get(review.coach_id) || { sum: 0, count: 0 };
-        entry.sum += review.rating;
-        entry.count += 1;
-        ratingMap.set(review.coach_id, entry);
-      }
-
-      for (const goal of goals || []) {
-        const existing = goalMap.get(goal.user_id) || [];
-        existing.push(goal.goal_type);
-        goalMap.set(goal.user_id, existing);
-      }
-
-      for (const assignment of assignments || []) {
-        if (assignment.status === "active") {
-          clientCounts.set(assignment.coach_id, (clientCounts.get(assignment.coach_id) || 0) + 1);
-          if (assignment.client_id === user.id) myActiveCoach.add(assignment.coach_id);
-        }
-        if (assignment.client_id === user.id && assignment.status === "pending") {
-          myPending.add(assignment.coach_id);
-        }
-      }
-
-      for (const assignment of myAssignments || []) {
-        if (assignment.status === "active") myActiveCoach.add(assignment.coach_id);
-        if (assignment.status === "pending") myPending.add(assignment.coach_id);
-      }
-
-      const sorted: CoachProfile[] = (profiles || [])
-        .filter((profile) => profile.user_id !== user.id)
-        .map((profile) => {
-          const ratings = ratingMap.get(profile.user_id);
-          const avgRating = ratings && ratings.count > 0
-            ? Math.round((ratings.sum / ratings.count) * 10) / 10
-            : 0;
-          return {
-            id: profile.user_id,
-            full_name: profile.full_name || "Unknown Coach",
-            avatar_url: profile.avatar_url || null,
-            bio: profile.bio || null,
-            specialties: profile.specialties || [],
-            clientCount: clientCounts.get(profile.user_id) || 0,
-            rating: avgRating,
-            verified: true,
-            goalTypes: goalMap.get(profile.user_id) || [],
-          };
-        })
-        .sort((a, b) => b.clientCount - a.clientCount);
+      const myActive = new Set(myAssignments.filter((item) => item.status === "active").map((item) => item.coach_id));
+      const myPending = new Set(myAssignments.filter((item) => item.status === "pending").map((item) => item.coach_id));
+      const sorted: CoachProfile[] = professionals
+        .filter((professional) => professional.professional_id !== user.id)
+        .map((professional) => ({
+          id: professional.professional_id,
+          full_name: professional.full_name || professional.display_title,
+          avatar_url: professional.avatar_url,
+          bio: professional.bio,
+          specialties: professional.specialties || [],
+          clientCount: professional.client_count,
+          rating: professional.average_rating,
+          verified: true,
+          goalTypes: [],
+          professionalType: professional.professional_type,
+          displayTitle: professional.display_title,
+          scopeStatement: professional.scope_statement,
+          acceptingClients: professional.accepting_clients,
+        }))
+        .sort((a, b) => Number(b.acceptingClients) - Number(a.acceptingClients) || b.rating - a.rating);
 
       setCoaches(sorted);
-      if (myActiveCoach.size > 0) {
-        const activeId = [...myActiveCoach][0];
-        setMyCoach(activeId);
-
-        if (myPending.size > 0) {
-          const { error } = await supabase
-            .from("coach_client_assignments")
-            .update({ status: "revoked" })
-            .eq("client_id", user.id)
-            .eq("status", "pending")
-            .neq("coach_id", activeId);
-
-          if (error) {
-            console.error("Error cancelling stale coach requests:", error);
-          }
-        }
-        setPendingRequests(new Set());
-      } else {
-        setMyCoach(null);
-        setPendingRequests(new Set(myPending));
-      }
+      setActiveConnections(myActive);
+      setPendingRequests(myPending);
+      setCoachAvailabilities(new Map(sorted.map((coach) => [coach.id, {
+        isAccepting: coach.acceptingClients,
+        clientRange: coach.clientCount <= 5 ? "1-5" : coach.clientCount <= 10 ? "5-10" : "10+",
+        responseLabel: null,
+      }])));
     } catch (err) {
       console.error("Error fetching coaches:", err);
     } finally {
@@ -228,45 +157,8 @@ export default function CoachesDirectory() {
   }, [fetchCoaches]);
 
   useEffect(() => {
-    if (!coaches.length) return;
-    const fetchAvailabilities = async () => {
-      try {
-        const coachIds = coaches.map((coach) => coach.id);
-        const { data: pricingData } = await supabase
-          .from("coach_pricing")
-          .select("coach_id, is_active")
-          .in("coach_id", coachIds);
-        const activeCountMap = new Map<string, number>();
-
-        for (const coachId of coachIds) {
-          const { count } = await supabase
-            .from("coach_client_assignments")
-            .select("id", { count: "exact", head: true })
-            .eq("coach_id", coachId)
-            .eq("status", "active");
-          activeCountMap.set(coachId, count || 0);
-        }
-
-        const availabilityMap = new Map<string, CoachAvailability>();
-        for (const pricing of pricingData || []) {
-          const count = activeCountMap.get(pricing.coach_id) || 0;
-          availabilityMap.set(pricing.coach_id, {
-            isAccepting: pricing.is_active,
-            clientRange: count <= 5 ? "1-5" : count <= 10 ? "5-10" : "10+",
-            responseLabel: null,
-          });
-        }
-        setCoachAvailabilities(availabilityMap);
-      } catch (err) {
-        console.error("Error fetching availabilities:", err);
-      }
-    };
-    fetchAvailabilities();
-  }, [coaches]);
-
-  useEffect(() => {
     try {
-      if (pendingRequests.size > 0 && !myCoach) {
+      if (pendingRequests.size > 0) {
         sessionStorage.setItem("coach_pending_requests", JSON.stringify([...pendingRequests]));
       } else {
         sessionStorage.removeItem("coach_pending_requests");
@@ -274,16 +166,11 @@ export default function CoachesDirectory() {
     } catch {
       // sessionStorage can be unavailable in private contexts.
     }
-  }, [myCoach, pendingRequests]);
+  }, [pendingRequests]);
 
   const handleRequestCoach = async (coach: CoachProfile) => {
     if (!user) return;
     const coachId = coach.id;
-
-    if (myCoach && myCoach !== coachId) {
-      await handleReplaceCoach(coach);
-      return;
-    }
 
     setRequesting(coachId);
     setPendingRequests((prev) => {
@@ -292,56 +179,23 @@ export default function CoachesDirectory() {
       return next;
     });
     try {
-      const { data: existing } = await supabase
-        .from("coach_client_assignments")
-        .select("id, status")
-        .eq("client_id", user.id)
-        .eq("coach_id", coachId)
-        .maybeSingle();
-
-      if (existing?.status === "active" || existing?.status === "pending") {
-        if (existing.status === "active") {
-          setMyCoach(coachId);
-          setPendingRequests(new Set());
-        } else {
-          setPendingRequests(new Set([coachId]));
-        }
-        toast({
-          title: "Already requested",
-          description: existing.status === "active" ? "This coach is already connected." : "Your request is pending.",
-        });
-        return;
-      }
-
-      const { error: cancelError } = await supabase
-        .from("coach_client_assignments")
-        .update({ status: "revoked" })
-        .eq("client_id", user.id)
-        .eq("status", "pending")
-        .neq("coach_id", coachId);
-
-      if (cancelError) throw cancelError;
-
-      const assignmentPayload = {
-        coach_id: coachId,
-        client_id: user.id,
-        status: "pending",
-      };
-
-      const { error: requestError } = existing
-        ? await supabase
-            .from("coach_client_assignments")
-            .update({ status: "pending" })
-            .eq("id", existing.id)
-        : await supabase.from("coach_client_assignments").insert(assignmentPayload);
-
-      if (requestError) throw requestError;
+      const assignmentType: CareAssignmentType = coach.professionalType === "dietitian"
+        ? "nutrition_guidance"
+        : coach.professionalType === "fitness_coach"
+          ? "fitness_coaching"
+          : "integrated_care";
+      const consentScopes: CareConsentScope[] = assignmentType === "nutrition_guidance"
+        ? ["macros", "weight", "hydration", "meal_adherence", "messages"]
+        : assignmentType === "fitness_coaching"
+          ? ["weight", "workouts", "messages"]
+          : ["macros", "weight", "hydration", "meal_adherence", "workouts", "messages"];
+      await requestCareProfessional({ professionalId: coachId, assignmentType, consentScopes });
 
       toast({
         title: "Request sent!",
         description: "Your coach will review and accept your request.",
       });
-      setPendingRequests(new Set([coachId]));
+      setPendingRequests((current) => new Set(current).add(coachId));
     } catch {
       setPendingRequests((prev) => {
         const next = new Set(prev);
@@ -354,37 +208,7 @@ export default function CoachesDirectory() {
     }
   };
 
-  const handleReplaceCoach = async (coach: CoachProfile) => {
-    if (!user || myCoach === coach.id) return;
-
-    setRequesting(coach.id);
-    try {
-      const replaceClientCoach = supabase.rpc as unknown as (
-        fn: "replace_client_coach",
-        args: { p_new_coach_id: string },
-      ) => Promise<{ data: string | null; error: { message: string } | null }>;
-      const { error: replaceError } = await replaceClientCoach("replace_client_coach", {
-        p_new_coach_id: coach.id,
-      });
-
-      if (replaceError) throw replaceError;
-
-      setMyCoach(coach.id);
-      setPendingRequests(new Set());
-      toast({
-        title: "Coach replaced",
-        description: `${coach.full_name} is now your active coach.`,
-      });
-      fetchCoaches();
-    } catch (err) {
-      console.error("Error replacing coach:", err);
-      toast({ title: "Failed", description: "Could not replace your coach. Try again.", variant: "destructive" });
-    } finally {
-      setRequesting(null);
-    }
-  };
-
-  const hasCoach = myCoach !== null;
+  const hasCoach = activeConnections.size > 0;
   const acceptingCount = coaches.filter((coach) => coachAvailabilities.get(coach.id)?.isAccepting !== false).length;
   const totalClients = coaches.reduce((sum, coach) => sum + coach.clientCount, 0);
 
@@ -543,9 +367,8 @@ export default function CoachesDirectory() {
         ) : (
           <div className="mt-4 space-y-4">
             {filteredCoaches.map((coach, index) => {
-              const isConnected = myCoach === coach.id;
-              const isPending = !myCoach && pendingRequests.has(coach.id);
-              const canReplace = Boolean(myCoach && !isConnected);
+              const isConnected = activeConnections.has(coach.id);
+              const isPending = pendingRequests.has(coach.id);
               const availability = coachAvailabilities.get(coach.id);
               const coachTags = [
                 ...coach.specialties,
@@ -619,9 +442,7 @@ export default function CoachesDirectory() {
                         ? "bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1]"
                         : isPending
                           ? "bg-[#FFF7ED] text-[#F97316] ring-1 ring-[#F97316]/20"
-                          : canReplace
-                            ? "bg-[#FFF7ED] text-[#F97316] ring-1 ring-[#F97316]/20"
-                            : "bg-[#020617] text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)]"
+                          : "bg-[#020617] text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)]"
                     )}
                   >
                     {requesting === coach.id ? (
@@ -636,15 +457,10 @@ export default function CoachesDirectory() {
                         <Clock className="h-4 w-4" />
                         {t("pending_status")}
                       </>
-                    ) : canReplace ? (
-                      <>
-                        <UserPlus className="h-4 w-4" />
-                        Replace coach
-                      </>
                     ) : (
                       <>
                         <UserPlus className="h-4 w-4" />
-                        Request coach
+                        Add to care team
                       </>
                     )}
                   </button>

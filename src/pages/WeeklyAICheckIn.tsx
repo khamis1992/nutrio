@@ -121,6 +121,43 @@ export default function WeeklyAICheckIn() {
   };
 
   const activeReview = review && !editing && (showReview || review.status !== "dismissed") ? review : null;
+  const mealResponseLabel = isRTL
+    ? "\u0627\u0633\u062a\u062c\u0627\u0628\u0627\u062a \u0648\u062c\u0628\u0627\u062a \u0645\u0624\u0647\u0644\u0629"
+    : "qualified meal responses";
+  const mealResponseContext = isRTL
+    ? "\u062a\u0638\u0647\u0631 \u0647\u0630\u0647 \u0627\u0644\u0623\u062f\u0644\u0629 \u0644\u0644\u0633\u064a\u0627\u0642 \u0641\u0642\u0637\u060c \u0648\u0644\u0627 \u062a\u0637\u0628\u0642 \u0623\u064a \u062a\u063a\u064a\u064a\u0631 \u062a\u0644\u0642\u0627\u0626\u064a\u0627."
+    : "Meal-response evidence is context only and never applies a change automatically.";
+  const adaptiveCopy = isRTL ? {
+    staleTitle: "انتهت صلاحية هذه المراجعة",
+    staleBody: "تغيرت أهدافك أو بيانات السلامة منذ إنشاء الاقتراح. أجرِ مراجعة جديدة قبل تطبيق أي تغيير.",
+    reviewAgain: "إجراء مراجعة جديدة",
+    dataQuality: "جودة البيانات",
+    highQuality: "عالية",
+    mediumQuality: "متوسطة",
+    lowQuality: "غير كافية",
+    smoothedTrend: "الاتجاه الأسبوعي",
+    holdTitle: "توقف احترازي",
+    maintainTitle: "استمرار بالخطة",
+    changeTitle: "تعديل مقترح",
+    holdBody: "لن نغيّر أهدافك حتى تتحسن البيانات أو تتم مراجعة سياق السلامة.",
+    reasons: "أسباب القرار",
+    proteinProtected: "تم الحفاظ على هدف البروتين أثناء التعديل.",
+  } : {
+    staleTitle: "This review is no longer current",
+    staleBody: "Your goal or safety context changed after this recommendation was created. Run a fresh review before applying anything.",
+    reviewAgain: "Run a fresh review",
+    dataQuality: "data quality",
+    highQuality: "High",
+    mediumQuality: "Medium",
+    lowQuality: "Not enough",
+    smoothedTrend: "weekly trend",
+    holdTitle: "Safety hold",
+    maintainTitle: "Keep current plan",
+    changeTitle: "Suggested adjustment",
+    holdBody: "We will not change your targets until the data improves or the safety context is reviewed.",
+    reasons: "Why this decision",
+    proteinProtected: "Your protein target is protected during this adjustment.",
+  };
   const allRated = [answers.energy_rating, answers.hunger_rating, answers.recovery_rating, answers.plan_adherence_rating]
     .every((value) => value > 0);
   const hasChanges = useMemo(() => {
@@ -129,6 +166,21 @@ export default function WeeklyAICheckIn() {
       (key) => activeReview.current_targets[key] !== activeReview.proposed_targets[key],
     );
   }, [activeReview]);
+  const dataQualityLabel = activeReview?.data_quality.label === "high"
+    ? adaptiveCopy.highQuality
+    : activeReview?.data_quality.label === "medium"
+      ? adaptiveCopy.mediumQuality
+      : adaptiveCopy.lowQuality;
+  const decisionLabel = activeReview?.recommendation_state === "change"
+    ? adaptiveCopy.changeTitle
+    : activeReview?.recommendation_state === "hold"
+      ? adaptiveCopy.holdTitle
+      : adaptiveCopy.maintainTitle;
+  const reasonLabels = activeReview
+    ? [...activeReview.reason_codes, ...activeReview.hold_reasons]
+      .map((code) => getReasonLabel(code, isRTL))
+      .filter((label, index, labels) => labels.indexOf(label) === index)
+    : [];
 
   const ratingQuestions: Array<{ field: RatingField; label: string }> = [
     { field: "energy_rating", label: copy.energy },
@@ -288,6 +340,25 @@ export default function WeeklyAICheckIn() {
               {!submitting && <ChevronRight className={`h-5 w-5 ${isRTL ? "rotate-180" : ""}`} />}
             </button>
           </>
+        ) : activeReview.status === "stale" ? (
+          <section className="rounded-[28px] bg-white p-6 text-center shadow-[0_16px_38px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]">
+            <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#FFF7ED] text-[#F97316] ring-8 ring-[#FFF7ED]/70">
+              <RotateCcw className="h-9 w-9" strokeWidth={2.5} />
+            </div>
+            <h2 className="mt-6 text-[23px] font-black">{adaptiveCopy.staleTitle}</h2>
+            <p className="mx-auto mt-2 max-w-[320px] text-sm font-semibold leading-6 text-[#64748B]">{adaptiveCopy.staleBody}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(true);
+                setShowReview(false);
+              }}
+              className="mt-7 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#020617] px-5 text-sm font-black text-white"
+            >
+              <RotateCcw className="h-5 w-5" />
+              {adaptiveCopy.reviewAgain}
+            </button>
+          </section>
         ) : activeReview.status === "applied" ? (
           <section className="rounded-[28px] bg-white p-6 text-center shadow-[0_16px_38px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]">
             <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#EFFFFA] text-[#0CA789] ring-8 ring-[#EFFFFA]/60">
@@ -314,8 +385,8 @@ export default function WeeklyAICheckIn() {
                   </div>
                 </div>
                 <div className="mt-5 flex items-center justify-between rounded-2xl bg-white/8 px-4 py-3">
-                  <span className="text-xs font-bold text-white/65">{copy.confidence}</span>
-                  <span className="text-lg font-black">{Math.round(activeReview.confidence * 100)}%</span>
+                  <span className="text-xs font-bold text-white/65">{decisionLabel}</span>
+                  <span className="text-sm font-black">{dataQualityLabel}</span>
                 </div>
               </div>
               <div className="p-5">
@@ -353,9 +424,55 @@ export default function WeeklyAICheckIn() {
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <Evidence value={`${activeReview.days_logged}/7`} label={copy.days} />
                 <Evidence value={`${Math.round(activeReview.adherence_rate * 100)}%`} label={copy.adherenceRate} />
-                <Evidence value={activeReview.weight_change_kg == null ? "--" : `${activeReview.weight_change_kg > 0 ? "+" : ""}${activeReview.weight_change_kg.toFixed(1)} kg`} label={copy.weightTrend} />
-                <Evidence value={`${Math.round(activeReview.confidence * 100)}%`} label={copy.confidence} />
+                <Evidence
+                  value={activeReview.weight_trend.weekly_rate_kg == null
+                    ? "--"
+                    : `${activeReview.weight_trend.weekly_rate_kg > 0 ? "+" : ""}${activeReview.weight_trend.weekly_rate_kg.toFixed(2)} kg`}
+                  label={adaptiveCopy.smoothedTrend}
+                />
+                <Evidence value={dataQualityLabel} label={adaptiveCopy.dataQuality} />
+                {(activeReview.meal_response_evidence.enabled
+                  || activeReview.meal_response_evidence.eligible_episode_count > 0) && (
+                  <Evidence
+                    value={String(activeReview.meal_response_evidence.eligible_episode_count)}
+                    label={mealResponseLabel}
+                  />
+                )}
               </div>
+              {activeReview.meal_response_evidence.summary && (
+                <p className="mt-4 rounded-2xl bg-[#EFF9FF] p-3 text-[11px] font-semibold leading-5 text-[#246786]">
+                  {activeReview.meal_response_evidence.summary}
+                </p>
+              )}
+              {(activeReview.meal_response_evidence.enabled
+                || activeReview.meal_response_evidence.eligible_episode_count > 0) && (
+                <p className="mt-3 text-[10px] font-semibold leading-4 text-[#64748B]">
+                  {mealResponseContext}
+                </p>
+              )}
+              {reasonLabels.length > 0 && (
+                <div className={`mt-4 rounded-2xl p-4 ${activeReview.recommendation_state === "hold" ? "bg-[#FFF0F2]" : "bg-[#F3F4FF]"}`}>
+                  <p className={`text-[11px] font-black uppercase ${activeReview.recommendation_state === "hold" ? "text-[#D92D4A]" : "text-[#6168D9]"}`}>
+                    {adaptiveCopy.reasons}
+                  </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {reasonLabels.map((label) => (
+                      <li key={label} className="flex items-start gap-2 text-[11px] font-semibold leading-5 text-[#475569]">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C7A1]" />
+                        <span>{label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {activeReview.recommendation_state === "hold" && (
+                    <p className="mt-2 text-[11px] font-bold leading-5 text-[#D92D4A]">{adaptiveCopy.holdBody}</p>
+                  )}
+                </div>
+              )}
+              {activeReview.recommendation_state === "change" && (
+                <p className="mt-3 rounded-2xl bg-[#EFFFFA] p-3 text-[11px] font-bold leading-5 text-[#087F6A]">
+                  {adaptiveCopy.proteinProtected}
+                </p>
+              )}
               <p className="mt-4 rounded-2xl bg-[#FFF7ED] p-3 text-[11px] font-semibold leading-5 text-[#9A5B13]">{copy.safety}</p>
             </section>
 
@@ -382,6 +499,32 @@ export default function WeeklyAICheckIn() {
       </div>
     </main>
   );
+}
+
+function getReasonLabel(code: string, isRTL: boolean) {
+  const labels: Record<string, [string, string]> = {
+    "data.minimum_not_met": ["Not enough consistent food and weight data yet", "لا توجد بيانات غذاء ووزن متسقة بما يكفي بعد"],
+    "safety.context_requires_hold": ["Recent feedback or health context requires holding the plan", "تتطلب الملاحظات أو البيانات الصحية الحديثة تثبيت الخطة"],
+    "trend.smoothed_plateau": ["The smoothed weight trend is stable", "اتجاه الوزن المحسوب بالوسيط مستقر"],
+    "adherence.sufficient": ["Logging and adherence are sufficient for a small adjustment", "التسجيل والالتزام كافيان لتعديل صغير"],
+    "change.bounded": ["The change is capped at 5% and within the weekly safety limit", "التغيير محدود بـ 5% وضمن الحد الأسبوعي الآمن"],
+    "trend.no_bounded_change_needed": ["The reliable trend does not support a target change", "الاتجاه الموثوق لا يدعم تغيير الأهداف"],
+    "safety.calorie_floor": ["The calorie safety floor prevents a further reduction", "حد السعرات الآمن يمنع خفضًا إضافيًا"],
+    "safety.calorie_ceiling": ["The configured calorie ceiling prevents a further increase", "الحد الأعلى للسعرات يمنع زيادة إضافية"],
+    "feedback.low_energy": ["Energy was low", "مستوى الطاقة كان منخفضًا"],
+    "feedback.low_recovery": ["Recovery was low", "مستوى التعافي كان منخفضًا"],
+    "feedback.high_hunger": ["Hunger was high", "مستوى الجوع كان مرتفعًا"],
+    "context.high_stress": ["Recent stress was high", "مستوى الضغط الحديث كان مرتفعًا"],
+    "context.low_appetite": ["Recent appetite was low", "الشهية الحديثة كانت منخفضة"],
+    "context.low_energy": ["Recent health journal energy was low", "الطاقة المسجلة حديثًا كانت منخفضة"],
+    "context.digestive_discomfort": ["Recent digestive discomfort was reported", "تم تسجيل انزعاج هضمي حديث"],
+    "program.active_health_protocol": ["An active health program controls nutrition changes", "يوجد برنامج صحي نشط يتحكم في تغييرات التغذية"],
+    "program.unresolved_safety_event": ["A health-program safety event needs review", "توجد إشارة سلامة في البرنامج الصحي تحتاج إلى مراجعة"],
+    "goal.active_goal_required": ["An active nutrition goal is required", "يلزم وجود هدف تغذية نشط"],
+    "settings.adaptive_review_disabled": ["Adaptive reviews are disabled in settings", "المراجعات التكيفية معطلة من الإعدادات"],
+  };
+  const label = labels[code];
+  return label ? label[isRTL ? 1 : 0] : code.replace(/[._]/g, " ");
 }
 
 function Evidence({ value, label }: { value: string; label: string }) {

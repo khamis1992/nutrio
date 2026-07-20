@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
 
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Meals = lazy(() => import("@/pages/Meals"));
@@ -8,6 +9,7 @@ const RestaurantDetail = lazy(() => import("@/pages/RestaurantDetail"));
 const MealDetail = lazy(() => import("@/pages/MealDetail"));
 const Schedule = lazy(() => import("@/pages/Schedule"));
 const Progress = lazy(() => import("@/pages/ProgressRedesigned"));
+const BodyProgressDashboard = lazy(() => import("@/pages/progress/BodyProgressDashboard"));
 const Tracker = lazy(() => import("@/pages/Tracker"));
 const WaterTracker = lazy(() => import("@/pages/WaterTracker"));
 const StepCounter = lazy(() => import("@/pages/StepCounter"));
@@ -15,6 +17,7 @@ const WeightTracking = lazy(() => import("@/pages/WeightTracking"));
 const BloodWorkUpload = lazy(() => import("@/pages/health/BloodWorkUpload"));
 const BloodWorkResults = lazy(() => import("@/pages/health/BloodWorkResults"));
 const HealthDashboard = lazy(() => import("@/pages/health/HealthDashboard"));
+const MealResponse = lazy(() => import("@/pages/health/MealResponse"));
 const RecoveryInsights = lazy(() => import("@/pages/RecoveryInsights"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const Rewards = lazy(() => import("@/pages/Rewards"));
@@ -44,6 +47,7 @@ const MyBookings = lazy(() => import("@/pages/recovery/MyBookings"));
 const SportHubPartner = lazy(() => import("@/pages/partners/SportHubPartner"));
 const Community = lazy(() => import("@/pages/Community"));
 const LogActivity = lazy(() => import("@/pages/LogActivity"));
+const OutdoorActivity = lazy(() => import("@/pages/OutdoorActivity"));
 const BodyMetrics = lazy(() => import("@/pages/BodyMetrics"));
 const CoachesDirectory = lazy(() => import("@/pages/CoachesDirectory"));
 const Recipes = lazy(() => import("@/pages/Recipes"));
@@ -64,6 +68,14 @@ const AIReport = lazy(() => import("@/pages/AIReport"));
 const AiCoach = lazy(() => import("@/pages/AiCoach"));
 const WeeklyAICheckIn = lazy(() => import("@/pages/WeeklyAICheckIn"));
 const Medications = lazy(() => import("@/pages/Medications"));
+const HealthPrograms = lazy(() => import("@/pages/programs/HealthPrograms"));
+  const HealthProgramDetail = lazy(() => import("@/pages/programs/HealthProgramDetail"));
+  const MyHealthProgram = lazy(() => import("@/pages/programs/MyHealthProgram"));
+  const HealthProgramOnboarding = lazy(() => import("@/pages/programs/HealthProgramOnboarding"));
+  const HealthProgramMeals = lazy(() => import("@/pages/programs/HealthProgramMeals"));
+const SmartMealRecommendations = lazy(
+  () => import("@/pages/recommendations/SmartMealRecommendations"),
+);
 
 export const customerRoutes = (
   <>
@@ -115,6 +127,14 @@ export const customerRoutes = (
       element={
         <ProtectedRoute>
           <Progress />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/body-progress"
+      element={
+        <ProtectedRoute>
+          <BodyProgressDashboard />
         </ProtectedRoute>
       }
     />
@@ -321,6 +341,14 @@ export const customerRoutes = (
       }
     />
     <Route
+      path="/health/meal-response"
+      element={
+        <ProtectedRoute>
+          <MealResponse />
+        </ProtectedRoute>
+      }
+    />
+    <Route
       path="/payment/result"
       element={
         <ProtectedRoute>
@@ -410,7 +438,11 @@ export const customerRoutes = (
     />
     <Route
       path="/recommendations"
-      element={<Navigate to="/meals" replace />}
+      element={
+        <ProtectedRoute>
+          <SmartMealRecommendations />
+        </ProtectedRoute>
+      }
     />
     <Route
       path="/coaches"
@@ -452,6 +484,18 @@ export const customerRoutes = (
       }
     />
     <Route
+      path="/outdoor-activity"
+      element={
+        <ProtectedRoute>
+          {isPhaseOneFeatureEnabled("outdoorRecording") ? (
+            <OutdoorActivity />
+          ) : (
+            <Navigate to="/log-activity" replace />
+          )}
+        </ProtectedRoute>
+      }
+    />
+    <Route
       path="/ai-coach"
       element={
         <ProtectedRoute>
@@ -473,5 +517,10 @@ export const customerRoutes = (
     <Route path="/recipes/:id" element={<ProtectedRoute><RecipeDetail /></ProtectedRoute>} />
     <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
     <Route path="/medications" element={<ProtectedRoute><Medications /></ProtectedRoute>} />
+      <Route path="/programs" element={<ProtectedRoute><HealthPrograms /></ProtectedRoute>} />
+      <Route path="/programs/current" element={<ProtectedRoute><MyHealthProgram /></ProtectedRoute>} />
+      <Route path="/programs/current/meals" element={<ProtectedRoute><HealthProgramMeals /></ProtectedRoute>} />
+      <Route path="/programs/onboarding" element={<ProtectedRoute><HealthProgramOnboarding /></ProtectedRoute>} />
+      <Route path="/programs/:slug" element={<ProtectedRoute><HealthProgramDetail /></ProtectedRoute>} />
   </>
 );

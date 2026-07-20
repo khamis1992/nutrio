@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   ChevronRight,
   Clock3,
-  Beef,
   Dumbbell,
   Flame,
   Heart,
@@ -25,11 +24,13 @@ import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPr
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
+import { useMealRecommendations } from "@/hooks/useMealRecommendations";
 import { useNutritionGoals } from "@/hooks/useNutritionGoals";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useTodayProgress } from "@/hooks/useTodayProgress";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent } from "@/lib/analytics";
 import { Haptics } from "@/lib/haptics";
+import type { MealExplanationCode } from "@/lib/mealRanking";
 import { cn } from "@/lib/utils";
 
 type RestaurantCategory = "all" | "under_500" | "protein" | "low_carb" | "balanced";
@@ -108,77 +109,35 @@ const getGoalFitLabel = (goalType: string | null | undefined, restaurant: Restau
   return /healthy|protein|fitness|wellness|organic|green/.test(copy) ? "Fits your goal" : null;
 };
 
-const scoreMealForGoal = (
-  meal: MealRecommendation,
-  goalType: string | null | undefined,
-  dailyCalorieTarget?: number,
-) => {
-  const ratingScore = meal.rating * 12;
-  const popularityScore = Math.min(meal.order_count, 100) * 0.08;
-  const proteinScore = meal.protein_g * (goalType === "muscle_gain" ? 2.4 : 1.25);
-  const targetMealCalories = Math.max(350, Math.min(700, (dailyCalorieTarget || 1800) / 3));
-  const calorieFit = Math.max(0, 35 - Math.abs(meal.calories - targetMealCalories) / 12);
-
-  if (goalType === "weight_loss") {
-    const lightMealBonus = meal.calories > 0 && meal.calories <= targetMealCalories ? 22 : 0;
-    return ratingScore + popularityScore + proteinScore + calorieFit + lightMealBonus;
-  }
-
-  if (goalType === "muscle_gain") {
-    return ratingScore + popularityScore + proteinScore + calorieFit;
-  }
-
-  return ratingScore + popularityScore + proteinScore + calorieFit;
-};
-
-const getMealMatchReason = (meal: MealRecommendation, goalType: string | null | undefined) => {
-  if (goalType === "muscle_gain") return `${Math.round(meal.protein_g)}g protein for your goal`;
-  if (goalType === "weight_loss") return `${Math.round(meal.calories)} kcal with ${Math.round(meal.protein_g)}g protein`;
-  return "Strong nutrition and customer rating";
-};
-
-const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const scoreMealForRemainingMacros = (
-  meal: MealRecommendation,
-  remaining: { calories: number; protein: number; carbs: number; fat: number },
-) => {
-  if (meal.calories <= 0) return null;
-
-  const nextMealCalories = remaining.calories <= 750
-    ? clampNumber(remaining.calories, 250, 750)
-    : clampNumber(remaining.calories / 2, 450, 750);
-  const calorieFit = Math.max(0, 38 - (Math.abs(meal.calories - nextMealCalories) / Math.max(nextMealCalories, 1)) * 42);
-
-  const proteinNeed = Math.max(remaining.protein, 0);
-  const carbsNeed = Math.max(remaining.carbs, 0);
-  const fatNeed = Math.max(remaining.fat, 0);
-  const proteinFit = proteinNeed > 0 ? Math.min(meal.protein_g / proteinNeed, 1.15) * 28 : Math.min(meal.protein_g / 35, 1) * 12;
-  const carbsFit = carbsNeed > 0 ? Math.max(0, 16 - (Math.max(0, meal.carbs_g - carbsNeed) / Math.max(carbsNeed, 1)) * 18) : meal.carbs_g <= 25 ? 10 : 2;
-  const fatFit = fatNeed > 0 ? Math.max(0, 12 - (Math.max(0, meal.fat_g - fatNeed) / Math.max(fatNeed, 1)) * 16) : meal.fat_g <= 18 ? 8 : 1;
-  const quality = (meal.rating / 5) * 6 + Math.min(meal.order_count, 80) * 0.05;
-
-  return Math.round(clampNumber(calorieFit + proteinFit + carbsFit + fatFit + quality, 0, 99));
-};
-
-const getRemainingMacroReason = (
-  meal: MealRecommendation,
-  remaining: { calories: number; protein: number; carbs: number; fat: number },
-) => {
-  const gaps = [
-    { key: "protein", label: "protein", value: remaining.protein, mealValue: meal.protein_g, unit: "g" },
-    { key: "carbs", label: "carbs", value: remaining.carbs, mealValue: meal.carbs_g, unit: "g" },
-    { key: "fat", label: "fat", value: remaining.fat, mealValue: meal.fat_g, unit: "g" },
-  ].sort((a, b) => b.value - a.value);
-  const topGap = gaps[0];
-
-  if (remaining.calories <= 450) {
-    return `${Math.round(meal.calories)} kcal that stays close to today's remaining calories`;
-  }
-  if (topGap.value > 0 && topGap.mealValue > 0) {
-    return `Covers about ${Math.min(100, Math.round((topGap.mealValue / topGap.value) * 100))}% of remaining ${topGap.label}`;
-  }
-  return "Balanced pick for the rest of your day";
+const explanationLabel: Record<"en" | "ar", Partial<Record<MealExplanationCode, string>>> = {
+  en: {
+    calorie_fit: "Fits today's calories",
+    protein_gap: "Helps close your protein gap",
+    macro_balance: "Balanced for the rest of your day",
+    preference_match: "Matches your meal history",
+    variety: "Adds variety to recent meals",
+    high_rating: "From a highly rated kitchen",
+    delivery_fit: "Fits your delivery window",
+    good_value: "Good value for your plan",
+    micronutrient_fit: "Supports your micronutrient needs",
+    health_context_fit: "Fits your recent health check-in",
+    stale_activity: "Activity data may be old",
+    missing_safety_data: "Review ingredients before ordering",
+  },
+  ar: {
+    calorie_fit: "مناسبة لسعرات اليوم",
+    protein_gap: "تساعد في إكمال احتياج البروتين",
+    macro_balance: "متوازنة لبقية يومك",
+    preference_match: "تناسب اختياراتك السابقة",
+    variety: "تضيف تنوعاً لوجباتك",
+    high_rating: "من مطبخ عالي التقييم",
+    delivery_fit: "تناسب وقت التوصيل",
+    good_value: "قيمة جيدة لخطتك",
+    micronutrient_fit: "تدعم احتياج المغذيات الدقيقة",
+    health_context_fit: "تناسب تسجيلك الصحي الأخير",
+    stale_activity: "بيانات النشاط قديمة",
+    missing_safety_data: "راجع المكونات قبل الطلب",
+  },
 };
 
 const RestaurantCard = ({
@@ -283,9 +242,9 @@ const Meals = () => {
   const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
   const { user } = useAuth();
   const { activeGoal } = useNutritionGoals(user?.id);
-  const { todayProgress, loading: todayProgressLoading } = useTodayProgress(user?.id, new Date(), 0);
+  const { ranking, loading: rankingLoading } = useMealRecommendations();
   const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
-  const { t, isRTL } = useLanguage();
+  const { t, language, isRTL } = useLanguage();
   const {
     loading: subscriptionLoading,
     hasActiveSubscription,
@@ -436,59 +395,51 @@ const Meals = () => {
       });
   }, [availableMeals, featuredRestaurantIds, isFavorite, restaurants, searchQuery, selectedCategory, showFavoritesOnly]);
 
-  const bestMeal = useMemo(() => {
-    const visibleRestaurantIds = new Set(visibleRestaurants.map((restaurant) => restaurant.id));
-    return availableMeals
-      .filter(
-        (meal) =>
-          visibleRestaurantIds.has(meal.restaurant_id) &&
-          meal.calories > 0 &&
-          mealMatchesCategory(meal, selectedCategory),
-      )
-      .sort(
-        (a, b) =>
-          scoreMealForGoal(b, activeGoal?.goal_type, activeGoal?.daily_calorie_target) -
-          scoreMealForGoal(a, activeGoal?.goal_type, activeGoal?.daily_calorie_target),
-      )[0];
-  }, [activeGoal?.daily_calorie_target, activeGoal?.goal_type, availableMeals, selectedCategory, visibleRestaurants]);
-
-  const bestMealRestaurant = bestMeal
-    ? restaurants.find((restaurant) => restaurant.id === bestMeal.restaurant_id)
-    : undefined;
-  const remainingMacros = useMemo(() => {
-    if (!activeGoal?.daily_calorie_target) return null;
-    return {
-      calories: Math.max(0, activeGoal.daily_calorie_target - todayProgress.calories),
-      protein: Math.max(0, activeGoal.protein_target_g - todayProgress.protein),
-      carbs: Math.max(0, activeGoal.carbs_target_g - todayProgress.carbs),
-      fat: Math.max(0, activeGoal.fat_target_g - todayProgress.fat),
-    };
-  }, [activeGoal, todayProgress.calories, todayProgress.carbs, todayProgress.fat, todayProgress.protein]);
+  const remainingMacros = ranking?.remainingNutrition ?? null;
 
   const macroFitMeals = useMemo<RemainingMacroFit[]>(() => {
-    if (!remainingMacros || todayProgressLoading) return [];
+    if (!ranking || rankingLoading) return [];
     const visibleRestaurantIds = new Set(visibleRestaurants.map((restaurant) => restaurant.id));
-    return availableMeals
+    return ranking.ranked
       .filter(
         (meal) =>
-          visibleRestaurantIds.has(meal.restaurant_id) &&
-          meal.calories > 0 &&
-          mealMatchesCategory(meal, selectedCategory),
+          Boolean(meal.restaurant_id) &&
+          visibleRestaurantIds.has(meal.restaurant_id as string) &&
+          mealMatchesCategory({
+            id: meal.id,
+            restaurant_id: meal.restaurant_id as string,
+            name: meal.name,
+            image_url: meal.image_url,
+            meal_type: meal.meal_type,
+            calories: Number(meal.calories ?? 0),
+            protein_g: Number(meal.protein_g ?? 0),
+            carbs_g: Number(meal.carbs_g ?? 0),
+            fat_g: Number(meal.fat_g ?? 0),
+            rating: meal.restaurant_rating,
+            order_count: meal.restaurant_total_orders,
+          }, selectedCategory),
       )
-      .flatMap((meal) => {
-        const score = scoreMealForRemainingMacros(meal, remainingMacros);
-        return score == null
-          ? []
-          : {
-              meal,
-              score,
-              reason: getRemainingMacroReason(meal, remainingMacros),
-              restaurant: restaurants.find((restaurant) => restaurant.id === meal.restaurant_id),
-            };
-      })
-      .sort((a, b) => b.score - a.score)
+      .map((meal) => ({
+        meal: {
+          id: meal.id,
+          restaurant_id: meal.restaurant_id as string,
+          name: meal.name,
+          image_url: meal.image_url,
+          meal_type: meal.meal_type,
+          calories: Number(meal.calories ?? 0),
+          protein_g: Number(meal.protein_g ?? 0),
+          carbs_g: Number(meal.carbs_g ?? 0),
+          fat_g: Number(meal.fat_g ?? 0),
+          rating: meal.restaurant_rating,
+          order_count: meal.restaurant_total_orders,
+        },
+        score: meal.finalScore,
+        reason: explanationLabel[language][meal.explanationCodes[0]]
+          ?? (language === "ar" ? "متوازنة لبقية يومك" : "Balanced for the rest of your day"),
+        restaurant: restaurants.find((restaurant) => restaurant.id === meal.restaurant_id),
+      }))
       .slice(0, 3);
-  }, [availableMeals, remainingMacros, restaurants, selectedCategory, todayProgressLoading, visibleRestaurants]);
+  }, [language, ranking, rankingLoading, restaurants, selectedCategory, visibleRestaurants]);
 
   const topMacroFit = macroFitMeals[0];
   const mealBalancePercent = isUnlimited || totalMeals <= 0
@@ -673,13 +624,35 @@ const Meals = () => {
                     <h2 className="mt-0.5 text-[21px] font-black">Fit your remaining macros</h2>
                   </div>
                   <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-extrabold text-[#64748B] ring-1 ring-[#E5EAF1]">
-                    Live today
+                    {ranking?.offline ? "Saved result" : "Live today"}
                   </span>
                 </div>
+
+                {ranking?.offline || ranking?.inputFreshness.safety !== "fresh" ? (
+                  <div className="mb-3 flex items-start gap-2 rounded-[16px] bg-[#FFF7ED] p-3 text-[10px] font-bold leading-4 text-[#9A3412] ring-1 ring-[#FED7AA]">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      {language === "ar"
+                        ? ranking?.offline
+                          ? "نعرض آخر ترتيب محفوظ؛ تأكد من توفر الوجبة."
+                          : "بعض بيانات السلامة غير مكتملة؛ راجع المكونات قبل الطلب."
+                        : ranking?.offline
+                          ? "Showing your last saved ranking; confirm meal availability."
+                          : "Some safety data is incomplete; review ingredients before ordering."}
+                    </span>
+                  </div>
+                ) : null}
 
                 <Link
                   to={`/meals/${topMacroFit.meal.id}`}
                   data-testid={`macro-fit-meal-${topMacroFit.meal.id}`}
+                  onClick={() => trackEvent("meal_ranking_result_opened", {
+                    engine_version: ranking?.engineVersion ?? "unknown",
+                    meal_id: topMacroFit.meal.id,
+                    rank: 1,
+                    score: topMacroFit.score,
+                    surface: "meals_hero",
+                  })}
                   className="group block overflow-hidden rounded-[24px] bg-[#020617] text-white shadow-[0_14px_34px_rgba(2,6,23,0.16)] active:scale-[0.99]"
                 >
                   <div className="relative h-[170px] overflow-hidden bg-[#111827]">
@@ -692,7 +665,7 @@ const Meals = () => {
                     <div className="absolute left-3 right-3 top-3 flex items-center justify-between gap-3">
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-black uppercase text-[#020617] shadow-sm backdrop-blur">
                         <Sparkles className="h-3.5 w-3.5 text-[#22C7A1]" />
-                        {topMacroFit.score}% fit
+                        {topMacroFit.score}% match
                       </span>
                       <span className="rounded-full bg-[#22C7A1] px-3 py-1.5 text-[10px] font-black text-[#020617]">
                         Eat next
@@ -724,10 +697,17 @@ const Meals = () => {
 
                 {macroFitMeals.length > 1 && (
                   <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                    {macroFitMeals.slice(1).map((item) => (
+                    {macroFitMeals.slice(1).map((item, index) => (
                       <Link
                         key={item.meal.id}
                         to={`/meals/${item.meal.id}`}
+                        onClick={() => trackEvent("meal_ranking_result_opened", {
+                          engine_version: ranking?.engineVersion ?? "unknown",
+                          meal_id: item.meal.id,
+                          rank: index + 2,
+                          score: item.score,
+                          surface: "meals_alternatives",
+                        })}
                         className="min-w-[210px] rounded-[18px] bg-white p-3 ring-1 ring-[#E5EAF1] active:scale-[0.99]"
                       >
                         <div className="flex items-center gap-3">
@@ -749,58 +729,7 @@ const Meals = () => {
               </section>
             ) : null}
 
-            {bestMeal && bestMealRestaurant ? (
-            <section className={cn("mt-7", !topMacroFit && "mt-3")}>
-              <div className="mb-3 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#22C7A1]">Recommended for you</p>
-                  <h2 className="mt-0.5 text-[21px] font-black">Best meal</h2>
-                </div>
-                <span className="rounded-full bg-[#E9FBF6] px-3 py-1.5 text-[10px] font-extrabold text-[#12866F]">For your goal</span>
-              </div>
-              <Link
-                to={`/meals/${bestMeal.id}`}
-                data-testid={`best-meal-${bestMeal.id}`}
-                className="group block overflow-hidden rounded-[22px] bg-white shadow-[0_10px_28px_rgba(2,6,23,0.07)] ring-1 ring-[#E5EAF1] active:scale-[0.99]"
-              >
-                <div className="relative h-[164px] overflow-hidden bg-[#F6F8FB]">
-                  <img
-                    src={bestMeal.image_url || "/meals/grilled-chicken-salad.jpg"}
-                    alt={bestMeal.name}
-                    className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#020617]/55 via-transparent to-transparent" />
-                  <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-black uppercase text-[#020617] shadow-sm backdrop-blur">
-                    {bestMeal.meal_type || "Meal"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 p-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[11px] font-extrabold uppercase text-[#94A3B8]">{bestMealRestaurant.name}</p>
-                    <h3 className="mt-1 truncate text-[18px] font-black text-[#020617]">{bestMeal.name}</h3>
-                    <p className="mt-1 text-[11px] font-bold text-[#7C83F6]">
-                      {getMealMatchReason(bestMeal, activeGoal?.goal_type)}
-                    </p>
-                    <div className="mt-3 flex items-center gap-4 text-[12px] font-extrabold text-[#64748B]">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Flame className="h-4 w-4 text-[#FB6B7A]" />
-                        {Math.round(bestMeal.calories)} kcal
-                      </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <Beef className="h-4 w-4 text-[#7C83F6]" />
-                        {Math.round(bestMeal.protein_g)}g protein
-                      </span>
-                    </div>
-                  </div>
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white">
-                    <ChevronRight className={cn("h-5 w-5", isRTL && "rotate-180")} />
-                  </span>
-                </div>
-              </Link>
-            </section>
-            ) : null}
-
-            <section className={cn("mt-7", !bestMeal && "mt-3")}>
+            <section className="mt-7">
                 <div className="mb-3 flex items-end justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Browse restaurants</p>

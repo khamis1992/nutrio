@@ -10,6 +10,7 @@ import {
   Flame,
   Globe,
   Heart,
+  HeartPulse,
   HelpCircle,
   Loader2,
   Lock,
@@ -54,6 +55,8 @@ import { AvatarUpload } from "@/components/AvatarUpload";
 import { BadgeCard } from "@/components/BadgeCard";
 import { AddFamilyMemberSheet } from "@/components/family/AddFamilyMemberSheet";
 import { FamilyPlansCard } from "@/components/family/FamilyPlansCard";
+import { ProfileHeroCard } from "@/components/profile/ProfileHeroCard";
+import { CorporateBenefitCard } from "@/components/profile/CorporateBenefitCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
@@ -64,7 +67,13 @@ import { useProfile } from "@/hooks/useProfile";
 import { useStreak } from "@/hooks/useStreak";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useToast } from "@/hooks/use-toast";
+import {
+  acceptCareInvite,
+  endCareAssignment,
+  getParticipantCareAssignments,
+} from "@/hooks/useCareTeam";
 import { supabase } from "@/integrations/supabase/client";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -191,7 +200,9 @@ const Profile = () => {
     loading: subscriptionLoading,
     isVip,
   } = useSubscription();
-  const { members, loading: familyLoading, addMember, removeMember } = useFamilyMembers();
+  const familyAccountsEnabled = isPhaseOneFeatureEnabled("familyAccounts");
+  const corporateBenefitsEnabled = isPhaseOneFeatureEnabled("corporateBenefits");
+  const { members, loading: familyLoading, addMember, removeMember } = useFamilyMembers(familyAccountsEnabled);
   const { toast: uiToast } = useToast();
   const { t, isRTL, language, setLanguage } = useLanguage();
   const { isApprovedAffiliate } = useAffiliateApplication();
@@ -251,12 +262,8 @@ const Profile = () => {
     }
 
     const fetchCoach = async () => {
-      const { data } = await supabase
-        .from("coach_client_assignments")
-        .select("id, coach_id, status")
-        .eq("status", "active")
-        .eq("client_id", userId)
-        .maybeSingle();
+      const assignments = await getParticipantCareAssignments({ clientId: userId, statuses: ["active"] });
+      const data = assignments[0];
 
       if (data?.coach_id) {
         const { data: coachProfile } = await supabase
@@ -288,35 +295,18 @@ const Profile = () => {
 
     setCoachConnecting(true);
     try {
-      const { data: assignment, error } = await supabase
-        .from("coach_client_assignments")
-        .select("id, coach_id, status")
-        .eq("invite_code", inviteCode.trim().toUpperCase())
-        .eq("status", "pending")
-        .maybeSingle();
-
-      if (error || !assignment) {
-        toast.error(t("invalid_invite_code"), {
-          description: t("invalid_invite_code_desc"),
-        });
-        return;
-      }
-
-      await supabase
-        .from("coach_client_assignments")
-        .update({ client_id: userId, status: "active" })
-        .eq("id", assignment.id);
+      const assignment = await acceptCareInvite(inviteCode);
 
       const { data: coachProfile } = await supabase
         .from("profiles")
         .select("full_name")
-        .eq("user_id", assignment.coach_id)
+        .eq("user_id", assignment.professional_id)
         .single();
 
       setCurrentCoach({
-        id: assignment.coach_id,
+        id: assignment.professional_id,
         full_name: coachProfile?.full_name || null,
-        assignmentId: assignment.id,
+        assignmentId: assignment.assignment_id,
       });
       setInviteCode("");
       setCoachDialogOpen(false);
@@ -336,12 +326,7 @@ const Profile = () => {
 
     setRemovingCoach(true);
     try {
-      const { error } = await supabase
-        .from("coach_client_assignments")
-        .update({ status: "revoked" })
-        .eq("id", currentCoach.assignmentId);
-
-      if (error) throw error;
+      await endCareAssignment(currentCoach.assignmentId, "Ended by client");
 
       setCurrentCoach(null);
       setRemoveCoachOpen(false);
@@ -415,67 +400,35 @@ const Profile = () => {
       </motion.header>
 
       <main className="mx-auto max-w-lg px-4 pb-24">
-        <motion.section
+        <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="relative mt-4 overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white p-4 text-[#020617] shadow-[0_8px_30px_rgba(15,23,42,0.06)]"
+          className="mt-4"
         >
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="shrink-0 rounded-[22px] bg-white p-1 shadow-sm ring-1 ring-[#E5EAF1]">
+          <ProfileHeroCard
+            avatar={
               <AvatarUpload
                 currentAvatarUrl={profileAvatarUrl}
                 onAvatarUpdate={setAvatarUrl}
-                size="md"
+                size="sm"
+                className="h-full w-full"
+                containerClassName="!h-full !w-full border-[3px] border-[#08172E] shadow-[0_8px_18px_rgba(12,18,34,0.16)]"
+                badgeClassName="!-bottom-[6%] !-right-[8%] !h-[42%] !w-[42%] border-2 border-white !bg-[#08172E] text-white"
               />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full bg-[#F3F4FF] px-2.5 py-1 text-[10px] font-black text-[#7C83F6]">
-                <Sparkles className="h-3 w-3" />
-                <span className="truncate">
-                  {subscription ? subscriptionPlanLabel : t("eat_healthy_live_better")}
-                </span>
-              </div>
-              <h2 className="truncate text-[22px] font-black leading-none tracking-[-0.03em] text-[#020617]">
-                {displayName}
-              </h2>
-              <p className="mt-1 truncate text-[12px] font-semibold text-[#94A3B8]">
-                {currentCoach
-                  ? `${t("your_coach")}: ${currentCoach.full_name || t("coach_default_name")}`
-                  : t("eat_healthy_live_better")}
-              </p>
-            </div>
-          </div>
-
-          <div className="relative z-10 mt-4 grid grid-cols-3 gap-2">
-            <div className="flex min-h-[72px] min-w-0 flex-col items-center justify-center rounded-2xl bg-[#FFF7ED] p-3 text-center ring-1 ring-[#F97316]/20">
-              <p className="w-full truncate text-[9px] font-black uppercase tracking-[0.1em] text-[#94A3B8]">
-                {t("points_label")}
-              </p>
-              <p className="mt-1 flex w-full items-center justify-center gap-1 text-[17px] font-black text-[#020617]">
-                <Flame className="h-4 w-4 text-[#F97316]" />
-                {currentXp}
-              </p>
-            </div>
-            <div className="flex min-h-[72px] min-w-0 flex-col items-center justify-center rounded-2xl bg-[#F3F4FF] p-3 text-center ring-1 ring-[#7C83F6]/20">
-              <p className="w-full truncate text-[9px] font-black uppercase tracking-[0.1em] text-[#94A3B8]">
-                {t("profile_achievements")}
-              </p>
-              <p className="mt-1 flex w-full items-center justify-center gap-1 text-[17px] font-black text-[#020617]">
-                <Trophy className="h-4 w-4 text-[#7C83F6]" />
-                {unlockedCount}
-              </p>
-            </div>
-            <div className="flex min-h-[72px] min-w-0 flex-col items-center justify-center rounded-2xl bg-[#F6F8FB] p-3 text-center ring-1 ring-[#E5EAF1]">
-              <p className="w-full truncate text-[9px] font-black uppercase tracking-[0.1em] text-[#94A3B8]">
-                {t("member_since")}
-              </p>
-              <p className="mt-1 w-full truncate text-[13px] font-black text-[#020617]">
-                {profile?.created_at ? formatMemberDate(profile.created_at) : "-"}
-              </p>
-            </div>
-          </div>
-        </motion.section>
+            }
+            displayName={displayName}
+            subtitle={
+              currentCoach
+                ? `${t("your_coach")}: ${currentCoach.full_name || t("coach_default_name")}`
+                : t("eat_healthy_live_better")
+            }
+            plan={subscription ? subscriptionPlanLabel : "Free"}
+            points={currentXp}
+            achievements={unlockedCount}
+            memberSince={profile?.created_at ? formatMemberDate(profile.created_at) : "-"}
+          />
+        </motion.div>
 
         <section className="mt-4 grid grid-cols-3 gap-2">
           <MetricCard
@@ -602,7 +555,9 @@ const Profile = () => {
           </button>
         )}
 
-        {isVip && (
+        {corporateBenefitsEnabled && <CorporateBenefitCard />}
+
+        {familyAccountsEnabled && isVip && (
           <div className="mt-5">
             <FamilyPlansCard
               members={members}
@@ -652,6 +607,13 @@ const Profile = () => {
             title={t("profile_medications")}
             subtitle={t("profile_medications_desc")}
             onClick={() => navigate("/medications")}
+          />
+          <ActionRow
+            icon={<HeartPulse className="h-5 w-5" />}
+            iconClassName="bg-[#F3F3FF] text-[#7C83F6]"
+            title={language === "ar" ? "برامج الدعم الصحي" : "Health support programs"}
+            subtitle={language === "ar" ? "تغذية ونشاط ومتابعة ذاتية منظمة" : "Structured nutrition, activity, and self-tracking"}
+            onClick={() => navigate("/programs")}
           />
           <ActionRow
             icon={<Heart className="h-5 w-5" />}

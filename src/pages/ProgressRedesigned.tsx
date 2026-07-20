@@ -42,7 +42,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useWeekdayData } from "@/hooks/useWeekdayData";
 import { useHealthDailyMetrics } from "@/hooks/useHealthDailyMetrics";
+import { MicronutrientAdequacyCard } from "@/components/progress/MicronutrientAdequacyCard";
 import { cn } from "@/lib/utils";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
 
 type RingMetric = {
   label: string;
@@ -168,6 +170,7 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
   const calorieTarget = activeGoal?.daily_calorie_target ?? 2000;
   const { toast } = useToast();
   const { t, isRTL, language } = useLanguage();
+  const micronutrientsEnabled = isPhaseOneFeatureEnabled("micronutrients");
   useEffect(() => {
     if (!embedded) document.title = `${t("progress_title")} — Nutrio`;
   }, [embedded, t]);
@@ -1974,6 +1977,15 @@ export default function ProgressRedesigned({ embedded = false }: ProgressRedesig
             })}
           </div>
         </section>
+        )}
+
+        {micronutrientsEnabled && (activeTab === "today" || activeTab === "week") && (
+          <MicronutrientAdequacyCard
+            endDate={activeTab === "today" ? selectedDate : new Date()}
+            initialRange={activeTab === "week" ? "week" : "day"}
+            isRTL={isRTL}
+            userId={user?.id}
+          />
         )}
 
         {activeTab === "week" && hasEnoughTrendData && (

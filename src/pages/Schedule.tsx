@@ -55,9 +55,12 @@ import EmptyMealSlot from "@/components/schedule/EmptyMealSlot";
 import ScheduleHeader from "@/components/schedule/ScheduleHeader";
 import MealDetailSheet from "@/components/schedule/MealDetailSheet";
 import LogMealModal from "@/components/LogMealModal";
+import { MealConsumptionSheet } from "@/components/MealConsumptionSheet";
 import { MealPlanGenerator } from "@/components/meal/MealPlanGenerator";
 import { SmartSubstitutionBanner } from "@/components/meal/SmartSubstitutionBanner";
 import { useSmartSubstitutions } from "@/hooks/useSmartSubstitutions";
+import { useMealCompletion } from "@/hooks/useMealCompletion";
+import { isPhaseOneFeatureEnabled } from "@/lib/phase-one-feature-flags";
 
 interface ScheduledMeal {
   id: string;
@@ -182,6 +185,8 @@ const Schedule = () => {
   const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
   const { remainingMeals, isUnlimited, hasActiveSubscription, subscription, remainingSnacks, snacksPerMonth, refetch: refetchSubscription } = useSubscription();
   const { wallet, refresh: refetchWallet } = useWallet();
+  const { completeMeal, uncompleteMeal } = useMealCompletion();
+  const consumptionLifecycleEnabled = isPhaseOneFeatureEnabled("consumptionLifecycle");
 
   const pricePerMeal = subscription?.price_per_meal ?? 50;
 
@@ -231,11 +236,6 @@ const Schedule = () => {
   const [comboLoading, setComboLoading] = useState(false);
   const [comboApplying, setComboApplying] = useState(false);
 
-  const { unavailableMeals, dismissMeal, performSubstitution } = useSmartSubstitutions({
-    userId: user?.id,
-    schedules,
-    enabled: settings.features.meal_scheduling && !settingsLoading,
-  });
   const [showWizard, setShowWizard] = useState(false);
   const [wizardInitialStep, setWizardInitialStep] = useState(0);
   const [wizardAutoFill, setWizardAutoFill] = useState(false);
@@ -244,11 +244,12 @@ const Schedule = () => {
   const [selectedMeal, setSelectedMeal] = useState<ScheduledMeal | null>(null);
   const [showMealSheet, setShowMealSheet] = useState(false);
   const [logMealOpen, setLogMealOpen] = useState(false);
+  const [consumptionMeal, setConsumptionMeal] = useState<ScheduledMeal | null>(null);
+  const [consumptionOpen, setConsumptionOpen] = useState(false);
 
   const [showTimeSlotDialog, setShowTimeSlotDialog] = useState(false);
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [selectedScheduleForTimeSlot, setSelectedScheduleForTimeSlot] = useState<string | null>(null);
-  const [togglingMealId, setTogglingMealId] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -346,6 +347,13 @@ const Schedule = () => {
     setLoading(false);
     setIsRefreshing(false);
   }, [user, currentWeekStart, t]);
+
+  const { unavailableMeals, dismissMeal, performSubstitution } = useSmartSubstitutions({
+    userId: user?.id,
+    schedules,
+    enabled: settings.features.meal_scheduling && !settingsLoading,
+    onSubstituted: fetchSchedules,
+  });
 
   useEffect(() => {
     if (settings.features.meal_scheduling) {
@@ -572,61 +580,60 @@ const Schedule = () => {
     }
   }, [fetchSchedules, refetchSubscription, schedules, subscription?.id, toast, user]);
 
-  const toggleMealCompletion = async (scheduleId: string, isCompleted: boolean, e?: React.MouseEvent) => {
+  const openMealConsumption = async (scheduleId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const schedule = schedules.find(s => s.id === scheduleId);
     if (!schedule || !user) return;
 
-    setTogglingMealId(scheduleId);
+    if (!consumptionLifecycleEnabled) {
+      const result = schedule.is_completed
+        ? await uncompleteMeal(schedule.id)
+        : await completeMeal(schedule.id, schedule.meal);
+      if (!result.success) return;
 
-    try {
-      const { data, error } = isCompleted
-        ? await supabase.rpc('uncomplete_meal_atomic', {
-            p_schedule_id: scheduleId,
-            p_user_id: user.id,
-            p_log_date: schedule.scheduled_date,
-          })
-        : await supabase.rpc('complete_meal_atomic', {
-            p_schedule_id: scheduleId,
-            p_user_id: user.id,
-            p_log_date: schedule.scheduled_date,
-            p_calories: schedule.meal.calories || 0,
-            p_protein_g: schedule.meal.protein_g || 0,
-            p_carbs_g: schedule.meal.carbs_g || 0,
-            p_fat_g: schedule.meal.fat_g || 0,
-            p_fiber_g: 0,
-          });
-
-      if (error) throw error;
-
-      // Normalize RPC response — DB may return short keys (s/e/a) or long keys (success/error/was_already_completed)
-      const raw = data as Record<string, unknown>;
-      const success = raw.success ?? raw.s ?? false;
-      const errMsg = (raw.error ?? raw.e ?? 'Failed to update meal') as string;
-      const wasAlreadyCompleted = (raw.was_already_completed ?? raw.a ?? false) as boolean;
-      if (!success) {
-        throw new Error(errMsg);
-      }
-
-      setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, is_completed: !isCompleted } : s));
-      await syncCommunityChallengeProgressQuietly(user.id);
-
+      const completed = !schedule.is_completed;
+      setSchedules((previous) => previous.map((item) => (
+        item.id === schedule.id ? { ...item, is_completed: completed } : item
+      )));
+      setSelectedMeal((previous) => previous?.id === schedule.id
+        ? { ...previous, is_completed: completed }
+        : previous);
       window.dispatchEvent(new CustomEvent("nutrio:meal-progress-changed"));
-
-      if (!isCompleted && !wasAlreadyCompleted) {
-        if (navigator.vibrate) navigator.vibrate(10);
-      }
-    } catch (err) {
-      console.error('Error toggling meal completion:', err);
-      toast({
-        title: t("error"),
-        description: err instanceof Error ? err.message : t("failed_update_status"),
-        variant: "destructive"
-      });
-    } finally {
-      setTogglingMealId(null);
+      void fetchSchedules();
+      return;
     }
+
+    if (!["delivered", "completed"].includes(schedule.order_status)) {
+      toast({
+        title: isRTL ? "سجّل الوجبة بعد التوصيل" : "Log after delivery",
+        description: isRTL
+          ? "سيظهر تسجيل الكمية الفعلية عندما تصبح الوجبة مستلمة."
+          : "Actual consumption becomes available once the meal is delivered.",
+      });
+      return;
+    }
+
+    setConsumptionMeal(schedule);
+    setConsumptionOpen(true);
+
   };
+
+  const handleConsumptionSaved = useCallback((status: string) => {
+    if (!consumptionMeal) return;
+    const completed = status === "full" || status === "partial" || status === "substituted";
+
+    setSchedules((previous) => previous.map((schedule) => (
+      schedule.id === consumptionMeal.id ? { ...schedule, is_completed: completed } : schedule
+    )));
+    setSelectedMeal((previous) => previous?.id === consumptionMeal.id
+      ? { ...previous, is_completed: completed }
+      : previous);
+
+    if (user) void syncCommunityChallengeProgressQuietly(user.id);
+    window.dispatchEvent(new CustomEvent("nutrio:meal-progress-changed"));
+    if (completed && navigator.vibrate) navigator.vibrate(10);
+    void fetchSchedules();
+  }, [consumptionMeal, fetchSchedules, user]);
 
   const deleteMeal = async (scheduleId: string) => {
     const scheduleToDelete = schedules.find(s => s.id === scheduleId);
@@ -634,7 +641,7 @@ const Schedule = () => {
     try {
       const { data, error } = await supabase.rpc("cancel_meal_schedule", {
         p_schedule_id: scheduleId,
-        p_reason: null,
+        p_reason: undefined,
       });
 
       if (error) {
@@ -690,18 +697,22 @@ const Schedule = () => {
 
   const updateDeliveryTimeSlot = async (scheduleId: string, timeSlot: string, deliveryAddressId?: string | null) => {
     try {
-      const updates: Record<string, unknown> = { delivery_time_slot: timeSlot };
-      if (deliveryAddressId) updates.delivery_address_id = deliveryAddressId;
-
-      const { error } = await supabase
-        .from("meal_schedules")
-        .update(updates)
-        .eq("id", scheduleId);
-
+      if (!deliveryAddressId) throw new Error("DELIVERY_ADDRESS_REQUIRED");
+      const { data, error } = await supabase.rpc(
+        "update_my_scheduled_delivery" as never,
+        {
+          p_schedule_id: scheduleId,
+          p_delivery_time_slot: timeSlot,
+          p_delivery_address_id: deliveryAddressId,
+          p_delivery_quote_id: null,
+        } as never,
+      );
       if (error) throw error;
+      const result = data as unknown as { success?: boolean } | null;
+      if (!result?.success) throw new Error("DELIVERY_UPDATE_FAILED");
 
       setSchedules(prev => prev.map(s =>
-        s.id === scheduleId ? { ...s, delivery_time_slot: timeSlot, ...(deliveryAddressId ? { delivery_address_id: deliveryAddressId } : {}) } : s
+        s.id === scheduleId ? { ...s, delivery_time_slot: timeSlot, delivery_address_id: deliveryAddressId } : s
       ));
 
       toast({
@@ -786,7 +797,7 @@ const Schedule = () => {
             <div className="w-11" />
           </div>
         </div>
-        <div className="flex flex-col items-center justify-center min-h-[70vh] px-6">
+        <main className="flex min-h-[70vh] flex-col items-center justify-center px-6">
           <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-[#FFF7ED] shadow-xl shadow-[#F97316]/10">
             <AlertTriangle className="h-12 w-12 text-[#F97316]" />
           </div>
@@ -798,7 +809,7 @@ const Schedule = () => {
           >
             {t("go_back")}
           </Button>
-        </div>
+        </main>
         <GuestLoginPrompt
           open={showLoginPrompt}
           onOpenChange={setShowLoginPrompt}
@@ -839,7 +850,7 @@ const Schedule = () => {
       />
 
       {/* ── Content Area ─────────────────────────────── */}
-      <div className="relative z-10 mx-auto max-w-[430px] px-3 pb-[88px] pt-4">
+      <main className="relative z-10 mx-auto max-w-[430px] px-3 pb-[88px] pt-4">
 
         {!loading && (
           <motion.button
@@ -1098,19 +1109,16 @@ const Schedule = () => {
                               </div>
 
                               <motion.button
-                                onClick={(e) => toggleMealCompletion(schedule.id, schedule.is_completed, e)}
+                                onClick={(e) => void openMealConsumption(schedule.id, e)}
                                 whileTap={{ scale: 0.85 }}
-                                disabled={togglingMealId === schedule.id}
                                 className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all ${
                                   schedule.is_completed
                                     ? "bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20"
                                     : "bg-[#F6F8FB] text-[#94A3B8] ring-1 ring-[#E5EAF1]"
-                                } disabled:opacity-60`}
-                                aria-label={schedule.is_completed ? "Undo log" : "Log meal"}
+                                }`}
+                                aria-label={schedule.is_completed ? "Edit consumption" : "Log meal consumption"}
                               >
-                                {togglingMealId === schedule.id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : schedule.is_completed ? (
+                                {schedule.is_completed ? (
                                   <Check className="h-4 w-4" strokeWidth={3} />
                                 ) : (
                                   <Circle className="h-4 w-4" strokeWidth={2.4} />
@@ -1181,7 +1189,7 @@ const Schedule = () => {
             })}
           </div>
         )}
-      </div>
+      </main>
 
       {/* ── Meal Wizard ─────────────────────────────── */}
       <AnimatePresence>
@@ -1204,12 +1212,12 @@ const Schedule = () => {
         showMealSheet={showMealSheet}
         onClose={() => setShowMealSheet(false)}
         selectedMeal={selectedMeal}
-        togglingMealId={togglingMealId}
+        togglingMealId={null}
         mealTypeConfig={MEAL_TYPE_CONFIG}
         t={t}
         onTimeSlotOpen={handleOpenTimeSlotSelector}
-        onToggleCompletion={(id, isCompleted) => {
-          toggleMealCompletion(id, isCompleted);
+        onToggleCompletion={(id) => {
+          void openMealConsumption(id);
           setShowMealSheet(false);
         }}
         onReschedule={() => setShowModifyModal(true)}
@@ -1222,6 +1230,30 @@ const Schedule = () => {
           setDeleteConfirmOpen(true);
         }}
       />
+
+      {consumptionLifecycleEnabled && consumptionMeal && (
+        <MealConsumptionSheet
+          open={consumptionOpen}
+          onOpenChange={(open) => {
+            setConsumptionOpen(open);
+            if (!open) setConsumptionMeal(null);
+          }}
+          sourceType="meal_schedule"
+          sourceId={consumptionMeal.id}
+          sourceMealId={consumptionMeal.meal_id}
+          meal={{
+            meal_id: consumptionMeal.meal.id,
+            meal_name: consumptionMeal.meal.name,
+            image_url: consumptionMeal.meal.image_url,
+            calories: consumptionMeal.meal.calories,
+            protein_g: consumptionMeal.meal.protein_g,
+            carbs_g: consumptionMeal.meal.carbs_g,
+            fat_g: consumptionMeal.meal.fat_g,
+            fiber_g: null,
+          }}
+          onSaved={(result) => handleConsumptionSaved(result.status)}
+        />
+      )}
 
       <LogMealModal
         open={logMealOpen}

@@ -6,17 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  AreaChart,
-  Area
-} from "recharts";
-import { 
   Activity, 
   TrendingUp, 
   TrendingDown, 
@@ -24,7 +13,6 @@ import {
   Ruler, 
   Percent,
   Calendar,
-  Award,
   Clock,
   Snowflake,
   RotateCcw
@@ -33,9 +21,13 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, subWeeks } from "date-fns";
-import { WeeklyMetricsForm } from "@/components/body-progress/WeeklyMetricsForm";
+import { WeeklyMetricsForm } from "@/components/body-metrics/WeeklyMetricsForm";
 import { FreezeSubscriptionModal } from "@/components/body-progress/FreezeSubscriptionModal";
 import { RolloverCreditsDisplay } from "@/components/body-progress/RolloverCreditsDisplay";
+import { BodyFatChart } from "@/components/charts/BodyFatChart";
+import { WaistChart } from "@/components/charts/WaistChart";
+import { WeightTrendChart } from "@/components/charts/WeightTrendChart";
+import { ComplianceScoreCard } from "@/components/health-score/ComplianceScoreCard";
 
 interface BodyMetric {
   id: string;
@@ -88,6 +80,7 @@ export default function BodyProgressDashboard() {
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [rollovers, setRollovers] = useState<RolloverCredit[]>([]);
   const [freezes, setFreezes] = useState<SubscriptionFreeze[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showMetricsForm, setShowMetricsForm] = useState(false);
   const [showFreezeModal, setShowFreezeModal] = useState(false);
@@ -98,6 +91,7 @@ export default function BodyProgressDashboard() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setCurrentUserId(user.id);
 
       // Fetch subscription data with freeze info
       const { data: subData } = await supabase
@@ -233,16 +227,10 @@ export default function BodyProgressDashboard() {
   const weightChange = calculateWeightChange();
   const waistChange = calculateWaistChange();
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-emerald-600";
-    if (score >= 60) return "text-amber-600";
-    return "text-red-600";
-  };
-
-  const getScoreBgColor = (score: number) => {
-    if (score >= 80) return "bg-emerald-100";
-    if (score >= 60) return "bg-amber-100";
-    return "bg-red-100";
+  const getScoreCategory = (score: number): "green" | "orange" | "red" => {
+    if (score >= 80) return "green";
+    if (score >= 60) return "orange";
+    return "red";
   };
 
   if (isLoading) {
@@ -296,65 +284,17 @@ export default function BodyProgressDashboard() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Health Score Card */}
         {healthScore && (
-          <Card className="mb-8 border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50">
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row md:items-center gap-6">
-                <div className="flex items-center gap-4">
-                  <div className={cn(
-                    "w-20 h-20 rounded-full flex items-center justify-center",
-                    getScoreBgColor(healthScore.overall_score)
-                  )}>
-                    <Award className={cn("w-10 h-10", getScoreColor(healthScore.overall_score))} />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-600">Health Compliance Score</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className={cn("text-4xl font-bold", getScoreColor(healthScore.overall_score))}>
-                        {healthScore.overall_score}%
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        AI Calculated
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-slate-500">
-                      Last updated: {format(new Date(healthScore.calculated_at), "MMM d, yyyy")}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-                    <p className="text-xs text-slate-500 mb-1">Macro Adherence</p>
-                    <p className={cn("text-lg font-semibold", getScoreColor(healthScore.macro_adherence_score))}>
-                      {healthScore.macro_adherence_score}%
-                    </p>
-                    <p className="text-[10px] text-slate-400">40% weight</p>
-                  </div>
-                  <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-                    <p className="text-xs text-slate-500 mb-1">Meal Consistency</p>
-                    <p className={cn("text-lg font-semibold", getScoreColor(healthScore.meal_consistency_score))}>
-                      {healthScore.meal_consistency_score}%
-                    </p>
-                    <p className="text-[10px] text-slate-400">30% weight</p>
-                  </div>
-                  <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-                    <p className="text-xs text-slate-500 mb-1">Weight Logging</p>
-                    <p className={cn("text-lg font-semibold", getScoreColor(healthScore.weight_logging_score))}>
-                      {healthScore.weight_logging_score}%
-                    </p>
-                    <p className="text-[10px] text-slate-400">20% weight</p>
-                  </div>
-                  <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-                    <p className="text-xs text-slate-500 mb-1">Protein Accuracy</p>
-                    <p className={cn("text-lg font-semibold", getScoreColor(healthScore.protein_accuracy_score))}>
-                      {healthScore.protein_accuracy_score}%
-                    </p>
-                    <p className="text-[10px] text-slate-400">10% weight</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ComplianceScoreCard
+            className="mb-8 border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50"
+            score={healthScore.overall_score}
+            category={getScoreCategory(healthScore.overall_score)}
+            breakdown={{
+              macro_adherence: healthScore.macro_adherence_score,
+              meal_consistency: healthScore.meal_consistency_score,
+              weight_logging: healthScore.weight_logging_score,
+              protein_accuracy: healthScore.protein_accuracy_score,
+            }}
+          />
         )}
 
         {/* Stats Grid */}
@@ -472,44 +412,7 @@ export default function BodyProgressDashboard() {
               </CardHeader>
               <CardContent>
                 {bodyMetrics.length > 1 ? (
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={weightChartData}>
-                        <defs>
-                          <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis 
-                          dataKey="date" 
-                          stroke="#64748b"
-                          fontSize={12}
-                        />
-                        <YAxis 
-                          stroke="#64748b"
-                          fontSize={12}
-                          domain={["dataMin - 2", "dataMax + 2"]}
-                        />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: "white", 
-                            border: "1px solid #e2e8f0",
-                            borderRadius: "8px"
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="weight"
-                          stroke="#10b981"
-                          strokeWidth={2}
-                          fillOpacity={1}
-                          fill="url(#weightGradient)"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <WeightTrendChart data={weightChartData} />
                 ) : (
                   <div className="text-center py-16">
                     <Scale className="w-16 h-16 mx-auto mb-4 text-slate-300" />
@@ -532,38 +435,7 @@ export default function BodyProgressDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={weightChartData.filter(d => d.waist !== null)}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis 
-                          dataKey="date" 
-                          stroke="#64748b"
-                          fontSize={12}
-                        />
-                        <YAxis 
-                          stroke="#64748b"
-                          fontSize={12}
-                          domain={["dataMin - 2", "dataMax + 2"]}
-                        />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: "white", 
-                            border: "1px solid #e2e8f0",
-                            borderRadius: "8px"
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="waist"
-                          stroke="#8b5cf6"
-                          strokeWidth={2}
-                          dot={{ fill: "#8b5cf6", strokeWidth: 2 }}
-                          activeDot={{ r: 6 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <WaistChart data={weightChartData} />
                 </CardContent>
               </Card>
             )}
@@ -578,38 +450,7 @@ export default function BodyProgressDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={weightChartData.filter(d => d.bodyFat !== null)}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis 
-                          dataKey="date" 
-                          stroke="#64748b"
-                          fontSize={12}
-                        />
-                        <YAxis 
-                          stroke="#64748b"
-                          fontSize={12}
-                          domain={["dataMin - 2", "dataMax + 2"]}
-                        />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: "white", 
-                            border: "1px solid #e2e8f0",
-                            borderRadius: "8px"
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="bodyFat"
-                          stroke="#f59e0b"
-                          strokeWidth={2}
-                          dot={{ fill: "#f59e0b", strokeWidth: 2 }}
-                          activeDot={{ r: 6 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <BodyFatChart data={weightChartData} />
                 </CardContent>
               </Card>
             )}
@@ -761,14 +602,19 @@ export default function BodyProgressDashboard() {
               Log Weekly Metrics
             </DialogTitle>
           </DialogHeader>
-          <WeeklyMetricsForm 
-            onSuccess={() => {
-              setShowMetricsForm(false);
-              fetchDashboardData();
-              toast.success("Metrics logged successfully!");
-            }}
-            onCancel={() => setShowMetricsForm(false)}
-          />
+          {currentUserId ? (
+            <WeeklyMetricsForm
+              userId={currentUserId}
+              onSuccess={() => {
+                setShowMetricsForm(false);
+                fetchDashboardData();
+              }}
+            />
+          ) : (
+            <p className="py-8 text-center text-sm text-slate-500">
+              Sign in to log weekly metrics.
+            </p>
+          )}
         </DialogContent>
       </Dialog>
 

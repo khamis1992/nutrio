@@ -25,6 +25,12 @@ vi.mock("@/components/ProtectedRoute", () => ({
   clearRoleCache: vi.fn(),
 }));
 
+vi.mock("@/lib/notifications/push", () => ({
+  pushNotificationService: {
+    deactivateForUser: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 vi.mock("@capacitor/core", () => ({
   Capacitor: {
     isNativePlatform: () => false,
@@ -35,6 +41,7 @@ vi.mock("@capacitor/core", () => ({
 import { supabase } from "@/integrations/supabase/client";
 import { checkIPLocation, logUserIP } from "@/lib/ipCheck";
 import { clearRoleCache } from "@/components/ProtectedRoute";
+import { pushNotificationService } from "@/lib/notifications/push";
 
 const createWrapper = ({ children }: { children: React.ReactNode }) => (
   <AuthProvider>{children}</AuthProvider>
@@ -71,7 +78,13 @@ describe("AuthContext", () => {
       error: null,
     });
     (supabase.auth.signInWithPassword as any).mockResolvedValue({
-      data: { session: { access_token: "fresh-signin-token" } },
+      data: {
+        user: { id: "signed-in-user", email: "test@example.com" },
+        session: {
+          access_token: "fresh-signin-token",
+          user: { id: "signed-in-user", email: "test@example.com" },
+        },
+      },
       error: null,
     });
     (supabase.auth.signOut as any).mockResolvedValue({ error: null });
@@ -145,6 +158,9 @@ describe("AuthContext", () => {
     });
     expect(logUserIP).toHaveBeenCalledWith("login", "fresh-signin-token");
     expect(res.error).toBeNull();
+    expect(res.user?.id).toBe("signed-in-user");
+    expect(result.current.user?.id).toBe("signed-in-user");
+    expect(result.current.session?.access_token).toBe("fresh-signin-token");
   });
 
   it("signIn blocks when IP is blocked", async () => {
@@ -189,6 +205,72 @@ describe("AuthContext", () => {
 
     expect(clearRoleCache).toHaveBeenCalled();
     expect(supabase.auth.signOut).toHaveBeenCalled();
+  });
+
+  it("revokes local route access before remote sign-out cleanup completes", async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+      data: {
+        session: {
+          access_token: "existing-token",
+          user: { id: "signed-in-user", email: "test@example.com" },
+        },
+      },
+    } as never);
+    let finishPushCleanup: (() => void) | undefined;
+    vi.mocked(pushNotificationService.deactivateForUser).mockImplementationOnce(
+      () => new Promise<void>((resolve) => {
+        finishPushCleanup = resolve;
+      }),
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper });
+    await waitFor(() => expect(result.current.user?.id).toBe("signed-in-user"));
+    vi.mocked(supabase.auth.signOut).mockClear();
+
+    let signOutPromise: Promise<void> | undefined;
+    act(() => {
+      signOutPromise = result.current.signOut();
+    });
+
+    expect(result.current.user).toBeNull();
+    expect(result.current.session).toBeNull();
+    expect(clearRoleCache).toHaveBeenCalled();
+    expect(pushNotificationService.deactivateForUser).toHaveBeenCalledWith(
+      "signed-in-user",
+    );
+    expect(supabase.auth.signOut).toHaveBeenCalledTimes(1);
+
+    finishPushCleanup?.();
+    await act(async () => {
+      await signOutPromise;
+    });
+    expect(supabase.auth.signOut).toHaveBeenCalled();
+  });
+
+  it("continues provider sign-out when push cleanup fails", async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+      data: {
+        session: {
+          access_token: "existing-token",
+          user: { id: "signed-in-user", email: "test@example.com" },
+        },
+      },
+    } as never);
+    vi.mocked(pushNotificationService.deactivateForUser).mockRejectedValueOnce(
+      new Error("push provider unavailable"),
+    );
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper });
+    await waitFor(() => expect(result.current.user?.id).toBe("signed-in-user"));
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    expect(result.current.user).toBeNull();
+    expect(result.current.session).toBeNull();
+    expect(supabase.auth.signOut).toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 
   it("sets user on auth state change", async () => {

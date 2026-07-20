@@ -8,6 +8,11 @@ import { Package, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { CustomerSubscriptionBadge } from "@/components/partner/CustomerSubscriptionBadge";
+import {
+  fetchPartnerCustomerRetentionStatuses,
+  type PartnerCustomerRetentionStatus,
+} from "@/lib/partner-customer-retention";
 import type { Database } from "@/integrations/supabase/types";
 
 
@@ -22,6 +27,7 @@ interface Delivery {
   claimed_at: string | null;
   picked_up_at: string | null;
   delivered_at: string | null;
+  user_id: string | null;
   restaurant: {
     name: string;
   } | null;
@@ -49,6 +55,7 @@ export default function DriverOrders() {
   const [driverId, setDriverId] = useState<string | null>(null);
   const [activeDeliveries, setActiveDeliveries] = useState<Delivery[]>([]);
   const [completedDeliveries, setCompletedDeliveries] = useState<Delivery[]>([]);
+  const [retentionStatuses, setRetentionStatuses] = useState<Record<string, PartnerCustomerRetentionStatus>>({});
 
   useEffect(() => {
     if (user) {
@@ -151,6 +158,31 @@ export default function DriverOrders() {
         restaurantsMap[r.id] = r;
       });
 
+      const orderIds = [...new Set(allJobs.map(j => j.order_id).filter((id): id is string => !!id))];
+      const scheduleIds = [...new Set(allJobs.map(j => j.schedule_id).filter((id): id is string => !!id))];
+
+      const [ordersResult, schedulesResult] = await Promise.all([
+        orderIds.length > 0
+          ? supabase.from("orders").select("id, user_id").in("id", orderIds)
+          : Promise.resolve({ data: [], error: null }),
+        scheduleIds.length > 0
+          ? supabase.from("meal_schedules").select("id, user_id").in("id", scheduleIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      if (ordersResult.error) throw ordersResult.error;
+      if (schedulesResult.error) throw schedulesResult.error;
+
+      const userIdByOrderId: Record<string, string> = {};
+      ordersResult.data?.forEach(order => {
+        if (order.user_id) userIdByOrderId[order.id] = order.user_id;
+      });
+
+      const userIdByScheduleId: Record<string, string> = {};
+      schedulesResult.data?.forEach(schedule => {
+        if (schedule.user_id) userIdByScheduleId[schedule.id] = schedule.user_id;
+      });
+
       const transformDelivery = (d: DeliveryJobRow): Delivery => ({
         id: d.id,
         status: d.status ?? "assigned",
@@ -162,11 +194,24 @@ export default function DriverOrders() {
         claimed_at: d.assigned_at,
         picked_up_at: d.picked_up_at,
         delivered_at: d.delivered_at,
+        user_id: d.order_id
+          ? userIdByOrderId[d.order_id] ?? null
+          : d.schedule_id
+            ? userIdByScheduleId[d.schedule_id] ?? null
+            : null,
         restaurant: d.restaurant_id ? restaurantsMap[d.restaurant_id] ?? null : null,
       });
 
-      setActiveDeliveries((active || []).map(transformDelivery));
-      setCompletedDeliveries((completed || []).map(transformDelivery));
+      const nextActiveDeliveries = (active || []).map(transformDelivery);
+      const nextCompletedDeliveries = (completed || []).map(transformDelivery);
+      const deliveryUserIds = [
+        ...nextActiveDeliveries,
+        ...nextCompletedDeliveries,
+      ].map(delivery => delivery.user_id).filter((id): id is string => !!id);
+
+      setRetentionStatuses(await fetchPartnerCustomerRetentionStatuses(deliveryUserIds));
+      setActiveDeliveries(nextActiveDeliveries);
+      setCompletedDeliveries(nextCompletedDeliveries);
     } catch (error) {
       console.error("Error fetching deliveries:", error);
     } finally {
@@ -211,6 +256,10 @@ export default function DriverOrders() {
                       +QAR {delivery.tip_amount.toFixed(2)} tip
                     </Badge>
                   )}
+                  <CustomerSubscriptionBadge
+                    compact
+                    status={delivery.user_id ? retentionStatuses[delivery.user_id] : null}
+                  />
                 </div>
 
                 {delivery.delivered_at && (

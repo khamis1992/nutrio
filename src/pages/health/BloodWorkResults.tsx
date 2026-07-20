@@ -43,6 +43,7 @@ import {
   type BloodWorkRecord,
   type MarkerCategory,
 } from "@/lib/blood-markers";
+import { HEALTH_AI_DISCLAIMER_EN } from "@/lib/health-ai-disclaimer";
 import { cn } from "@/lib/utils";
 import { createPrivateStorageUrl } from "@/lib/private-storage";
 import {
@@ -994,7 +995,7 @@ export default function BloodWorkResults() {
               <span className="block rounded-[15px] bg-[#F6F8FB] p-3 text-[#334155]">
                 {isRTL
                   ? "لن نرسل اسمك أو بريدك أو رقم هاتفك أو ملف PDF. يمكنك إلغاء الموافقة لاحقًا. هذا ملخص تقريبي وليس تقريرًا طبيًا أو تشخيصًا."
-                  : "We do not send your name, email, phone number, or PDF. You can revoke permission later. This is approximate guidance, not a medical report or diagnosis."}
+                  : `We do not send your name, email, phone number, or PDF. You can revoke permission later. ${HEALTH_AI_DISCLAIMER_EN}`}
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>

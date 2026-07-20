@@ -31,7 +31,14 @@ interface AuthContextType {
     user?: User | null;
     session?: Session | null;
   }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (
+    email: string,
+    password: string,
+  ) => Promise<{
+    error: Error | null;
+    user?: User | null;
+    session?: Session | null;
+  }>;
   signOut: () => Promise<void>;
 }
 
@@ -193,8 +200,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       if (error) throw error;
+
+      // Commit the returned session immediately. Waiting for the asynchronous
+      // SIGNED_IN callback briefly renders the sign-in screen again.
+      const signedInSession = data.session ?? null;
+      const signedInUser = data.user ?? signedInSession?.user ?? null;
+      lastUserIdRef.current = signedInUser?.id ?? null;
+      lastAccessTokenRef.current = signedInSession?.access_token ?? null;
+      setSession(signedInSession);
+      setUser(signedInUser);
+      setLoading(false);
+
       void logUserIP("login", data.session?.access_token);
-      return { error: null };
+      return {
+        error: null,
+        user: signedInUser,
+        session: signedInSession,
+      };
     } catch (error) {
       return { error: error as Error };
     }
@@ -202,9 +224,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signOut = useCallback(async () => {
     const signingOutUserId = user?.id ?? null;
-    if (signingOutUserId) {
-      await pushNotificationService.deactivateForUser(signingOutUserId);
-    }
+
+    // Revoke route access synchronously. Remote cleanup must never leave a
+    // signed-out user visible to ProtectedRoute when a provider request stalls
+    // or fails.
+    lastUserIdRef.current = null;
+    lastAccessTokenRef.current = null;
+    setSession(null);
+    setUser(null);
+    setLoading(false);
+    clearRoleCache();
+
+    const pushCleanup = signingOutUserId
+      ? pushNotificationService.deactivateForUser(signingOutUserId).catch((error) => {
+          console.error(
+            "Failed to deactivate push notifications during sign-out:",
+            error,
+          );
+        })
+      : Promise.resolve();
+
+    // Start Supabase revocation before awaiting any optional cleanup. This also
+    // removes the persisted web session before a fast navigation can reload it.
+    const authSignOut = supabase.auth.signOut();
     try {
       // remembered_email intentionally survives sign-out so the sign-in form
       // stays pre-filled — clearing it here is what made Remember Me look broken.
@@ -233,8 +275,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch {
       // Sign-out must continue even when browser storage is unavailable.
     }
-    clearRoleCache();
-    await supabase.auth.signOut();
+    const [{ error }] = await Promise.all([authSignOut, pushCleanup]);
+    if (error) throw error;
   }, [user?.id]);
 
   useEffect(() => {

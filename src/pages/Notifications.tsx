@@ -17,6 +17,10 @@ import {
   Send,
   User,
   ArrowLeft,
+  CalendarClock,
+  ShieldAlert,
+  Trophy,
+  UserCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,10 +30,15 @@ import { formatDistanceToNow, isToday, isYesterday, isThisWeek, isThisMonth } fr
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MealConsumptionSheet } from "@/components/MealConsumptionSheet";
+import { buildSafeDeepLink } from "@/hooks/usePushNotificationDeepLink";
+import type { Database } from "@/integrations/supabase/types";
+
+type NotificationType = Database["public"]["Enums"]["notification_type"];
 
 interface Notification {
   id: string;
-  type: "order_update" | "meal_reminder" | "subscription_alert" | "general" | "announcement" | "coach_message" | "health_insight";
+  type: NotificationType;
   title: string;
   message: string;
   status: "unread" | "read" | "archived";
@@ -38,12 +47,18 @@ interface Notification {
   created_at: string;
 }
 
-const TYPE_CONFIG: Record<Notification["type"], { icon: React.ElementType; bg: string; gradient: string; shadow: string }> = {
+const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; bg: string; gradient: string; shadow: string }> = {
   order_update: {
     icon: Truck,
     bg: "bg-[#E6FFF5]",
     gradient: "from-[#10B981] to-[#059669]",
     shadow: "shadow-[0_8px_16px_rgba(16,185,129,0.2)]"
+  },
+  order_delivered: {
+    icon: Utensils,
+    bg: "bg-[#E8FBF6]",
+    gradient: "from-[#22C7A1] to-[#0D9F7F]",
+    shadow: "shadow-[0_8px_16px_rgba(34,199,161,0.2)]"
   },
   meal_reminder: {
     icon: Utensils,
@@ -63,12 +78,6 @@ const TYPE_CONFIG: Record<Notification["type"], { icon: React.ElementType; bg: s
     gradient: "from-[#3B82F6] to-[#2563EB]",
     shadow: "shadow-[0_8px_16px_rgba(59,130,246,0.2)]"
   },
-  announcement: {
-    icon: Sparkles,
-    bg: "bg-[#FEF3C7]",
-    gradient: "from-[#F59E0B] to-[#D97706]",
-    shadow: "shadow-[0_8px_16px_rgba(245,158,11,0.2)]"
-  },
   coach_message: {
     icon: MessageCircle,
     bg: "bg-[#F3E8FF]",
@@ -80,6 +89,72 @@ const TYPE_CONFIG: Record<Notification["type"], { icon: React.ElementType; bg: s
     bg: "bg-[#F3F4FF]",
     gradient: "from-[#7C83F6] to-[#6366F1]",
     shadow: "shadow-[0_8px_16px_rgba(124,131,246,0.2)]"
+  },
+  plan_update: {
+    icon: TrendingUp,
+    bg: "bg-[#ECFDF5]",
+    gradient: "from-[#14B8A6] to-[#0F766E]",
+    shadow: "shadow-[0_8px_16px_rgba(20,184,166,0.2)]"
+  },
+  system_alert: {
+    icon: ShieldAlert,
+    bg: "bg-[#FEF2F2]",
+    gradient: "from-[#EF4444] to-[#B91C1C]",
+    shadow: "shadow-[0_8px_16px_rgba(239,68,68,0.2)]"
+  },
+  delivery_update: {
+    icon: Truck,
+    bg: "bg-[#EFF6FF]",
+    gradient: "from-[#3B82F6] to-[#1D4ED8]",
+    shadow: "shadow-[0_8px_16px_rgba(59,130,246,0.2)]"
+  },
+  achievement: {
+    icon: Trophy,
+    bg: "bg-[#FFFBEB]",
+    gradient: "from-[#F59E0B] to-[#B45309]",
+    shadow: "shadow-[0_8px_16px_rgba(245,158,11,0.2)]"
+  },
+  subscription: {
+    icon: Crown,
+    bg: "bg-[#FFF7ED]",
+    gradient: "from-[#F97316] to-[#C2410C]",
+    shadow: "shadow-[0_8px_16px_rgba(249,115,22,0.2)]"
+  },
+  meal_scheduled: {
+    icon: CalendarClock,
+    bg: "bg-[#F0FDFA]",
+    gradient: "from-[#2DD4BF] to-[#0F766E]",
+    shadow: "shadow-[0_8px_16px_rgba(45,212,191,0.2)]"
+  },
+  coach_withdrawal: {
+    icon: Crown,
+    bg: "bg-[#FFF7ED]",
+    gradient: "from-[#FB923C] to-[#C2410C]",
+    shadow: "shadow-[0_8px_16px_rgba(251,146,60,0.2)]"
+  },
+  coach_onboarding: {
+    icon: UserCheck,
+    bg: "bg-[#F0FDF4]",
+    gradient: "from-[#22C55E] to-[#15803D]",
+    shadow: "shadow-[0_8px_16px_rgba(34,197,94,0.2)]"
+  },
+  coach_session_scheduled: {
+    icon: CalendarClock,
+    bg: "bg-[#EFF6FF]",
+    gradient: "from-[#60A5FA] to-[#2563EB]",
+    shadow: "shadow-[0_8px_16px_rgba(96,165,250,0.2)]"
+  },
+  coach_milestone: {
+    icon: Trophy,
+    bg: "bg-[#FFFBEB]",
+    gradient: "from-[#FBBF24] to-[#D97706]",
+    shadow: "shadow-[0_8px_16px_rgba(251,191,36,0.2)]"
+  },
+  coach_goal_accepted: {
+    icon: CheckCheck,
+    bg: "bg-[#ECFDF5]",
+    gradient: "from-[#34D399] to-[#059669]",
+    shadow: "shadow-[0_8px_16px_rgba(52,211,153,0.2)]"
   },
 };
 
@@ -101,14 +176,25 @@ const FILTERS = [
 
 type FilterKey = typeof FILTERS[number]["key"];
 
-const TYPE_TO_FILTER: Record<Notification["type"], FilterKey> = {
+const TYPE_TO_FILTER: Record<NotificationType, FilterKey> = {
   order_update: "orders",
+  order_delivered: "meals",
   meal_reminder: "meals",
   subscription_alert: "offers",
   general: "offers",
-  announcement: "offers",
   coach_message: "messages",
   health_insight: "offers",
+  plan_update: "offers",
+  system_alert: "offers",
+  delivery_update: "orders",
+  achievement: "offers",
+  subscription: "offers",
+  meal_scheduled: "meals",
+  coach_withdrawal: "messages",
+  coach_onboarding: "messages",
+  coach_session_scheduled: "messages",
+  coach_milestone: "messages",
+  coach_goal_accepted: "messages",
 };
 
 function getTimeGroup(date: Date): string {
@@ -337,6 +423,7 @@ export default function Notifications() {
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
   const listRef = useRef<HTMLDivElement>(null);
   const [replyNotification, setReplyNotification] = useState<Notification | null>(null);
+  const [consumptionNotification, setConsumptionNotification] = useState<Notification | null>(null);
 
   const clientId = user?.id;
 
@@ -428,6 +515,13 @@ export default function Notifications() {
     navigate(route);
   };
 
+  const openNotificationDeepLink = async (notification: Notification, route: string) => {
+    if (notification.status === "unread") {
+      await markAsRead(notification.id);
+    }
+    navigate(route);
+  };
+
   const unreadCount = notifications.filter((n) => n.status === "unread").length;
 
   const filtered = activeFilter === "all"
@@ -442,6 +536,41 @@ export default function Notifications() {
         <CoachReplySheet
           clientId={clientId}
           onClose={() => setReplyNotification(null)}
+        />
+      )}
+
+      {consumptionNotification && (
+        <MealConsumptionSheet
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setConsumptionNotification(null);
+          }}
+          sourceType={
+            consumptionNotification.data.source_type === "meal_schedule"
+              ? "meal_schedule"
+              : "order"
+          }
+          sourceId={String(
+            consumptionNotification.data.source_id
+              || consumptionNotification.data.order_id
+              || "",
+          )}
+          sourceMealId={String(consumptionNotification.data.meal_id || "")}
+          meal={{
+            meal_id: String(consumptionNotification.data.meal_id || ""),
+            meal_name: String(consumptionNotification.data.meal_name || "Meal"),
+            calories: Number(consumptionNotification.data.calories || 0),
+            protein_g: Number(consumptionNotification.data.protein_g || 0),
+            carbs_g: Number(consumptionNotification.data.carbs_g || 0),
+            fat_g: Number(consumptionNotification.data.fat_g || 0),
+            fiber_g: Number(consumptionNotification.data.fiber_g || 0),
+          }}
+          onSaved={() => {
+            setNotifications((current) => current.map((item) => item.id === consumptionNotification.id
+              ? { ...item, status: "read", read_at: new Date().toISOString() }
+              : item));
+            setConsumptionNotification(null);
+          }}
         />
       )}
 
@@ -574,6 +703,11 @@ export default function Notifications() {
                         const isUnread = n.status === "unread";
                         const isCoachMessage = n.type === "coach_message";
                         const isSmartGoalAdjustment = n.type === "health_insight" && n.data?.subtype === "smart_goal_adjustment";
+                        const isConsumptionConfirmation = n.type === "order_delivered"
+                          && (n.data?.action === "confirm_consumption" || n.data?.action === "add_to_progress")
+                          && Boolean(n.data?.order_id)
+                          && Boolean(n.data?.meal_id);
+                        const safeDeepLink = buildSafeDeepLink(n.data);
 
                         return (
                           <motion.div
@@ -648,7 +782,27 @@ export default function Notifications() {
                                     {t("view")}
                                   </motion.button>
                                 )}
-                                {isUnread && !isCoachMessage && !isSmartGoalAdjustment && (
+                                {isConsumptionConfirmation && (
+                                  <motion.button
+                                    whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                                    onClick={() => setConsumptionNotification(n)}
+                                    className="flex items-center gap-1.5 rounded-lg bg-[#E8FBF6] px-3 py-1.5 text-[11px] font-semibold text-[#0D9F7F] transition hover:bg-[#D9F8EF]"
+                                  >
+                                    <Utensils className="h-3 w-3" strokeWidth={2.5} />
+                                    {t("confirm") === "confirm" ? "Confirm intake" : t("confirm")}
+                                  </motion.button>
+                                )}
+                                {safeDeepLink && !isCoachMessage && !isSmartGoalAdjustment && !isConsumptionConfirmation && (
+                                  <motion.button
+                                    whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                                    onClick={() => openNotificationDeepLink(n, safeDeepLink)}
+                                    className="flex items-center gap-1.5 rounded-lg bg-[#E8FBF6] px-3 py-1.5 text-[11px] font-semibold text-[#0D9F7F] transition hover:bg-[#D9F8EF]"
+                                  >
+                                    <ArrowLeft className="h-3 w-3 rotate-180 rtl:rotate-0" strokeWidth={2.5} />
+                                    {t("view")}
+                                  </motion.button>
+                                )}
+                                {isUnread && !safeDeepLink && !isCoachMessage && !isSmartGoalAdjustment && !isConsumptionConfirmation && (
                                   <motion.button
                                     whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                                     onClick={() => markAsRead(n.id)}
