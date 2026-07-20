@@ -33,11 +33,13 @@ const buildChain = (resolver: () => Promise<any>) => {
   const chain: any = {};
   chain.select = vi.fn().mockReturnValue(chain);
   chain.eq = vi.fn().mockReturnValue(chain);
+  chain.gt = vi.fn().mockReturnValue(chain);
   chain.in = vi.fn().mockReturnValue(chain);
   chain.order = vi.fn().mockReturnValue(chain);
   chain.limit = vi.fn().mockReturnValue(chain);
   chain.gte = vi.fn().mockReturnValue(chain);
   chain.maybeSingle = vi.fn().mockImplementation(resolver);
+  chain.then = vi.fn((resolve, reject) => resolver().then(resolve, reject));
   return chain;
 };
 
@@ -121,7 +123,7 @@ describe("useSubscription", () => {
         return buildChain(async () => ({ data: mockSub, error: null }));
       }
       if (callIdx === 2) {
-        return buildChain(async () => ({ data: { snacks_per_month: 0, snacks_used_this_month: 0 }, error: null }));
+        return buildChain(async () => ({ data: [], error: null }));
       }
       return buildChain(async () => ({ data: null, error: null }));
     });
@@ -154,7 +156,7 @@ describe("useSubscription", () => {
         return buildChain(async () => ({ data: vipSub, error: null }));
       }
       if (callIdx === 2) {
-        return buildChain(async () => ({ data: { snacks_per_month: 0, snacks_used_this_month: 0 }, error: null }));
+        return buildChain(async () => ({ data: [], error: null }));
       }
       return buildChain(async () => ({ data: null, error: null }));
     });
@@ -194,7 +196,7 @@ describe("useSubscription", () => {
       if (callIdx === 2) {
         return buildChain(async () => ({ data: cancelledSub, error: null }));
       }
-      return buildChain(async () => ({ data: { snacks_per_month: 0, snacks_used_this_month: 0 }, error: null }));
+      return buildChain(async () => ({ data: [], error: null }));
     });
 
     const { result } = renderSubscription();
@@ -219,7 +221,7 @@ describe("useSubscription", () => {
       if (callIdx === 1) {
         return buildChain(async () => ({ data: pendingSub, error: null }));
       }
-      return buildChain(async () => ({ data: { snacks_per_month: 0, snacks_used_this_month: 0 }, error: null }));
+      return buildChain(async () => ({ data: [], error: null }));
     });
 
     const { result } = renderSubscription();
@@ -245,7 +247,7 @@ describe("useSubscription", () => {
       if (callIdx === 1) {
         return buildChain(async () => ({ data: subWithSnacks, error: null }));
       }
-      return buildChain(async () => ({ data: { snacks_per_month: 8, snacks_used_this_month: 3 }, error: null }));
+      return buildChain(async () => ({ data: [], error: null }));
     });
 
     const { result } = renderSubscription();
@@ -273,11 +275,41 @@ describe("useSubscription", () => {
       if (callIdx === 1) {
         return buildChain(async () => ({ data: activeSub, error: null }));
       }
-      return buildChain(async () => ({ data: { snacks_per_month: 0, snacks_used_this_month: 0 }, error: null }));
+      return buildChain(async () => ({ data: [], error: null }));
     });
 
     const { result } = renderSubscription();
     await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
+    expect(result.current.canOrderMeal).toBe(true);
+  });
+
+  it("adds active rollover credits to remaining meals", async () => {
+    const activeSub = {
+      id: "sub-rollover", plan: "standard", status: "active",
+      start_date: "2026-04-01", end_date: "2026-05-01",
+      meals_per_month: 30, meals_used_this_month: 30,
+      month_start_date: "2026-04-01",
+      meals_per_week: 7, meals_used_this_week: 2,
+      week_start_date: "2026-04-13",
+      tier: "standard", active: true,
+      rollover_credits: 1,
+    };
+
+    let callIdx = 0;
+    (supabase as any).from = vi.fn().mockImplementation(() => {
+      callIdx++;
+      if (callIdx === 1) {
+        return buildChain(async () => ({ data: activeSub, error: null }));
+      }
+      return buildChain(async () => ({
+        data: [{ rollover_credits: 2 }, { rollover_credits: 3 }],
+        error: null,
+      }));
+    });
+
+    const { result } = renderSubscription();
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
+    expect(result.current.remainingMeals).toBe(5);
     expect(result.current.canOrderMeal).toBe(true);
   });
 });

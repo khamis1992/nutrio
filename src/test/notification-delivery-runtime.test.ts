@@ -200,7 +200,11 @@ describe("notification delivery runtime hardening", () => {
     expect(edgeWorkflow).toContain("WHATSAPP_PROCESSOR_CRON_SECRET");
     expect(edgeWorkflow).toContain("SUBSCRIPTION_RECOVERY_CRON_SECRET");
     expect(edgeWorkflow).toContain("ROLLOVER_CLEANUP_CRON_SECRET");
-    expect(edgeWorkflow).toContain("calculate-health-score intentionally remains unscheduled");
+    expect(edgeWorkflow).toContain("SUBSCRIPTION_RENEWAL_CRON_SECRET");
+    expect(edgeWorkflow).toContain("HEALTH_SCORE_CRON_SECRET");
+    expect(edgeWorkflow).toContain("/functions/v1/process-subscription-renewal");
+    expect(edgeWorkflow).toContain("/functions/v1/calculate-health-score");
+    expect(edgeWorkflow).not.toContain("calculate-health-score intentionally remains unscheduled");
     expect(edgeWorkflow).toContain('== eyJ*');
     expect(databaseWorkflow).toContain('== eyJ*');
     const scheduledWorkerJob = edgeWorkflow.slice(

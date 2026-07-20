@@ -11,7 +11,7 @@ import {
 
 interface ManualMealLogRpcClient {
   rpc(
-    fn: "log_manual_meal_items" | "log_manual_meal_items_v2",
+    fn: "log_manual_meal_items" | "log_manual_meal_items_v2" | "log_manual_meal_items_v3",
     args: {
       p_items: Array<{
         name: string;
@@ -27,6 +27,10 @@ interface ManualMealLogRpcClient {
       p_log_date: string;
       p_request_id: string;
       p_source: string;
+      p_started_consuming_at?: string;
+      p_time_precision?: "exact" | "estimated_15m" | "estimated_30m" | "date_only";
+      p_timezone_name?: string;
+      p_utc_offset_minutes?: number;
     },
   ): Promise<{
     data: {
@@ -35,6 +39,7 @@ interface ManualMealLogRpcClient {
       history_ids?: string[];
       logged_count?: number;
       xp_awarded?: number;
+      consumption_id?: string;
     } | null;
     error: { code?: string; message?: string } | null;
   }>;
@@ -68,6 +73,8 @@ export interface LogMealItemsOptions {
     timestamp: Date;
   }) => Promise<boolean>;
   requestId?: string;
+  consumedAt?: Date;
+  timePrecision?: "exact" | "estimated_15m" | "estimated_30m" | "date_only";
 }
 
 export interface LogMealItemsResult {
@@ -102,6 +109,8 @@ interface QueuedMealLogPayload {
   logDate: string;
   source: string;
   requestId: string;
+  consumedAt: string;
+  timePrecision: "exact" | "estimated_15m" | "estimated_30m" | "date_only";
 }
 
 const roundedMacro = (value: number, quantity = 1) => Math.round(value * quantity);
@@ -176,6 +185,8 @@ export async function logMealItems({
   track,
   writeMealToHealth,
   requestId = globalThis.crypto.randomUUID(),
+  consumedAt = new Date(),
+  timePrecision = "exact",
 }: LogMealItemsOptions): Promise<LogMealItemsResult> {
   const normalizedItems = normalizeMealItems(items);
   const totals = getMealTotals(normalizedItems);
@@ -185,17 +196,27 @@ export async function logMealItems({
     p_request_id: requestId,
     p_source: source,
   };
+  const v3Args = {
+    ...rpcArgs,
+    p_started_consuming_at: consumedAt.toISOString(),
+    p_time_precision: timePrecision,
+    p_timezone_name: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Qatar",
+    p_utc_offset_minutes: -consumedAt.getTimezoneOffset(),
+  };
   let { data: logResult, error: logError } = await manualMealRpc.rpc(
-    "log_manual_meal_items_v2",
-    rpcArgs,
+    "log_manual_meal_items_v3",
+    v3Args,
   );
 
-  // Older deployed backends keep working until the V2 migration is applied.
+  // Older deployed backends keep working while the canonical V3 migration rolls out.
   if (logError && ["PGRST202", "42883"].includes(logError.code || "")) {
     ({ data: logResult, error: logError } = await manualMealRpc.rpc(
-      "log_manual_meal_items",
+      "log_manual_meal_items_v2",
       rpcArgs,
     ));
+  }
+  if (logError && ["PGRST202", "42883"].includes(logError.code || "")) {
+    ({ data: logResult, error: logError } = await manualMealRpc.rpc("log_manual_meal_items", rpcArgs));
   }
   if (logError) throw logError;
 
@@ -257,6 +278,8 @@ export async function logMealItemsResilient(
     logDate: options.logDate || getQatarDay(),
     source: options.source || "manual",
     requestId,
+    consumedAt: (options.consumedAt || new Date()).toISOString(),
+    timePrecision: options.timePrecision || "exact",
   };
 
   const queue = () => {
@@ -289,7 +312,7 @@ export async function flushQueuedMealLogs(userId: string) {
   return flushOfflineMutations(userId, {
     "meal-log": async (mutation: OfflineMutation) => {
       const payload = mutation.payload as QueuedMealLogPayload;
-      await logMealItems(payload);
+      await logMealItems({ ...payload, consumedAt: new Date(payload.consumedAt) });
     },
   });
 }

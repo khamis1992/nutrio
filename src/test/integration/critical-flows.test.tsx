@@ -6,7 +6,9 @@
 import { describe, it, expect } from 'vitest';
 import { supabase } from '@/integrations/supabase/client';
 
-describe('Critical User Flows Integration Tests', () => {
+const runRealSupabaseIntegration = process.env.RUN_REAL_SUPABASE_INTEGRATION === '1';
+
+describe.skipIf(!runRealSupabaseIntegration)('Critical User Flows Integration Tests', () => {
   describe('Meal Completion Flow', () => {
     it('should complete a meal and update progress atomically', async () => {
       // Mock authenticated user
@@ -24,11 +26,7 @@ describe('Critical User Flows Integration Tests', () => {
         p_fiber_g: 8,
       });
 
-      if (error) {
-        console.log('Expected error in test environment:', error.message);
-        return; // Skip in test environment without full DB
-      }
-
+      expect(error).toBeNull();
       expect(data).toBeDefined();
       expect(data.success).toBe(true);
     });
@@ -53,11 +51,8 @@ describe('Critical User Flows Integration Tests', () => {
         p_reason_details: 'Test cancellation',
       });
 
-      if (!step1.data) {
-        console.log('Expected error in test environment');
-        return;
-      }
-
+      expect(step1.error).toBeNull();
+      expect(step1.data).toBeDefined();
       expect(step1.data.success).toBe(true);
       expect(step1.data.action).toBe('continue');
       expect(step1.data.next_step).toBe(2);
@@ -82,11 +77,7 @@ describe('Critical User Flows Integration Tests', () => {
         p_tags: ['Delicious', 'Healthy'],
       });
 
-      if (error) {
-        console.log('Expected error in test environment:', error.message);
-        return;
-      }
-
+      expect(error).toBeNull();
       expect(data.success).toBe(true);
       expect(data.review_id).toBeDefined();
     });
@@ -96,11 +87,7 @@ describe('Critical User Flows Integration Tests', () => {
         p_meal_id: 'test-meal-123',
       });
 
-      if (error) {
-        console.log('Expected error in test environment:', error.message);
-        return;
-      }
-
+      expect(error).toBeNull();
       expect(data).toBeDefined();
       expect(data[0].average_rating).toBeDefined();
       expect(data[0].total_reviews).toBeDefined();

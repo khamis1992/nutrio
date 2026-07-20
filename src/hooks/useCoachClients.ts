@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateCoachComplianceBreakdown } from "@/lib/coach-compliance";
 import { WATER_GLASS_ML } from "@/lib/water-service";
+import { respondCareAssignment } from "@/hooks/useCareTeam";
 
 export interface ClientCompliance {
   id: string;
@@ -77,13 +78,7 @@ export function useCoachClients(coachId: string | undefined) {
   const handleAccept = useCallback(
     async (assignmentId: string) => {
       if (!coachId) return;
-      const { error } = await supabase
-        .from("coach_client_assignments")
-        .update({ status: "active" })
-        .eq("id", assignmentId)
-        .eq("coach_id", coachId);
-
-      if (error) throw error;
+      await respondCareAssignment(assignmentId, "accept");
       setPending((prev) => prev.filter((r) => r.assignmentId !== assignmentId));
       await fetchClients();
     },
@@ -93,13 +88,7 @@ export function useCoachClients(coachId: string | undefined) {
   const handleReject = useCallback(
     async (assignmentId: string) => {
       if (!coachId) return;
-      const { error } = await supabase
-        .from("coach_client_assignments")
-        .update({ status: "revoked" })
-        .eq("id", assignmentId)
-        .eq("coach_id", coachId);
-
-      if (error) throw error;
+      await respondCareAssignment(assignmentId, "decline");
       setPending((prev) => prev.filter((r) => r.assignmentId !== assignmentId));
     },
     [coachId]

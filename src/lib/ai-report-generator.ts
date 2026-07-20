@@ -1,6 +1,7 @@
 import type { WeeklyReportData } from "./professional-weekly-report-pdf";
 import { supabase } from "@/integrations/supabase/client";
 import { runAiTask } from "@/lib/ai-router";
+import { getConsentedHealthContextAiSummary } from "@/lib/health-context";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { format, startOfWeek } from "date-fns";
 
@@ -89,6 +90,26 @@ function hashData(data: WeeklyReportData): string {
   return Math.abs(hash).toString(36);
 }
 
+function hashValue(value: unknown): string {
+  let hash = 0;
+  const serialized = JSON.stringify(value);
+  for (let i = 0; i < serialized.length; i++) {
+    hash = ((hash << 5) - hash) + serialized.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+async function getHealthContextCacheToken(): Promise<string> {
+  try {
+    const summary = await getConsentedHealthContextAiSummary(30);
+    return hashValue(summary);
+  } catch {
+    // The report remains available while the flagged migration is undeployed.
+    return hashValue(null);
+  }
+}
+
 class AIReportGenerator {
 
   async generateReportContent(data: WeeklyReportData, userId?: string, locale: ReportLocale = "en"): Promise<{
@@ -97,7 +118,8 @@ class AIReportGenerator {
   }> {
     if (userId) {
       const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
-      const hash = `${hashData(data)}-${locale}`;
+      const healthContextToken = await getHealthContextCacheToken();
+      const hash = `${hashData(data)}-${locale}-${healthContextToken}`;
 
       const cached = await this.getCachedReport(userId, weekStart, hash);
       if (cached) {

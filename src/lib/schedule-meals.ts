@@ -52,6 +52,12 @@ const SCHEDULE_MEALS_ERROR_CODES = [
   "DELIVERY_ADDRESS_NOT_FOUND",
   "MEAL_QUOTA_EXHAUSTED",
   "SNACK_QUOTA_EXHAUSTED",
+  "FAMILY_PROFILE_NOT_FOUND",
+  "FAMILY_MEMBER_ALLERGEN_CONFLICT",
+  "FAMILY_ALLOWANCE_EXHAUSTED",
+  "ACTIVE_CORPORATE_BENEFIT_REQUIRED",
+  "CORPORATE_ALLOWANCE_EXHAUSTED",
+  "SCHEDULE_BENEFICIARY_MISMATCH",
 ] as const;
 
 export type ScheduleMealsErrorCode = (typeof SCHEDULE_MEALS_ERROR_CODES)[number];
@@ -109,6 +115,47 @@ export async function scheduleMealsAtomic(
     throw new Error("MEAL_SCHEDULING_FAILED");
   }
 
+  return result;
+}
+
+type ScheduleBeneficiary =
+  | { type: "self" }
+  | { type: "family"; familyMemberId: string }
+  | { type: "corporate"; membershipId: string };
+
+export async function scheduleMealsForBeneficiaryAtomic(
+  subscriptionId: string,
+  items: ScheduleMealInput[],
+  beneficiary: ScheduleBeneficiary,
+  requestBatchId: string = crypto.randomUUID(),
+): Promise<ScheduleMealsResult> {
+  if (beneficiary.type === "self") {
+    return scheduleMealsAtomic(subscriptionId, items, requestBatchId);
+  }
+
+  const rpcItems = items.map(({ delivery_quote_id, customization_data, ...item }) => ({
+    ...item,
+    customization_data: delivery_quote_id
+      ? { ...(customization_data || {}), _delivery_quote_id: delivery_quote_id }
+      : customization_data,
+  }));
+  const args = {
+    p_subscription_id: subscriptionId,
+    p_items: rpcItems,
+    p_request_batch_id: requestBatchId,
+    ...(beneficiary.type === "family"
+      ? { p_family_member_id: beneficiary.familyMemberId }
+      : { p_membership_id: beneficiary.membershipId }),
+  };
+  const functionName = beneficiary.type === "family"
+    ? "schedule_family_meals_atomic"
+    : "schedule_corporate_meals_atomic";
+  const { data, error } = await supabase.rpc(functionName as never, args as never);
+  if (error) throw error;
+  const result = data as unknown as ScheduleMealsResult | null;
+  if (!result?.success || !Array.isArray(result.schedule_ids)) {
+    throw new Error("MEAL_SCHEDULING_FAILED");
+  }
   return result;
 }
 

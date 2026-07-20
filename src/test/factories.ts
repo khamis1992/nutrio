@@ -53,6 +53,7 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
     referred_by: null,
     specialties: null,
     streak_days: null,
+    target_weight: null,
     target_weight_kg: null,
     taste_profile: null,
     tier1_referrer_id: null,
@@ -62,6 +63,7 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
     total_meals_logged: null,
     updated_at: "2026-01-01T00:00:00.000Z",
     user_id: "user-1",
+    weight: null,
     xp: null,
     ...overrides,
   };

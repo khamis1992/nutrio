@@ -19,11 +19,19 @@ export interface NutritionPerformanceInput {
   readiness: RecoveryReadiness;
 }
 
+export interface NutritionPerformanceMessage {
+  key: string;
+  params?: Record<string, string | number>;
+}
+
 export interface NutritionPerformanceResult {
   score: number;
   label: string;
   summary: string;
   primaryReason: string;
+  labelMessage?: NutritionPerformanceMessage;
+  summaryMessage?: NutritionPerformanceMessage;
+  primaryReasonMessage?: NutritionPerformanceMessage;
   reasons: string[];
   actionLabel: string;
   actionPath: string;
@@ -77,6 +85,9 @@ export function calculateNutritionPerformance(input: NutritionPerformanceInput):
       label: "Needs a nutrition goal",
       summary: "Set your calorie and protein targets to unlock a personalized readiness score.",
       primaryReason: "No saved nutrition target is available for this calculation.",
+      labelMessage: { key: "nutrition_performance_needs_goal" },
+      summaryMessage: { key: "nutrition_performance_set_goal_summary" },
+      primaryReasonMessage: { key: "nutrition_performance_no_target" },
       reasons: ["No saved nutrition target is available for this calculation."],
       actionLabel: "Set nutrition goal",
       actionPath: "/progress?tab=goals",
@@ -104,28 +115,61 @@ export function calculateNutritionPerformance(input: NutritionPerformanceInput):
   ));
 
   const reasons: string[] = [];
+  const reasonMessages: NutritionPerformanceMessage[] = [];
+  const addReason = (text: string, message: NutritionPerformanceMessage) => {
+    reasons.push(text);
+    reasonMessages.push(message);
+  };
   if (input.caloriesConsumed <= 0) {
-    reasons.push("No calories logged yet, so the score is based on missing meal data.");
+    addReason(
+      "No calories logged yet, so the score is based on missing meal data.",
+      { key: "nutrition_performance_reason_no_calories" },
+    );
   } else if (input.remainingCalories < 0) {
-    reasons.push(`Calories are ${Math.abs(Math.round(input.remainingCalories))} kcal over target.`);
+    const amount = Math.abs(Math.round(input.remainingCalories));
+    addReason(
+      `Calories are ${amount} Cal over target.`,
+      { key: "nutrition_performance_reason_over_target", params: { amount } },
+    );
   } else if (input.remainingCalories > input.calorieTarget * 0.45) {
-    reasons.push(`${Math.round(input.remainingCalories)} kcal still unfilled for today.`);
+    const amount = Math.round(input.remainingCalories);
+    addReason(
+      `${amount} Cal still unfilled for today.`,
+      { key: "nutrition_performance_reason_unfilled", params: { amount } },
+    );
   }
 
   if (input.proteinGap > 0) {
-    reasons.push(`${Math.round(input.proteinGap)}g protein left to hit your target.`);
+    const amount = Math.round(input.proteinGap);
+    addReason(
+      `${amount}g protein left to hit your target.`,
+      { key: "nutrition_performance_reason_protein_gap", params: { amount } },
+    );
   }
   if (input.waterPercent < 80) {
-    reasons.push(`Hydration is at ${Math.round(input.waterPercent)}%, below the daily target.`);
+    const percent = Math.round(input.waterPercent);
+    addReason(
+      `Hydration is at ${percent}%, below the daily target.`,
+      { key: "nutrition_performance_reason_hydration", params: { percent } },
+    );
   }
   if (input.mealsLogged < Math.max(3, input.mealsPlanned || 0)) {
-    reasons.push(`${input.mealsLogged} meal${input.mealsLogged === 1 ? "" : "s"} logged today.`);
+    addReason(
+      `${input.mealsLogged} meal${input.mealsLogged === 1 ? "" : "s"} logged today.`,
+      { key: "nutrition_performance_reason_meals_logged", params: { count: input.mealsLogged } },
+    );
   }
   if (input.bodyLoad.score >= 15) {
-    reasons.push("High body load today means your next meal should support recovery.");
+    addReason(
+      "High body load today means your next meal should support recovery.",
+      { key: "nutrition_performance_reason_body_load" },
+    );
   }
   if ((input.readiness.score ?? 100) < 60) {
-    reasons.push("Readiness is low, so recovery nutrition matters more today.");
+    addReason(
+      "Readiness is low, so recovery nutrition matters more today.",
+      { key: "nutrition_performance_reason_readiness" },
+    );
   }
 
   const mealCalories = clamp(
@@ -159,6 +203,15 @@ export function calculateNutritionPerformance(input: NutritionPerformanceInput):
           : "balanced";
 
   const label = score >= 82 ? "Strong fuel" : score >= 65 ? "Almost on track" : score >= 45 ? "Needs support" : "Start fueling";
+  const labelMessage: NutritionPerformanceMessage = {
+    key: score >= 82
+      ? "nutrition_performance_strong_fuel"
+      : score >= 65
+        ? "nutrition_performance_almost_on_track"
+        : score >= 45
+          ? "nutrition_performance_needs_support"
+          : "nutrition_performance_start_fueling",
+  };
   const summary = score >= 82
     ? "Your nutrition supports today’s activity."
     : score >= 65
@@ -170,12 +223,29 @@ export function calculateNutritionPerformance(input: NutritionPerformanceInput):
           : focus === "calories"
             ? "Focus the next meal on balanced calories."
             : "Focus the next meal on protein, hydration, and calories.";
+  const summaryMessage: NutritionPerformanceMessage = {
+    key: score >= 82
+      ? "nutrition_performance_summary_strong"
+      : score >= 65
+        ? "nutrition_performance_summary_almost"
+        : focus === "carbs"
+          ? "nutrition_performance_summary_carbs"
+          : focus === "hydration"
+            ? "nutrition_performance_summary_hydration"
+            : focus === "calories"
+              ? "nutrition_performance_summary_calories"
+              : "nutrition_performance_summary_general",
+  };
+  const primaryReasonMessage = reasonMessages[0] || { key: "nutrition_performance_reason_aligned" };
 
   return {
     score,
     label,
     summary,
     primaryReason: reasons[0] || "Calories, protein, hydration, and meal timing are aligned.",
+    labelMessage,
+    summaryMessage,
+    primaryReasonMessage,
     reasons: reasons.slice(0, 3),
     actionLabel: focus === "protein"
       ? "Find protein meal"

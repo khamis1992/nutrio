@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 
 interface DeliveredMealNotification {
   id: string;
+  source_type: "order" | "meal_schedule";
+  source_id: string;
   order_id: string;
   meal_id: string;
   meal_name: string;
@@ -17,6 +18,8 @@ interface DeliveredMealNotification {
 
 interface MealNotificationData {
   action: string;
+  source_type?: "order" | "meal_schedule";
+  source_id?: string;
   order_id: string;
   meal_id: string;
   meal_name: string;
@@ -34,11 +37,11 @@ interface NotificationRow {
 }
 
 export function useDeliveredMealNotifications() {
-  const { toast } = useToast();
   const [pendingMeals, setPendingMeals] = useState<DeliveredMealNotification[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchPendingNotifications = useCallback(async () => {
+    setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -57,12 +60,14 @@ export function useDeliveredMealNotifications() {
       const meals: DeliveredMealNotification[] = (data as unknown as NotificationRow[] || [])
         .filter(n => {
           const meta = n.data as MealNotificationData | null;
-          return meta?.action === "add_to_progress";
+          return meta?.action === "add_to_progress" || meta?.action === "confirm_consumption";
         })
         .map(n => {
           const meta = n.data as MealNotificationData;
           return {
             id: n.id,
+            source_type: meta.source_type === "meal_schedule" ? "meal_schedule" : "order",
+            source_id: meta.source_id || meta.order_id,
             order_id: meta.order_id,
             meal_id: meta.meal_id,
             meal_name: meta.meal_name,
@@ -77,46 +82,10 @@ export function useDeliveredMealNotifications() {
       setPendingMeals(meals);
     } catch (err) {
       console.error("Error fetching delivered meal notifications:", err);
-    }
-  }, []);
-
-  const addToProgress = useCallback(async (notification: DeliveredMealNotification) => {
-    setLoading(true);
-    try {
-      // Use raw SQL since the function might not be in types yet
-      const { error } = await (supabase as unknown as { rpc: (name: string, params: Record<string, unknown>) => Promise<{ error: Error | null }> }).rpc("add_delivered_meal_to_progress", {
-        p_order_id: notification.order_id,
-        p_meal_id: notification.meal_id,
-      });
-
-      if (error) throw error;
-
-      // Mark notification as read using status column (cast to avoid stale types)
-      await (supabase as unknown as { from: (table: string) => { update: (values: Record<string, unknown>) => { eq: (column: string, value: string) => Promise<unknown> } } }).from("notifications")
-        .update({ status: "read" })
-        .eq("id", notification.id);
-
-      // Remove from pending list
-      setPendingMeals(prev => prev.filter(m => m.id !== notification.id));
-
-      toast({
-        title: "Added to Progress!",
-        description: `${notification.meal_name} has been added to your Today's Progress.`,
-      });
-
-      return true;
-    } catch (err) {
-      console.error("Error adding meal to progress:", err);
-      toast({
-        title: "Error",
-        description: "Could not add meal to progress. Please try again.",
-        variant: "destructive",
-      });
-      return false;
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   const dismissNotification = useCallback(async (notificationId: string) => {
     try {
@@ -144,7 +113,6 @@ export function useDeliveredMealNotifications() {
   return {
     pendingMeals,
     loading,
-    addToProgress,
     dismissNotification,
     refresh: fetchPendingNotifications,
   };

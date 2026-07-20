@@ -182,6 +182,21 @@ async function claimDelivery(
   return data as DeliveryClaim;
 }
 
+async function verifyNotificationWorkerSecret(req: Request): Promise<void> {
+  const candidate = req.headers.get("x-notification-worker-secret")?.trim() || "";
+  if (!/^[a-f0-9]{64}$/i.test(candidate)) {
+    throw new HttpError(401, "invalid_notification_worker_credentials");
+  }
+
+  const service = getServiceClient();
+  const { data, error } = await service.rpc("verify_notification_worker_secret", {
+    p_candidate: candidate,
+  });
+  if (error || data !== true) {
+    throw new HttpError(401, "invalid_notification_worker_credentials");
+  }
+}
+
 async function completeDelivery(
   idempotencyKey: string,
   claimToken: string,
@@ -389,7 +404,10 @@ serve(async (req: Request) => {
 
   try {
     requirePost(req);
-    if (req.headers.has("x-internal-secret")) {
+    if (req.headers.has("x-notification-worker-secret")) {
+      await verifyNotificationWorkerSecret(req);
+      internalRequest = true;
+    } else if (req.headers.has("x-internal-secret")) {
       await requireInternalSecret(req);
       internalRequest = true;
     } else {

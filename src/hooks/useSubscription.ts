@@ -19,10 +19,12 @@ export interface Subscription {
   week_start_date: string | null;
   snacks_per_month: number;
   snacks_used_this_month: number;
+  rollover_credits: number;
   price: number;
   price_per_meal: number | null;
   billing_interval: string | null;
   auto_renew: boolean | null;
+  updated_at: string | null;
   tier: 'basic' | 'standard' | 'premium' | 'vip';
   active: boolean | null;
 }
@@ -61,7 +63,7 @@ async function fetchSub(userId: string): Promise<Subscription | null> {
   const today = getQatarDay();
   // Freeze transitions are synchronized server-side. Keeping this query read-only
   // also allows the client to work while newer subscription migrations roll out.
-  const cols = "id, plan, status, start_date, end_date, meals_per_month, meals_used_this_month, month_start_date, meals_per_week, meals_used_this_week, week_start_date, tier, active, snacks_per_month, snacks_used_this_month, price, billing_interval, auto_renew";
+  const cols = "id, plan, status, start_date, end_date, meals_per_month, meals_used_this_month, month_start_date, meals_per_week, meals_used_this_week, week_start_date, tier, active, snacks_per_month, snacks_used_this_month, rollover_credits, price, price_per_meal, billing_interval, auto_renew, updated_at";
 
   const { data: activeData, error: activeError } = await supabase
     .from("subscriptions")
@@ -107,6 +109,21 @@ async function fetchSub(userId: string): Promise<Subscription | null> {
 
   if (!data) return null;
 
+  const { data: rolloverRows, error: rolloverError } = await supabase
+    .from("subscription_rollovers")
+    .select("rollover_credits")
+    .eq("subscription_id", data.id)
+    .eq("status", "active")
+    .gt("rollover_credits", 0)
+    .gte("expiry_date", today);
+
+  if (rolloverError) throw rolloverError;
+
+  const activeRolloverCredits = (rolloverRows || []).reduce(
+    (sum, rollover) => sum + (rollover.rollover_credits || 0),
+    0,
+  );
+
   return {
     id: data.id,
     plan: data.plan ?? data.tier ?? "basic",
@@ -121,10 +138,12 @@ async function fetchSub(userId: string): Promise<Subscription | null> {
     week_start_date: data.week_start_date || null,
     snacks_per_month: data.snacks_per_month ?? 0,
     snacks_used_this_month: data.snacks_used_this_month ?? 0,
+    rollover_credits: activeRolloverCredits || data.rollover_credits || 0,
     price: data.price ?? 0,
-    price_per_meal: null,
+    price_per_meal: data.price_per_meal,
     billing_interval: data.billing_interval,
     auto_renew: data.auto_renew,
+    updated_at: data.updated_at,
     tier: (data.tier || data.plan || 'basic') as 'basic' | 'standard' | 'premium' | 'vip',
     active: data.active,
   };
@@ -150,6 +169,13 @@ export const useSubscription = (): UseSubscriptionReturn => {
     onChange: () => queryClient.invalidateQueries({ queryKey }),
   });
 
+  useRealtimeTable("subscription_rollovers", {
+    event: "*",
+    filter: userId ? `user_id=eq.${userId}` : undefined,
+    enabled: !!userId,
+    onChange: () => queryClient.invalidateQueries({ queryKey }),
+  });
+
   const refetch = useCallback(
     () => queryClient.invalidateQueries({ queryKey }),
     [queryClient, queryKey]
@@ -167,7 +193,8 @@ export const useSubscription = (): UseSubscriptionReturn => {
 
   const totalMeals = isUnlimited ? 0 : (subscription?.meals_per_month || 0);
   const mealsUsed = subscription?.meals_used_this_month || 0;
-  const remainingMeals = isUnlimited ? Infinity : Math.max(0, totalMeals - mealsUsed);
+  const rolloverCredits = subscription?.rollover_credits || 0;
+  const remainingMeals = isUnlimited ? Infinity : Math.max(0, totalMeals - mealsUsed + rolloverCredits);
 
   const totalMealsWeekly = subscription?.meals_per_week || 0;
   const mealsUsedWeekly = subscription?.meals_used_this_week || 0;

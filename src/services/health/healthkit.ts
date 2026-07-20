@@ -7,6 +7,7 @@
  */
 
 import { isNative, isIOS } from "@/lib/capacitor";
+import type { BloodGlucoseSample, NativeHealthCapabilities } from "@/lib/healthKit";
 import type { WorkoutData } from "@/lib/health-types";
 import type { HealthDataType, HealthPlugin } from "@capgo/capacitor-health";
 
@@ -31,6 +32,7 @@ const HEALTH_DATA_TYPES = {
   respiratoryRate: "respiratoryRate",
   spo2: "oxygenSaturation",
   workout: "workouts",
+  bloodGlucose: "bloodGlucose",
 } as const;
 
 export type HealthKitDataType = keyof typeof HEALTH_DATA_TYPES;
@@ -42,7 +44,15 @@ export interface HealthKitPermissionRequest {
   energy?: boolean;
   sleep?: boolean;
   recovery?: boolean;
+  bloodGlucose?: boolean;
 }
+
+const UNAVAILABLE_CAPABILITIES: NativeHealthCapabilities = {
+  healthData: "unavailable",
+  bloodGlucoseRead: "unavailable",
+  incrementalSync: "unsupported",
+  backgroundSync: "unsupported",
+};
 
 export const HealthKit = {
   async isAvailable(): Promise<boolean> {
@@ -53,6 +63,39 @@ export const HealthKit = {
       return result.available;
     } catch {
       return false;
+    }
+  },
+
+  async getCapabilities(): Promise<NativeHealthCapabilities> {
+    const plugin = await getPlugin();
+    if (!plugin) return UNAVAILABLE_CAPABILITIES;
+
+    try {
+      const availability = await plugin.isAvailable();
+      if (!availability.available) return UNAVAILABLE_CAPABILITIES;
+
+      const authorization = await plugin.checkAuthorization({
+        read: [HEALTH_DATA_TYPES.bloodGlucose],
+        write: [],
+      });
+      const bloodGlucoseRead = authorization.readAuthorized.includes(HEALTH_DATA_TYPES.bloodGlucose)
+        ? "available"
+        : authorization.readDenied.includes(HEALTH_DATA_TYPES.bloodGlucose)
+          ? "unavailable"
+          : "unknown";
+
+      return {
+        healthData: "available",
+        bloodGlucoseRead,
+        incrementalSync: "overlapping_window",
+        backgroundSync: "unsupported",
+      };
+    } catch {
+      return {
+        ...UNAVAILABLE_CAPABILITIES,
+        healthData: "unknown",
+        bloodGlucoseRead: "unknown",
+      };
     }
   },
 
@@ -69,15 +112,76 @@ export const HealthKit = {
     if (requested.energy || requested.workouts) readTypes.push(HEALTH_DATA_TYPES.activeEnergy);
     if (requested.workouts) readTypes.push(HEALTH_DATA_TYPES.workout);
     if (requested.sleep) readTypes.push(HEALTH_DATA_TYPES.sleep);
+    if (requested.bloodGlucose) readTypes.push(HEALTH_DATA_TYPES.bloodGlucose);
 
     try {
       const result = await plugin.requestAuthorization({ read: readTypes, write: [] });
-      const authorizedCount = result.readAuthorized.length;
-      if (authorizedCount > 0 || readTypes.length === 0) return requested;
-      return null;
+      if (readTypes.length > 0 && result.readAuthorized.length === 0) return null;
+      return {
+        ...requested,
+        steps: requested.steps && result.readAuthorized.includes(HEALTH_DATA_TYPES.steps),
+        heartRate: requested.heartRate && result.readAuthorized.includes(HEALTH_DATA_TYPES.heartRate),
+        workouts: requested.workouts && result.readAuthorized.includes(HEALTH_DATA_TYPES.workout),
+        energy: requested.energy && result.readAuthorized.includes(HEALTH_DATA_TYPES.activeEnergy),
+        sleep: requested.sleep && result.readAuthorized.includes(HEALTH_DATA_TYPES.sleep),
+        recovery: requested.recovery
+          && result.readAuthorized.includes(HEALTH_DATA_TYPES.restingHeartRate)
+          && result.readAuthorized.includes(HEALTH_DATA_TYPES.hrv),
+        bloodGlucose: requested.bloodGlucose
+          && result.readAuthorized.includes(HEALTH_DATA_TYPES.bloodGlucose),
+      };
     } catch {
       return null;
     }
+  },
+
+  async getBloodGlucoseSamples(
+    dateRange: { start: Date; end: Date },
+    limit = 500,
+  ): Promise<BloodGlucoseSample[]> {
+    const plugin = await getPlugin();
+    if (!plugin) return [];
+
+    // The plugin has a per-query limit but no sample pagination cursor. Small
+    // windows avoid truncating high-frequency CGM records during initial sync.
+    const windowMs = 12 * 60 * 60 * 1000;
+    const minimumWindowMs = 15 * 60 * 1000;
+    const samples: BloodGlucoseSample[] = [];
+    const windows: Array<{ start: number; end: number }> = [];
+    for (let start = dateRange.start.getTime(); start < dateRange.end.getTime(); start += windowMs) {
+      windows.push({ start, end: Math.min(start + windowMs, dateRange.end.getTime()) });
+    }
+
+    while (windows.length > 0) {
+      const window = windows.shift();
+      if (!window) break;
+      const result = await plugin.readSamples({
+        dataType: HEALTH_DATA_TYPES.bloodGlucose,
+        startDate: new Date(window.start).toISOString(),
+        endDate: new Date(window.end).toISOString(),
+        limit,
+        ascending: true,
+      });
+
+      if (result.samples.length >= limit && window.end - window.start > minimumWindowMs) {
+        const midpoint = window.start + Math.floor((window.end - window.start) / 2);
+        windows.unshift({ start: midpoint, end: window.end });
+        windows.unshift({ start: window.start, end: midpoint });
+        continue;
+      }
+
+      samples.push(...result.samples.map((sample) => ({
+        value: sample.value,
+        unit: sample.unit,
+        startDate: sample.startDate,
+        endDate: sample.endDate,
+        sourceName: sample.sourceName,
+        sourceId: sample.sourceId,
+        platformId: sample.platformId,
+      })));
+    }
+
+    return samples;
   },
 
   async getStepCount(dateRange: { start: Date; end: Date }): Promise<number> {

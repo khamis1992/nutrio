@@ -23,6 +23,17 @@ interface UseMealCompletionReturn {
   isLoading: boolean;
 }
 
+type MealCompletionRpc = (
+  functionName: string,
+  args: Record<string, unknown>,
+) => Promise<{ data: unknown; error: { message?: string } | null }>;
+
+function asMealCompletionClient(value: unknown): { rpc: MealCompletionRpc } {
+  return value as { rpc: MealCompletionRpc };
+}
+
+const mealCompletionClient = asMealCompletionClient(supabase);
+
 /**
  * Hook for atomically completing/uncompleting meals
  * Uses the complete_meal_atomic RPC function to prevent race conditions
@@ -53,7 +64,7 @@ export function useMealCompletion(): UseMealCompletionReturn {
       const today = new Date().toISOString().split('T')[0];
 
       // Use type assertion for new RPC function
-      const { data, error } = await supabase.rpc('complete_meal_atomic' as unknown as Parameters<typeof supabase.rpc>[0], {
+      const { data, error } = await mealCompletionClient.rpc('complete_meal_atomic', {
         p_schedule_id: scheduleId,
         p_user_id: userData.user.id,
         p_log_date: today,
@@ -115,7 +126,7 @@ export function useMealCompletion(): UseMealCompletionReturn {
       const today = new Date().toISOString().split('T')[0];
 
       // Use type assertion for new RPC function
-      const { data, error } = await supabase.rpc('uncomplete_meal_atomic' as unknown as Parameters<typeof supabase.rpc>[0], {
+      const { data, error } = await mealCompletionClient.rpc('uncomplete_meal_atomic', {
         p_schedule_id: scheduleId,
         p_user_id: userData.user.id,
         p_log_date: today,

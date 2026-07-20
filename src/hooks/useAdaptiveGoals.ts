@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { getQatarDay } from "@/lib/dateUtils";
 
 export interface AdjustmentRecommendation {
   new_calories: number;
@@ -257,44 +256,13 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
 
   // Apply an adjustment
   const applyAdjustment = async (adjustmentId: string): Promise<boolean> => {
+    void adjustmentId;
     if (!user || !recommendation) return false;
 
-    try {
-      // Update profile with new targets
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          daily_calorie_target: recommendation.new_calories,
-          protein_target_g: recommendation.new_protein,
-          carbs_target_g: recommendation.new_carbs,
-          fat_target_g: recommendation.new_fat,
-          last_goal_adjustment_date: getQatarDay(),
-          has_unviewed_adjustment: false
-        })
-        .eq("user_id", user.id);
-
-      if (profileError) throw profileError;
-
-      // Mark adjustment as applied
-      const { error: historyError } = await supabase
-        .from("goal_adjustment_history")
-        .update({ applied: true })
-        .eq("id", adjustmentId);
-
-      if (historyError) throw historyError;
-
-      setHasUnviewedAdjustment(false);
-      toast.success("Adjustment applied successfully!");
-      
-      // Refresh history
-      await fetchHistory();
-      
-      return true;
-    } catch (err) {
-      console.error("Error applying adjustment:", err);
-      toast.error("Failed to apply adjustment");
-      return false;
-    }
+    // Legacy recommendations are display-only. Target mutations must pass through
+    // resolve_weekly_ai_check_in, which revalidates goal version and health context.
+    toast.info("Review and approve target changes from your Weekly Check-in.");
+    return false;
   };
 
   // Dismiss an adjustment without applying

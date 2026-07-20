@@ -12,6 +12,8 @@ describe("push notification deep-link validation", () => {
       .toBe(`/meals/${orderId}`);
     expect(buildSafeDeepLink({ type: "weight_tracking" }))
       .toBe("/weight-tracking");
+    expect(buildSafeDeepLink({ type: "meal_response" }))
+      .toBe("/health/meal-response");
   });
 
   it("rejects path traversal and unresolved identifiers", () => {
@@ -27,6 +29,8 @@ describe("push notification deep-link validation", () => {
     expect(buildSafeDeepLink({ type: "progress", params: { redirect: "//evil.test" } }))
       .toBeNull();
     expect(buildSafeDeepLink({ type: "checkout", params: { planId: orderId } }))
+      .toBeNull();
+    expect(buildSafeDeepLink({ type: "meal_response", params: { estimate: orderId } }))
       .toBeNull();
   });
 });

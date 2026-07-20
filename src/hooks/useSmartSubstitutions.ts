@@ -12,6 +12,7 @@ interface Meal {
   prep_time_minutes: number | null;
   image_url: string | null;
   meal_type: string | null;
+  restaurant_id?: string | null;
 }
 
 interface ScheduledMeal {
@@ -49,64 +50,49 @@ interface UseSmartSubstitutionsOptions {
   userId: string | undefined;
   schedules: ScheduledMeal[];
   enabled?: boolean;
+  onSubstituted?: () => void | Promise<void>;
 }
 
-const SIMILARITY_WEIGHTS = {
-  calories: 0.40,
-  protein: 0.25,
-  carbs: 0.15,
-  fat: 0.10,
-  prepTime: 0.10,
+interface SafeSubstituteCandidate {
+  meal_id: string;
+  name: string;
+  image_url: string | null;
+  restaurant_id: string | null;
+  calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  fiber_g: number | null;
+  prep_time_minutes: number | null;
+  score: number;
+  reason_codes: string[];
+}
+
+interface SafeSubstituteResponse {
+  candidates?: SafeSubstituteCandidate[];
+}
+
+const reasonLabels: Record<string, string> = {
+  safety_checked: "Safety checked",
+  diet_checked: "Diet matched",
+  delivery_checked: "Delivery confirmed",
+  nutrition_match: "Nutrition matched",
 };
 
-const MAX_SUBSTITUTES = 3;
-
-function computeSimilarity(
-  original: { calories: number; protein_g: number; carbs_g: number; fat_g: number; prep_time_minutes?: number | null },
-  candidate: Meal
-): { score: number; reasons: string[] } {
-  const reasons: string[] = [];
-
-  const calDelta = original.calories > 0
-    ? 1 - Math.min(Math.abs((candidate.calories || 0) - original.calories) / original.calories, 1)
-    : 0.5;
-  const proteinDelta = original.protein_g > 0
-    ? 1 - Math.min(Math.abs((candidate.protein_g || 0) - original.protein_g) / original.protein_g, 1)
-    : 0.5;
-  const carbsDelta = original.carbs_g > 0
-    ? 1 - Math.min(Math.abs((candidate.carbs_g || 0) - original.carbs_g) / original.carbs_g, 1)
-    : 0.5;
-  const fatDelta = original.fat_g > 0
-    ? 1 - Math.min(Math.abs((candidate.fat_g || 0) - original.fat_g) / original.fat_g, 1)
-    : 0.5;
-
-  let prepTimeDelta = 0.5;
-  if (original.prep_time_minutes && candidate.prep_time_minutes) {
-    prepTimeDelta = 1 - Math.min(
-      Math.abs(candidate.prep_time_minutes - original.prep_time_minutes) / Math.max(original.prep_time_minutes, 1),
-      1
-    );
-  }
-
-  const score =
-    calDelta * SIMILARITY_WEIGHTS.calories +
-    proteinDelta * SIMILARITY_WEIGHTS.protein +
-    carbsDelta * SIMILARITY_WEIGHTS.carbs +
-    fatDelta * SIMILARITY_WEIGHTS.fat +
-    prepTimeDelta * SIMILARITY_WEIGHTS.prepTime;
-
-  if (calDelta > 0.8) reasons.push("Similar calories");
-  if (proteinDelta > 0.8) reasons.push("Similar protein");
-  if (carbsDelta > 0.8) reasons.push("Similar carbs");
-  if (prepTimeDelta > 0.8) reasons.push("Similar prep time");
-
-  return { score, reasons: reasons.slice(0, 2) };
+interface RpcClient {
+  rpc: (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message?: string } | null }>;
 }
+
+const rpcClient = supabase as unknown as RpcClient;
 
 export function useSmartSubstitutions({
   userId,
   schedules,
   enabled = true,
+  onSubstituted,
 }: UseSmartSubstitutionsOptions) {
   const [unavailableMeals, setUnavailableMeals] = useState<UnavailableMeal[]>([]);
   const [loading, setLoading] = useState(false);
@@ -144,45 +130,41 @@ export function useSmartSubstitutions({
 
       const unavailableSchedules = schedules.filter((s) => unavailableIds.includes(s.meal_id));
 
-      const { data: allAvailableMeals, error: allErr } = await supabase
-        .from("public_meal_catalog" as "meals")
-        .select(
-          "id, name, calories, protein_g, carbs_g, fat_g, fiber_g, prep_time_minutes, image_url, meal_type"
-        )
-        .eq("is_available", true);
+      const results = await Promise.all(unavailableSchedules.map(async (sched): Promise<UnavailableMeal> => {
+        const { data, error: candidatesError } = await rpcClient.rpc("get_safe_meal_substitutes", {
+          p_schedule_id: sched.id,
+          p_limit: 3,
+        });
+        if (candidatesError) throw candidatesError;
 
-      if (allErr) throw allErr;
+        const payload = (data ?? {}) as SafeSubstituteResponse;
+        const substitutes = (payload.candidates ?? []).map((candidate): Substitute => ({
+          meal: {
+            id: candidate.meal_id,
+            name: candidate.name,
+            calories: candidate.calories,
+            protein_g: candidate.protein_g,
+            carbs_g: candidate.carbs_g,
+            fat_g: candidate.fat_g,
+            fiber_g: candidate.fiber_g,
+            prep_time_minutes: candidate.prep_time_minutes,
+            image_url: candidate.image_url,
+            meal_type: sched.meal_type,
+            restaurant_id: candidate.restaurant_id,
+          },
+          score: Number(candidate.score),
+          matchReasons: candidate.reason_codes.map((code) => reasonLabels[code] ?? code),
+        }));
 
-      const availableMeals = allAvailableMeals || [];
-
-      const results: UnavailableMeal[] = [];
-
-      for (const sched of unavailableSchedules) {
-        const candidates = availableMeals
-          .map((meal) => {
-            const { score, reasons } = computeSimilarity(
-              {
-                calories: sched.meal.calories || 0,
-                protein_g: sched.meal.protein_g || 0,
-                carbs_g: sched.meal.carbs_g || 0,
-                fat_g: sched.meal.fat_g || 0,
-              },
-              meal as Meal
-            );
-            return { meal: meal as Meal, score, matchReasons: reasons };
-          })
-          .sort((a, b) => b.score - a.score)
-          .slice(0, MAX_SUBSTITUTES);
-
-        results.push({
+        return {
           scheduleId: sched.id,
           scheduledDate: sched.scheduled_date,
           mealType: sched.meal_type,
           mealId: sched.meal_id,
           mealName: sched.meal.name,
-          substitutes: candidates,
-        });
-      }
+          substitutes,
+        };
+      }));
 
       setUnavailableMeals(results);
     } catch (err) {
@@ -203,21 +185,23 @@ export function useSmartSubstitutions({
   const performSubstitution = useCallback(
     async (scheduleId: string, newMealId: string): Promise<boolean> => {
       try {
-        const { error } = await supabase
-          .from("meal_schedules")
-          .update({ meal_id: newMealId } as Record<string, unknown>)
-          .eq("id", scheduleId);
+        const { error } = await rpcClient.rpc("perform_safe_meal_substitution", {
+          p_schedule_id: scheduleId,
+          p_substitute_meal_id: newMealId,
+          p_request_id: crypto.randomUUID(),
+        });
 
         if (error) throw error;
 
         setUnavailableMeals((prev) => prev.filter((m) => m.scheduleId !== scheduleId));
+        await onSubstituted?.();
         return true;
       } catch (err) {
         console.error("Error substituting meal:", err);
         return false;
       }
     },
-    []
+    [onSubstituted]
   );
 
   return {

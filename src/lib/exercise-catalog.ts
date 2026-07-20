@@ -63,8 +63,30 @@ export interface ExerciseCatalogItem {
 
 let catalogPromise: Promise<ExerciseCatalogItem[]> | null = null;
 
+const localExerciseVideos: Record<string, string> = {
+  "0001": "0001-2gPfomN.mp4",
+  "0002": "0002-Hy9D21L.mp4",
+};
+
+function getPublicExerciseAssetUrl(path: string): string {
+  const normalizedPath = path.replace(/^\/+/, "");
+  const configuredBase = import.meta.env.BASE_URL || "/";
+
+  // Vite uses a relative base for local and Capacitor builds. Runtime URLs
+  // must still be rooted at the app origin so nested client routes do not
+  // turn `./exercises/...` into `/coach-programs/.../exercises/...`.
+  if (configuredBase === "." || configuredBase === "./") {
+    return `/${normalizedPath}`;
+  }
+
+  const normalizedBase = configuredBase.endsWith("/")
+    ? configuredBase
+    : `${configuredBase}/`;
+  return `${normalizedBase}${normalizedPath}`;
+}
+
 async function fetchCatalog(path: string): Promise<ExerciseCatalogItem[]> {
-  const response = await fetch(`${import.meta.env.BASE_URL}exercises/${path}`);
+  const response = await fetch(getPublicExerciseAssetUrl(`exercises/${path}`));
   if (!response.ok) throw new Error(`Unable to load exercise catalog (${response.status})`);
   return response.json() as Promise<ExerciseCatalogItem[]>;
 }
@@ -89,7 +111,9 @@ function safeHttpsUrl(value: string | null | undefined): string | null {
 export function getExerciseImageUrl(exercise: Pick<ExerciseCatalogItem, "image">): string | null {
   const remoteImage = safeHttpsUrl(exercise.image);
   if (remoteImage) return remoteImage;
-  return exercise.image ? `${import.meta.env.BASE_URL}exercises/images/${exercise.image}` : null;
+  return exercise.image
+    ? getPublicExerciseAssetUrl(`exercises/images/${exercise.image}`)
+    : null;
 }
 
 export function getExerciseAnimationUrl(
@@ -97,15 +121,24 @@ export function getExerciseAnimationUrl(
 ): string | null {
   if (!exercise.animationUrl) return null;
   const remoteAnimation = safeHttpsUrl(exercise.animationUrl);
-  return remoteAnimation || `${import.meta.env.BASE_URL}exercises/videos/${exercise.animationUrl}`;
+  return remoteAnimation
+    || getPublicExerciseAssetUrl(`exercises/videos/${exercise.animationUrl}`);
 }
 
-export function getExerciseVideoUrl(exercise: Pick<ExerciseCatalogItem, "videos">): string | null {
+export function getExerciseVideoUrl(
+  exercise: Pick<ExerciseCatalogItem, "id" | "videos">,
+): string | null {
   const playableVideos = (exercise.videos || []).filter((video) =>
     video.webPlayable === true
       || (video.codec?.toLowerCase() === "h264" && /\.mp4(?:$|\?)/i.test(video.url)));
   const preferred = playableVideos.find((video) => video.isMain) || playableVideos[0];
-  return safeHttpsUrl(preferred?.url);
+  const remoteVideo = safeHttpsUrl(preferred?.url);
+  if (remoteVideo) return remoteVideo;
+
+  const localVideo = localExerciseVideos[exercise.id];
+  return localVideo
+    ? getPublicExerciseAssetUrl(`exercises/videos/${localVideo}`)
+    : null;
 }
 
 export function getLocalizedExerciseContent(

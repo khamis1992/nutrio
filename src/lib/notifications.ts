@@ -13,6 +13,9 @@ interface NotificationData {
 
 export const createNotification = async (data: NotificationData) => {
   try {
+    const dedupeKey = typeof data.metadata?.dedupe_key === "string"
+      ? data.metadata.dedupe_key.slice(0, 200)
+      : undefined;
     const { error } = await supabase.from("notifications").insert({
       user_id: data.user_id,
       type: data.type,
@@ -20,6 +23,7 @@ export const createNotification = async (data: NotificationData) => {
       message: data.message,
       status: "unread",
       data: (data.metadata || {}) as Json,
+      ...(dedupeKey ? { dedupe_key: dedupeKey } : {}),
     });
 
     if (error) {
@@ -35,32 +39,32 @@ export const notifyOrderStatusChange = async (
   userId: string,
   orderId: string,
   status: string,
-  mealName?: string
+  mealName?: string,
 ) => {
   const messages: Record<string, { title: string; message: string }> = {
     confirmed: {
-      title: "Order Confirmed! ✓",
+      title: "Order confirmed",
       message: `Your order ${mealName ? `for ${mealName} ` : ""}has been confirmed and will be prepared soon.`,
     },
     preparing: {
-      title: "Being Prepared 👨‍🍳",
+      title: "Being prepared",
       message: `Your ${mealName || "meal"} is now being prepared in the kitchen.`,
     },
     driver_assigned: {
-      title: "Driver Assigned 🚗",
+      title: "Driver assigned",
       message: "A driver has been assigned to your order and will pick it up soon.",
     },
     picked_up: {
-      title: "Order Picked Up 📦",
-      message: "Your order has been picked up and is on its way to you!",
+      title: "Order picked up",
+      message: "Your order has been picked up and is on its way to you.",
     },
     out_for_delivery: {
-      title: "Out for Delivery 🚚",
+      title: "Out for delivery",
       message: "Your order is out for delivery and will arrive soon.",
     },
     delivered: {
-      title: "Delivered! 🎉",
-      message: `Your ${mealName || "order"} has been delivered. Enjoy your meal!`,
+      title: "Delivered",
+      message: `Your ${mealName || "order"} has been delivered. Enjoy your meal.`,
     },
   };
 
@@ -71,7 +75,7 @@ export const notifyOrderStatusChange = async (
       type: "order_update",
       title: notification.title,
       message: notification.message,
-      metadata: { order_id: orderId, status },
+      metadata: { order_id: orderId, status, dedupe_key: `order:${orderId}:${status}` },
     });
   }
 };
@@ -79,31 +83,31 @@ export const notifyOrderStatusChange = async (
 export const notifyDriverAssigned = async (
   userId: string,
   orderId: string,
-  driverName?: string
+  driverName?: string,
 ) => {
   await createNotification({
     user_id: userId,
     type: "delivery_update",
-    title: "Driver Assigned 🚗",
-    message: driverName 
+    title: "Driver assigned",
+    message: driverName
       ? `${driverName} has been assigned to deliver your order.`
       : "A driver has been assigned to your order.",
-    metadata: { order_id: orderId },
+    metadata: { order_id: orderId, dedupe_key: `order:${orderId}:driver_assigned` },
   });
 };
 
 export const notifyNewDelivery = async (
   driverUserId: string,
   deliveryId: string,
-  restaurantName?: string
+  restaurantName?: string,
 ) => {
   await createNotification({
     user_id: driverUserId,
     type: "delivery_update",
-    title: "New Delivery Available 📦",
-    message: restaurantName 
+    title: "New delivery available",
+    message: restaurantName
       ? `New delivery order from ${restaurantName} is available for pickup.`
       : "A new delivery order is available near you.",
-    metadata: { delivery_id: deliveryId },
+    metadata: { delivery_id: deliveryId, dedupe_key: `delivery:${deliveryId}:available` },
   });
 };

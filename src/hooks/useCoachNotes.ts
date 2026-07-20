@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  addCareNote,
+  amendCareNote,
+  archiveCareNote,
+  findActiveCareAssignment,
+} from "@/hooks/useCareTeam";
 
 export interface CoachNote {
   id: string;
@@ -8,6 +14,9 @@ export interface CoachNote {
   note: string;
   created_at: string;
   updated_at: string;
+  assignment_id?: string | null;
+  note_type?: string;
+  status?: string;
 }
 
 export function useCoachNotes(coachId: string | undefined, clientId: string | undefined) {
@@ -41,17 +50,9 @@ export function useCoachNotes(coachId: string | undefined, clientId: string | un
     async (note: string) => {
       if (!coachId || !clientId || !note.trim()) return;
       try {
-        const { data, error } = await supabase
-          .from("coach_notes")
-          .insert({
-            coach_id: coachId,
-            client_id: clientId,
-            note: note.trim(),
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
+        const assignment = await findActiveCareAssignment(coachId, clientId);
+        if (!assignment) throw new Error("No active care assignment found for this client.");
+        const data = await addCareNote(assignment.id, "progress", note.trim()) as unknown as CoachNote;
         setNotes((prev) => [data, ...prev]);
         return data;
       } catch (err) {
@@ -65,34 +66,18 @@ export function useCoachNotes(coachId: string | undefined, clientId: string | un
   const updateNote = useCallback(async (noteId: string, note: string) => {
     if (!coachId || !note.trim()) return;
     try {
-      const { error } = await supabase
-        .from("coach_notes")
-        .update({ note: note.trim(), updated_at: new Date().toISOString() })
-        .eq("id", noteId)
-        .eq("coach_id", coachId);
-
-      if (error) throw error;
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === noteId ? { ...n, note: note.trim(), updated_at: new Date().toISOString() } : n
-        )
-      );
+      await amendCareNote(noteId, note.trim());
+      await fetchNotes();
     } catch (err) {
       console.error("Error updating note:", err);
       throw err;
     }
-  }, [coachId]);
+  }, [coachId, fetchNotes]);
 
   const deleteNote = useCallback(async (noteId: string) => {
     if (!coachId) return;
     try {
-      const { error } = await supabase
-        .from("coach_notes")
-        .delete()
-        .eq("id", noteId)
-        .eq("coach_id", coachId);
-
-      if (error) throw error;
+      await archiveCareNote(noteId);
       setNotes((prev) => prev.filter((n) => n.id !== noteId));
     } catch (err) {
       console.error("Error deleting note:", err);

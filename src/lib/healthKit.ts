@@ -18,7 +18,26 @@ import { getQatarDay } from "@/lib/dateUtils";
 
 export type HealthPlatform = "apple_health" | "google_fit" | "none";
 
-export type SyncDataType = "steps" | "heart_rate" | "workouts" | "sleep" | "recovery";
+export type SyncDataType = "steps" | "heart_rate" | "workouts" | "sleep" | "recovery" | "blood_glucose";
+
+export type HealthCapabilityAvailability = "available" | "unavailable" | "unsupported" | "unknown";
+
+export interface NativeHealthCapabilities {
+  healthData: HealthCapabilityAvailability;
+  bloodGlucoseRead: HealthCapabilityAvailability;
+  incrementalSync: "overlapping_window" | "unsupported";
+  backgroundSync: "unsupported";
+}
+
+export interface BloodGlucoseSample {
+  value: number;
+  unit: string;
+  startDate: string;
+  endDate: string;
+  sourceName?: string;
+  sourceId?: string;
+  platformId?: string;
+}
 
 export interface HealthSyncConfig {
   platform: HealthPlatform;
@@ -301,6 +320,7 @@ export const DATA_TYPE_LABELS: Record<SyncDataType, string> = {
   workouts: "Sync Workouts",
   sleep: "Sync Sleep",
   recovery: "Sync Recovery",
+  blood_glucose: "Sync Blood Glucose",
 };
 
 export const DATA_TYPE_ICONS: Record<SyncDataType, string> = {
@@ -309,4 +329,5 @@ export const DATA_TYPE_ICONS: Record<SyncDataType, string> = {
   workouts: "dumbbell",
   sleep: "moon",
   recovery: "activity",
+  blood_glucose: "droplet",
 };

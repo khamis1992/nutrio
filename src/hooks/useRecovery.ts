@@ -153,7 +153,7 @@ export function useRecoveryBookings() {
       .order("booking_date", { ascending: false })
       .order("booking_time", { ascending: false });
 
-    if (data) setBookings(data as RecoveryBooking[]);
+    if (data) setBookings(data as unknown as RecoveryBooking[]);
     setLoading(false);
   };
 

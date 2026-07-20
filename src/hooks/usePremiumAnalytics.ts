@@ -61,20 +61,7 @@ export function usePremiumAnalytics(restaurantId: string | null) {
         setHasPendingRequest(!!pendingPurchase);
       }
 
-      // Fallback: also check premium_analytics_until column if it exists
-      const restaurantRes = await supabase
-        .from("restaurants")
-        .select("premium_analytics_until")
-        .eq("id", restaurantId)
-        .maybeSingle();
-
-      if (!restaurantRes.error && restaurantRes.data?.premium_analytics_until) {
-        const until = new Date(restaurantRes.data.premium_analytics_until);
-        if (until > new Date()) {
-          setHasPremium(true);
-          setPremiumUntil(until);
-        }
-      }
+      // Premium access is sourced from purchases; the restaurant fallback column is not present in production.
     } catch (error) {
       console.error("Error checking premium status:", error);
     } finally {

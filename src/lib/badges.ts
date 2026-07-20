@@ -1,24 +1,24 @@
 /**
  * Badge metadata and image mappings for the NUTRIO achievement system.
  *
- * Maps database badge_id values to PNG assets in src/assets/Badge/
+ * Maps database badge_id values to mobile-optimized WebP assets.
  * and provides user-facing display metadata (name, description, rarity).
  */
 
-import Badge1 from "@/assets/Badge/Badge 1.png";
-import Badge2 from "@/assets/Badge/Badge 2.png";
-import Badge3 from "@/assets/Badge/Badge 3.png";
-import Badge4 from "@/assets/Badge/Badge 4.png";
-import Badge5 from "@/assets/Badge/Badge 5.png";
-import Badge6 from "@/assets/Badge/Badge 6.png";
-import Badge7 from "@/assets/Badge/Badge 7.png";
-import Badge8 from "@/assets/Badge/Badge 8.png";
-import Badge9 from "@/assets/Badge/Badge 9.png";
-import Badge11 from "@/assets/Badge/Badge 11.png";
-import Badge12 from "@/assets/Badge/Badge 12.png";
-import Badge13 from "@/assets/Badge/Badge 13.png";
-import Badge14 from "@/assets/Badge/Badge 14.png";
-import Badge15 from "@/assets/Badge/Badge 15.png";
+import Badge1 from "@/assets/Badge/Badge 1.webp";
+import Badge2 from "@/assets/Badge/Badge 2.webp";
+import Badge3 from "@/assets/Badge/Badge 3.webp";
+import Badge4 from "@/assets/Badge/Badge 4.webp";
+import Badge5 from "@/assets/Badge/Badge 5.webp";
+import Badge6 from "@/assets/Badge/Badge 6.webp";
+import Badge7 from "@/assets/Badge/Badge 7.webp";
+import Badge8 from "@/assets/Badge/Badge 8.webp";
+import Badge9 from "@/assets/Badge/Badge 9.webp";
+import Badge11 from "@/assets/Badge/Badge 11.webp";
+import Badge12 from "@/assets/Badge/Badge 12.webp";
+import Badge13 from "@/assets/Badge/Badge 13.webp";
+import Badge14 from "@/assets/Badge/Badge 14.webp";
+import Badge15 from "@/assets/Badge/Badge 15.webp";
 
 export type BadgeRarity = "common" | "rare" | "epic" | "legendary";
 
@@ -31,7 +31,7 @@ export interface BadgeMeta {
   description: string;
   /** Rarity tier */
   rarity: BadgeRarity;
-  /** Imported PNG image source */
+  /** Imported optimized image source */
   image: string;
   /** XP awarded on unlock */
   xpReward: number;
@@ -54,7 +54,7 @@ export const RARITY_COLORS: Record<BadgeRarity, { border: string; bg: string; gl
 
 /**
  * Master badge registry — single source of truth connecting database badge_id
- * to display metadata and PNG asset.
+ * to display metadata and optimized asset.
  *
  * Sorted by display order (image number 1–15).
  */

@@ -350,6 +350,86 @@ serve(async (req) => {
       .limit(1000);
     if (auditLogs?.length) exportData.activity_log = auditLogs;
 
+    // 19. Private health-context journal, preferences, and consent history.
+    // Fail closed so the user never receives an export presented as complete
+    // while this especially sensitive dataset is missing.
+    const [
+      healthContextPreferences,
+      healthContextEntries,
+      healthContextConsent,
+      healthContextConsentEvents,
+    ] = await Promise.all([
+      adminSupabase.from("health_context_preferences").select("*")
+        .eq("user_id", targetUserId).maybeSingle(),
+      adminSupabase.from("health_context_entries").select("*")
+        .eq("user_id", targetUserId).order("entry_date", { ascending: true }),
+      adminSupabase.from("ai_data_consents").select("*")
+        .eq("user_id", targetUserId).eq("purpose", "health_context_summary").maybeSingle(),
+      adminSupabase.from("health_context_consent_events").select("*")
+        .eq("user_id", targetUserId).order("created_at", { ascending: true }),
+    ]);
+    const healthContextError = [
+      healthContextPreferences.error,
+      healthContextEntries.error,
+      healthContextConsent.error,
+      healthContextConsentEvents.error,
+    ].find(Boolean);
+    if (healthContextError) {
+      console.error("Health context export collection failed:", healthContextError.message);
+      throw new HttpError(503, "health_context_export_unavailable");
+    }
+    exportData.health_context = {
+      preferences: healthContextPreferences.data,
+      entries: healthContextEntries.data ?? [],
+      ai_consent: healthContextConsent.data,
+      consent_events: healthContextConsentEvents.data ?? [],
+    };
+
+    // 20. User-owned health support program data. This is collected as one
+    // fail-closed group because omitting symptom or consent history would make
+    // the export materially incomplete.
+    const [
+      programEnrollments,
+      programBaselines,
+      programCheckins,
+      programTasks,
+      programConsents,
+      programSafetyEvents,
+    ] = await Promise.all([
+      adminSupabase.from("health_program_enrollments").select("*")
+        .eq("user_id", targetUserId).order("created_at", { ascending: true }),
+      adminSupabase.from("health_program_baselines").select("*")
+        .eq("user_id", targetUserId).order("created_at", { ascending: true }),
+      adminSupabase.from("health_program_checkins").select("*")
+        .eq("user_id", targetUserId).order("checkin_date", { ascending: true }),
+      adminSupabase.from("health_program_task_completions").select("*")
+        .eq("user_id", targetUserId).order("task_date", { ascending: true }),
+      adminSupabase.from("health_program_consent_events").select("*")
+        .eq("user_id", targetUserId).order("created_at", { ascending: true }),
+      adminSupabase.from("health_program_safety_events").select("*")
+        .eq("user_id", targetUserId).order("created_at", { ascending: true }),
+    ]);
+    const healthProgramError = [
+      programEnrollments.error,
+      programBaselines.error,
+      programCheckins.error,
+      programTasks.error,
+      programConsents.error,
+      programSafetyEvents.error,
+    ].find(Boolean);
+    if (healthProgramError) {
+      console.error("Health program export collection failed:", healthProgramError.message);
+      throw new HttpError(503, "health_program_export_unavailable");
+    }
+    exportData.health_support_programs = {
+      enrollments: programEnrollments.data ?? [],
+      baselines: programBaselines.data ?? [],
+      checkins: programCheckins.data ?? [],
+      task_completions: programTasks.data ?? [],
+      consent_events: programConsents.data ?? [],
+      safety_events: programSafetyEvents.data ?? [],
+    };
+
     const serializedExport = JSON.stringify(exportData, null, 2);
     const dataSizeBytes = new TextEncoder().encode(serializedExport).byteLength;
 

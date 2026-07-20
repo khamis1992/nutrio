@@ -39,6 +39,10 @@ export interface HealthGoals {
 export interface ScoredMeal extends MealCandidate {
   score: number;
   reason: string;
+  finalScore?: number;
+  componentScores?: import("@/lib/mealRanking").RankingComponentScores;
+  explanationCodes?: import("@/lib/mealRanking").MealExplanationCode[];
+  inputFreshness?: Record<string, import("@/lib/mealRanking").RankingFreshnessState>;
 }
 
 function normalizeText(str: string | null): string {

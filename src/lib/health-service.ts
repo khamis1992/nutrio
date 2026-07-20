@@ -1,6 +1,8 @@
-import { supabase } from "@/integrations/supabase/client";
 import { isAndroid, isIOS, isNative } from "@/lib/capacitor";
-import { fetchAndSaveGoogleFitWorkouts } from "@/lib/google-fit-workout-service";
+import {
+  fetchAndSaveGoogleFitWorkouts,
+  isGoogleFitConnected,
+} from "@/lib/google-fit-workout-service";
 import type { HealthData, WorkoutData } from "@/lib/health-types";
 
 export type HealthPlatform = "apple_health" | "google_fit" | "web" | "none";
@@ -125,14 +127,7 @@ export async function fetchHealthData(
     return getHealthData(dateRange);
   }
 
-  const { data: tokens } = await supabase
-    .from("user_integrations")
-    .select("access_token")
-    .eq("user_id", userId)
-    .eq("provider", "google_fit")
-    .maybeSingle();
-
-  if (!tokens?.access_token) return null;
+  if (!await isGoogleFitConnected()) return null;
 
   const workouts = await fetchAndSaveGoogleFitWorkouts(userId, dateRange.start, dateRange.end);
   return {

@@ -61,7 +61,7 @@ describe("logMealItems", () => {
     });
 
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc).toHaveBeenCalledWith("log_manual_meal_items_v2", {
+    expect(rpc).toHaveBeenCalledWith("log_manual_meal_items_v3", {
       p_items: [{
         name: "Chicken Bowl",
         calories: 841,
@@ -76,12 +76,16 @@ describe("logMealItems", () => {
       p_log_date: "2026-07-12",
       p_request_id: "00000000-0000-4000-8000-000000000001",
       p_source: "barcode",
+      p_started_consuming_at: expect.any(String),
+      p_time_precision: "exact",
+      p_timezone_name: expect.any(String),
+      p_utc_offset_minutes: expect.any(Number),
     });
     expect(JSON.stringify(rpc.mock.calls[0])).not.toContain("user-1");
     expect(track).toHaveBeenCalledWith("xp_earned", { amount: 20, source: "barcode" });
   });
 
-  it("falls back to the legacy RPC while the extended migration is pending", async () => {
+  it("falls back to the v2 RPC while the v3 migration is pending", async () => {
     rpc
       .mockResolvedValueOnce({ data: null, error: { code: "PGRST202", message: "not found" } } as never)
       .mockResolvedValueOnce({
@@ -94,9 +98,10 @@ describe("logMealItems", () => {
       items: [{ name: "Soup", calories: 180, protein_g: 8, carbs_g: 25, fat_g: 5 }],
     })).resolves.toMatchObject({ persisted: true, loggedCount: 1 });
 
-    expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+    const rpcNames = (rpc.mock.calls as unknown as Array<[string]>).map((call) => call[0]);
+    expect(rpcNames).toEqual([
+      "log_manual_meal_items_v3",
       "log_manual_meal_items_v2",
-      "log_manual_meal_items",
     ]);
   });
 

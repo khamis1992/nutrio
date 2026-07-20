@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  createCareSession,
+  findActiveCareAssignment,
+  updateCareSession,
+} from "@/hooks/useCareTeam";
 
 export type CoachSessionStatus = "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
 
@@ -68,22 +73,17 @@ export function useCoachSessions(coachId: string | undefined, clientId: string |
     }) => {
       if (!coachId || !clientId) return { success: false, error: new Error("Missing data") };
       try {
-        const { data: session, error } = await supabase
-          .from("coach_sessions")
-          .insert({
-            coach_id: coachId,
-            client_id: clientId,
-            title: data.title,
-            description: data.description || null,
-            session_type: data.session_type || "video_call",
-            scheduled_at: data.scheduled_at,
-            duration_minutes: data.duration_minutes || 30,
-            notes: data.notes || null,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
+        const assignment = await findActiveCareAssignment(coachId, clientId);
+        if (!assignment) throw new Error("No active care assignment found for this client.");
+        const session = await createCareSession({
+          assignmentId: assignment.id,
+          title: data.title,
+          description: data.description,
+          sessionType: data.session_type,
+          scheduledAt: data.scheduled_at,
+          durationMinutes: data.duration_minutes,
+          notes: data.notes,
+        }) as unknown as CoachSessionRow;
         const normalizedSession = normalizeSession(session);
         setSessions((prev) => [normalizedSession, ...prev].sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()));
         return { success: true, error: null, data: session };
@@ -98,12 +98,14 @@ export function useCoachSessions(coachId: string | undefined, clientId: string |
   const updateSession = useCallback(
     async (sessionId: string, updates: { status?: CoachSessionStatus; title?: string; description?: string | null; meeting_link?: string | null; notes?: string | null }) => {
       try {
-        const { error } = await supabase
-          .from("coach_sessions")
-          .update({ ...updates, updated_at: new Date().toISOString() })
-          .eq("id", sessionId);
-
-        if (error) throw error;
+        await updateCareSession({
+          sessionId,
+          status: updates.status,
+          title: updates.title,
+          description: updates.description,
+          meetingLink: updates.meeting_link,
+          notes: updates.notes,
+        });
         setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, ...updates, updated_at: new Date().toISOString() } : s)));
         return { success: true, error: null };
       } catch (err) {

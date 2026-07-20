@@ -12,6 +12,10 @@ import {
   requirePost,
   type SecurityPrincipal,
 } from "../_shared/security.ts";
+import {
+  gulfDishPromptNames,
+  matchGulfDish,
+} from "../_shared/gulfFoodDb.ts";
 
 const RATE_LIMIT = 50;
 const IP_RATE_LIMIT = 100;
@@ -380,7 +384,11 @@ interface QuickScanItem {
   fat_g: number;
   estimated_grams: number;
   confidence: number;
-  source: "ai_estimate" | "ai_usda_cross_checked" | "usda_fallback";
+  source:
+    | "ai_estimate"
+    | "ai_usda_cross_checked"
+    | "usda_fallback"
+    | "gulf_db_verified";
   ranges: Record<"calories" | "protein_g" | "carbs_g" | "fat_g", NutritionEstimateRange>;
   usda_cross_check?: {
     status: "matched" | "unavailable" | "no_match";
@@ -388,6 +396,13 @@ interface QuickScanItem {
     description?: string;
     data_type?: string;
     match_confidence?: number;
+  };
+  gulf_match?: {
+    dish_id: string;
+    name_en: string;
+    name_ar: string;
+    match_confidence: number;
+    data_source: string;
   };
 }
 
@@ -540,25 +555,80 @@ async function searchUsdaFood(
   }
 }
 
+const GULF_RANGE_SPREAD = 0.12;
+
+/**
+ * Verify a detected item against the curated Gulf dish database. Regional
+ * dishes (machboos, harees, thareed, ...) are poorly covered by USDA, so a
+ * confident match here replaces the AI estimate with reference values scaled
+ * to the estimated portion and skips the USDA cross-check entirely.
+ */
+function applyGulfVerification(item: QuickScanItem): QuickScanItem | null {
+  const match = matchGulfDish(item.name);
+  if (!match) return null;
+
+  const grams = item.estimated_grams > 0
+    ? item.estimated_grams
+    : match.dish.typical_serving_g;
+  const factor = grams / 100;
+  const scale = (value: number) => Math.round(value * factor * 100) / 100;
+  const values = {
+    calories: scale(match.dish.per_100g.calories),
+    protein_g: scale(match.dish.per_100g.protein_g),
+    carbs_g: scale(match.dish.per_100g.carbs_g),
+    fat_g: scale(match.dish.per_100g.fat_g),
+  };
+  const range = (value: number) => ({
+    min: Math.max(0, Math.round(value * (1 - GULF_RANGE_SPREAD) * 100) / 100),
+    max: Math.round(value * (1 + GULF_RANGE_SPREAD) * 100) / 100,
+  });
+
+  return {
+    ...item,
+    ...values,
+    estimated_grams: grams,
+    confidence: Math.max(item.confidence, 0.85),
+    source: "gulf_db_verified",
+    ranges: {
+      calories: range(values.calories),
+      protein_g: range(values.protein_g),
+      carbs_g: range(values.carbs_g),
+      fat_g: range(values.fat_g),
+    },
+    gulf_match: {
+      dish_id: match.dish.id,
+      name_en: match.dish.name_en,
+      name_ar: match.dish.name_ar,
+      match_confidence: match.match_confidence,
+      data_source: match.dish.source,
+    },
+  };
+}
+
 async function crossCheckQuickScanItems(items: QuickScanItem[]): Promise<QuickScanItem[]> {
+  const gulfChecked = items.map((item) => applyGulfVerification(item) ?? item);
   const apiKey = Deno.env.get("USDA_FDC_API_KEY");
   if (!apiKey) {
-    return items.map((item) => ({
-      ...item,
-      usda_cross_check: { status: "unavailable" },
-    }));
+    return gulfChecked.map((item) =>
+      item.source === "gulf_db_verified" ? item : {
+        ...item,
+        usda_cross_check: { status: "unavailable" as const },
+      }
+    );
   }
 
-  const checked = await Promise.all(
-    items.slice(0, USDA_CROSS_CHECK_LIMIT).map((item) => searchUsdaFood(apiKey, item)),
-  );
-  return [
-    ...checked,
-    ...items.slice(USDA_CROSS_CHECK_LIMIT).map((item) => ({
-      ...item,
-      usda_cross_check: { status: "unavailable" as const },
-    })),
-  ];
+  let usdaLookups = 0;
+  return await Promise.all(gulfChecked.map((item) => {
+    if (item.source === "gulf_db_verified") return Promise.resolve(item);
+    if (usdaLookups >= USDA_CROSS_CHECK_LIMIT) {
+      return Promise.resolve({
+        ...item,
+        usda_cross_check: { status: "unavailable" as const },
+      });
+    }
+    usdaLookups += 1;
+    return searchUsdaFood(apiKey, item);
+  }));
 }
 
 function optionalBoundedNumber(
@@ -1009,14 +1079,14 @@ serve(async (req) => {
     const systemPrompt = mode === "nutrition_label"
       ? "You are a nutrition label OCR specialist. Read packaged-food Nutrition Facts labels precisely. Always respond with valid JSON only, no markdown."
       : mode === "quick_scan"
-      ? "You are a nutrition expert. Analyze the food image and identify visible food items with estimated nutrition values. Always respond with valid JSON only, no markdown."
+      ? "You are a nutrition expert serving users in Qatar and the Gulf. Analyze the food image and identify visible food items with estimated nutrition values. When a dish is a Khaleeji or Middle Eastern dish, use its proper dish name instead of a generic description. Always respond with valid JSON only, no markdown."
       : "You are a nutrition expert. Analyze the meal image and provide detailed nutritional information. Always respond with valid JSON only, no markdown. Always respond in English.";
     const userPrompt = mode === "nutrition_label"
       ? 'Read the Nutrition Facts label in this image. Extract values per serving, not per container. If the image does not contain a readable Nutrition Facts label, set is_nutrition_label to false. Use 0 for nutrients that are visible as zero or unavailable. Respond with JSON in this exact format: {"is_nutrition_label": true, "product_name": "Product name or Packaged food", "serving_size": "1 bar (50g)", "servings_per_container": 4, "calories": 210, "protein_g": 12, "carbs_g": 24, "fat_g": 8, "fiber_g": 3, "sugar_g": 9, "sodium_mg": 180, "confidence": 0.86, "notes": ["short uncertainty note"]}'
       : mode === "quick_scan"
       ? `Analyze this food image and list the visible food items with estimated portions, nutrition values, uncertainty, and confidence. Available diet tags: ${
         availableTags.length ? tagList : "none"
-      }. Confidence must be between 0 and 1. Respond with JSON in this exact format: {"items": [{"name": "Food Name", "estimated_grams": 120, "calories": 100, "protein_g": 10, "carbs_g": 15, "fat_g": 5, "confidence": 0.72}]}`
+      }. If an item is a regional dish, name it precisely (known dishes include: ${gulfDishPromptNames()}). Confidence must be between 0 and 1. Respond with JSON in this exact format: {"items": [{"name": "Food Name", "estimated_grams": 120, "calories": 100, "protein_g": 10, "carbs_g": 15, "fat_g": 5, "confidence": 0.72}]}`
       : `Analyze this meal image and provide detailed information. Available diet tags to choose from: ${tagList}. Respond with JSON in this exact format: {"name": "Meal Name", "description": "Brief description", "calories": 450, "protein_g": 25, "carbs_g": 40, "fat_g": 18, "fiber_g": 8, "prep_time_minutes": 20, "suggested_price": 35, "diet_tags": ["high-protein", "gluten-free"]}`;
 
     let providerResult: { status: number; content: string | null };

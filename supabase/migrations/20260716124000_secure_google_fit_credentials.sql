@@ -10,7 +10,10 @@ DECLARE
   v_key TEXT;
 BEGIN
   IF to_regclass('vault.decrypted_secrets') IS NULL
-     OR to_regprocedure('vault.create_secret(text,text,text)') IS NULL THEN
+     OR (
+       to_regprocedure('vault.create_secret(text,text,text)') IS NULL
+       AND to_regprocedure('vault.create_secret(text,text,text,uuid)') IS NULL
+     ) THEN
     RAISE EXCEPTION 'Supabase Vault must be enabled before securing OAuth credentials';
   END IF;
 
@@ -22,11 +25,20 @@ BEGIN
   LIMIT 1;
 
   IF v_key IS NULL THEN
-    PERFORM vault.create_secret(
-      encode(extensions.gen_random_bytes(32), 'hex'),
-      'oauth_token_encryption_key',
-      'Nutrio third-party OAuth credential encryption key'
-    );
+    IF to_regprocedure('vault.create_secret(text,text,text,uuid)') IS NOT NULL THEN
+      PERFORM vault.create_secret(
+        encode(extensions.gen_random_bytes(32), 'hex'),
+        'oauth_token_encryption_key',
+        'Nutrio third-party OAuth credential encryption key',
+        NULL
+      );
+    ELSE
+      PERFORM vault.create_secret(
+        encode(extensions.gen_random_bytes(32), 'hex'),
+        'oauth_token_encryption_key',
+        'Nutrio third-party OAuth credential encryption key'
+      );
+    END IF;
   END IF;
 END;
 $do$;

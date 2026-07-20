@@ -18,9 +18,29 @@ export interface MealCompletion {
   notes: string | null;
 }
 
+export type ProgramMealTimePrecision =
+  | "exact"
+  | "estimated_15m"
+  | "estimated_30m"
+  | "date_only";
+
+export interface ProgramMealCompletionTiming {
+  startedConsumingAt?: string | null;
+  timePrecision?: ProgramMealTimePrecision;
+  timezoneName?: string;
+  utcOffsetMinutes?: number;
+}
+
+type UntypedRpcClient = {
+  rpc: (
+    name: string,
+    params: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message?: string } | null }>;
+};
+
 /**
  * Hook for a client to track exercise and meal completions within their programs.
- * Fetches today's completions, provides toggle functions.
+ * Fetches today's exercise completions and canonical meal projections.
  */
 export function useProgramCompletions(clientId: string | undefined) {
   const [exerciseCompletions, setExerciseCompletions] = useState<ExerciseCompletion[]>([]);
@@ -36,7 +56,7 @@ export function useProgramCompletions(clientId: string | undefined) {
     }
     try {
       const today = new Date().toISOString().split("T")[0];
-      const [{ data: exData }, { data: mealData }] = await Promise.all([
+      const [exerciseResult, mealResult] = await Promise.all([
         supabase
           .from("program_exercise_completions")
           .select("id, program_exercise_id, client_id, completed_at, notes")
@@ -45,11 +65,12 @@ export function useProgramCompletions(clientId: string | undefined) {
         supabase
           .from("program_meal_completions")
           .select("id, program_meal_id, client_id, completed_at, notes")
-          .eq("client_id", clientId)
-          .gte("completed_at", today),
+          .eq("client_id", clientId),
       ]);
-      setExerciseCompletions((exData as ExerciseCompletion[]) || []);
-      setMealCompletions((mealData as MealCompletion[]) || []);
+      if (exerciseResult.error) throw exerciseResult.error;
+      if (mealResult.error) throw mealResult.error;
+      setExerciseCompletions((exerciseResult.data as ExerciseCompletion[]) || []);
+      setMealCompletions((mealResult.data as MealCompletion[]) || []);
     } catch (err) {
       console.error("Error fetching completions:", err);
     } finally {
@@ -101,41 +122,48 @@ export function useProgramCompletions(clientId: string | undefined) {
   );
 
   const toggleMeal = useCallback(
-    async (programMealId: string) => {
+    async (
+      programMealId: string,
+      timing: ProgramMealCompletionTiming = {},
+    ) => {
       if (!clientId) return;
-      const today = new Date().toISOString().split("T")[0];
       const existing = mealCompletions.find(
         (c) => c.program_meal_id === programMealId
       );
       try {
-        if (existing) {
-          const { error } = await supabase
-            .from("program_meal_completions")
-            .delete()
-            .eq("id", existing.id);
-          if (error) throw error;
-          setMealCompletions((prev) =>
-            prev.filter((c) => c.id !== existing.id)
-          );
-        } else {
-          const { data, error } = await supabase
-            .from("program_meal_completions")
-            .insert({
-              program_meal_id: programMealId,
-              client_id: clientId,
-              completed_at: today,
-            })
-            .select("id, program_meal_id, client_id, completed_at, notes")
-            .single();
-          if (error) throw error;
-          setMealCompletions((prev) => [...prev, data as MealCompletion]);
+        const timePrecision = timing.timePrecision ?? "exact";
+        const startedConsumingAt = timePrecision === "date_only"
+          ? null
+          : timing.startedConsumingAt ?? new Date().toISOString();
+        const timezoneName = timing.timezoneName
+          ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+          ?? "Asia/Qatar";
+        const offsetDate = startedConsumingAt ? new Date(startedConsumingAt) : new Date();
+        const utcOffsetMinutes = timing.utcOffsetMinutes
+          ?? -offsetDate.getTimezoneOffset();
+        const { data, error } = await (supabase as unknown as UntypedRpcClient).rpc(
+          "record_coach_program_meal_consumption",
+          {
+            p_program_meal_id: programMealId,
+            p_status: existing ? "reversed" : "full",
+            p_request_id: crypto.randomUUID(),
+            p_started_consuming_at: startedConsumingAt,
+            p_time_precision: timePrecision,
+            p_timezone_name: timezoneName,
+            p_utc_offset_minutes: utcOffsetMinutes,
+          },
+        );
+        if (error) throw new Error(error.message || "PROGRAM_MEAL_COMPLETION_FAILED");
+        if (!(data as { success?: boolean } | null)?.success) {
+          throw new Error("PROGRAM_MEAL_COMPLETION_FAILED");
         }
+        await fetchCompletions();
         await syncCommunityChallengeProgressQuietly(clientId);
       } catch (err) {
         console.error("Error toggling meal completion:", err);
       }
     },
-    [clientId, mealCompletions]
+    [clientId, fetchCompletions, mealCompletions]
   );
 
   const isExerciseCompleted = useCallback(

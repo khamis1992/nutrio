@@ -23,6 +23,7 @@ export const DEEP_LINK_ROUTES = {
   profile: "/profile",
   settings: "/settings",
   notifications: "/notifications",
+  meal_response: "/health/meal-response",
 } as const;
 
 export type DeepLinkRoute = keyof typeof DEEP_LINK_ROUTES;
@@ -221,5 +222,15 @@ export const NOTIFICATION_TEMPLATES = {
     createNotificationPayload("progress", {
       title: "Weekly Report Ready",
       body: "Your nutrition report for this week is ready to view",
+    }),
+  mealResponseCheckInDue: () =>
+    createNotificationPayload("meal_response", {
+      title: "How did that meal feel?",
+      body: "A quick check-in helps personalize future insights.",
+    }),
+  mealResponseInsightReady: () =>
+    createNotificationPayload("meal_response", {
+      title: "Your meal response insight is ready",
+      body: "Open Meal Response to review the latest insight.",
     }),
 };

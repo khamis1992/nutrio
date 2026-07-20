@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { rpc: vi.fn() },
@@ -12,7 +12,7 @@ import {
 } from "@/lib/schedule-meals";
 import { readOfflineMutations } from "@/lib/offline-mutation-queue";
 
-const rpc = vi.mocked(supabase.rpc);
+const rpc = supabase.rpc as unknown as Mock;
 
 describe("scheduleMealsAtomic", () => {
   beforeEach(() => {

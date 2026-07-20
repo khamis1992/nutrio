@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { ProgressionRule } from "@/lib/workout-progression";
+import type { WorkoutPrescriptionUnit, WorkoutSetType } from "@/lib/workout-sequence";
 
 export interface CoachProgram {
   id: string;
@@ -14,6 +15,9 @@ export interface CoachProgram {
   end_date: string;
   status: string;
   created_at: string;
+  schedule_mode?: string;
+  days_per_week?: number;
+  phase_count?: number;
 }
 
 export interface ProgramMeal {
@@ -39,6 +43,12 @@ export interface ProgramExercise {
   order_index: number;
   created_at: string;
   progression_rule?: Json | null;
+  set_type?: WorkoutSetType;
+  superset_group?: string | null;
+  prescription_unit?: WorkoutPrescriptionUnit;
+  target_min?: number | null;
+  target_max?: number | null;
+  weight_rounding_kg?: number;
 }
 
 export interface MealInfo {
@@ -53,10 +63,42 @@ export interface MealInfo {
   restaurant_name?: string;
 }
 
-export function useCoachPrograms(coachId: string | undefined, clientId: string | undefined, isCoach?: boolean) {
+export interface ProgramWorkoutDay {
+  id: string;
+  program_id: string;
+  day_number: number;
+  title: string;
+  day_type: "workout" | "rest" | "recovery";
+  phase_number: number;
+  preferred_weekday: number | null;
+  notes: string | null;
+}
+
+export interface WorkoutProgramTemplate {
+  id: string;
+  coach_id: string;
+  title: string;
+  description: string | null;
+  duration_weeks: number;
+  days_per_week: number;
+  schedule_mode: "fixed" | "flexible";
+  phase_count: number;
+  structure: Json;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useCoachPrograms(
+  coachId: string | undefined,
+  clientId: string | undefined,
+  isCoach?: boolean,
+  trainingEnhancementsEnabled = false,
+) {
   const [programs, setPrograms] = useState<CoachProgram[]>([]);
   const [programMeals, setProgramMeals] = useState<ProgramMeal[]>([]);
   const [programExercises, setProgramExercises] = useState<ProgramExercise[]>([]);
+  const [programWorkoutDays, setProgramWorkoutDays] = useState<ProgramWorkoutDay[]>([]);
+  const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutProgramTemplate[]>([]);
   const [mealInfos, setMealInfos] = useState<MealInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadedKey, setLoadedKey] = useState("");
@@ -83,6 +125,8 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
       setPrograms([]);
       setProgramMeals([]);
       setProgramExercises([]);
+      setProgramWorkoutDays([]);
+      setWorkoutTemplates([]);
       setMealInfos([]);
       setLoadedKey("");
       setLoading(false);
@@ -109,6 +153,17 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
         ]);
         setProgramMeals(meals || []);
         setProgramExercises((exercises || []) as unknown as ProgramExercise[]);
+        if (trainingEnhancementsEnabled) {
+          const { data: workoutDays, error: workoutDaysError } = await supabase
+            .from("program_workout_days")
+            .select("*")
+            .in("program_id", programIds)
+            .order("day_number");
+          if (workoutDaysError) throw workoutDaysError;
+          setProgramWorkoutDays((workoutDays || []) as unknown as ProgramWorkoutDay[]);
+        } else {
+          setProgramWorkoutDays([]);
+        }
 
         const mealIds = [...new Set(
           (meals || [])
@@ -120,7 +175,8 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
             .from("public_meal_catalog" as "meals")
             .select("id, name, calories, protein_g, carbs_g, fat_g, image_url, price, restaurant_name")
             .in("id", mealIds);
-          setMealInfos((mealsData as any[] || []).map((m: any) => ({
+          const catalogRows = (mealsData || []) as unknown as Array<MealInfo & { restaurant_name?: string | null }>;
+          setMealInfos(catalogRows.map((m) => ({
             id: m.id,
             name: m.name,
             calories: m.calories,
@@ -135,7 +191,19 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
       } else {
         setProgramMeals([]);
         setProgramExercises([]);
+        setProgramWorkoutDays([]);
         setMealInfos([]);
+      }
+      if (isCoach && trainingEnhancementsEnabled) {
+        const { data: templates, error: templatesError } = await supabase
+          .from("workout_program_templates")
+          .select("*")
+          .eq("coach_id", coachId)
+          .order("updated_at", { ascending: false });
+        if (templatesError) throw templatesError;
+        setWorkoutTemplates((templates || []) as unknown as WorkoutProgramTemplate[]);
+      } else {
+        setWorkoutTemplates([]);
       }
     } catch (err) {
       console.error("Error fetching programs:", err);
@@ -143,10 +211,10 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
       setLoadedKey(activeRequestKey);
       setLoading(false);
     }
-  }, [coachId, clientId]);
+  }, [coachId, clientId, isCoach, trainingEnhancementsEnabled]);
 
   const createProgram = useCallback(
-    async (data: { title: string; description?: string; type: "meal_plan" | "workout_plan"; start_date: string; end_date: string }) => {
+    async (data: { title: string; description?: string; type: "meal_plan" | "workout_plan"; start_date: string; end_date: string; schedule_mode?: "fixed" | "flexible"; days_per_week?: number; phase_count?: number }) => {
       if (!coachId || !clientId) return { success: false, error: new Error("Missing coach or client ID") };
       try {
         const { data: existing } = await supabase
@@ -177,6 +245,9 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
             type: data.type,
             start_date: data.start_date,
             end_date: data.end_date,
+            schedule_mode: data.schedule_mode ?? "fixed",
+            days_per_week: data.days_per_week ?? 3,
+            phase_count: data.phase_count ?? 1,
           })
           .select()
           .single();
@@ -199,7 +270,7 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
   );
 
   const updateProgram = useCallback(
-    async (programId: string, updates: { title?: string; description?: string; start_date?: string; end_date?: string; status?: "active" | "completed" | "cancelled" }) => {
+    async (programId: string, updates: { title?: string; description?: string; start_date?: string; end_date?: string; status?: "active" | "completed" | "cancelled"; schedule_mode?: "fixed" | "flexible"; days_per_week?: number; phase_count?: number }) => {
       try {
         const { data, error } = await supabase
           .from("coach_programs")
@@ -306,7 +377,7 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
   );
 
   const assignExercise = useCallback(
-    async (programId: string, exercise: { exercise_catalog_id?: string | null; exercise_name: string; sets: number; reps: string; rest_seconds?: number; notes?: string; day_number: number; order_index: number; progression_rule?: ProgressionRule }) => {
+    async (programId: string, exercise: { exercise_catalog_id?: string | null; exercise_name: string; sets: number; reps: string; rest_seconds?: number; notes?: string; day_number: number; order_index: number; progression_rule?: ProgressionRule; set_type?: WorkoutSetType; superset_group?: string | null; prescription_unit?: WorkoutPrescriptionUnit; target_min?: number | null; target_max?: number | null; weight_rounding_kg?: number }) => {
       try {
         const { data, error } = await supabase
           .from("program_exercises")
@@ -321,6 +392,12 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
             day_number: exercise.day_number,
             order_index: exercise.order_index,
             progression_rule: exercise.progression_rule as unknown as Json,
+            ...(exercise.set_type !== undefined ? { set_type: exercise.set_type } : {}),
+            ...(exercise.superset_group !== undefined ? { superset_group: exercise.superset_group || null } : {}),
+            ...(exercise.prescription_unit !== undefined ? { prescription_unit: exercise.prescription_unit } : {}),
+            ...(exercise.target_min !== undefined ? { target_min: exercise.target_min } : {}),
+            ...(exercise.target_max !== undefined ? { target_max: exercise.target_max } : {}),
+            ...(exercise.weight_rounding_kg !== undefined ? { weight_rounding_kg: exercise.weight_rounding_kg } : {}),
           } as never)
           .select()
           .single();
@@ -341,7 +418,7 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
     [notifyClient]
   );
 
-  const updateExercise = useCallback(async (programExerciseId: string, updates: { exercise_catalog_id?: string | null; exercise_name?: string; sets?: number; reps?: string; rest_seconds?: number; notes?: string; day_number?: number; order_index?: number; progression_rule?: ProgressionRule }) => {
+  const updateExercise = useCallback(async (programExerciseId: string, updates: { exercise_catalog_id?: string | null; exercise_name?: string; sets?: number; reps?: string; rest_seconds?: number; notes?: string; day_number?: number; order_index?: number; progression_rule?: ProgressionRule; set_type?: WorkoutSetType; superset_group?: string | null; prescription_unit?: WorkoutPrescriptionUnit; target_min?: number | null; target_max?: number | null; weight_rounding_kg?: number }) => {
     try {
       const { data, error } = await supabase
         .from("program_exercises")
@@ -369,6 +446,95 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
     }
   }, []);
 
+  const upsertWorkoutDay = useCallback(async (programId: string, dayNumber: number, updates: Partial<Pick<ProgramWorkoutDay, "title" | "day_type" | "phase_number" | "preferred_weekday" | "notes">>) => {
+    const { data, error } = await supabase
+      .from("program_workout_days")
+      .upsert({
+        program_id: programId,
+        day_number: dayNumber,
+        title: updates.title ?? "Training day",
+        day_type: updates.day_type ?? "workout",
+        phase_number: updates.phase_number ?? 1,
+        preferred_weekday: updates.preferred_weekday ?? null,
+        notes: updates.notes ?? null,
+      } as never, { onConflict: "program_id,day_number" })
+      .select()
+      .single();
+    if (error) throw error;
+    const day = data as unknown as ProgramWorkoutDay;
+    setProgramWorkoutDays((current) => [...current.filter((item) => !(item.program_id === programId && item.day_number === dayNumber)), day].sort((a, b) => a.day_number - b.day_number));
+    return day;
+  }, []);
+
+  const saveWorkoutTemplate = useCallback(async (programId: string, title?: string) => {
+    if (!coachId) throw new Error("Missing coach ID");
+    const program = programs.find((item) => item.id === programId);
+    if (!program) throw new Error("Workout program not found");
+    const exercises = programExercises.filter((item) => item.program_id === programId);
+    const days = programWorkoutDays.filter((item) => item.program_id === programId);
+    const durationDays = Math.max(7, Math.ceil((new Date(program.end_date).getTime() - new Date(program.start_date).getTime()) / 86400000));
+    const { data, error } = await supabase
+      .from("workout_program_templates")
+      .insert({
+        coach_id: coachId,
+        title: title?.trim() || program.title,
+        description: program.description,
+        duration_weeks: Math.max(1, Math.ceil(durationDays / 7)),
+        days_per_week: program.days_per_week ?? Math.max(1, new Set(exercises.map((item) => item.day_number)).size),
+        schedule_mode: program.schedule_mode ?? "flexible",
+        phase_count: program.phase_count ?? 1,
+        structure: { days, exercises } as unknown as Json,
+      } as never)
+      .select()
+      .single();
+    if (error) throw error;
+    const template = data as unknown as WorkoutProgramTemplate;
+    setWorkoutTemplates((current) => [template, ...current]);
+    return template;
+  }, [coachId, programExercises, programWorkoutDays, programs]);
+
+  const createProgramFromTemplate = useCallback(async (templateId: string, startDate: string) => {
+    const template = workoutTemplates.find((item) => item.id === templateId);
+    if (!template) throw new Error("Workout template not found");
+    const end = new Date(`${startDate}T00:00:00`);
+    end.setDate(end.getDate() + template.duration_weeks * 7 - 1);
+    const result = await createProgram({
+      title: template.title,
+      description: template.description ?? undefined,
+      type: "workout_plan",
+      start_date: startDate,
+      end_date: end.toISOString().split("T")[0],
+      schedule_mode: template.schedule_mode,
+      days_per_week: template.days_per_week,
+      phase_count: template.phase_count,
+    });
+    if (!result.success || !result.data) throw result.error ?? new Error("Unable to create workout program");
+    const structure = template.structure as unknown as { exercises?: ProgramExercise[]; days?: ProgramWorkoutDay[] };
+    for (const day of structure.days ?? []) {
+      await upsertWorkoutDay(result.data.id, day.day_number, day);
+    }
+    for (const exercise of structure.exercises ?? []) {
+      await assignExercise(result.data.id, {
+        exercise_catalog_id: exercise.exercise_catalog_id,
+        exercise_name: exercise.exercise_name,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        rest_seconds: exercise.rest_seconds ?? 60,
+        notes: exercise.notes ?? undefined,
+        day_number: exercise.day_number,
+        order_index: exercise.order_index,
+        progression_rule: exercise.progression_rule as unknown as ProgressionRule,
+        set_type: exercise.set_type,
+        superset_group: exercise.superset_group,
+        prescription_unit: exercise.prescription_unit,
+        target_min: exercise.target_min,
+        target_max: exercise.target_max,
+        weight_rounding_kg: exercise.weight_rounding_kg,
+      });
+    }
+    return result.data;
+  }, [assignExercise, createProgram, upsertWorkoutDay, workoutTemplates]);
+
   useEffect(() => {
     fetchPrograms();
   }, [fetchPrograms]);
@@ -377,6 +543,8 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
     programs,
     programMeals,
     programExercises,
+    programWorkoutDays,
+    workoutTemplates,
     mealInfos,
     loading: loading || Boolean(requestKey && loadedKey !== requestKey),
     createProgram,
@@ -388,6 +556,9 @@ export function useCoachPrograms(coachId: string | undefined, clientId: string |
     assignExercise,
     updateExercise,
     removeExercise,
+    upsertWorkoutDay,
+    saveWorkoutTemplate,
+    createProgramFromTemplate,
     refresh: fetchPrograms,
   };
 }

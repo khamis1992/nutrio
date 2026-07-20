@@ -255,6 +255,62 @@ BEGIN
 END;
 $do$;
 
+-- Close historical portal policies that checked user_roles directly and
+-- therefore bypassed the MFA-aware role contract.
+DO $do$
+BEGIN
+  IF to_regclass('public.delivery_groups') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can view all delivery groups" ON public.delivery_groups';
+    EXECUTE 'CREATE POLICY "Admins can view all delivery groups" ON public.delivery_groups FOR SELECT TO authenticated USING (public.has_role((SELECT auth.uid()), ''admin''::public.app_role))';
+  END IF;
+  IF to_regclass('public.driver_earning_rules') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can manage driver earning rules" ON public.driver_earning_rules';
+    EXECUTE 'CREATE POLICY "Admins can manage driver earning rules" ON public.driver_earning_rules FOR ALL TO authenticated USING (public.has_role((SELECT auth.uid()), ''admin''::public.app_role)) WITH CHECK (public.has_role((SELECT auth.uid()), ''admin''::public.app_role))';
+  END IF;
+  IF to_regclass('public.driver_locations') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can view all locations" ON public.driver_locations';
+    EXECUTE 'CREATE POLICY "Admins can view all locations" ON public.driver_locations FOR SELECT TO authenticated USING (public.has_role((SELECT auth.uid()), ''admin''::public.app_role))';
+  END IF;
+  IF to_regclass('public.drivers') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can insert drivers" ON public.drivers';
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can update drivers" ON public.drivers';
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can view all drivers" ON public.drivers';
+    EXECUTE 'CREATE POLICY "Admins can insert drivers" ON public.drivers FOR INSERT TO authenticated WITH CHECK (public.has_role((SELECT auth.uid()), ''admin''::public.app_role))';
+    EXECUTE 'CREATE POLICY "Admins can update drivers" ON public.drivers FOR UPDATE TO authenticated USING (public.has_role((SELECT auth.uid()), ''admin''::public.app_role)) WITH CHECK (public.has_role((SELECT auth.uid()), ''admin''::public.app_role))';
+    EXECUTE 'CREATE POLICY "Admins can view all drivers" ON public.drivers FOR SELECT TO authenticated USING (public.has_role((SELECT auth.uid()), ''admin''::public.app_role))';
+  END IF;
+  IF to_regclass('public.meals') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can update any meal" ON public.meals';
+    EXECUTE 'CREATE POLICY "Admins can update any meal" ON public.meals FOR UPDATE TO authenticated USING (public.has_role((SELECT auth.uid()), ''admin''::public.app_role)) WITH CHECK (public.has_role((SELECT auth.uid()), ''admin''::public.app_role))';
+  END IF;
+END;
+$do$;
+
+DROP POLICY IF EXISTS notifications_authorized_insert ON public.notifications;
+CREATE POLICY notifications_authorized_insert
+  ON public.notifications FOR INSERT TO authenticated
+  WITH CHECK (
+    user_id = (SELECT auth.uid())
+    OR public.has_role((SELECT auth.uid()), 'admin'::public.app_role)
+    OR public.has_role((SELECT auth.uid()), 'staff'::public.app_role)
+    OR EXISTS (
+      SELECT 1
+      FROM public.coach_client_assignments assignment
+      WHERE assignment.coach_id = (SELECT auth.uid())
+        AND assignment.client_id = notifications.user_id
+        AND assignment.status = 'active'
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.delivery_jobs job
+      JOIN public.drivers driver ON driver.id = job.driver_id
+      JOIN public.restaurants restaurant ON restaurant.id = job.restaurant_id
+      WHERE job.id = NULLIF(notifications.data ->> 'delivery_job_id', '')::UUID
+        AND driver.user_id = notifications.user_id
+        AND restaurant.owner_id = (SELECT auth.uid())
+    )
+  );
+
 -- Deployment guard: fail closed if another historical policy still grants
 -- admin access by querying user_roles instead of the MFA-aware role function.
 DO $do$

@@ -4,6 +4,8 @@ import {
   filterExercises,
   formatExerciseLabel,
   getExerciseVideoUrl,
+  getExerciseAnimationUrl,
+  getExerciseImageUrl,
   getLocalizedExerciseContent,
   type ExerciseCatalogItem,
 } from "@/lib/exercise-catalog";
@@ -71,8 +73,24 @@ describe("exercise catalog helpers", () => {
 
   it("only returns secure exercise videos", () => {
     const secure = { ...exercises[0], videos: [{ url: "https://wger.de/video.mp4", durationSeconds: 5, width: 720, height: 720, codec: "h264", isMain: true }] };
-    const insecure = { ...secure, videos: [{ ...secure.videos[0], url: "http://example.com/video.mp4" }] };
+    const insecure = { ...secure, id: "unavailable", videos: [{ ...secure.videos[0], url: "http://example.com/video.mp4" }] };
     expect(getExerciseVideoUrl(secure)).toBe("https://wger.de/video.mp4");
     expect(getExerciseVideoUrl(insecure)).toBeNull();
+  });
+
+  it("uses bundled MP4 demonstrations when the catalog has no remote video", () => {
+    expect(getExerciseVideoUrl(exercises[0])).toMatch(
+      /^\/(?:nutrio\/)?exercises\/videos\/0001-2gPfomN\.mp4$/,
+    );
+  });
+
+  it("roots local exercise assets so they work from nested app routes", () => {
+    const exercise = {
+      ...exercises[0],
+      animationUrl: "0001-demo.gif",
+    };
+
+    expect(getExerciseImageUrl(exercise)).toMatch(/^\/(?:nutrio\/)?exercises\/images\/0001\.jpg$/);
+    expect(getExerciseAnimationUrl(exercise)).toMatch(/^\/(?:nutrio\/)?exercises\/videos\/0001-demo\.gif$/);
   });
 });

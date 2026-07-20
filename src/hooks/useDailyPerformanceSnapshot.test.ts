@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, type Mock } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { useDailyPerformanceSnapshot } from "@/hooks/useDailyPerformanceSnapshot";
 
@@ -14,6 +14,8 @@ vi.mock("@/lib/dateUtils", () => ({
 }));
 
 import { supabase } from "@/integrations/supabase/client";
+
+const rpcMock = supabase.rpc as unknown as Mock;
 
 const buildInput = () => ({
   userId: "user-1",
@@ -47,7 +49,7 @@ const buildInput = () => ({
 describe("useDailyPerformanceSnapshot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(supabase.rpc).mockResolvedValue({ data: {}, error: null } as never);
+    rpcMock.mockResolvedValue({ data: {}, error: null });
   });
 
   it("asks the server to derive today's snapshot", async () => {
@@ -69,9 +71,9 @@ describe("useDailyPerformanceSnapshot", () => {
   });
 
   it("allows a retry after a failed server refresh", async () => {
-    vi.mocked(supabase.rpc)
-      .mockResolvedValueOnce({ data: null, error: new Error("offline") } as never)
-      .mockResolvedValueOnce({ data: {}, error: null } as never);
+    rpcMock
+      .mockResolvedValueOnce({ data: null, error: new Error("offline") })
+      .mockResolvedValueOnce({ data: {}, error: null });
 
     const { rerender } = renderHook(
       ({ input }) => useDailyPerformanceSnapshot(input),
