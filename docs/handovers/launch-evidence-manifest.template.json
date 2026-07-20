@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 2,
+  "releaseSha": null,
+  "generatedAt": null,
+  "gates": {
+    "supabase-security": {
+      "status": "pending",
+      "approvedBy": null,
+      "approvedAt": null,
+      "artifacts": [
+        { "id": "migration-entry", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "nutrio-verified-pgtap", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "security-advisor-export", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "auth-settings-evidence", "uri": null, "recordedAt": null, "sha256": null }
+      ]
+    },
+    "android-real-devices": {
+      "status": "pending",
+      "approvedBy": null,
+      "approvedAt": null,
+      "artifacts": [
+        { "id": "apk-build-log", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "samsung-device-run", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "stock-android-device-run", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "accessibility-and-safe-area-evidence", "uri": null, "recordedAt": null, "sha256": null }
+      ]
+    },
+    "six-portal-identities": {
+      "status": "pending",
+      "approvedBy": null,
+      "approvedAt": null,
+      "artifacts": [
+        { "id": "six-portal-playwright-report", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "session-revocation-report", "uri": null, "recordedAt": null, "sha256": null }
+      ]
+    },
+    "sadad-financial-concurrency": {
+      "status": "pending",
+      "approvedBy": null,
+      "approvedAt": null,
+      "artifacts": [
+        { "id": "sadad-callback-replay-report", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "wallet-before-after-snapshot", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "subscription-concurrency-report", "uri": null, "recordedAt": null, "sha256": null }
+      ]
+    },
+    "glp1-governance": {
+      "status": "pending",
+      "approvedBy": null,
+      "approvedAt": null,
+      "artifacts": [
+        { "id": "qatar-legal-approval", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "licensed-dietitian-approval", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "medical-safety-wording-approval", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "dpia-approval", "uri": null, "recordedAt": null, "sha256": null }
+      ]
+    },
+    "meal-response-provider": {
+      "status": "pending",
+      "approvedBy": null,
+      "approvedAt": null,
+      "artifacts": [
+        { "id": "direct-provider-device-report", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "disconnect-and-deletion-report", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "pilot-calibration-report", "uri": null, "recordedAt": null, "sha256": null }
+      ]
+    },
+    "supplier-operations": {
+      "status": "pending",
+      "approvedBy": null,
+      "approvedAt": null,
+      "artifacts": [
+        { "id": "aal2-supplier-snapshot", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "incident-owner-roster", "uri": null, "recordedAt": null, "sha256": null },
+        { "id": "sla-and-escalation-matrix", "uri": null, "recordedAt": null, "sha256": null }
+      ]
+    }
+  }
+}
