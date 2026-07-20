@@ -1,0 +1,9 @@
+{
+  "scenario": "offline-activity-crash-recovery",
+  "checkpoint": { "localSessionId": "local-run-001", "state": "recording", "elapsedSeconds": 780, "routeVisibility": "private" },
+  "uploads": [
+    { "externalId": "local-run-001", "calorieSource": "gps_met_estimate", "calories": 122 },
+    { "externalId": "local-run-001", "calorieSource": "gps_met_estimate", "calories": 122 }
+  ],
+  "expected": { "restored": true, "storedSessions": 1, "routeVisibility": "private", "calorieSource": "gps_met_estimate" }
+}

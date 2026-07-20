@@ -1,0 +1,10 @@
+{
+  "scenario": "two-wearable-sources",
+  "metric": "steps",
+  "samples": [
+    { "provider": "google_fit", "externalId": "gf-steps-20260719", "checksum": "gf-checksum-1", "qualityState": "verified", "metricDate": "2026-07-19", "value": 8200 },
+    { "provider": "apple_health", "externalId": "ah-steps-20260719", "checksum": "ah-checksum-1", "qualityState": "verified", "metricDate": "2026-07-19", "value": 8000 },
+    { "provider": "google_fit", "externalId": "gf-steps-20260719", "checksum": "gf-checksum-1", "qualityState": "duplicate", "metricDate": "2026-07-19", "value": 8200 }
+  ],
+  "expected": { "selectedProvider": "apple_health", "selectedValue": 8000, "uniqueSamples": 2 }
+}

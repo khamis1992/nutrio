@@ -1,0 +1,11 @@
+{
+  "scenario": "reward-replay",
+  "actorRole": "service_role",
+  "sourceEvents": [
+    { "sourceKey": "challenge-001:user-001:v1", "operation": "grant", "xp": 25, "wallet": 5 },
+    { "sourceKey": "challenge-001:user-001:v1", "operation": "grant", "xp": 25, "wallet": 5 },
+    { "sourceKey": "challenge-001:user-001:v1", "operation": "reverse", "xp": -25, "wallet": -5 }
+  ],
+  "leaderboardFields": ["rank", "display_name", "progress"],
+  "expected": { "grantEntries": 1, "compensationEntries": 1, "netXp": 0, "netWallet": 0, "privateHealthExposed": false }
+}

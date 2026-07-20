@@ -1,0 +1,15 @@
+{
+  "scenario": "arabic-rtl-overflow",
+  "locale": "ar",
+  "direction": "rtl",
+  "viewportWidth": 360,
+  "content": {
+    "title": "اقتراحات الوجبات الذكية الخاصة بخطتك الغذائية لهذا الأسبوع",
+    "description": "راجع الوجبات المقترحة والمعلومات الغذائية ثم اختر الإجراء المناسب.",
+    "controls": [
+      { "id": "primary-action", "label": "عرض التوصيات", "ariaLabel": "عرض التوصيات", "x": 16, "width": 158, "height": 48 },
+      { "id": "details-action", "label": "عرض التفاصيل", "ariaLabel": "عرض التفاصيل", "x": 186, "width": 158, "height": 48 }
+    ]
+  },
+  "expected": { "minimumTouchTarget": 44, "horizontalPadding": 16, "allActionsVisible": true }
+}

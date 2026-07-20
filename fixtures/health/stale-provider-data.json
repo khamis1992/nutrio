@@ -1,0 +1,7 @@
+{
+  "scenario": "stale-health-data",
+  "asOf": "2026-07-19T12:00:00Z",
+  "sample": { "provider": "google_fit", "syncedAt": "2026-07-14T11:59:59Z", "steps": 12000 },
+  "freshnessThresholdDays": 3,
+  "expected": { "fresh": false, "rankingCredit": 0, "reason": "missing_or_stale" }
+}

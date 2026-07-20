@@ -1,0 +1,10 @@
+{
+  "scenario": "cancelled-refunded-order",
+  "orderId": "10000000-0000-4000-8000-000000000006",
+  "statusHistory": ["confirmed", "cancelled", "refunded"],
+  "requestedAction": "confirm_consumed",
+  "rewardEvents": [],
+  "walletTransactions": [{ "type": "refund", "amount": 55 }],
+  "notification": { "type": "order_detail", "id": null },
+  "expected": { "consumptionAllowed": false, "xpAwarded": 0, "walletReward": 0, "deepLinkAllowed": false }
+}

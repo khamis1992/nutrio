@@ -1,0 +1,8 @@
+{
+  "scenario": "revoked-provider",
+  "provider": "google_fit",
+  "connectionBefore": { "status": "connected", "hasServerCredential": true, "cursorEnabled": true },
+  "revoke": { "serverCredentialDeleted": true, "localCacheCleared": true },
+  "incomingPayloadAfterRevoke": { "externalId": "gf-workout-after-revoke" },
+  "expected": { "status": "revoked", "cursorEnabled": false, "payloadAccepted": false, "showReconnect": true }
+}

@@ -1,0 +1,9 @@
+{
+  "scenario": "substitute-meal",
+  "ownerId": "10000000-0000-4000-8000-000000000003",
+  "requestingUserId": "10000000-0000-4000-8000-000000000003",
+  "original": { "mealId": "10000000-0000-4000-8000-000000000004", "calories": 600, "protein_g": 45, "carbs_g": 60, "fat_g": 20 },
+  "replacement": { "mealId": "10000000-0000-4000-8000-000000000005", "calories": 400, "protein_g": 30, "carbs_g": 44, "fat_g": 12 },
+  "portionPercent": 50,
+  "expected": { "calories": 200, "protein_g": 15, "originalVisible": true }
+}

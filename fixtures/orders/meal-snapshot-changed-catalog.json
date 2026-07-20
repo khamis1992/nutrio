@@ -1,0 +1,7 @@
+{
+  "scenario": "meal-changed-after-checkout",
+  "mealId": "10000000-0000-4000-8000-000000000002",
+  "checkoutSnapshot": { "nutritionVersion": 4, "calories": 510, "protein_g": 42, "capturedAt": "2026-07-18T10:00:00Z" },
+  "currentCatalog": { "nutritionVersion": 5, "calories": 620, "protein_g": 35, "updatedAt": "2026-07-19T10:00:00Z" },
+  "expected": { "reportCalories": 510, "reportProtein_g": 42 }
+}
