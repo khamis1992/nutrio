@@ -86,6 +86,22 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Brand accent (mint) — the app-wide chromatic accent
+        brand: {
+          DEFAULT: "#22C7A1",
+          soft: "#EFFFFA",
+        },
+        // Macro palette — single canonical value per nutrient family
+        macro: {
+          carbs: "#F97316",
+          "carbs-soft": "#FFF7ED",
+          protein: "#7C83F6",
+          "protein-soft": "#F3F4FF",
+          fat: "#FB6B7A",
+          "fat-soft": "#FFF0F2",
+          water: "#38BDF8",
+          "water-soft": "#EFF9FF",
+        },
         // Brand Overrides - Deep Emerald #0E9F6E
         emerald: {
           50: "#D1FAE5",
