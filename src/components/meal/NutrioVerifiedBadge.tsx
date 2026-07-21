@@ -25,7 +25,7 @@ interface RpcResult {
   error: { message?: string } | null;
 }
 
-const callRpc = supabase.rpc as unknown as (
+const callRpc = supabase.rpc.bind(supabase) as unknown as (
   name: string,
   args: Record<string, unknown>,
 ) => Promise<RpcResult>;

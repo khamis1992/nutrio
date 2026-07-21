@@ -153,7 +153,7 @@ function getFactorLabel(factor: VerifiedTotpFactor, index: number): string {
 }
 
 async function recordMfaVerification(portal: PrivilegedPortal): Promise<void> {
-  const invoke = supabase.rpc as unknown as (
+  const invoke = supabase.rpc.bind(supabase) as unknown as (
     functionName: string,
   ) => PromiseLike<RpcResponse>;
   const functionName = portal === "admin"

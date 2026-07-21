@@ -128,7 +128,7 @@ export function SkipReasonModal({
       }
 
       // Record skip reason for analytics (after successful cancellation)
-      await (supabase.rpc as unknown as (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>)("submit_skip_reason", {
+      await (supabase.rpc.bind(supabase) as unknown as (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>)("submit_skip_reason", {
         p_user_id: user.id,
         p_meal_id: mealId,
         p_schedule_id: scheduleId,

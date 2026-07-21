@@ -84,7 +84,7 @@ export const ModifyOrderModal = ({
         return;
       }
 
-      const { data, error } = await (supabase.rpc as unknown as (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>)("reschedule_meal", {
+      const { data, error } = await (supabase.rpc.bind(supabase) as unknown as (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>)("reschedule_meal", {
         p_schedule_id: schedule.id,
         p_new_date: newDate ? newDate.toISOString().split("T")[0] : null,
         p_new_meal_type: newMealType || null,

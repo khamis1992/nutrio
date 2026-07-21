@@ -50,3 +50,17 @@ This file documents the canonical client data sources. New customer-facing code 
 
 - `Next best action`: behavior, consistency, hydration, tracking, and habit guidance.
 - `Smart next meal`: meal or restaurant recommendation matched to remaining nutrition budget.
+
+## Order Status Semantics
+
+- Single enum `order_status`: `pending → confirmed → preparing → ready_for_pickup → picked_up → out_for_delivery → delivered → completed` (`cancelled` at any point).
+- `delivered` is set by the delivery side when the order reaches the customer. `completed` is set by the customer's explicit confirmation (`customer_confirm_order`). An order is not financially closed between the two states; do not treat `delivered` as final.
+- Kitchen item statuses live in `kitchen_queue_items` (`queued → preparing → ready`) and are a separate, item-level model. `partner_update_kitchen_item_status` is the only write path and it promotes the parent status automatically: first item `preparing` promotes the order to `preparing`; when every key in `p_all_item_keys` is `ready`, an `order`-source parent is promoted to `ready_for_pickup` (a `meal_schedule` parent to `ready`). Callers MUST pass the full expected key list in `p_all_item_keys`; without it no promotion happens.
+- Delivery and consumption are separate facts: delivery never writes nutrition. Consumption is the append-only, portion-aware lifecycle behind the `consumptionLifecycle` flag.
+
+## AI Service Architecture
+
+- Conversational AI goes through the `ai-router` edge function, which owns provider keys and per-task policies for exactly three tasks: `weekly_report`, `meal_plan`, `nutrition_coach`. Client code uses `runAiTask` from `src/lib/ai-router.ts`.
+- `ai-coach` is a conversation/memory layer, not a model path: it persists threads and memories, enforces consent (`ai_data_consents`, policy `2026-07-health-ai-v1`) and idempotency, then delegates generation to `ai-router` task `nutrition_coach` via server-side fetch. Never call a provider directly from `ai-coach`.
+- Vision and utility AI functions (`analyze-meal-image`, `analyze-blood-work`, `generate-ai-insight`, `similar-meals`, `predict-nutrition`, `recommend-meals`, `translate-meal`, `adaptive-goals`) call providers directly and are NOT routed through `ai-router`. They share the `_shared/security.ts` guards (authentication, `enforceRateLimit`, consent/budget where applicable). New vision tasks should follow the same shared-guard pattern; do not claim they are centrally routed.
+- The phrase "all AI goes through ai-router" refers to the three conversational tasks only. Keep provider keys out of the browser in all cases.

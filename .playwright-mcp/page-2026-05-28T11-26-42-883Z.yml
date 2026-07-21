@@ -1,5 +1,0 @@
-- generic [ref=e2]:
-  - region "Notifications alt+T"
-  - generic [ref=e3]:
-    - img "Nutrio"
-    - img [ref=e4]

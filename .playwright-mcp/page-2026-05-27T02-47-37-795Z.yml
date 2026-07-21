@@ -1,8 +1,0 @@
-- generic [active]:
-  - generic:
-    - region "Notifications alt+T"
-    - generic [ref=e478]:
-      - heading "Your personalized plan is ready!" [level=1] [ref=e479]
-      - generic [ref=e480]:
-        - img [ref=e481]
-        - generic [ref=e485]: 91%

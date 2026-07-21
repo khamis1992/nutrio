@@ -90,7 +90,7 @@ export function StreakRewardsWidget() {
   const claimReward = async (reward: StreakReward) => {
     if (!user?.id) return;
     try {
-      const claimStreakReward = supabase.rpc as unknown as (
+      const claimStreakReward = supabase.rpc.bind(supabase) as unknown as (
         fn: 'claim_streak_reward',
         args: { p_reward_id: string },
       ) => Promise<{ data: unknown; error: { message: string } | null }>;

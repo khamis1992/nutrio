@@ -202,7 +202,7 @@ export default function AdminNutritionQuality() {
     setProcessingId(item.meal_id);
     try {
       const submitted = item.correction_status === "submitted";
-      const { error } = await (supabase.rpc as unknown as (
+      const { error } = await (supabase.rpc.bind(supabase) as unknown as (
         name: string,
         args: Record<string, unknown>,
       ) => Promise<{ error: { message?: string } | null }>)(

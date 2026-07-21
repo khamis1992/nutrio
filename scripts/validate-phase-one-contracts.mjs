@@ -150,6 +150,7 @@ const expectedFlags = [
   "phase1-health-context",
   "competitive-family-accounts",
   "competitive-corporate-benefits",
+  "competitive-meal-response",
 ];
 
 for (const flag of expectedFlags) {
@@ -167,6 +168,7 @@ const runtimeFlagEvidence = {
   "phase1-health-context": ["src/components/health/HealthContextPanel.tsx"],
   "competitive-family-accounts": ["src/pages/Profile.tsx", "src/pages/MealDetail.tsx"],
   "competitive-corporate-benefits": ["src/pages/Profile.tsx", "src/pages/MealDetail.tsx", "src/pages/admin/AdminCorporateBenefits.tsx"],
+  "competitive-meal-response": ["src/customer/routes.tsx"],
 };
 
 for (const [flag, files] of Object.entries(runtimeFlagEvidence)) {
@@ -181,6 +183,7 @@ for (const [flag, files] of Object.entries(runtimeFlagEvidence)) {
     healthContext: "phase1-health-context",
     familyAccounts: "competitive-family-accounts",
     corporateBenefits: "competitive-corporate-benefits",
+    mealResponse: "competitive-meal-response",
   }).find(([, value]) => value === flag)?.[0];
 
   if (!featureName || !files.some((file) => read(file).includes(`isPhaseOneFeatureEnabled(\"${featureName}\")`))) {

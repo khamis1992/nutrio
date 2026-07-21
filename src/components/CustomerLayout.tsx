@@ -30,7 +30,7 @@ const HIDDEN_NAV_PATHS = [
 ];
 
 // Keep content clear of the native-style bottom tab bar.
-const DOCK_RESERVED_HEIGHT = "calc(74px + env(safe-area-inset-bottom, 0px))";
+const DOCK_RESERVED_HEIGHT = "calc(92px + env(safe-area-inset-bottom, 0px))";
 
 export const CustomerLayout = () => {
   const location = useLocation();

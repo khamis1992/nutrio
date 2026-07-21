@@ -51,7 +51,7 @@ type RpcResult<T> = Promise<{
 }>;
 
 type CareRpc = <T>(name: string, args?: Record<string, unknown>) => RpcResult<T>;
-const rpc = supabase.rpc as unknown as CareRpc;
+const rpc = supabase.rpc.bind(supabase) as unknown as CareRpc;
 
 async function callCareRpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await rpc<T>(name, args);

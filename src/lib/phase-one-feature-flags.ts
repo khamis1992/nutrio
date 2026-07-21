@@ -11,6 +11,7 @@ export const PHASE_ONE_FEATURE_FLAGS = {
   healthContext: "phase1-health-context",
   familyAccounts: "competitive-family-accounts",
   corporateBenefits: "competitive-corporate-benefits",
+  mealResponse: "competitive-meal-response",
 } as const;
 
 export type PhaseOneFeature = keyof typeof PHASE_ONE_FEATURE_FLAGS;
@@ -188,6 +189,15 @@ export const PHASE_ONE_FEATURE_REGISTRY = {
     dependencies: [],
     rollbackAction: "Hide workplace benefit and admin controls; retain benefit ledger and sponsor invoices.",
     monitoringSignal: "corporate_redemption_failure_rate and sponsor_invoice_replay_count",
+    expiresOn: "2026-12-31",
+  },
+  mealResponse: {
+    key: flags.mealResponse,
+    owner: "agent-0",
+    defaultEnabled: false,
+    dependencies: [],
+    rollbackAction: "Redirect /health/meal-response to /health/dashboard; retain episodes and check-ins.",
+    monitoringSignal: "meal_response_abstain_rate and meal_response_claim_violation_count",
     expiresOn: "2026-12-31",
   },
 } as const satisfies Record<PhaseOneFeature, PhaseOneFeatureDefinition>;

@@ -985,7 +985,7 @@ export default function PartnerMenu() {
             })),
           );
         }
-        const { error: menuError } = await (supabase.rpc as unknown as (
+        const { error: menuError } = await (supabase.rpc.bind(supabase) as unknown as (
           name: string,
           args: Record<string, unknown>,
         ) => Promise<{ error: { message?: string } | null }>)(
@@ -1040,7 +1040,7 @@ export default function PartnerMenu() {
           }
         }
         if (data) {
-          const { error: menuError } = await (supabase.rpc as unknown as (
+          const { error: menuError } = await (supabase.rpc.bind(supabase) as unknown as (
             name: string,
             args: Record<string, unknown>,
           ) => Promise<{ error: { message?: string } | null }>)(

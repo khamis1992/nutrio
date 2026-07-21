@@ -33,7 +33,7 @@ export interface BehaviorPreferences {
 
 type RpcResult<T> = Promise<{ data: T | null; error: { message: string } | null }>;
 type RpcCall = <T>(name: string, args?: Record<string, unknown>) => RpcResult<T>;
-const rpc = supabase.rpc as unknown as RpcCall;
+const rpc = supabase.rpc.bind(supabase) as unknown as RpcCall;
 
 const emptySupport: BehaviorSupport = {
   available: false,

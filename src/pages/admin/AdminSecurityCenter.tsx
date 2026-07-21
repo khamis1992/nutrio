@@ -213,7 +213,7 @@ async function callAdminRpc<T>(
   functionName: string,
   args?: Record<string, unknown>,
 ): Promise<T> {
-  const invoke = supabase.rpc as unknown as (
+  const invoke = supabase.rpc.bind(supabase) as unknown as (
     name: string,
     parameters?: Record<string, unknown>,
   ) => PromiseLike<RpcResponse>;

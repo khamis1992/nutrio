@@ -181,7 +181,7 @@ const statusLabel: Record<IncidentStatus, string> = {
 };
 
 async function callRpc<T>(name: string, parameters?: Record<string, unknown>): Promise<T> {
-  const invoke = supabase.rpc as unknown as (
+  const invoke = supabase.rpc.bind(supabase) as unknown as (
     functionName: string,
     args?: Record<string, unknown>,
   ) => PromiseLike<RpcResponse>;

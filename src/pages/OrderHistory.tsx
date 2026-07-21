@@ -309,7 +309,7 @@ const OrderHistory = () => {
         }
         cancellationResult = data as { success?: boolean } | null;
       } else {
-        const cancelDirectOrder = supabase.rpc as unknown as (
+        const cancelDirectOrder = supabase.rpc.bind(supabase) as unknown as (
           name: "cancel_customer_order",
           args: { p_order_id: string; p_reason?: string },
         ) => PromiseLike<{

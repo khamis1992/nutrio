@@ -11,7 +11,7 @@ type BloodWorkAnalysisResponse = {
   message?: unknown;
 };
 
-const invokeRpc = supabase.rpc as unknown as <T>(
+const invokeRpc = supabase.rpc.bind(supabase) as unknown as <T>(
   functionName: string,
   args: Record<string, unknown>,
 ) => PromiseLike<RpcResult<T>>;

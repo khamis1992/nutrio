@@ -73,7 +73,7 @@ export function MealReviewsList({
       setLoading(true);
 
       // Fetch reviews
-      const { data: reviewsData, error: reviewsError } = await (supabase.rpc as unknown as (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>)(
+      const { data: reviewsData, error: reviewsError } = await (supabase.rpc.bind(supabase) as unknown as (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>)(
         "get_meal_reviews",
         {
           p_meal_id: mealId,
@@ -86,7 +86,7 @@ export function MealReviewsList({
       if (reviewsError) throw reviewsError;
 
       // Fetch rating stats
-      const { data: statsData, error: statsError } = await (supabase.rpc as unknown as (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>)(
+      const { data: statsData, error: statsError } = await (supabase.rpc.bind(supabase) as unknown as (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>)(
         "calculate_meal_rating",
         { p_meal_id: mealId }
       );

@@ -40,7 +40,7 @@ interface SponsorAggregate {
 }
 
 type Rpc = <T>(name: string, args?: Record<string, unknown>) => Promise<{ data: T | null; error: { message?: string } | null }>;
-const rpc = supabase.rpc as unknown as Rpc;
+const rpc = supabase.rpc.bind(supabase) as unknown as Rpc;
 
 const initialOrganization = {
   name: "",

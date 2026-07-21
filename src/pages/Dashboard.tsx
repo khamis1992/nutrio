@@ -18,33 +18,42 @@ import {
   Coffee,
   ConciergeBell,
   Crown,
+  Dribbble,
   Droplets,
   Drumstick,
   Dumbbell,
   Flame,
+  Flower2,
   Footprints,
+  Goal,
   Leaf,
   Loader2,
   Medal,
   Moon,
+  Music,
   Package,
   Pencil,
+  PersonStanding,
   Plus,
   RefreshCw,
   ShoppingBag,
+  ShieldCheck,
   Smartphone,
   Soup,
+  Target,
+  Timer,
   Trash2,
   TrendingUp,
-  Trophy,
   Truck,
   Utensils,
   UtensilsCrossed,
   Heart,
   Users,
+  Waves,
   Wheat,
   X,
   XCircle,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -146,6 +155,7 @@ import { useHealthTrackingGoals } from "@/hooks/useHealthTrackingGoals";
 import { calculateBodyLoad, calculateRecoveryReadiness, buildReadinessFoodTip, type HealthDailyMetrics } from "@/lib/health-readiness";
 import { syncWorkoutSessionsToHealthDailyMetrics } from "@/lib/health-daily-metrics";
 import { syncCommunityChallengeProgressQuietly } from "@/lib/community-challenge-service";
+import { computeNutritionScore } from "@/lib/nutrition-score";
 import { calculateNutritionPerformance, findNutritionMatchedMeal } from "@/lib/nutrition-performance";
 import { selectPerformanceMeal } from "@/lib/daily-performance";
 import { PLATFORM_LABELS, type SyncDataType } from "@/lib/healthKit";
@@ -378,19 +388,19 @@ type TabKey = "today" | "nutrition" | "activity" | "progress";
 
 const INLINE_ACTIVITIES: Array<{ id: string; name: string; category: string; met: number; Icon: LucideIcon }> = [
   { id: "walking_moderate", name: "Walk", category: "Cardio", met: 3.5, Icon: Footprints },
-  { id: "running_5mph", name: "Run", category: "Cardio", met: 8.3, Icon: Footprints },
+  { id: "running_5mph", name: "Run", category: "Cardio", met: 8.3, Icon: Timer },
   { id: "cycling_moderate", name: "Cycle", category: "Cardio", met: 8.0, Icon: Bike },
-  { id: "swimming", name: "Swim", category: "Cardio", met: 6.0, Icon: Activity },
-  { id: "jump_rope", name: "Jump rope", category: "Cardio", met: 10.0, Icon: Activity },
+  { id: "swimming", name: "Swim", category: "Cardio", met: 6.0, Icon: Waves },
+  { id: "jump_rope", name: "Jump rope", category: "Cardio", met: 10.0, Icon: Zap },
   { id: "weight_training", name: "Weights", category: "Strength", met: 3.5, Icon: Dumbbell },
-  { id: "bodyweight", name: "Bodyweight", category: "Strength", met: 3.8, Icon: Dumbbell },
+  { id: "bodyweight", name: "Bodyweight", category: "Strength", met: 3.8, Icon: PersonStanding },
   { id: "hiit", name: "HIIT", category: "Cardio", met: 8.0, Icon: Flame },
-  { id: "yoga", name: "Yoga", category: "Mobility", met: 2.5, Icon: Heart },
+  { id: "yoga", name: "Yoga", category: "Mobility", met: 2.5, Icon: Flower2 },
   { id: "pilates", name: "Pilates", category: "Mobility", met: 3.0, Icon: Heart },
-  { id: "basketball", name: "Basketball", category: "Sports", met: 6.5, Icon: Trophy },
-  { id: "soccer", name: "Soccer", category: "Sports", met: 7.0, Icon: Trophy },
-  { id: "tennis", name: "Tennis", category: "Sports", met: 7.3, Icon: Trophy },
-  { id: "dancing", name: "Dancing", category: "Sports", met: 4.5, Icon: Heart },
+  { id: "basketball", name: "Basketball", category: "Sports", met: 6.5, Icon: Dribbble },
+  { id: "soccer", name: "Soccer", category: "Sports", met: 7.0, Icon: Goal },
+  { id: "tennis", name: "Tennis", category: "Sports", met: 7.3, Icon: Target },
+  { id: "dancing", name: "Dancing", category: "Sports", met: 4.5, Icon: Music },
 ];
 
 const DURATION_PRESETS = [15, 30, 45, 60];
@@ -465,6 +475,8 @@ const Dashboard = () => {
   const { NextIcon } = getNavArrows(isRTL);
   const sportHubCardViewKey = user?.id ? `nutrio:sporthub-card-viewed:${user.id}` : null;
   const translateActivityName = (activity: { id: string; name: string }) => t(DASHBOARD_ACTIVITY_LABEL_KEYS[activity.id] || activity.name);
+  const activityIntensityKey = (met: number) =>
+    met >= 7 ? "activity_intensity_high" : met >= 4 ? "activity_intensity_moderate" : "activity_intensity_light";
   const { unreadCount } = useNotifications(user?.id);
   const { summary: weeklySummary, loading: weeklyLoading, error: weeklyError } = useWeeklySummary(user?.id);
   const { recommendations: smartRecommendations, loading: smartRecommendationsLoading } = useSmartRecommendations(user?.id);
@@ -1220,7 +1232,7 @@ const Dashboard = () => {
   const weeklyLoggedDays = weeklySummary?.consistency?.daysLogged ?? 0;
   const weeklyConsistencyPct = weeklySummary?.consistency?.percentage ?? Math.round((weeklyLoggedDays / 7) * 100);
   const hasFoodLogged = calConsumed > 0 || todayProgress.protein > 0 || todayProgress.carbs > 0 || todayProgress.fat > 0;
-  const nutritionScore = Math.round((dailyPct * 0.38) + (proteinPct * 0.32) + (hydrationPct * 0.2) + (weeklyConsistencyPct * 0.1));
+  const nutritionScore = computeNutritionScore({ caloriePct: dailyPct, proteinPct, hydrationPct, weeklyConsistencyPct });
   const hasNutritionScoreData = hasDailyCalorieTarget && proteinTarget > 0 && !todayProgressError && !waterLoadError && !workoutLoadError && !weeklyLoading && !weeklyError && !goalsLoading && !goalsError;
   const nutritionScoreDisplay = hasNutritionScoreData ? String(nutritionScore) : "--";
   const hasHydrationLogged = waterToday > 0 || hydrationPct > 0;
@@ -1319,12 +1331,12 @@ const Dashboard = () => {
   const healthPlatformLabel = PLATFORM_LABELS[healthPlatform] || t("no_health_app_detected");
   const healthIsNativePlatform = healthPlatform !== "none";
   const healthNeedsPlugin = healthIsNativePlatform && !healthAvailable;
-  const healthSyncOptions: Array<{ key: SyncDataType; label: string; Icon: LucideIcon }> = [
-    { key: "steps", label: t("sync_steps"), Icon: Footprints },
-    { key: "workouts", label: t("sync_workouts"), Icon: Dumbbell },
-    { key: "heart_rate", label: t("sync_heart_rate"), Icon: Heart },
-    { key: "sleep", label: t("sync_sleep"), Icon: Moon },
-    { key: "recovery", label: t("sync_recovery"), Icon: Activity },
+  const healthSyncOptions: Array<{ key: SyncDataType; label: string; Icon: LucideIcon; chipClass: string }> = [
+    { key: "steps", label: t("sync_steps"), Icon: Footprints, chipClass: "bg-[#E9FBF3] text-[#22C7A1]" },
+    { key: "workouts", label: t("sync_workouts"), Icon: Dumbbell, chipClass: "bg-[#EAF2FE] text-[#5B9BF3]" },
+    { key: "heart_rate", label: t("sync_heart_rate"), Icon: Heart, chipClass: "bg-[#FFEDF1] text-[#F06A8A]" },
+    { key: "sleep", label: t("sync_sleep"), Icon: Moon, chipClass: "bg-[#F0EFFF] text-[#8B83F6]" },
+    { key: "recovery", label: t("sync_recovery"), Icon: Activity, chipClass: "bg-[#FFF3E8] text-[#F59E0B]" },
   ];
   const activityHealthMetrics: HealthDailyMetrics | null = healthDailyMetrics
     ? {
@@ -1527,30 +1539,30 @@ const Dashboard = () => {
       <div className="absolute inset-0 pointer-events-none bg-[#F6F8FB]" />
 
       {/* â”€â”€ Floating Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="sticky top-0 z-30 border-b border-[#E2E8F0]/50 bg-white/80 backdrop-blur-xl shadow-[0_2px_15px_rgba(0,0,0,0.02)]">
+      <div className="sticky top-0 z-30 border-b border-slate-100/80 bg-white/85 backdrop-blur-xl shadow-[0_1px_3px_rgba(15,23,42,0.02)]">
         <div className="mx-auto max-w-[430px] px-4 pt-[env(safe-area-inset-top)]">
           <div className="flex h-[72px] items-center justify-between">
-            <Link to="/profile" className="flex items-center gap-3 group">
-              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border-2 border-white bg-[#F8FAFC] shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-slate-100 group-hover:scale-105 transition-transform duration-300">
+            <Link to="/profile" className="group flex items-center gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-50 shadow-[0_2px_8px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition-transform duration-300 group-hover:scale-105">
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} alt={userName} className="h-full w-full object-cover animate-fade-in" />
                 ) : (
-                  <span className="text-[15px] font-black text-[#22C7A1]">{userName.charAt(0)}</span>
+                  <span className="text-[16px] font-black text-brand">{userName.charAt(0)}</span>
                 )}
               </div>
-              <div className="text-left">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#10B981]">{timeGreeting}</p>
-                <h1 className="text-[18px] font-black leading-none tracking-tight text-slate-900 mt-1">{userName}</h1>
+              <div className="text-start">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-500">{timeGreeting}</p>
+                <h1 className="mt-0.5 text-[19px] font-black leading-none tracking-tight text-slate-900">{userName}</h1>
               </div>
             </Link>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               {/* Favorites */}
               <button
                 type="button"
                 data-testid="dashboard-favorites-btn"
                 onClick={() => navigate("/favorites")}
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#FB6B7A] border border-[#E2E8F0] shadow-sm hover:bg-[#FFF1F2] hover:border-[#FECDD3] transition-all duration-300 active:scale-95"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-macro-fat shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition-all duration-300 hover:bg-macro-fat-soft active:scale-95"
                 aria-label={t("favorites_label")}
               >
                 <Heart className="h-5 w-5 fill-current" strokeWidth={2.2} />
@@ -1562,12 +1574,12 @@ const Dashboard = () => {
                   type="button"
                   data-testid="dashboard-notifications-btn"
                   onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
-                  className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 border border-[#E2E8F0] shadow-sm hover:bg-slate-50 transition-all duration-300"
+                  className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-600 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition-all duration-300 hover:bg-slate-50 active:scale-95"
                   aria-label={t("Notifications")}
                 >
                   <Bell className="h-5 w-5" strokeWidth={2.2} />
                   {displayedUnreadCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#EF4444] px-1 text-[9px] font-black leading-none text-white ring-2 ring-white shadow-sm animate-pulse">
+                    <span className="absolute -end-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-macro-fat px-1.5 text-[10px] font-black leading-none text-white shadow-sm ring-2 ring-white">
                       {displayedUnreadCount > 9 ? "9+" : displayedUnreadCount}
                     </span>
                   )}
@@ -1661,24 +1673,64 @@ const Dashboard = () => {
           </div>
 
           {/* â”€â”€ Tab Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-          <div className="mb-3 flex gap-1 rounded-full bg-[#F7F9FC] p-1 shadow-[0_10px_24px_rgba(15,23,42,0.06)] ring-1 ring-[#EEF2F7]">
-            {tabs.map(({ key, label, icon: Icon, path }) => (
-              <button
-                key={key}
-                type="button"
-                data-testid={`dashboard-tab-${key}`}
-                onClick={() => navigate(path)}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 rounded-full py-2.5 text-[13px] font-extrabold transition-all duration-300 active:scale-95 shrink-0",
-                  activeTab === key
-                    ? "bg-[#101A34] text-white shadow-[0_10px_22px_rgba(16,26,52,0.22)]"
-                    : "text-[#4F5870] hover:text-[#101A34]"
-                )}
-              >
-                <Icon className={cn("h-4 w-4", activeTab === key ? "text-white" : "text-[#5E667A]")} strokeWidth={2.2} />
-                <span className="capitalize">{label}</span>
-              </button>
-            ))}
+          <div className="mb-5 flex relative rounded-full bg-white p-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 z-10">
+            {tabs.map(({ key, label, icon: Icon, path }) => {
+              const isActive = activeTab === key;
+              return (
+                <motion.button
+                  key={key}
+                  type="button"
+                  data-testid={`dashboard-tab-${key}`}
+                  onClick={() => navigate(path)}
+                  whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="relative flex-1 flex flex-col items-center justify-center min-h-[56px] py-1.5 outline-none z-10 shrink-0"
+                >
+                  {isActive && !prefersReducedMotion && (
+                    <motion.div
+                      layoutId="dashboard-tab-indicator"
+                      initial={{ scale: 0.85, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="absolute inset-0 bg-[#101A34] rounded-[26px] shadow-[0_16px_30px_rgba(16,26,52,0.28)] -z-10"
+                      transition={{ type: "spring", bounce: 0.25, duration: 0.45 }}
+                    />
+                  )}
+                  {isActive && prefersReducedMotion && (
+                    <div className="absolute inset-0 bg-[#101A34] rounded-[26px] shadow-[0_16px_30px_rgba(16,26,52,0.28)] -z-10" />
+                  )}
+                  <motion.div
+                    initial={!prefersReducedMotion && isActive ? { scale: 0.6 } : false}
+                    animate={{ scale: 1 }}
+                    transition={!prefersReducedMotion && isActive ? { type: "spring", bounce: 0.5, duration: 0.5 } : undefined}
+                    className="relative z-10 flex items-center justify-center"
+                  >
+                    <Icon 
+                      className={cn(
+                        "transition-all duration-300", 
+                        isActive ? "text-[#2FE6A7] h-[22px] w-[22px]" : "text-[#22C7A1]/50 h-[20px] w-[20px]"
+                      )} 
+                      strokeWidth={isActive ? 2.5 : 2} 
+                    />
+                  </motion.div>
+                  <motion.span
+                    initial={!prefersReducedMotion && isActive ? { opacity: 0.5, y: 2 } : false}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={!prefersReducedMotion && isActive ? { duration: 0.3 } : undefined}
+                    className={cn("relative z-10 mt-1 capitalize transition-colors duration-300", isActive ? "text-white font-extrabold text-[12px]" : "text-[#3A4358] font-semibold text-[12px]")}
+                  >
+                    {label}
+                  </motion.span>
+                  {isActive && (
+                    <motion.div 
+                      initial={prefersReducedMotion ? undefined : { scaleX: 0 }}
+                      animate={prefersReducedMotion ? undefined : { scaleX: 1 }}
+                      transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+                      className="relative z-10 w-6 h-[3px] bg-[#2FE6A7] rounded-full mt-1" 
+                    />
+                  )}
+                </motion.button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -2245,6 +2297,15 @@ const Dashboard = () => {
               onOpen={() => navigate("/ai-coach")}
             />
 
+            <button
+              type="button"
+              onClick={() => navigate("/weekly-check-in")}
+              className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition active:scale-[0.99] hover:ring-emerald-100"
+            >
+              <span className="text-[12px] font-black text-slate-900">{isRTL ? "مراجعة الأسبوع بالذكاء الاصطناعي" : "Weekly AI check-in"}</span>
+              <span className="rounded-full bg-[#020617] px-3 py-1.5 text-[11px] font-black text-white">{isRTL ? "ابدأ المراجعة" : "Start check-in"}</span>
+            </button>
+
             {user && <BodyCorrelationWidget />}
           </motion.div>
         )}
@@ -2260,39 +2321,57 @@ const Dashboard = () => {
             className="space-y-3 pb-4"
           >
             <section
-              className="rounded-2xl bg-white p-5 text-start shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
+              className="relative overflow-hidden rounded-2xl bg-white p-5 text-start shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
               aria-label={t("nutrition_today")}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand">{t("nutrition_today")}</p>
-                  <p className="mt-1 text-[13px] font-medium text-slate-500">{t("nutrition_hero_subtitle")}</p>
+                  <div className="mt-1.5 h-1 w-9 rounded-full bg-brand" />
                 </div>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand ring-1 ring-brand/15">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-brand shadow-[0_2px_8px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
                   <Apple className="h-5 w-5" strokeWidth={2.2} />
                 </span>
               </div>
 
-              <div className="mt-5 grid grid-cols-[118px_1fr] items-center gap-5">
-                <div className="relative flex h-[118px] w-[118px] items-center justify-center">
+              <div className="mt-5 grid grid-cols-[148px_1fr] items-center gap-4">
+                <div className="relative flex h-[148px] w-[148px] items-center justify-center">
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -left-4 -top-2 h-16 w-16 opacity-70"
+                    style={{ backgroundImage: "radial-gradient(#C9EDE2 1.5px, transparent 1.5px)", backgroundSize: "12px 12px" }}
+                  />
                   <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
-                    <circle cx="60" cy="60" r="52" fill="none" stroke="#F1F5F9" strokeWidth="9" />
-                    <motion.circle
-                      cx="60"
-                      cy="60"
-                      r="52"
-                      fill="none"
-                      stroke={overBudget ? "#FB6B7A" : "#22C7A1"}
-                      strokeWidth="9"
-                      strokeLinecap="round"
-                      strokeDasharray="326.73"
-                      initial={{ strokeDashoffset: 326.73 }}
-                      animate={{ strokeDashoffset: 326.73 - (Math.min(consumedPct, 100) / 100) * 326.73 }}
-                      transition={{ duration: 0.8, ease: "easeOut" }}
-                    />
+                    {[
+                      { key: "calories", color: overBudget ? "#FB6B7A" : "#22C7A1" },
+                      { key: "water", color: "#38BDF8" },
+                      { key: "protein", color: "#8B7CF6" },
+                      { key: "carbs", color: "#FB923C" },
+                      { key: "fat", color: "#FB6B7A" },
+                      { key: "steps", color: "#34D399" },
+                    ].map(({ key, color }, index) => {
+                      const dash = "44 326.73";
+                      return (
+                        <motion.circle
+                          key={key}
+                          cx="60"
+                          cy="60"
+                          r="52"
+                          fill="none"
+                          stroke={color}
+                          strokeWidth="9"
+                          strokeLinecap="round"
+                          strokeDasharray={dash}
+                          strokeDashoffset={-(index * 54.455)}
+                          initial={prefersReducedMotion ? undefined : { strokeDasharray: "0 326.73" }}
+                          animate={prefersReducedMotion ? undefined : { strokeDasharray: dash }}
+                          transition={{ duration: 0.8, ease: "easeOut", delay: index * 0.06 }}
+                        />
+                      );
+                    })}
                   </svg>
                   <div className="relative text-center" dir="ltr">
-                    <p className="text-[24px] font-black leading-none tabular-nums text-slate-900">
+                    <p className="text-[26px] font-black leading-none tabular-nums text-slate-900">
                       {hasDailyCalorieTarget ? Math.max(0, calRemaining).toLocaleString() : "--"}
                     </p>
                     <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">{t("cal_left")}</p>
@@ -2304,16 +2383,17 @@ const Dashboard = () => {
 
                 <div className="min-w-0 space-y-2">
                   {[
-                    { label: t("target"), value: hasDailyCalorieTarget ? dailyCalories.toLocaleString() : "--", unit: hasDailyCalorieTarget ? t("cal_short") : "", Icon: Flame, chipClass: "bg-macro-carbs-soft text-macro-carbs" },
-                    { label: t("eaten"), value: caloriesMetricDisplay, unit: todayProgressError ? "" : t("cal_short"), Icon: Utensils, chipClass: "bg-macro-fat-soft text-macro-fat" },
-                    { label: t("water"), value: waterLoading || waterLoadError ? waterMetricDisplay : Math.round(waterPct).toLocaleString(), unit: waterLoading || waterLoadError ? "" : "%", Icon: Droplets, chipClass: "bg-macro-water-soft text-macro-water" },
-                  ].map(({ label, value, unit, Icon, chipClass }) => (
-                    <div key={label} className="flex items-center gap-3 rounded-xl bg-slate-50/60 px-3 py-2.5 ring-1 ring-slate-100">
-                      <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", chipClass)}>
+                    { label: t("target"), value: hasDailyCalorieTarget ? dailyCalories.toLocaleString() : "--", unit: hasDailyCalorieTarget ? t("cal_short") : "", Icon: Flame, chipClass: "bg-[#FFF1E6] text-[#F59E0B]", labelClass: "text-[#F59E0B]", tint: "#FFE1C7" },
+                    { label: t("eaten"), value: caloriesMetricDisplay, unit: todayProgressError ? "" : t("cal_short"), Icon: Utensils, chipClass: "bg-[#FFEDF0] text-[#FB6B7A]", labelClass: "text-[#FB6B7A]", tint: "#FFD6DC" },
+                    { label: t("water"), value: waterLoading || waterLoadError ? waterMetricDisplay : Math.round(waterPct).toLocaleString(), unit: waterLoading || waterLoadError ? "" : "%", Icon: Droplets, chipClass: "bg-[#E8F5FE] text-[#38BDF8]", labelClass: "text-[#38BDF8]", tint: "#CBE9FD" },
+                  ].map(({ label, value, unit, Icon, chipClass, labelClass, tint }) => (
+                    <div key={label} className="relative flex items-center gap-3 overflow-hidden rounded-2xl bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+                      <span aria-hidden="true" className="pointer-events-none absolute -bottom-8 -end-6 h-20 w-24 rounded-full opacity-40 blur-md" style={{ background: tint }} />
+                      <span className={cn("relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full", chipClass)}>
                         <Icon className="h-4 w-4" strokeWidth={2.2} />
                       </span>
-                      <p className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-500">{label}</p>
-                      <p className="flex shrink-0 items-baseline gap-1 text-[15px] font-black leading-none tabular-nums text-slate-900" dir="ltr">
+                      <p className={cn("relative min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-[0.1em]", labelClass)}>{label}</p>
+                      <p className="relative flex shrink-0 items-baseline gap-1 text-[15px] font-black leading-none tabular-nums text-slate-900" dir="ltr">
                         {value}
                         {unit && <span className="text-[10px] font-semibold text-slate-400">{unit}</span>}
                       </p>
@@ -2332,34 +2412,84 @@ const Dashboard = () => {
                 <span className={cn("shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold", dailyBalanceState.bg)} style={{ color: dailyBalanceState.color }}>{dailyBalanceState.label}</span>
               </div>
 
-              <div className="mt-4 grid grid-cols-[105px_1fr] items-center gap-4">
-                <div className="relative flex h-[105px] w-[105px] items-center justify-center rounded-full bg-macro-protein-soft/60">
-                  <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
-                    <circle cx="60" cy="60" r="47" fill="none" stroke="#F1F5F9" strokeWidth="9" />
-                    <motion.circle cx="60" cy="60" r="47" fill="none" stroke="#7C83F6" strokeWidth="9" strokeLinecap="round" strokeDasharray="295.31" initial={{ strokeDashoffset: 295.31 }} animate={{ strokeDashoffset: 295.31 - (hasNutritionScoreData ? (Math.min(nutritionScore, 100) / 100) * 295.31 : 0) }} transition={{ duration: 0.7 }} />
+              <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-center">
+                <div className="relative mx-auto flex h-[120px] w-[120px] shrink-0 items-center justify-center rounded-full bg-slate-50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] ring-1 ring-slate-100/50 sm:mx-0">
+                  <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full -rotate-90 drop-shadow-sm" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="score-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#9399F8" />
+                        <stop offset="100%" stopColor="#636BF4" />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="#F8FAFC" strokeWidth="8" />
+                    <motion.circle cx="60" cy="60" r="52" fill="none" stroke="url(#score-gradient)" strokeWidth="8" strokeLinecap="round" strokeDasharray="326.72" initial={{ strokeDashoffset: 326.72 }} animate={{ strokeDashoffset: 326.72 - (hasNutritionScoreData ? (Math.min(nutritionScore, 100) / 100) * 326.72 : 0) }} transition={{ duration: 0.8, ease: "easeOut" }} />
                   </svg>
-                  <div className="relative text-center"><p className="text-[27px] font-black leading-none text-slate-900">{nutritionScoreDisplay}</p><p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{t("score")}</p></div>
+                  <div className="relative flex flex-col items-center justify-center">
+                    <p className="text-[32px] font-black leading-none tracking-tight text-slate-900">{nutritionScoreDisplay}</p>
+                    <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400">{t("score")}</p>
+                  </div>
                 </div>
 
-                <div className="min-w-0">
-                  <div className="rounded-xl bg-macro-protein-soft px-4 py-3.5">
-                    <p className="text-[13px] font-bold leading-5 text-slate-900">{dailyBalanceState.detail}</p>
-                    <p className="mt-1 text-[12px] font-medium text-slate-500">{hasDailyCalorieTarget ? t("cal_left_today", { count: Math.max(0, calRemaining) }) : t("progress_set_goal")}</p>
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div className={cn("rounded-2xl px-4 py-3.5 ring-1 ring-inset", dailyBalanceState.bg.replace('bg-', 'ring-').replace('-soft', '/20'), dailyBalanceState.bg)}>
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                        <Activity className="h-3.5 w-3.5" style={{ color: dailyBalanceState.color }} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-bold leading-tight text-slate-900">{dailyBalanceState.detail}</p>
+                        <p className="mt-1 text-[12px] font-medium text-slate-500">{hasDailyCalorieTarget ? t("cal_left_today", { count: Math.max(0, calRemaining) }) : t("progress_set_goal")}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div className="rounded-xl bg-white px-3 py-3 ring-1 ring-slate-100"><p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">{t("meal_coverage")}</p><p className="mt-1 text-[17px] font-black text-slate-900">{plannedMeals.length}/4</p></div>
-                    <div className="rounded-xl bg-white px-3 py-3 ring-1 ring-slate-100"><p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">{t("top_gap")}</p><p className="mt-1 text-[17px] font-black text-macro-protein">{proteinTarget > 0 && carbsTarget > 0 && fatTarget > 0 ? `${largestMacroGap.value}g` : "--"}</p></div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col justify-center rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100/80">
+                      <div className="mb-1 flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-slate-400" strokeWidth={2.5} />
+                        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">{t("meal_coverage")}</p>
+                      </div>
+                      <p className="text-[18px] font-black tracking-tight text-slate-900" dir="ltr">{plannedMeals.length}<span className="text-[14px] font-bold text-slate-400">/4</span></p>
+                    </div>
+                    <div className="flex flex-col justify-center rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100/80">
+                      <div className="mb-1 flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5 text-macro-protein" strokeWidth={2.5} />
+                        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">{t("top_gap")}</p>
+                      </div>
+                      <p className="text-[18px] font-black tracking-tight text-macro-protein" dir="ltr">{proteinTarget > 0 && carbsTarget > 0 && fatTarget > 0 ? `${largestMacroGap.value}g` : "--"}</p>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-5 space-y-3.5">
-                {dailyBalanceMetrics.map((metric) => (
-                  <div key={metric.label}>
-                    <div className="mb-1.5 flex items-center justify-between"><p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">{metric.label}</p><p className="text-[11px] font-bold text-slate-900">{metric.value}</p></div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100"><motion.div initial={{ width: 0 }} animate={{ width: `${metric.width}%` }} transition={{ duration: 0.65 }} className="h-full rounded-full" style={{ backgroundColor: metric.color }} /></div>
-                  </div>
-                ))}
+              <div className="mt-6 space-y-4 border-t border-slate-100 pt-5">
+                {dailyBalanceMetrics.map((metric) => {
+                  const Icon = metric.color === "#22C7A1" ? Flame : metric.color === "#7C83F6" ? Drumstick : Droplets;
+                  return (
+                    <div key={metric.label} className="group">
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-50 ring-1 ring-slate-100">
+                            <Icon className="h-3 w-3" style={{ color: metric.color }} strokeWidth={2.5} />
+                          </span>
+                          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">{metric.label}</p>
+                        </div>
+                        <p className="text-[13px] font-black tracking-tight text-slate-900" dir="ltr">{metric.value}</p>
+                      </div>
+                      <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]">
+                        <motion.div 
+                          initial={{ width: 0 }} 
+                          animate={{ width: `${metric.width}%` }} 
+                          transition={{ duration: 0.8, ease: "easeOut" }} 
+                          className="relative h-full rounded-full overflow-hidden" 
+                          style={{ backgroundColor: metric.color }} 
+                        >
+                          <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.3),transparent)] bg-[length:200%_100%] animate-[shimmer_2s_infinite]" />
+                        </motion.div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
@@ -2496,19 +2626,26 @@ const Dashboard = () => {
             transition={{ duration: 0.3 }}
             className="space-y-3"
           >
-            <div className="rounded-2xl bg-white px-4 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+            <div className="rounded-2xl bg-white px-4 py-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">Add exercise</p>
-                  <p className="mt-0.5 text-[12px] font-bold text-slate-500">Choose a sport to log your workout</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">{t("add_exercise")}</p>
+                  <p className="mt-0.5 text-[12px] font-bold text-slate-500">{t("add_exercise_subtitle")}</p>
                 </div>
-                <span className="shrink-0 rounded-full bg-[#F0FDF6] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-[#22C7A1] ring-1 ring-emerald-100">
-                  Tap to log
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F0FDF6] text-[#22C7A1] ring-1 ring-emerald-100" aria-hidden="true">
+                  <Plus className="h-4 w-4" strokeWidth={2.6} />
                 </span>
               </div>
-              <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <div className="flex w-max items-center gap-2">
-                  {INLINE_ACTIVITIES.slice(0, 10).map((activity) => {
+              <div
+                className={cn(
+                  "-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                  isRTL
+                    ? "[mask-image:linear-gradient(to_right,transparent,black_28px)]"
+                    : "[mask-image:linear-gradient(to_left,transparent,black_28px)]"
+                )}
+              >
+                <div className="flex w-max items-stretch gap-2.5">
+                  {INLINE_ACTIVITIES.map((activity) => {
                     const Icon = activity.Icon;
                     const selected = selectedActivity.id === activity.id;
 
@@ -2518,15 +2655,30 @@ const Dashboard = () => {
                         type="button"
                         onClick={() => openActivityLogger(activity.id)}
                         className={cn(
-                          "flex h-11 shrink-0 items-center gap-2 rounded-full px-3.5 text-[12px] font-extrabold shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 transition-all duration-200 active:scale-95",
+                          "flex w-[92px] shrink-0 flex-col items-center gap-2 rounded-2xl px-2 pb-2.5 pt-3 ring-1 transition-all duration-200 active:scale-95",
                           selected
-                            ? "bg-[#020617] text-white ring-[#020617]"
-                            : "bg-[#F6F8FB] text-slate-700 ring-slate-100 hover:bg-slate-50"
+                            ? "bg-[#020617] text-white ring-[#020617] shadow-[0_10px_24px_rgba(2,6,23,0.18)]"
+                            : "bg-[#F6F8FB] text-slate-700 ring-slate-100 hover:bg-white hover:shadow-[0_6px_16px_rgba(34,199,161,0.12)] hover:ring-emerald-100"
                         )}
-                        aria-label={`Log ${translateActivityName(activity)}`}
+                        aria-label={t("log_activity_aria", { name: translateActivityName(activity) })}
+                        aria-pressed={selected}
                       >
-                        <Icon className={cn("h-4 w-4", selected ? "text-white" : "text-slate-500")} strokeWidth={2.2} />
-                        <span>Log {translateActivityName(activity)}</span>
+                        <span
+                          className={cn(
+                            "flex h-11 w-11 items-center justify-center rounded-full ring-1",
+                            selected
+                              ? "bg-white/10 text-emerald-300 ring-white/15"
+                              : "bg-white text-[#22C7A1] ring-emerald-100 shadow-[0_2px_6px_rgba(34,199,161,0.14)]"
+                          )}
+                        >
+                          <Icon className="h-5 w-5" strokeWidth={2.2} />
+                        </span>
+                        <span className="w-full min-w-0 text-center">
+                          <span className="block truncate text-[12px] font-extrabold leading-tight">{translateActivityName(activity)}</span>
+                          <span className={cn("mt-0.5 block text-[9px] font-black uppercase tracking-[0.08em]", selected ? "text-white/50" : "text-slate-400")}>
+                            {t(activityIntensityKey(activity.met))}
+                          </span>
+                        </span>
                       </button>
                     );
                   })}
@@ -2646,37 +2798,49 @@ const Dashboard = () => {
             {!hasReadinessData ? (
             <section
               data-testid="dashboard-activity-health-apps-card"
-              className="relative aspect-[1402/1154] w-full overflow-hidden rounded-[28px] bg-white shadow-[0_14px_34px_rgba(124,131,246,0.12)]"
+              className="rounded-[24px] bg-white p-5 text-start shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
               aria-label={t("connect_activity_apps")}
             >
-              <img
-                src="/activity-health-apps-card.png"
-                alt=""
-                className="absolute left-[-4.5%] top-[-2.8%] h-[105.6%] w-[109.5%] max-w-none object-fill"
-                aria-hidden="true"
-              />
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C83F6]">{t("health_apps")}</p>
+                  <h3 className="mt-1 text-[20px] font-black leading-tight tracking-[-0.03em] text-slate-900">{t("connect_activity_apps")}</h3>
+                  <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">{t("connect_activity_apps_desc")}</p>
+                </div>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#7C83F6]/15">
+                  <Smartphone className="h-5 w-5" strokeWidth={2.1} />
+                </span>
+              </div>
 
-              <div className="absolute left-[19.5%] top-[36.8%] w-[47%] -translate-y-1/2 text-start">
-                <p className="truncate text-[9px] font-black leading-none text-[#020617] min-[390px]:text-[10px]">
-                  {healthIsNativePlatform ? healthPlatformLabel : t("no_health_app_detected")}
+              <div className="mt-4 rounded-2xl bg-[#F8F9FF] p-3.5 ring-1 ring-[#7C83F6]/10">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#7C83F6] ring-1 ring-[#7C83F6]/15">
+                    <ShieldCheck className="h-5 w-5" strokeWidth={2.1} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">{t("health_app_detected")}</p>
+                    <p className="truncate text-[13px] font-black text-slate-900">
+                      {healthIsNativePlatform ? healthPlatformLabel : t("no_health_app_detected")}
+                    </p>
+                  </div>
+                  <span className={cn(
+                    "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black",
+                    healthConnected
+                      ? "bg-[#E9FBF7] text-[#22C7A1]"
+                      : healthNeedsPlugin
+                        ? "bg-[#FFF3E8] text-[#F59E0B]"
+                        : "bg-white text-slate-400 ring-1 ring-slate-200",
+                  )}>
+                    {healthConnected ? t("connected") : healthNeedsPlugin ? t("coming_soon") : t("not_connected")}
+                  </span>
+                </div>
+                <p className="mt-2.5 border-t border-[#7C83F6]/10 pt-2.5 text-[11px] font-medium text-slate-500">
+                  {healthNeedsPlugin ? t("health_plugin_required") : t("health_sync_available_mobile")}
                 </p>
               </div>
-              <span className={cn(
-                "absolute left-[72%] top-[33.4%] flex h-[6.2%] w-[19.3%] items-center justify-center rounded-full text-[7px] font-black min-[390px]:text-[8px]",
-                healthConnected
-                  ? "bg-[#EFFFFA]/95 text-[#22C7A1]"
-                  : healthNeedsPlugin
-                    ? "bg-[#FFF7ED]/95 text-[#F97316]"
-                    : "bg-white/90 text-[#94A3B8] ring-1 ring-[#7C83F6]/10",
-              )}>
-                {healthConnected ? t("connected") : healthNeedsPlugin ? t("coming_soon") : t("not_connected")}
-              </span>
-              <p className="absolute left-[19.5%] top-[42.2%] w-[67%] bg-white/95 py-0.5 text-start text-[7px] font-semibold leading-3 text-[#64748B] min-[390px]:text-[8px]">
-                {healthNeedsPlugin ? t("health_plugin_required") : t("health_sync_available_mobile")}
-              </p>
 
-              <div className="absolute left-[6%] top-[50.9%] grid h-[20.7%] w-[88%] grid-cols-4 gap-[2.4%]">
-                {healthSyncOptions.slice(0, 4).map(({ key, label }) => {
+              <div className="mt-4 grid grid-cols-4 gap-2">
+                {healthSyncOptions.slice(0, 4).map(({ key, label, Icon, chipClass }) => {
                   const enabled = healthEnabledTypes.includes(key);
                   return (
                     <button
@@ -2687,41 +2851,50 @@ const Dashboard = () => {
                       aria-label={label}
                       aria-pressed={enabled}
                       className={cn(
-                        "relative h-full rounded-[18px] transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45",
-                        enabled && "ring-2 ring-inset ring-[#7C83F6] shadow-[0_8px_18px_rgba(124,131,246,0.15)]",
+                        "flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2 transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50",
+                        enabled && "bg-[#F8F9FF] ring-1 ring-[#7C83F6]/30",
                       )}
                     >
-                      {enabled && (
-                        <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#7C83F6] text-[9px] font-black text-white">
-                          <CheckCircle2 className="h-3 w-3" strokeWidth={3} />
-                        </span>
-                      )}
+                      <span className={cn("relative flex h-11 w-11 items-center justify-center rounded-full", chipClass)}>
+                        <Icon className="h-5 w-5" strokeWidth={2.1} />
+                        {enabled && (
+                          <span className="absolute -end-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#7C83F6] text-white ring-2 ring-white">
+                            <CheckCircle2 className="h-3 w-3" strokeWidth={3} />
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[10px] font-bold leading-none text-slate-600">{label}</span>
                     </button>
                   );
                 })}
               </div>
 
-              <button
-                type="button"
-                onClick={() => syncHealthData()}
-                disabled={!healthConnected || healthSyncing}
-                aria-label={t("sync_now")}
-                className="absolute left-[5.9%] top-[76%] flex h-[11.6%] w-[42.5%] items-center justify-center rounded-[20px] transition active:scale-[0.98] disabled:bg-white/55 disabled:backdrop-blur-[1px]"
-              >
-                {healthSyncing && <RefreshCw className="h-5 w-5 animate-spin text-white" strokeWidth={2.4} />}
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/settings")}
-                aria-label={t("open_health_settings")}
-                className="absolute left-[51.4%] top-[76%] h-[11.6%] w-[42.5%] rounded-[20px] transition active:scale-[0.98]"
-              />
+              <div className="mt-4 grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => syncHealthData()}
+                  disabled={!healthConnected || healthSyncing}
+                  aria-label={t("sync_now")}
+                  className="flex h-12 items-center justify-center gap-2 rounded-full bg-[#7C83F6] text-[13px] font-black text-white shadow-[0_8px_18px_rgba(124,131,246,0.3)] transition active:scale-[0.98] disabled:opacity-45 disabled:shadow-none"
+                >
+                  <RefreshCw className={cn("h-4 w-4", healthSyncing && "animate-spin")} strokeWidth={2.4} />
+                  {t("sync_now")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/settings")}
+                  aria-label={t("open_health_settings")}
+                  className="flex h-12 items-center justify-center gap-1.5 rounded-full bg-white text-[13px] font-black text-slate-900 ring-1 ring-slate-200 transition active:scale-[0.98]"
+                >
+                  <NextIcon className="h-4 w-4 text-slate-400" strokeWidth={2.4} />
+                  {t("open_health_settings")}
+                </button>
+              </div>
 
-              {lastSyncTimestamp && (
-                <p className="absolute bottom-[5.7%] left-1/2 w-[54%] -translate-x-1/2 rounded-full bg-white/95 px-2 py-1 text-center text-[8px] font-bold text-[#64748B] shadow-sm min-[390px]:text-[9px]">
-                  {t("last_synced")}: {formatLastSync()}
-                </p>
-              )}
+              <p className="mt-3.5 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-400">
+                <Clock className="h-3.5 w-3.5" strokeWidth={2.2} />
+                {t("last_synced")}: {lastSyncTimestamp ? formatLastSync() : t("never_synced")}
+              </p>
             </section>
             ) : (
             <section className="rounded-[24px] bg-white p-3 shadow-[0_10px_24px_rgba(15,23,42,0.05)] ring-1 ring-[#E5EAF1]">

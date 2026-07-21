@@ -8,7 +8,6 @@ const Meals = lazy(() => import("@/pages/Meals"));
 const RestaurantDetail = lazy(() => import("@/pages/RestaurantDetail"));
 const MealDetail = lazy(() => import("@/pages/MealDetail"));
 const Schedule = lazy(() => import("@/pages/Schedule"));
-const Progress = lazy(() => import("@/pages/ProgressRedesigned"));
 const BodyProgressDashboard = lazy(() => import("@/pages/progress/BodyProgressDashboard"));
 const Tracker = lazy(() => import("@/pages/Tracker"));
 const WaterTracker = lazy(() => import("@/pages/WaterTracker"));
@@ -126,7 +125,7 @@ export const customerRoutes = (
       path="/progress"
       element={
         <ProtectedRoute>
-          <Progress />
+          <Navigate to="/dashboard/progress" replace />
         </ProtectedRoute>
       }
     />
@@ -344,7 +343,11 @@ export const customerRoutes = (
       path="/health/meal-response"
       element={
         <ProtectedRoute>
-          <MealResponse />
+          {isPhaseOneFeatureEnabled("mealResponse") ? (
+            <MealResponse />
+          ) : (
+            <Navigate to="/health/dashboard" replace />
+          )}
         </ProtectedRoute>
       }
     />
