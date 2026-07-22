@@ -91,7 +91,7 @@ Full sub-app with: Live Tracking, Driver Management, Vehicle Management, Order M
 | **AI Meal Plan Generator** | ✅ Implemented | `lib/meal-plan-generator.ts` |
 | **AI Weekly Planner** | ✅ Implemented | `pages/planner/AIWeeklyPlanner.tsx` |
 | **AI Meal Explanation** | ✅ Implemented | `components/AIMealExplanation.tsx` |
-| **AI Report Generator** | ✅ Implemented | `lib/ai-report-generator.ts` — uses OpenRouter with free models (trinity, gemini-flash-lite, deepseek-v3, grok-4.1-fast) |
+| **AI Report Generator** | ✅ Implemented | `lib/ai-report-generator.ts` — uses the authenticated `ai-router` Edge Function with LongCat 2.0 and deterministic fallback content |
 | **Smart Recommendations** | ✅ Implemented | `hooks/useSmartRecommendations.ts`, `pages/recommendations/` |
 | **Behavior Prediction** | ✅ Implemented | `components/BehaviorPredictionWidget.tsx`, `behavior_predictions` table |
 | **Weight Prediction** | ✅ Implemented | `components/WeightPredictionChart.tsx`, `weight_predictions` table |
@@ -224,7 +224,7 @@ Extensive stored procedures for: order lifecycle, delivery dispatch, driver earn
 | **Corporate/B2B Features** | 🟡 15% | Some admin capabilities exist (staff roles, staff schedules, user subscription management). No dedicated B2B/corporate portal or multi-seat management. |
 | **Family Plans** | 🔴 5% | No evidence of family plan UI or group subscription logic. Only individual subscriptions found. |
 | **Dietitian Consultations** | 🔴 5% | Professional weekly reports exist (`lib/professional-weekly-report-pdf.ts`) but no consultation booking, messaging, or dietitian profile system. |
-| **AI Recommendations** | 🟢 75% | Smart recommendations, behavior prediction, adaptive goals, AI meal planner, AI report generator all implemented. Relies on free OpenRouter models. |
+| **AI Recommendations** | 🟢 75% | Smart recommendations, behavior prediction, adaptive goals, AI meal planner, and AI report generator are implemented. Weekly AI reports use LongCat 2.0 through the authenticated server-side router. |
 | **Wallet/Credits System** | 🟢 85% | Wallet balance, top-up packages, transaction history, debit/credit operations, Sadad integration scaffolded. Missing: live payment. |
 | **Referral System** | 🟢 80% | Referral milestones, tracking page, affiliate program with applications, commissions, payouts, leaderboard. |
 | **Gamification** | 🟢 70% | Achievements, badges, streaks, streak rewards, leaderboards, community challenges. UI components exist. |

@@ -6,30 +6,21 @@ import { useWaterEntries } from "@/hooks/useWaterEntries";
 import { useBodyMeasurements } from "@/hooks/useBodyMeasurements";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Pencil, Loader2, ArrowLeft, Footprints, Weight, Activity, BarChart3, ArrowUp, CheckCircle2, Droplets, X } from "lucide-react";
+import { Pencil, Loader2, ArrowLeft, Footprints, Weight, Activity, BarChart3, ArrowUp, Droplets, X } from "lucide-react";
 import { TrackerInsights } from "@/components/TrackerInsights";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ActivityLevelPrompt } from "@/components/onboarding/ActivityLevelPrompt";
+import { motion } from "framer-motion";
 
 const STEP_GOAL = 6000;
-const TRACKER_COLORS = {
-  text: "#020617",
-  surface: "#F6F8FB",
-  track: "#E5EAF1",
-  calories: "#22C7A1",
-  protein: "#7C83F6",
-  fat: "#FB6B7A",
-  water: "#38BDF8",
-  carbs: "#F97316",
-};
 
 function getBmiStatus(bmi: number, t: (key: string) => string): { label: string; color: string; bg: string } {
-  if (bmi < 18.5) return { label: t("underweight"), color: "text-[#38BDF8]", bg: "bg-[#38BDF8]" };
-  if (bmi < 25) return { label: t("normal"), color: "text-[#22C7A1]", bg: "bg-[#22C7A1]" };
-  if (bmi < 30) return { label: t("overweight"), color: "text-[#F97316]", bg: "bg-[#F97316]" };
-  return { label: t("obese"), color: "text-[#FB6B7A]", bg: "bg-[#FB6B7A]" };
+  if (bmi < 18.5) return { label: t("underweight"), color: "text-macro-water", bg: "bg-macro-water" };
+  if (bmi < 25) return { label: t("normal"), color: "text-brand", bg: "bg-brand" };
+  if (bmi < 30) return { label: t("overweight"), color: "text-macro-carbs", bg: "bg-macro-carbs" };
+  return { label: t("obese"), color: "text-macro-fat", bg: "bg-macro-fat" };
 }
 
 function getBmiBarPosition(bmi: number): number {
@@ -101,70 +92,69 @@ export default function Tracker() {
   const stepsPct = Math.round((steps / STEP_GOAL) * 100);
 
   return (
-    <div className="min-h-screen bg-[#F6F8FB] pb-28 text-[#020617]">
+    <div className="min-h-screen bg-[#F8FAFC] pb-28 text-slate-900">
       {/* ── Header ── */}
-      <div className="sticky top-0 z-30 border-b border-white/70 bg-[#F6F8FB]/95 backdrop-blur-xl">
-        <div className="mx-auto max-w-[430px] px-4 pb-3 pt-4">
-        <div className="flex items-center gap-3">
-          <button
-            data-testid="tracker-back-btn"
-            onClick={() => navigate(-1)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#7C83F6]">
-              {format(new Date(), "EEE, MMM d")}
-            </p>
-            <h1 className="text-[24px] font-black leading-tight text-[#020617]">{t("tracker")}</h1>
+      <div className="sticky top-0 z-30 bg-gradient-to-b from-[#F8FAFC] via-[#F8FAFC]/90 to-transparent pb-4 pt-[env(safe-area-inset-top)]">
+        <div className="mx-auto max-w-[430px] px-5 pt-4">
+          <div className="flex items-center justify-between">
+            <button
+              data-testid="tracker-back-btn"
+              onClick={() => navigate(-1)}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/50 text-slate-600 backdrop-blur-md transition-all hover:bg-white active:scale-95"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="rounded-full bg-white/60 px-3 py-1 backdrop-blur-md">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                {format(new Date(), "EEE, MMM d")}
+              </p>
+            </div>
+            <button
+              data-testid="tracker-progress-btn"
+              onClick={() => navigate("/progress")}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/50 text-slate-600 backdrop-blur-md transition-all hover:bg-white active:scale-95"
+              aria-label={t("progress")}
+            >
+              <BarChart3 className="h-5 w-5" />
+            </button>
           </div>
-          <button
-            data-testid="tracker-progress-btn"
-            onClick={() => navigate("/progress")}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-[#E5EAF1]"
-            aria-label={t("progress")}
-          >
-            <BarChart3 className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* ── Tabs ── */}
-          <div className="mt-4 grid grid-cols-2 gap-2 rounded-full bg-white p-1 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-[#E5EAF1]">
+          <h1 className="mt-4 text-[28px] font-black tracking-tight text-slate-900 text-start">{t("tracker")}</h1>
+          
+          {/* ── Tabs ── */}
+          <div className="mt-4 flex gap-6 border-b border-slate-200/60">
             <button
               data-testid="tracker-tab-today"
               onClick={() => setActiveTab("today")}
               className={cn(
-                "flex min-h-11 items-center justify-center gap-2 rounded-full text-[13px] font-extrabold transition-all",
-                activeTab === "today"
-                  ? "bg-[#020617] text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
-                  : "text-slate-500"
+                "relative pb-3 text-[14px] font-bold transition-colors",
+                activeTab === "today" ? "text-slate-900" : "text-slate-400 hover:text-slate-600"
               )}
             >
-              <Droplets className="h-4 w-4" />
               {t("today")}
+              {activeTab === "today" && (
+                <motion.div layoutId="tracker-tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-brand" />
+              )}
             </button>
             <button
               data-testid="tracker-tab-insights"
               onClick={() => setActiveTab("insights")}
               className={cn(
-                "flex min-h-11 items-center justify-center gap-2 rounded-full text-[13px] font-extrabold transition-all",
-                activeTab === "insights"
-                  ? "bg-[#020617] text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
-                  : "text-slate-500"
+                "relative pb-3 text-[14px] font-bold transition-colors",
+                activeTab === "insights" ? "text-slate-900" : "text-slate-400 hover:text-slate-600"
               )}
             >
-              <BarChart3 className="h-4 w-4" />
               {t("insights")}
+              {activeTab === "insights" && (
+                <motion.div layoutId="tracker-tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-brand" />
+              )}
             </button>
           </div>
         </div>
       </div>
 
       {/* ── Content ── */}
-      <div className="mx-auto max-w-[430px] px-4 py-4">
-
+      <div className="mx-auto max-w-[430px] px-5 py-2">
         {/* ── Insights Tab ── */}
         {activeTab === "insights" && (
           <TrackerInsights
@@ -181,159 +171,123 @@ export default function Tracker() {
 
         {/* ── Today Tab ── */}
         {activeTab === "today" && (
-          <div className="space-y-4">
-
-            <section className="overflow-hidden rounded-[28px] bg-white shadow-[0_8px_32px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
-              <div className="p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
-                    {t("today")}
-                  </p>
-                  <h2 className="mt-1 text-[20px] font-black leading-tight text-slate-900">{t("tracker_subtitle")}</h2>
-                  <p className="mt-2 text-[12px] font-semibold text-slate-500">
-                    {Math.min(100, stepsPct)}% {t("steps")} · {Math.min(100, waterPct)}% {t("water")}
-                  </p>
-                </div>
-                <div className="relative h-[86px] w-[86px] shrink-0">
-                  <svg className="h-full w-full -rotate-90" viewBox="0 0 40 40">
-                    <circle cx="20" cy="20" r="16" fill="none" stroke={TRACKER_COLORS.track} strokeWidth="4" />
-                    <circle
-                      cx="20"
-                      cy="20"
-                      r="16"
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, staggerChildren: 0.1 }}
+            className="space-y-5"
+          >
+            {/* HERO: Concentric Rings */}
+            <motion.section className="relative overflow-hidden rounded-[32px] bg-[#0F172A] p-6 shadow-[0_8px_32px_rgba(15,23,42,0.12)] ring-1 ring-slate-800">
+              <div className="absolute left-1/2 top-1/2 h-[200px] w-[200px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/10 blur-3xl" />
+              
+              <div className="relative flex flex-col items-center">
+                <div className="relative flex h-[180px] w-[180px] items-center justify-center">
+                  <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 180 180" aria-hidden="true">
+                    {/* Outer Ring: Steps */}
+                    <circle cx="90" cy="90" r="76" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="12" />
+                    <motion.circle
+                      cx="90"
+                      cy="90"
+                      r="76"
                       fill="none"
-                      stroke={TRACKER_COLORS.protein}
-                      strokeWidth="4"
+                      stroke="#7C83F6"
+                      strokeWidth="12"
                       strokeLinecap="round"
-                      strokeDasharray={`${Math.min(100, Math.max(0, stepsPct))} 100`}
+                      strokeDasharray={`${Math.min(100, Math.max(0, stepsPct)) * 4.775} 477.5`}
                       pathLength="100"
+                      transition={{ duration: 1.2, ease: "easeOut" }}
+                    />
+                    
+                    {/* Inner Ring: Water */}
+                    <circle cx="90" cy="90" r="58" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="12" />
+                    <motion.circle
+                      cx="90"
+                      cy="90"
+                      r="58"
+                      fill="none"
+                      stroke="#38BDF8"
+                      strokeWidth="12"
+                      strokeLinecap="round"
+                      strokeDasharray={`${Math.min(100, Math.max(0, waterPct)) * 3.644} 364.4`}
+                      pathLength="100"
+                      transition={{ duration: 1.2, ease: "easeOut", delay: 0.1 }}
                     />
                   </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-[22px] font-black text-[#020617]">{Math.min(100, stepsPct)}%</span>
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{t("steps")}</span>
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <span className="text-[32px] font-black leading-none tracking-tight text-white" dir="ltr">
+                      {Math.round((Math.min(100, stepsPct) + Math.min(100, waterPct)) / 2)}%
+                    </span>
+                    <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{t("score")}</span>
                   </div>
                 </div>
-              </div>
 
-              </div>
-              <div className="grid grid-cols-2 gap-px bg-slate-100">
-                <Link to="/water-tracker" data-testid="tracker-water-link" className="block bg-white px-5 py-4 transition active:scale-[0.99]">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t("water")}</p>
-                      <div className="mt-2 flex items-baseline gap-1">
-                        <span className="text-[24px] font-black leading-none tracking-[-0.04em] text-slate-950">{waterMl.toLocaleString()}</span>
-                        <span className="text-[11px] font-black text-slate-400">mL</span>
-                      </div>
-                    </div>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#EFF9FF] text-[#38BDF8] ring-1 ring-[#38BDF8]/20">
-                      <Droplets className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <p className="mt-1.5 truncate text-[11px] font-bold text-slate-500">
-                    {Math.min(100, waterPct)}% of {waterTargetMl.toLocaleString()} mL
-                  </p>
-                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-[#38BDF8] transition-all duration-500"
-                      style={{ width: `${Math.min(100, waterPct)}%` }}
-                    />
-                  </div>
-                </Link>
-
-                <Link to="/step-counter" data-testid="tracker-steps-link" className="block bg-white px-5 py-4 transition active:scale-[0.99]">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t("steps")}</p>
-                      <div className="mt-2 flex items-baseline gap-1">
-                        <span className="text-[24px] font-black leading-none tracking-[-0.04em] text-slate-950">{steps.toLocaleString()}</span>
-                      </div>
-                    </div>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#F3F4FF] text-[#7C83F6] ring-1 ring-[#7C83F6]/20">
+                <div className="mt-6 w-full space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-macro-protein/20 text-macro-protein">
                       <Footprints className="h-4 w-4" />
                     </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-end justify-between">
+                        <p className="text-[12px] font-bold text-white">{t("steps")}</p>
+                        <p className="text-[12px] font-bold text-slate-400" dir="ltr"><span className="text-white">{steps.toLocaleString()}</span> / {STEP_GOAL.toLocaleString()}</p>
+                      </div>
+                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/5">
+                        <motion.div className="h-full rounded-full bg-macro-protein" initial={{ width: 0 }} animate={{ width: `${Math.min(100, stepsPct)}%` }} transition={{ duration: 1 }} />
+                      </div>
+                    </div>
                   </div>
-                  <p className="mt-1.5 truncate text-[11px] font-bold text-slate-500">
-                    {Math.min(100, stepsPct)}% of {STEP_GOAL.toLocaleString()} steps
-                  </p>
-                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-[#7C83F6] transition-all duration-500"
-                      style={{ width: `${Math.min(100, stepsPct)}%` }}
-                    />
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-macro-water/20 text-macro-water">
+                      <Droplets className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-end justify-between">
+                        <p className="text-[12px] font-bold text-white">{t("water")}</p>
+                        <p className="text-[12px] font-bold text-slate-400" dir="ltr"><span className="text-white">{waterMl.toLocaleString()}</span> / {waterTargetMl.toLocaleString()} mL</p>
+                      </div>
+                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/5">
+                        <motion.div className="h-full rounded-full bg-macro-water" initial={{ width: 0 }} animate={{ width: `${Math.min(100, waterPct)}%` }} transition={{ duration: 1, delay: 0.1 }} />
+                      </div>
+                    </div>
                   </div>
-                </Link>
+                </div>
               </div>
-            </section>
+            </motion.section>
 
-            {/* Weight Card */}
-            <div className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#EFFFFA] flex items-center justify-center shrink-0 ring-1 ring-[#22C7A1]/20">
-                    <Weight className="h-[18px] w-[18px] text-[#22C7A1]" />
+            {/* Quick Tiles */}
+            <div className="grid grid-cols-2 gap-3">
+              <Link to="/water-tracker" data-testid="tracker-water-link" className="group flex flex-col justify-between rounded-[24px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition-all hover:shadow-[0_4px_12px_rgba(15,23,42,0.06)] active:scale-[0.98]">
+                <div className="flex items-start justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-macro-water-soft text-macro-water ring-1 ring-macro-water/20 transition-transform group-hover:scale-110">
+                    <Droplets className="h-5 w-5" strokeWidth={2.2} />
                   </div>
-                  <span className="text-[13px] font-bold text-slate-700">{t("weight")}</span>
+                  <span className="text-[11px] font-bold text-slate-400" dir="ltr">{Math.min(100, waterPct)}%</span>
                 </div>
-                <button
-                  data-testid="tracker-weight-update-btn"
-                  onClick={() => setWeightDialogOpen(true)}
-                  className="px-3 py-1.5 rounded-full bg-[#020617] text-white text-[12px] font-semibold shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
-                >
-                  {t("update")}
-                </button>
-              </div>
-              {!hasWeightData && currentWeight == null ? (
-                <div className="text-center py-2">
-                  <p className="text-[13px] text-slate-400 mb-3">{t("set_up_profile_cta")}</p>
-                  <button
-                    onClick={() => navigate("/profile")}
-                    className="px-4 py-2 rounded-full bg-[#020617] text-white font-semibold text-[13px] shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
-                  >
-                    {t("set_up_profile")}
-                  </button>
+                <div className="mt-4 text-start">
+                  <p className="text-[24px] font-black leading-none tracking-tight text-slate-900" dir="ltr">{waterMl.toLocaleString()}</p>
+                  <p className="mt-1 text-[11px] font-bold text-slate-400">mL {t("water")}</p>
                 </div>
-              ) : (
-                <>
-                  <div className="flex items-baseline gap-1 mb-0.5">
-                    <span className="text-[26px] font-extrabold text-slate-900 tracking-[-0.03em] leading-none">
-                      {currentWeight != null ? currentWeight : "—"}
-                    </span>
-                    <span className="text-[13px] font-semibold text-slate-400">kg</span>
-                    {weightChange != null && weightChange !== 0 && (
-                      <span className={cn("text-[12px] font-semibold flex items-center gap-0.5 ml-1", weightChange < 0 ? "text-[#22C7A1]" : "text-[#FB6B7A]")}>
-                        <ArrowUp className={cn("w-3 h-3", weightChange < 0 && "rotate-180")} />
-                        {Math.abs(weightChange).toFixed(1)} kg
-                      </span>
-                    )}
+              </Link>
+              <Link to="/step-counter" data-testid="tracker-steps-link" className="group flex flex-col justify-between rounded-[24px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition-all hover:shadow-[0_4px_12px_rgba(15,23,42,0.06)] active:scale-[0.98]">
+                <div className="flex items-start justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-macro-protein-soft text-macro-protein ring-1 ring-macro-protein/20 transition-transform group-hover:scale-110">
+                    <Footprints className="h-5 w-5" strokeWidth={2.2} />
                   </div>
-                  <p className="text-[11px] text-slate-400 mb-3">
-                    {t("starting_cap")}: {startWeight ?? "—"} kg · {t("goal_cap")}: {goalWeight ?? "—"} kg
-                  </p>
-                  <div className="h-[6px] w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-[#22C7A1] transition-all duration-500"
-                      style={{ width: `${weightProgress}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <CheckCircle2 className="w-3 h-3 text-[#22C7A1]" />
-                    <span className="text-[11px] text-slate-400">{t("progress_towards_goal")}</span>
-                  </div>
-                </>
-              )}
+                  <span className="text-[11px] font-bold text-slate-400" dir="ltr">{Math.min(100, stepsPct)}%</span>
+                </div>
+                <div className="mt-4 text-start">
+                  <p className="text-[24px] font-black leading-none tracking-tight text-slate-900" dir="ltr">{steps.toLocaleString()}</p>
+                  <p className="mt-1 text-[11px] font-bold text-slate-400">{t("steps")}</p>
+                </div>
+              </Link>
             </div>
 
-            {/* BMI Card */}
-            <div className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#FFF7ED] flex items-center justify-center shrink-0 ring-1 ring-[#F97316]/20">
-                    <Activity className="h-[18px] w-[18px] text-[#F97316]" />
-                  </div>
-                  <span className="text-[13px] font-bold text-slate-700">{t("bmi")} (kg/m²)</span>
+            {/* BODY Section */}
+            <section className="rounded-[28px] bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+              <div className="mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-black uppercase tracking-[0.12em] text-slate-900">{t("tracker_body")}</span>
                 </div>
                 <button
                   data-testid="tracker-bmi-edit-btn"
@@ -342,92 +296,168 @@ export default function Tracker() {
                     setWeightInput(currentWeight?.toString() ?? "");
                     setBmiDialogOpen(true);
                   }}
-                  className="w-8 h-8 rounded-full bg-[#F6F8FB] flex items-center justify-center ring-1 ring-[#E5EAF1]"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-500 ring-1 ring-slate-200 transition-all hover:bg-slate-100 hover:text-slate-700 active:scale-95"
+                  aria-label="Edit Body Stats"
                 >
-                  <Pencil className="w-3.5 h-3.5 text-slate-500" />
+                  <Pencil className="h-3.5 w-3.5" strokeWidth={2.2} />
                 </button>
               </div>
-              <div className="flex items-baseline gap-2 mb-1">
-                <span className="text-[26px] font-extrabold text-slate-900 tracking-[-0.03em] leading-none">
-                  {bmi != null ? bmi.toFixed(1) : "—"}
-                </span>
-                {bmiStatus && (
-                  <span className={cn("text-[13px] font-semibold", bmiStatus.color)}>
-                    {bmiStatus.label}
-                  </span>
-                )}
-              </div>
-              {/* BMI bar */}
-              <div className="relative mt-3">
-                <div className="flex h-2.5 rounded-full overflow-hidden">
-                  <div className="flex-1 bg-[#38BDF8]" />
-                  <div className="flex-1 bg-[#22C7A1]" />
-                  <div className="flex-1 bg-[#F97316]" />
-                  <div className="flex-1 bg-[#FB6B7A]" />
-                </div>
-                {bmi != null && (
-                  <div
-                    className="absolute -top-0.5"
-                    style={{ left: `calc(${getBmiBarPosition(bmi)}% - 6px)` }}
-                  >
-                    <div className="w-3 h-3 rounded-full bg-white border-2 border-slate-700 shadow-sm" />
-                  </div>
-                )}
-              </div>
-              <div className="flex justify-between text-[9px] text-slate-400 mt-1.5">
-                <span>{t("underweight")}</span>
-                <span>{t("normal")}</span>
-                <span>{t("overweight")}</span>
-                <span>{t("obese")}</span>
-              </div>
-            </div>
 
-          </div>
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-stretch">
+                {/* Left: Weight */}
+                <div className="flex-1">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Weight className="h-4 w-4" />
+                      <span className="text-[12px] font-bold">{t("weight")}</span>
+                    </div>
+                    <button
+                      data-testid="tracker-weight-update-btn"
+                      onClick={() => setWeightDialogOpen(true)}
+                      className="rounded-full bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm transition-all hover:bg-slate-800 active:scale-95"
+                    >
+                      {t("update")}
+                    </button>
+                  </div>
+
+                  {!hasWeightData && currentWeight == null ? (
+                    <div className="mt-4 flex flex-col items-start rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100/50">
+                      <p className="mb-3 text-[12px] font-medium text-slate-500">{t("set_up_profile_cta")}</p>
+                      <button
+                        onClick={() => navigate("/profile")}
+                        className="rounded-full bg-white px-4 py-2 text-[12px] font-bold text-slate-900 shadow-sm ring-1 ring-slate-200 transition-all hover:bg-slate-50 active:scale-95"
+                      >
+                        {t("set_up_profile")}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-3 text-start">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-[32px] font-black leading-none tracking-tight text-slate-900" dir="ltr">
+                          {currentWeight != null ? currentWeight : "—"}
+                        </span>
+                        <span className="text-[14px] font-bold text-slate-400">kg</span>
+                        {weightChange != null && weightChange !== 0 && (
+                          <span className={cn("ms-2 flex items-center gap-0.5 text-[12px] font-bold", weightChange < 0 ? "text-brand" : "text-macro-fat")} dir="ltr">
+                            <ArrowUp className={cn("h-3.5 w-3.5", weightChange < 0 && "rotate-180")} strokeWidth={2.5} />
+                            {Math.abs(weightChange).toFixed(1)} kg
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-4 flex items-center justify-between text-[11px] font-bold text-slate-400">
+                        <span>{t("starting_cap")}: <span className="text-slate-700" dir="ltr">{startWeight ?? "—"} kg</span></span>
+                        <span>{t("goal_cap")}: <span className="text-slate-700" dir="ltr">{goalWeight ?? "—"} kg</span></span>
+                      </div>
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]">
+                        <motion.div
+                          className="h-full rounded-full bg-brand"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${weightProgress}%` }}
+                          transition={{ duration: 0.8 }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div className="hidden w-px bg-slate-100 sm:block" />
+                <div className="h-px w-full bg-slate-100 sm:hidden" />
+
+                {/* Right/Bottom: BMI */}
+                <div className="flex-1 text-start">
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <Activity className="h-4 w-4" />
+                    <span className="text-[12px] font-bold">{t("bmi")}</span>
+                  </div>
+                  
+                  {bmi != null ? (
+                    <div className="mt-3">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-[32px] font-black leading-none tracking-tight text-slate-900" dir="ltr">{bmi.toFixed(1)}</span>
+                        {bmiStatus && (
+                          <span className={cn("rounded-full px-2 py-1 text-[10px] font-bold text-white shadow-sm", bmiStatus.bg)}>
+                            {bmiStatus.label}
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative mt-5" dir="ltr">
+                        <div className="flex h-2 overflow-hidden rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]">
+                          <div className="flex-1 bg-macro-water" />
+                          <div className="flex-1 bg-brand" />
+                          <div className="flex-1 bg-macro-carbs" />
+                          <div className="flex-1 bg-macro-fat" />
+                        </div>
+                        <motion.div
+                          className="absolute -top-1.5 h-5 w-3 rounded-full bg-white shadow-[0_2px_8px_rgba(15,23,42,0.15)] ring-1 ring-slate-200"
+                          initial={{ left: 0 }}
+                          animate={{ left: `calc(${getBmiBarPosition(bmi)}% - 6px)` }}
+                          transition={{ duration: 0.8, ease: "easeOut" }}
+                        />
+                      </div>
+                      <div className="mt-2 flex justify-between text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400" dir="ltr">
+                        <span>15</span>
+                        <span>22.5</span>
+                        <span>30</span>
+                        <span>40</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 flex flex-col items-center justify-center rounded-2xl bg-slate-50 py-5 ring-1 ring-slate-100/50">
+                      <p className="text-[12px] font-medium text-slate-500">{t("set_height_weight_bmi")}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+          </motion.div>
         )}
       </div>
 
       {/* ═══════ DIALOGS ═══════ */}
       {weightDialogOpen && (
         <div className="fixed inset-0 z-[9999] flex flex-col justify-end">
-          <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" onClick={() => setWeightDialogOpen(false)} />
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setWeightDialogOpen(false)} />
           <div
-            className="relative mx-auto w-full max-w-[430px] rounded-t-[32px] bg-white px-5 pt-3 shadow-[0_-24px_48px_rgba(15,23,42,0.18)]"
+            className="relative mx-auto w-full max-w-[430px] rounded-t-[32px] bg-white px-5 pt-3 shadow-[0_-8px_32px_rgba(15,23,42,0.12)] ring-1 ring-slate-100"
             style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
           >
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200" />
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+            <div className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-slate-200" />
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div className="text-start">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
                   {t("weight")}
                 </p>
-                <h2 className="mt-1 text-[24px] font-black leading-tight text-slate-950">{t("update_weight")}</h2>
-                <p className="mt-1 text-[13px] font-semibold text-slate-500">Enter your current weight</p>
+                <h2 className="mt-0.5 text-[22px] font-black leading-tight tracking-tight text-slate-900">{t("update_weight")}</h2>
+                <p className="mt-1 text-[13px] font-medium text-slate-500">{t("tracker_weight_dialog_subtitle")}</p>
               </div>
               <button
                 data-testid="tracker-weight-close-btn"
                 onClick={() => setWeightDialogOpen(false)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-500 ring-1 ring-slate-200 transition-all hover:bg-slate-100 hover:text-slate-700 active:scale-95"
                 aria-label="Close"
               >
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5" strokeWidth={2.2} />
               </button>
             </div>
 
-            <div className="rounded-[26px] bg-slate-50 p-4">
-              <label className="text-[12px] font-extrabold text-slate-600">{t("weight")} (kg)</label>
-              <div className="mt-3 flex items-center rounded-[22px] bg-white px-4 py-3 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-[#020617]">
-            <input
-              data-testid="tracker-weight-input"
-              type="number"
-              step="0.1"
-              min="20"
-              max="300"
-              placeholder="75"
-              value={weightInput}
-              onChange={(e) => setWeightInput(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-[34px] font-black leading-none text-slate-950 outline-none placeholder:text-slate-300"
-            />
-                <span className="text-[18px] font-black text-slate-400">kg</span>
+            <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-100/50">
+              <label className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{t("weight")} <span className="text-slate-400">(kg)</span></label>
+              <div className="mt-3 flex items-center rounded-2xl bg-white px-4 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-brand">
+                <input
+                  data-testid="tracker-weight-input"
+                  type="number"
+                  step="0.1"
+                  min="20"
+                  max="300"
+                  placeholder="75"
+                  value={weightInput}
+                  onChange={(e) => setWeightInput(e.target.value)}
+                  className="min-w-0 flex-1 bg-transparent text-[36px] font-black leading-none tracking-tight text-slate-900 outline-none placeholder:text-slate-300"
+                  dir="ltr"
+                />
+                <span className="text-[18px] font-bold text-slate-400">kg</span>
               </div>
             </div>
 
@@ -454,7 +484,7 @@ export default function Tracker() {
                 }
               }}
               disabled={submitting || !weightInput}
-              className="mt-4 flex h-14 w-full items-center justify-center rounded-full bg-[#020617] text-[15px] font-black text-white shadow-[0_14px_28px_rgba(2,6,23,0.18)] transition-colors disabled:opacity-45"
+              className="mt-5 flex h-14 w-full items-center justify-center rounded-full bg-slate-900 text-[15px] font-bold text-white shadow-[0_4px_12px_rgba(15,23,42,0.15)] transition-all hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
             >
               {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : t("save")}
             </button>
@@ -464,36 +494,36 @@ export default function Tracker() {
 
       {bmiDialogOpen && (
         <div className="fixed inset-0 z-[9999] flex flex-col justify-end">
-          <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" onClick={() => setBmiDialogOpen(false)} />
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setBmiDialogOpen(false)} />
           <div
-            className="relative mx-auto flex w-full max-w-[430px] flex-col rounded-t-[32px] bg-white shadow-[0_-24px_48px_rgba(15,23,42,0.18)]"
+            className="relative mx-auto flex w-full max-w-[430px] flex-col rounded-t-[32px] bg-white shadow-[0_-8px_32px_rgba(15,23,42,0.12)] ring-1 ring-slate-100"
             style={{ maxHeight: "88dvh" }}
           >
             <div className="px-5 pt-3">
-              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200" />
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+              <div className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-slate-200" />
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div className="text-start">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
                     {t("bmi")}
                   </p>
-                  <h2 className="mt-1 text-[24px] font-black leading-tight text-slate-950">{t("edit_bmi")}</h2>
-                  <p className="mt-1 text-[13px] font-semibold text-slate-500">Update height and weight</p>
+                  <h2 className="mt-0.5 text-[22px] font-black leading-tight tracking-tight text-slate-900">{t("edit_bmi")}</h2>
+                  <p className="mt-1 text-[13px] font-medium text-slate-500">{t("tracker_bmi_dialog_subtitle")}</p>
                 </div>
                 <button
                   data-testid="tracker-bmi-close-btn"
                   onClick={() => setBmiDialogOpen(false)}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-500 ring-1 ring-slate-200 transition-all hover:bg-slate-100 hover:text-slate-700 active:scale-95"
                   aria-label="Close"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-5 w-5" strokeWidth={2.2} />
                 </button>
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 pb-4">
-              <div className="rounded-[26px] bg-slate-50 p-4">
-                <label className="text-[12px] font-extrabold text-slate-600">{t("height")}</label>
-                <div className="mt-3 flex items-center rounded-[22px] bg-white px-4 py-3 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-[#020617]">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5">
+              <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-100/50">
+                <label className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{t("height")} <span className="text-slate-400">(cm)</span></label>
+                <div className="mt-3 flex items-center rounded-2xl bg-white px-4 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-brand">
                   <input
                     type="number"
                     min="100"
@@ -501,15 +531,16 @@ export default function Tracker() {
                     step="0.1"
                     value={heightInput}
                     onChange={(e) => setHeightInput(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent text-[42px] font-black leading-none text-slate-950 outline-none"
+                    className="min-w-0 flex-1 bg-transparent text-[36px] font-black leading-none tracking-tight text-slate-900 outline-none placeholder:text-slate-300"
+                    dir="ltr"
                   />
-                  <span className="text-[20px] font-black text-slate-400">cm</span>
+                  <span className="text-[18px] font-bold text-slate-400">cm</span>
                 </div>
               </div>
 
-              <div className="rounded-[26px] bg-slate-50 p-4">
-                <label className="text-[12px] font-extrabold text-slate-600">{t("weight")}</label>
-                <div className="mt-3 flex items-center rounded-[22px] bg-white px-4 py-3 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-[#020617]">
+              <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-100/50">
+                <label className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{t("weight")} <span className="text-slate-400">(kg)</span></label>
+                <div className="mt-3 flex items-center rounded-2xl bg-white px-4 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-brand">
                   <input
                     type="number"
                     min="20"
@@ -517,9 +548,10 @@ export default function Tracker() {
                     step="0.1"
                     value={weightInput}
                     onChange={(e) => setWeightInput(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent text-[42px] font-black leading-none text-slate-950 outline-none"
+                    className="min-w-0 flex-1 bg-transparent text-[36px] font-black leading-none tracking-tight text-slate-900 outline-none placeholder:text-slate-300"
+                    dir="ltr"
                   />
-                  <span className="text-[20px] font-black text-slate-400">kg</span>
+                  <span className="text-[18px] font-bold text-slate-400">kg</span>
                 </div>
               </div>
             </div>
@@ -531,9 +563,9 @@ export default function Tracker() {
               <button
                 data-testid="tracker-bmi-cancel-btn"
                 onClick={() => setBmiDialogOpen(false)}
-                className="flex h-14 items-center justify-center rounded-full bg-slate-100 text-[15px] font-black text-slate-600"
+                className="flex h-14 items-center justify-center rounded-full bg-slate-50 text-[15px] font-bold text-slate-600 ring-1 ring-slate-200 transition-all hover:bg-slate-100 active:scale-[0.98]"
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 data-testid="tracker-bmi-save-btn"
@@ -560,9 +592,9 @@ export default function Tracker() {
                   }
                 }}
                 disabled={submitting}
-                className="flex h-14 items-center justify-center rounded-full bg-[#020617] text-[15px] font-black text-white shadow-[0_14px_28px_rgba(2,6,23,0.18)] disabled:opacity-45"
+                className="flex h-14 items-center justify-center rounded-full bg-slate-900 text-[15px] font-bold text-white shadow-[0_4px_12px_rgba(15,23,42,0.15)] transition-all hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
               >
-                {submitting ? t("saving_progress") : t("save")}
+                {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : t("save")}
               </button>
             </div>
           </div>

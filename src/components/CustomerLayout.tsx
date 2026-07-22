@@ -27,6 +27,7 @@ const HIDDEN_NAV_PATHS = [
   "/coach-programs",
   "/programs",
   "/ai-coach",
+  "/schedule/fill-my-week",
 ];
 
 // Keep content clear of the native-style bottom tab bar.

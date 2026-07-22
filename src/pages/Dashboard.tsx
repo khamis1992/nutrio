@@ -29,6 +29,7 @@ import {
   Leaf,
   Loader2,
   Medal,
+  MessageCircle,
   Moon,
   Music,
   Package,
@@ -357,6 +358,8 @@ const DashboardAiInsightCard = ({
     </article>
   );
 };
+
+const showDetachedAiCoachCard = false;
 
 interface MealSchedule {
   id: string;
@@ -1673,7 +1676,15 @@ const Dashboard = () => {
           </div>
 
           {/* â”€â”€ Tab Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-          <div className="mb-5 flex relative rounded-full bg-white p-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 z-10">
+          <div className="mb-5 flex relative rounded-full bg-[#F1F4F7] p-1.5 z-10">
+            <svg width="0" height="0" className="absolute" aria-hidden="true">
+              <defs>
+                <linearGradient id="dashboard-tab-icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#10B981" />
+                  <stop offset="100%" stopColor="#0EA5E9" />
+                </linearGradient>
+              </defs>
+            </svg>
             {tabs.map(({ key, label, icon: Icon, path }) => {
               const isActive = activeTab === key;
               return (
@@ -1682,52 +1693,52 @@ const Dashboard = () => {
                   type="button"
                   data-testid={`dashboard-tab-${key}`}
                   onClick={() => navigate(path)}
-                  whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
+                  whileTap={prefersReducedMotion ? undefined : { scale: 0.96 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  className="relative flex-1 flex flex-col items-center justify-center min-h-[56px] py-1.5 outline-none z-10 shrink-0"
+                  className="relative flex-1 flex items-center justify-center gap-1.5 min-h-[54px] py-2 outline-none z-10 shrink-0"
                 >
                   {isActive && !prefersReducedMotion && (
                     <motion.div
                       layoutId="dashboard-tab-indicator"
-                      initial={{ scale: 0.85, opacity: 0 }}
+                      initial={{ scale: 0.9, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="absolute inset-0 bg-[#101A34] rounded-[26px] shadow-[0_16px_30px_rgba(16,26,52,0.28)] -z-10"
+                      className="absolute inset-0 rounded-full bg-white shadow-[0_10px_24px_rgba(15,23,42,0.10)] -z-10"
                       transition={{ type: "spring", bounce: 0.25, duration: 0.45 }}
-                    />
+                    >
+                      <div className="absolute bottom-[6px] left-1/2 h-[3px] w-[52%] -translate-x-1/2 rounded-full bg-gradient-to-r from-emerald-500 to-sky-500" />
+                    </motion.div>
                   )}
                   {isActive && prefersReducedMotion && (
-                    <div className="absolute inset-0 bg-[#101A34] rounded-[26px] shadow-[0_16px_30px_rgba(16,26,52,0.28)] -z-10" />
+                    <div className="absolute inset-0 rounded-full bg-white shadow-[0_10px_24px_rgba(15,23,42,0.10)] -z-10">
+                      <div className="absolute bottom-[6px] left-1/2 h-[3px] w-[52%] -translate-x-1/2 rounded-full bg-gradient-to-r from-emerald-500 to-sky-500" />
+                    </div>
                   )}
-                  <motion.div
-                    initial={!prefersReducedMotion && isActive ? { scale: 0.6 } : false}
-                    animate={{ scale: 1 }}
-                    transition={!prefersReducedMotion && isActive ? { type: "spring", bounce: 0.5, duration: 0.5 } : undefined}
-                    className="relative z-10 flex items-center justify-center"
-                  >
-                    <Icon 
-                      className={cn(
-                        "transition-all duration-300", 
-                        isActive ? "text-[#2FE6A7] h-[22px] w-[22px]" : "text-[#22C7A1]/50 h-[20px] w-[20px]"
-                      )} 
-                      strokeWidth={isActive ? 2.5 : 2} 
-                    />
-                  </motion.div>
+                  {isActive ? (
+                    <motion.div
+                      initial={prefersReducedMotion ? false : { scale: 0.6 }}
+                      animate={{ scale: 1 }}
+                      transition={prefersReducedMotion ? undefined : { type: "spring", bounce: 0.5, duration: 0.5 }}
+                      className="relative z-10 flex items-center justify-center"
+                    >
+                      <Icon
+                        className="h-[20px] w-[20px] shrink-0"
+                        stroke="url(#dashboard-tab-icon-gradient)"
+                        strokeWidth={2.4}
+                      />
+                    </motion.div>
+                  ) : (
+                    <span className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white ring-1 ring-slate-200">
+                      <Icon className="h-[14px] w-[14px] text-slate-400" strokeWidth={2} />
+                    </span>
+                  )}
                   <motion.span
                     initial={!prefersReducedMotion && isActive ? { opacity: 0.5, y: 2 } : false}
                     animate={{ opacity: 1, y: 0 }}
                     transition={!prefersReducedMotion && isActive ? { duration: 0.3 } : undefined}
-                    className={cn("relative z-10 mt-1 capitalize transition-colors duration-300", isActive ? "text-white font-extrabold text-[12px]" : "text-[#3A4358] font-semibold text-[12px]")}
+                    className={cn("relative z-10 capitalize transition-colors duration-300 truncate", isActive ? "text-slate-900 font-extrabold text-[12px]" : "text-slate-500 font-semibold text-[12px]")}
                   >
                     {label}
                   </motion.span>
-                  {isActive && (
-                    <motion.div 
-                      initial={prefersReducedMotion ? undefined : { scaleX: 0 }}
-                      animate={prefersReducedMotion ? undefined : { scaleX: 1 }}
-                      transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
-                      className="relative z-10 w-6 h-[3px] bg-[#2FE6A7] rounded-full mt-1" 
-                    />
-                  )}
                 </motion.button>
               );
             })}
@@ -1820,8 +1831,8 @@ const Dashboard = () => {
 
 
             {/* â”€â”€ Quick Action Grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-            <div className="rounded-[30px] border border-[#E5EAF1] bg-white p-2 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
-              <div className="grid grid-cols-4 gap-1.5">
+            <div className="rounded-[32px] bg-white p-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+              <div className="grid grid-cols-4 gap-1">
                 {[
                   {
                     label: t("order"),
@@ -1830,9 +1841,10 @@ const Dashboard = () => {
                     Icon: ConciergeBell,
                     action: () => navigate("/meals"),
                     primary: true,
-                    bg: "bg-[#22C7A1] text-white shadow-[0_10px_20px_rgba(34,199,161,0.28)]",
-                    iconClass: "text-white",
-                    sublabelClass: "text-white/75",
+                    bg: "bg-[#101A34] text-white shadow-[0_16px_30px_rgba(16,26,52,0.28)]",
+                    iconClass: "text-[#2FE6A7]",
+                    labelClass: "text-white font-extrabold",
+                    sublabelClass: "text-white/70 font-medium",
                   },
                   {
                     label: t("log"),
@@ -1841,9 +1853,10 @@ const Dashboard = () => {
                     Icon: Plus,
                     action: () => setLogMealOpen(true),
                     primary: false,
-                    bg: "bg-[#F8FAFC] text-[#020617] ring-1 ring-[#E5EAF1]",
-                    iconClass: "bg-white text-[#22C7A1] ring-1 ring-[#D7F8EC]",
-                    sublabelClass: "text-[#64748B]",
+                    bg: "bg-transparent text-[#3A4358] hover:bg-slate-50",
+                    iconClass: "bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#D7F8EC]",
+                    labelClass: "text-[#3A4358] font-semibold",
+                    sublabelClass: "text-slate-400 font-medium",
                   },
                   {
                     label: "Coaches",
@@ -1852,9 +1865,10 @@ const Dashboard = () => {
                     Icon: Medal,
                     action: () => navigate(hasActiveCoach ? "/coach-programs" : "/coaches"),
                     primary: false,
-                    bg: "bg-[#F8FAFC] text-[#020617] ring-1 ring-[#E5EAF1]",
-                    iconClass: "bg-white text-[#F97316] ring-1 ring-[#FED7AA]/80",
-                    sublabelClass: "text-[#64748B]",
+                    bg: "bg-transparent text-[#3A4358] hover:bg-slate-50",
+                    iconClass: "bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#D7F8EC]",
+                    labelClass: "text-[#3A4358] font-semibold",
+                    sublabelClass: "text-slate-400 font-medium",
                   },
                   {
                     label: t("community"),
@@ -1863,19 +1877,23 @@ const Dashboard = () => {
                     Icon: Users,
                     action: () => navigate("/community"),
                     primary: false,
-                    bg: "bg-[#F8FAFC] text-[#020617] ring-1 ring-[#E5EAF1]",
-                    iconClass: "bg-white text-[#7C83F6] ring-1 ring-[#E0E7FF]",
-                    sublabelClass: "text-[#64748B]",
+                    bg: "bg-transparent text-[#3A4358] hover:bg-slate-50",
+                    iconClass: "bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#D7F8EC]",
+                    labelClass: "text-[#3A4358] font-semibold",
+                    sublabelClass: "text-slate-400 font-medium",
                   },
-                ].map(({ label, sublabel, testid, Icon, action, bg, iconClass, sublabelClass, primary }) => (
+                ].map(({ label, sublabel, testid, Icon, action, bg, iconClass, labelClass, sublabelClass, primary }, index) => (
                   <motion.button
                     key={label}
                     type="button"
                     data-testid={testid}
                     onClick={action}
-                    whileTap={prefersReducedMotion ? undefined : { scale: 0.96 }}
+                    initial={prefersReducedMotion ? undefined : { opacity: 0, y: 10 }}
+                    animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05, ease: "easeOut" }}
+                    whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
                     className={cn(
-                      "flex min-h-[80px] flex-col items-center justify-center rounded-[22px] px-1 py-2 text-center transition-all duration-300 active:scale-[0.98]",
+                      "flex min-h-[80px] flex-col items-center justify-center rounded-[26px] px-1 py-2 text-center transition-colors duration-300",
                       bg
                     )}
                   >
@@ -1886,10 +1904,10 @@ const Dashboard = () => {
                         iconClass
                       )}
                     >
-                      <Icon className={primary ? "h-5 w-5" : "h-[18px] w-[18px]"} strokeWidth={primary ? 2.5 : 2.3} />
+                      <Icon className={primary ? "h-[22px] w-[22px]" : "h-[18px] w-[18px]"} strokeWidth={primary ? 2.5 : 2} />
                     </span>
-                    <span className="max-w-full truncate text-[11px] font-black leading-tight">{label}</span>
-                    <span className={cn("mt-0.5 max-w-full truncate text-[10px] font-bold leading-tight", sublabelClass)}>
+                    <span className={cn("max-w-full truncate text-[12px] leading-tight", labelClass)}>{label}</span>
+                    <span className={cn("mt-0.5 max-w-full truncate text-[10px] leading-tight", sublabelClass)}>
                       {sublabel}
                     </span>
                   </motion.button>
@@ -2251,40 +2269,65 @@ const Dashboard = () => {
               </div>
             )}
 
-            <div className="rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 p-6">
+            <div className="rounded-[28px] bg-white shadow-[0_16px_45px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 p-6">
               <div className="flex items-center justify-between">
-                <div className="text-left">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-500">{t("daily_focus")}</p>
-                  <h2 className="mt-1 text-[19px] font-black leading-tight text-slate-900 tracking-tight">{t("do_this_next")}</h2>
+                <div className="text-start">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#22C7A1]">{t("daily_focus")}</p>
+                  <h2 className="mt-1 text-[19px] font-black leading-tight text-[#101A34] tracking-tight">{t("do_this_next")}</h2>
                 </div>
-                <div className="rounded-full bg-[#F0FDF6] px-3 py-1.5 text-[11px] font-black text-emerald-600 ring-1 ring-emerald-100">
+                <div className="rounded-full bg-[#EFFFFA] px-3 py-1.5 text-[11px] font-black text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
                   {dailyScorePercentDisplay}{dailyScorePercentDisplay === "..." || dailyScorePercentDisplay === "--" ? "" : "/100"}
                 </div>
               </div>
-              <div className="mt-4 space-y-2.5">
-                {focusItems.map(({ label, title, detail, Icon, tone, action }, index) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={action}
-                    className="flex min-h-[68px] w-full items-center gap-3.5 rounded-xl bg-slate-50/50 p-3 text-start ring-1 ring-slate-100/80 transition-all duration-300 active:scale-[0.99] hover:ring-emerald-100/50 hover:bg-slate-50"
-                  >
-                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ${tone}`}>
-                      <Icon className="h-5 w-5" strokeWidth={2.2} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-white text-[10px] font-black text-slate-400 border border-slate-200/60 shadow-sm">
-                          {index + 1}
-                        </span>
-                        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+              <div className="mt-5 space-y-3">
+                {focusItems.map(({ label, title, detail, Icon, tone, action }, index) => {
+                  const isPrimary = index === 0;
+                  return (
+                    <motion.button
+                      key={label}
+                      type="button"
+                      onClick={action}
+                      initial={prefersReducedMotion ? undefined : { opacity: 0, y: 10 }}
+                      animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      whileTap={prefersReducedMotion ? undefined : { scale: isPrimary ? 0.97 : 0.98 }}
+                      className={`flex min-h-[68px] w-full items-center gap-3.5 rounded-2xl p-3 text-start transition-colors duration-300 ${
+                        isPrimary
+                          ? "bg-[#101A34] shadow-[0_16px_30px_rgba(16,26,52,0.28)] ring-1 ring-[#101A34]"
+                          : "bg-white ring-1 ring-slate-100 shadow-[0_2px_8px_rgba(15,23,42,0.04)] hover:ring-[#22C7A1]/30 hover:bg-[#EFFFFA]/30"
+                      }`}
+                    >
+                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm ring-1 ${
+                        isPrimary ? "bg-[#2FE6A7]/15 ring-[#2FE6A7]/30 text-[#2FE6A7]" : tone
+                      }`}>
+                        <Icon className="h-5 w-5" strokeWidth={2.2} />
                       </div>
-                      <p className="mt-1.5 truncate text-[14px] font-black text-slate-900 leading-none">{title}</p>
-                      <p className="mt-1 truncate text-[11px] font-semibold text-[#64748B]">{detail}</p>
-                    </div>
-                    <NextIcon className="h-4 w-4 shrink-0 text-slate-300" strokeWidth={2.4} />
-                  </button>
-                ))}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${
+                            isPrimary
+                              ? "bg-[#2FE6A7] text-[#101A34]"
+                              : "bg-slate-50 text-slate-500 ring-1 ring-slate-200/50"
+                          }`}>
+                            {index + 1}
+                          </span>
+                          <p className={`text-[10px] font-black uppercase tracking-[0.12em] ${
+                            isPrimary ? "text-white/70" : "text-[#3A4358]/70"
+                          }`}>{label}</p>
+                        </div>
+                        <p className={`mt-1.5 truncate text-[14px] font-black leading-none ${
+                          isPrimary ? "text-white" : "text-[#101A34]"
+                        }`}>{title}</p>
+                        <p className={`mt-1 truncate text-[11px] font-semibold ${
+                          isPrimary ? "text-white/70" : "text-[#3A4358]"
+                        }`}>{detail}</p>
+                      </div>
+                      <NextIcon className={`h-4 w-4 shrink-0 ${
+                        isPrimary ? "text-[#2FE6A7]" : "text-slate-300"
+                      }`} strokeWidth={2.4} />
+                    </motion.button>
+                  );
+                })}
               </div>
             </div>
 
@@ -2293,9 +2336,35 @@ const Dashboard = () => {
               fallback={fallbackAiInsight}
               prefersReducedMotion={Boolean(prefersReducedMotion)}
               ArrowIcon={NextIcon}
-              openLabel={t("ai_coach_label")}
-              onOpen={() => navigate("/ai-coach")}
+              openLabel={t("open_ai_report")}
+              onOpen={() => navigate("/ai-report")}
             />
+
+            {showDetachedAiCoachCard && (
+            <button
+              type="button"
+              onClick={() => navigate("/ai-coach")}
+              className="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-start ring-1 ring-[#E5EAF1] shadow-[0_10px_26px_rgba(15,23,42,0.04)] transition active:scale-[0.99] hover:ring-[#7C83F6]/30"
+              aria-label={t("ai_coach_label")}
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#F3F4FF] text-[#7C83F6]">
+                  <MessageCircle className="h-5 w-5" strokeWidth={2.4} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-[#7C83F6]">
+                    {t("ai_coach_label")}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[14px] font-black text-[#020617]">
+                    {isRTL ? "اسأل المدرب الذكي" : "Ask your AI coach"}
+                  </span>
+                </span>
+              </span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white">
+                <NextIcon className="h-4 w-4" strokeWidth={2.6} />
+              </span>
+            </button>
+            )}
 
             <button
               type="button"

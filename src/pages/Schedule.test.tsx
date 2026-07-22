@@ -80,7 +80,9 @@ vi.mock("@/components/meal/SmartSubstitutionBanner", () => ({
 }));
 
 vi.mock("@/components/meal/MealPlanGenerator", () => ({
-  MealPlanGenerator: () => null,
+  MealPlanGenerator: ({ isOpen }: { isOpen: boolean }) => (
+    isOpen ? <div data-testid="meal-plan-generator" /> : null
+  ),
 }));
 
 const mockNavigate = vi.fn();
@@ -94,13 +96,13 @@ vi.mock("react-router-dom", async () => {
 
 import Schedule from "@/pages/Schedule";
 
-const createWrapper = () => {
+const createWrapper = (initialEntry = "/schedule") => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>{children}</MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>{children}</MemoryRouter>
     </QueryClientProvider>
   );
 };
@@ -160,5 +162,13 @@ describe("Schedule", () => {
     render(<Schedule />, { wrapper: createWrapper() });
     const weekNavigationButtons = screen.getAllByRole("button");
     expect(weekNavigationButtons.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it("renders the planner when its dedicated route is loaded directly", () => {
+    render(<Schedule />, {
+      wrapper: createWrapper("/schedule/fill-my-week"),
+    });
+
+    expect(screen.getByTestId("meal-plan-generator")).toBeTruthy();
   });
 });

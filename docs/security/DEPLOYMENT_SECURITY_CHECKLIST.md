@@ -156,6 +156,10 @@ Edge secrets and protected GitHub Environment secrets. Never prefix them with
 - `DEEPSEEK_API_KEY`, `DEEPSEEK_API_URL=https://api.deepseek.com/v1/chat/completions`,
   and `DEEPSEEK_ALLOWED_HOSTS=api.deepseek.com`. These are server-only Edge
   secrets. Never expose the key or provider URL overrides through `VITE_`.
+- `LONGCAT_API_KEY`,
+  `LONGCAT_API_URL=https://api.longcat.chat/openai/v1/chat/completions`, and
+  `LONGCAT_ALLOWED_HOSTS=api.longcat.chat` for the authenticated AI task router.
+  Keep all three server-only and never prefix them with `VITE_`.
 - `MANUS_API_KEY` for meal-image analysis. It must remain distinct from
   DeepSeek credentials and server-only; configure the exact provider host
   allowlist required by the deployed image-analysis function.

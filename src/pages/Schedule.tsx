@@ -1,6 +1,6 @@
 import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -176,8 +176,10 @@ const Schedule = () => {
   const { NextIcon } = getNavArrows(isRTL);
   const DAYS = isRTL ? DAYS_AR : DAYS_EN;
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedComboParam = searchParams.get("combo") || "";
+  const isMealPlanRoute = location.pathname.endsWith("/schedule/fill-my-week");
   const { user } = useAuth();
   const { profile } = useProfile();
   const { settings, loading: settingsLoading } = usePlatformSettings();
@@ -190,7 +192,6 @@ const Schedule = () => {
 
   const pricePerMeal = subscription?.price_per_meal ?? 50;
 
-  const [showMealPlanGenerator, setShowMealPlanGenerator] = useState(false);
   const [templateApplying, setTemplateApplying] = useState(false);
   const [showBuyCredit, setShowBuyCredit] = useState(false);
   const [buyLoading, setBuyLoading] = useState(false);
@@ -259,6 +260,24 @@ const Schedule = () => {
       navigate("/onboarding");
     }
   }, [profile, navigate]);
+
+  useEffect(() => {
+    if (settingsLoading || !isMealPlanRoute || hasActiveSubscription) return;
+    navigate("/subscription", { replace: true });
+  }, [hasActiveSubscription, isMealPlanRoute, navigate, settingsLoading]);
+
+  const closeMealPlan = useCallback(() => {
+    const openedFromSchedule = Boolean(
+      (location.state as { fromSchedule?: boolean } | null)?.fromSchedule,
+    );
+
+    if (openedFromSchedule) {
+      navigate(-1);
+      return;
+    }
+
+    navigate("/schedule", { replace: true });
+  }, [location.state, navigate]);
 
   const fetchSchedules = useCallback(async () => {
     if (!user) return;
@@ -854,6 +873,7 @@ const Schedule = () => {
 
         {!loading && (
           <motion.button
+            data-testid="schedule-fill-week-link"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             onClick={() => {
@@ -870,7 +890,9 @@ const Schedule = () => {
                 navigate("/subscription");
                 return;
               }
-              setShowMealPlanGenerator(true);
+              navigate("/schedule/fill-my-week", {
+                state: { fromSchedule: true },
+              });
             }}
             whileTap={{ scale: 0.98 }}
             className="mb-3 flex min-h-[76px] w-full items-center gap-3 rounded-[22px] bg-white p-3 shadow-[0_8px_24px_rgba(2,6,23,0.05)] ring-1 ring-[#E5EAF1]"
@@ -1389,13 +1411,13 @@ const Schedule = () => {
 
       {/* ── Meal Plan Generator ──────────────────────── */}
       <AnimatePresence>
-        {showMealPlanGenerator && user && (
+        {isMealPlanRoute && user && hasActiveSubscription && (
           <MealPlanGenerator
-            isOpen={showMealPlanGenerator}
-            onClose={() => setShowMealPlanGenerator(false)}
+            isOpen={isMealPlanRoute}
+            onClose={closeMealPlan}
             onScheduled={() => {
-              setShowMealPlanGenerator(false);
-              fetchSchedules();
+              void fetchSchedules();
+              navigate("/schedule", { replace: true });
             }}
             isScheduleEmpty={thisWeekSchedules.length === 0}
             userId={user.id}

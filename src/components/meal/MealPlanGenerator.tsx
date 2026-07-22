@@ -704,7 +704,7 @@ export const MealPlanGenerator = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="mx-auto max-w-[430px] px-4 pb-32 pt-4"
+            className="mx-auto max-w-[430px] px-4 pb-36 pt-4"
           >
             {/* Summary header */}
             <motion.div
@@ -886,18 +886,22 @@ export const MealPlanGenerator = ({
         {/* ── Apply to Schedule Footer ── */}
         {phase === "preview" && (
           <div
-            className="sticky bottom-0 left-0 right-0 z-20 border-t border-[#E5EAF1] bg-white/95 px-4 pt-3 backdrop-blur-xl"
+            className="sticky bottom-0 left-0 right-0 z-20 flex justify-center pointer-events-none"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
           >
-            <motion.button
-              onClick={handleApplyToSchedule}
-              whileTap={{ scale: 0.98 }}
-              disabled={filledSlots === 0}
-              className="mx-auto flex h-14 w-full max-w-[398px] items-center justify-center gap-2.5 rounded-[20px] bg-[#22C7A1] text-[15px] font-black text-white shadow-[0_12px_26px_rgba(34,199,161,0.26)] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <CheckCircle2 className="h-5 w-5" strokeWidth={2.4} />
-              Add {filledSlots} meals to my schedule
-            </motion.button>
+            <div className="pointer-events-auto w-full max-w-[430px] px-4">
+              <div className="rounded-full bg-white p-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+                <motion.button
+                  onClick={handleApplyToSchedule}
+                  whileTap={{ scale: 0.98 }}
+                  disabled={filledSlots === 0}
+                  className="flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-[#101A34] text-[15px] font-extrabold text-white shadow-[0_16px_30px_rgba(16,26,52,0.28)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <CheckCircle2 className="h-5 w-5 text-[#2FE6A7]" strokeWidth={2.4} />
+                  Add {filledSlots} meals to my schedule
+                </motion.button>
+              </div>
+            </div>
           </div>
         )}
 

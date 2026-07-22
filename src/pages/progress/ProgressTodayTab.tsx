@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { CalendarCheck, Droplet, Flame, Lock, Minus, Plus, Target } from "lucide-react";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { formatLocaleDate } from "@/lib/dateUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNutritionGoals } from "@/hooks/useNutritionGoals";
@@ -12,8 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useWeekdayData } from "@/hooks/useWeekdayData";
 import { computeNutritionScore } from "@/lib/nutrition-score";
-import { DualDonut } from "@/components/progress/DualDonut";
-import { PROGRESS_COLORS } from "./progress-colors";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { useRef, useEffect } from "react";
 
 interface ProgressTodayTabProps {
   selectedDate: Date;
@@ -39,12 +40,44 @@ export default function ProgressTodayTab({
   const { dailySummary: waterSummary, addWater: addWaterIntake, decrementWater } = useWaterIntake(user?.id, selectedDate);
   const { days: weekdayData } = useWeekdayData(user?.id, activeGoal?.daily_calorie_target ?? 2000);
   const { toast } = useToast();
-  const { t, language, isRTL } = useLanguage();
+  const { t, language } = useLanguage();
+  const selectedCellRef = useRef<HTMLButtonElement>(null);
 
   const selectedDateKey = format(selectedDate, "yyyy-MM-dd");
   const isSelectedToday = selectedDateKey === format(new Date(), "yyyy-MM-dd");
   const waterGlasses = waterSummary?.total ?? 0;
   const waterTarget = waterSummary?.target ?? 8;
+
+  const pagerDays = Array.from({ length: 7 }, (_, i) => {
+    const d = subDays(selectedDate, 6 - i);
+    const dateStr = format(d, "yyyy-MM-dd");
+    const isSelected = dateStr === selectedDateKey;
+    
+    let status: "none" | "partial" | "logged" = "none";
+    const calTarget = activeGoal?.daily_calorie_target ?? 2000;
+    const dayCal = isSelected
+      ? (todayProgress.calories ?? 0)
+      : (weekdayData.find((wd) => wd.date === dateStr)?.calories ?? 0);
+    if (dayCal > 0) {
+      status = dayCal >= calTarget * 0.9 ? "logged" : "partial";
+    }
+
+    return {
+      date: d,
+      dateStr,
+      dayLetter: formatLocaleDate(d, language, { weekday: "narrow" }),
+      dayNum: format(d, "d"),
+      isSelected,
+      isToday: dateStr === format(new Date(), "yyyy-MM-dd"),
+      status
+    };
+  });
+
+  useEffect(() => {
+    if (selectedCellRef.current) {
+      selectedCellRef.current.scrollIntoView({ inline: "center", behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedDateKey]);
 
   const handleWaterAdd = async () => {
     if (!user?.id) return;
@@ -67,58 +100,95 @@ export default function ProgressTodayTab({
   };
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setShowCalendar((open) => !open)}
-        className="mb-3 flex min-h-11 w-full items-center justify-between rounded-[18px] border border-[#E5EAF1] bg-white px-4 text-left shadow-[0_8px_20px_rgba(15,23,42,0.04)] active:scale-[0.99]"
-        aria-expanded={showCalendar}
-      >
-        <span className="flex items-center gap-2.5">
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-[#EFFFFA] text-[#22C7A1]">
-            <CalendarCheck className="h-4 w-4" strokeWidth={2.4} />
-          </span>
-          <span>
-            <span className="block text-[10px] font-black uppercase tracking-[0.1em] text-[#94A3B8]">{t("progress_today")}</span>
-            <span className="block text-[13px] font-black text-[#020617]">{formatLocaleDate(selectedDate, language, { month: "short", day: "numeric", year: "numeric" })}</span>
-          </span>
-        </span>
-        <span className="text-[11px] font-black text-[#22C7A1]">{t("progress_select_date")}</span>
-      </button>
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.4, staggerChildren: 0.1 }}
+    >
+      <div className="mb-4 flex items-center gap-2 overflow-x-auto px-1 pb-2 scrollbar-hide" dir="ltr">
+        {pagerDays.map((day, i) => {
+          const colors = ["#22C7A1", "#7C83F6", "#38BDF8", "#FB6B7A", "#F97316", "#A3E635", "#22C7A1"];
+          const dayColor = colors[i % colors.length];
+          
+          return (
+            <button
+              key={day.dateStr}
+              ref={day.isSelected ? selectedCellRef : null}
+              onClick={() => setCalendarDate(day.dateStr)}
+              className={cn(
+                "relative flex min-w-[44px] flex-col items-center justify-center gap-1.5 rounded-full py-2.5 transition-all active:scale-95",
+                day.isSelected ? "bg-slate-900 shadow-[0_4px_12px_rgba(15,23,42,0.15)]" : "bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 hover:bg-slate-50"
+              )}
+            >
+              <span className={cn("text-[10px] font-bold uppercase", day.isSelected ? "text-slate-400" : "text-slate-400")}>
+                {day.dayLetter}
+              </span>
+              <span className={cn("text-[15px] font-black leading-none", day.isSelected ? "text-white" : "text-slate-900")}>
+                {day.dayNum}
+              </span>
+              <div className="mt-0.5 flex h-1.5 w-1.5 items-center justify-center">
+                {day.status === "logged" ? (
+                  <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dayColor, boxShadow: `0 0 4px ${dayColor}80` }} />
+                ) : day.status === "partial" ? (
+                  <div className="h-1.5 w-1.5 rounded-full bg-orange-400" />
+                ) : (
+                  <div className="h-1 w-1 rounded-full bg-slate-200" />
+                )}
+              </div>
+              {day.isToday && !day.isSelected && (
+                <div className="absolute -top-0.5 right-1/2 h-1.5 w-1.5 translate-x-1/2 rounded-full bg-[#A3E635] ring-2 ring-white" />
+              )}
+              {day.isSelected && (
+                <motion.div layoutId="pager-indicator" className="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-t-full bg-gradient-to-r from-[#22C7A1] to-[#A3E635]" />
+              )}
+            </button>
+          );
+        })}
+        <button
+          onClick={() => setShowCalendar(true)}
+          className="ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-400 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition-all hover:bg-slate-50 hover:text-slate-600 active:scale-95"
+        >
+          <CalendarCheck className="h-5 w-5" strokeWidth={2.2} />
+        </button>
+      </div>
 
       {showCalendar && (
-        <div className="mb-4 rounded-[18px] border border-slate-200 bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
-          <div className="flex items-center gap-2">
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          className="mb-5 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
+        >
+          <div className="flex items-center gap-3">
             <input
               data-testid="progress-date-input"
               type="date"
               max={format(new Date(), "yyyy-MM-dd")}
               value={calendarDate}
               onChange={(e) => setCalendarDate(e.target.value)}
-              className="h-11 min-w-0 flex-1 rounded-[12px] border border-slate-200 bg-[#F8FAFC] px-3 text-[14px] font-semibold text-slate-800"
+              className="h-12 min-w-0 flex-1 rounded-xl bg-slate-50 px-4 text-[15px] font-bold text-slate-900 outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-brand"
             />
             <button
               data-testid="progress-view-btn"
-              className="h-11 rounded-[12px] bg-[#020617] px-4 text-[13px] font-black text-white active:scale-95"
+              className="h-12 rounded-xl bg-slate-900 px-5 text-[14px] font-bold text-white shadow-sm transition-all active:scale-95"
               type="button"
               onClick={() => setShowCalendar(false)}
             >
               {t("view")}
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {(() => {
         if (!activeGoal) {
           return (
-            <section id="progress-panel-today" role="tabpanel" className="rounded-[26px] border border-[#D9F8EF] bg-white p-5 text-center shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
-              <div className="mx-auto grid h-14 w-14 place-items-center rounded-[20px] bg-[#EFFFFA] text-[#22C7A1]">
-                <Target className="h-7 w-7" strokeWidth={2.3} />
+            <section id="progress-panel-today" role="tabpanel" className="flex flex-col items-center justify-center rounded-[32px] bg-white p-8 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-brand ring-1 ring-brand/20">
+                <Target className="h-8 w-8" strokeWidth={2.2} />
               </div>
-              <h2 className="mt-4 text-[20px] font-black text-[#020617]">{t("progress_no_goal_title")}</h2>
-              <p className="mx-auto mt-2 max-w-[280px] text-[13px] font-semibold leading-5 text-[#64748B]">{t("progress_no_goal_desc")}</p>
-              <button type="button" onClick={() => navigate("/edit-goal")} className="mt-5 h-12 w-full rounded-[16px] bg-[#020617] text-[13px] font-black text-white active:scale-[0.98]">
+              <h2 className="mt-5 text-[22px] font-black tracking-tight text-slate-900">{t("progress_no_goal_title")}</h2>
+              <p className="mt-2 text-[14px] font-medium text-slate-500">{t("progress_no_goal_desc")}</p>
+              <button type="button" onClick={() => navigate("/edit-goal")} className="mt-6 h-14 w-full rounded-full bg-slate-900 text-[15px] font-bold text-white shadow-[0_4px_12px_rgba(15,23,42,0.15)] transition-all active:scale-[0.98]">
                 {t("progress_set_goal")}
               </button>
             </section>
@@ -145,181 +215,191 @@ export default function ProgressTodayTab({
           hydrationPct,
           weeklyConsistencyPct: isSelectedToday ? weeklyConsistencyPct : undefined,
         });
-        const dayName = formatLocaleDate(selectedDate, language, { weekday: "long", month: "long", day: "numeric" });
+        
         return (
-          <div id="progress-panel-today" role="tabpanel">
-            <section className="mb-5">
-                <article className="overflow-hidden rounded-[28px] bg-white shadow-[0_8px_32px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
+          <div id="progress-panel-today" role="tabpanel" className="space-y-4">
+            {/* ── HERO: Journal Entry Header ── */}
+            <div className="mb-6 px-2 text-start">
+              <div className="flex items-center justify-between">
+                <h2 className="text-[22px] font-black tracking-tight text-slate-900">
+                  {formatLocaleDate(selectedDate, language, { weekday: "long", month: "long", day: "numeric" })}
+                </h2>
+                {!isSelectedToday ? (
+                  <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 ring-1 ring-slate-200">
+                    <Lock className="h-3 w-3 text-slate-400" />
+                    <span className="text-[10px] font-bold text-slate-500">{t("progress_read_only")}</span>
+                  </div>
+                ) : (streaks.logging?.currentStreak ?? 0) > 0 ? (
+                  <div className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#F97316] to-[#FB6B7A] px-2.5 py-1 shadow-[0_2px_8px_rgba(249,115,22,0.25)]">
+                    <Flame className="h-3 w-3 text-white" />
+                    <span className="text-[10px] font-bold text-white" dir="ltr">{streaks.logging?.currentStreak}d</span>
+                  </div>
+                ) : null}
+              </div>
+              
+              <div className="mt-4 flex items-center gap-4">
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] ring-1 ring-slate-100/50" dir="ltr">
+                  <svg className="absolute inset-0 h-full w-full -rotate-90 drop-shadow-sm" viewBox="0 0 64 64">
+                    <defs>
+                      <linearGradient id="score-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#22C7A1" />
+                        <stop offset="25%" stopColor="#7C83F6" />
+                        <stop offset="50%" stopColor="#38BDF8" />
+                        <stop offset="75%" stopColor="#FB6B7A" />
+                        <stop offset="100%" stopColor="#F97316" />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="32" cy="32" r="28" fill="none" stroke="#F8FAFC" strokeWidth="4" />
+                    <motion.circle
+                      cx="32"
+                      cy="32"
+                      r="28"
+                      fill="none"
+                      stroke="url(#score-gradient)"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeDasharray={`${(nutritionScore / 100) * 175.9} 175.9`}
+                      pathLength="100"
+                      transition={{ duration: 1.2, ease: "easeOut" }}
+                    />
+                  </svg>
+                  <span className={cn("text-[20px] font-black leading-none tracking-tight", nutritionScore >= 80 ? "bg-gradient-to-br from-[#A3E635] to-[#22C7A1] bg-clip-text text-transparent" : nutritionScore >= 50 ? "text-[#F97316]" : "text-[#FB6B7A]")}>
+                    {nutritionScore}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{t("progress_daily_score")}</p>
+                  <p className="mt-0.5 text-[15px] font-black text-slate-900">
+                    {nutritionScore >= 80 ? t("progress_great_day") : nutritionScore >= 50 ? t("progress_on_track") : t("progress_keep_going")}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-                  {/* ── Top banner: date + streak ── */}
-                  <div className="flex items-center justify-between px-5 pt-4 pb-3">
-                    <div>
-                      <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">{t("progress_today")}</p>
-                      <p className="text-[15px] font-black text-slate-900">{dayName}</p>
+            {/* ── Story Card: Nutrition ── */}
+            <section className="rounded-[28px] bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+              <div className="mb-5 flex items-start justify-between text-start">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                    {calTarget - calConsumed > 0 ? t("progress_remaining") : t("progress_over_target")}
+                  </p>
+                  <div className="mt-1 flex items-baseline gap-1.5">
+                    <span className={cn("text-[32px] font-black leading-none tracking-tight", calTarget - calConsumed > 0 ? "text-slate-900" : "text-[#FB6B7A]")} dir="ltr">
+                      {Math.abs(calTarget - calConsumed).toLocaleString()}
+                    </span>
+                    <span className="text-[12px] font-bold text-slate-500" dir="ltr">/ {calTarget.toLocaleString()} kcal</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stacked Macro Bar */}
+              <div className="mb-6 flex h-3 w-full overflow-hidden rounded-full bg-slate-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]" dir="ltr">
+                {(() => {
+                  const total = Math.max(1, proteinConsumed + carbsConsumed + fatConsumed);
+                  const pPct = (proteinConsumed / total) * 100;
+                  const cPct = (carbsConsumed / total) * 100;
+                  const fPct = (fatConsumed / total) * 100;
+                  return (
+                    <>
+                      <motion.div className="h-full bg-gradient-to-r from-[#7C83F6] to-[#636BF4]" initial={{ width: 0 }} animate={{ width: `${pPct}%` }} transition={{ duration: 1 }} />
+                      <motion.div className="h-full bg-gradient-to-r from-[#F97316] to-[#FB923C]" initial={{ width: 0 }} animate={{ width: `${cPct}%` }} transition={{ duration: 1, delay: 0.1 }} />
+                      <motion.div className="h-full bg-gradient-to-r from-[#FB6B7A] to-[#F43F5E]" initial={{ width: 0 }} animate={{ width: `${fPct}%` }} transition={{ duration: 1, delay: 0.2 }} />
+                    </>
+                  );
+                })()}
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { label: t('protein'), current: proteinConsumed, target: proteinTarget, unit: 'g', pct: proteinPct, color: '#7C83F6', bg: 'bg-[#7C83F6]/10' },
+                  { label: t('carbs'), current: carbsConsumed, target: carbsTarget, unit: 'g', pct: carbsPct, color: '#F97316', bg: 'bg-[#F97316]/10' },
+                  { label: t('fat_label'), current: fatConsumed, target: fatTarget, unit: 'g', pct: fatPct, color: '#FB6B7A', bg: 'bg-[#FB6B7A]/10' },
+                ].map((m) => (
+                  <div key={m.label} className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: m.bg }}>
+                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.color, boxShadow: `0 0 8px ${m.color}80` }} />
                     </div>
-                    {!isSelectedToday ? (
-                      <div className="flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 ring-1 ring-slate-100">
-                        <Lock className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="text-[11px] font-bold text-slate-500">{t("progress_read_only")}</span>
+                    <div className="min-w-0 flex-1 text-start">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[12px] font-bold text-slate-700">{m.label}</p>
+                        <div className="flex items-baseline gap-0.5" dir="ltr">
+                          <span className="text-[14px] font-black text-slate-900">{m.current}</span>
+                          <span className="text-[10px] font-bold text-slate-400">/{m.target}{m.unit}</span>
+                        </div>
                       </div>
-                    ) : (streaks.logging?.currentStreak ?? 0) > 0 ? (
-                      <div className="flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 ring-1 ring-orange-100">
-                        <Flame className="h-3.5 w-3.5 text-orange-500" />
-                        <span className="text-[12px] font-black text-orange-600">{streaks.logging?.currentStreak}d</span>
+                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100" dir="ltr">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${m.pct}%`, backgroundColor: m.color }} />
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 ring-1 ring-slate-100">
-                        <CalendarCheck className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="text-[11px] font-bold text-slate-500">{t("progress_start_streak")}</span>
-                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* ── Story Card: Hydration ── */}
+            <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#38BDF8] to-[#0891B2] p-5 shadow-[0_12px_30px_-8px_rgba(56,189,248,0.4)] ring-1 ring-white/10 text-white">
+              <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+              
+              <div className="relative flex items-start justify-between">
+                <div className="text-start">
+                  <div className="flex items-center gap-2">
+                    <Droplet className="h-4 w-4 text-white/90" strokeWidth={2.5} />
+                    <p className="text-[12px] font-bold text-white/90">{t("progress_hydration_today")}</p>
+                  </div>
+                  <div className="mt-3 flex items-baseline gap-1.5">
+                    <span className="text-[32px] font-black leading-none tracking-tight" dir="ltr">{hydrationPct}%</span>
+                    <span className="text-[12px] font-bold text-white/70">{t("progress_hydration_goal")}</span>
+                  </div>
+                  <p className="mt-1 text-[12px] font-medium text-white/80" dir="ltr">
+                    {t("progress_water_glasses_status", { current: waterGlasses, target: waterTarget })}
+                  </p>
+                </div>
+
+                {isSelectedToday && (
+                  <div className="flex flex-col items-center gap-2 rounded-full bg-black/10 p-1.5 backdrop-blur-md ring-1 ring-white/20">
+                    <button
+                      type="button"
+                      onClick={handleWaterAdd}
+                      aria-label={t("progress_add_water")}
+                      className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#0891B2] shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-all active:scale-90"
+                    >
+                      <Plus className="h-5 w-5" strokeWidth={2.5} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleWaterRemove}
+                      disabled={waterGlasses <= 0}
+                      aria-label={t("progress_remove_water")}
+                      className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white shadow-sm ring-1 ring-white/30 transition-all active:scale-90 disabled:opacity-40"
+                    >
+                      <Minus className="h-5 w-5" strokeWidth={2.5} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="relative mt-5 flex flex-wrap gap-1.5" dir="ltr" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={hydrationPct} aria-label={t("progress_hydration_today")}>
+                {Array.from({ length: Math.max(waterTarget, waterGlasses) }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-6 w-6 rounded-full transition-all duration-500",
+                      i < waterGlasses ? "bg-white shadow-[0_2px_8px_rgba(0,0,0,0.1)]" : "border-2 border-white/30 bg-transparent"
                     )}
-                  </div>
-
-                  {/* ── Calorie donut section ── */}
-                  <div className="relative flex items-center gap-4 px-5 pb-7">
-                    <DualDonut
-                      outerPct={proteinPct}
-                      outerColor="#818CF8"
-                      innerPct={Math.min(dailyPct, 100)}
-                      innerColor={dailyPct > 100 ? PROGRESS_COLORS.fat : PROGRESS_COLORS.calories}
-                      centerValue={calConsumed > 999 ? `${(calConsumed/1000).toFixed(1)}k` : calConsumed}
-                      centerUnit={t("progress_kcal_unit")}
-                      legend={[
-                        { color: dailyPct > 100 ? PROGRESS_COLORS.fat : PROGRESS_COLORS.calories, label: t("cal_label_short") },
-                        { color: PROGRESS_COLORS.protein, label: t("protein_label") }
-                      ]}
-                    />
-
-                    {/* Right side stats */}
-                    <div className="flex-1 min-w-0 space-y-2.5">
-                      {/* Calorie remaining */}
-                      <div className="rounded-[14px] bg-slate-50 px-3 py-2.5">
-                        <p className="text-[9px] font-extrabold uppercase tracking-wide text-slate-400">
-                          {calTarget - calConsumed > 0 ? t("progress_remaining") : t("progress_over_target")}
-                        </p>
-                        <div className="flex items-baseline gap-1">
-                          <span className={`text-[22px] font-black leading-none ${calTarget - calConsumed > 0 ? 'text-slate-900' : 'text-rose-500'}`}>
-                            {Math.abs(calTarget - calConsumed).toLocaleString()}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-400">/ {calTarget.toLocaleString()} kcal</span>
-                        </div>
-                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                          <div
-                            className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${dailyPct}%`, backgroundColor: dailyPct > 100 ? PROGRESS_COLORS.fat : PROGRESS_COLORS.calories }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Score badge */}
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[13px] font-black text-white"
-                          style={{ backgroundColor: nutritionScore >= 80 ? PROGRESS_COLORS.calories : nutritionScore >= 50 ? PROGRESS_COLORS.carbs : PROGRESS_COLORS.fat }}
-                        >
-                          {nutritionScore}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-black text-slate-900">
-                            {nutritionScore >= 80 ? t("progress_great_day") : nutritionScore >= 50 ? t("progress_on_track") : t("progress_keep_going")}
-                          </p>
-                          <p className="text-[9px] text-slate-400">{t("progress_daily_score")}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── Divider ── */}
-                  <div className="mx-5 h-px bg-slate-100" />
-
-                  {/* ── Macro bars ── */}
-                  <div className="grid grid-cols-3 gap-px bg-slate-100">
-                    {[
-                      { label: t('protein'), current: proteinConsumed, target: proteinTarget, unit: 'g', pct: proteinPct, color: '#818CF8', light: '#EEF2FF' },
-                      { label: t('carbs'), current: carbsConsumed, target: carbsTarget, unit: 'g', pct: carbsPct, color: '#FB923C', light: '#FFF7ED' },
-                      { label: t('fat_label'), current: fatConsumed, target: fatTarget, unit: 'g', pct: fatPct, color: '#F472B6', light: '#FDF2F8' },
-                    ].map((m) => (
-                      <div key={m.label} className="flex flex-col items-center bg-white px-2 py-3">
-                        <div className="mb-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
-                          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${m.pct}%`, backgroundColor: m.color }} />
-                        </div>
-                        <div className="flex items-baseline gap-0.5">
-                          <span className="text-[15px] font-black text-slate-900">{m.current}</span>
-                          <span className="text-[9px] font-bold text-slate-400">/{m.target}{m.unit}</span>
-                        </div>
-                        <p className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide" style={{ color: m.color }}>{m.label}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Hydration artwork with live tracking controls */}
-                  <div className="relative isolate min-h-[154px] overflow-hidden border-t border-[#D8F4F6] bg-[#ECFAFA]">
-                    <img
-                      src="/progress-hydration-card.png"
-                      alt=""
-                      className="absolute inset-0 -z-20 h-full w-full scale-[1.03] object-cover"
-                      aria-hidden="true"
-                    />
-                    <div className="absolute inset-0 -z-10 bg-gradient-to-r from-white/90 via-white/45 to-transparent" aria-hidden="true" />
-
-                    <div className="flex min-h-[154px] w-[59%] flex-col justify-center px-5 py-3" dir={isRTL ? "rtl" : "ltr"}>
-                      <div className="flex items-center gap-1.5 text-[#0891B2]">
-                        <Droplet className="h-4 w-4 fill-current/10" strokeWidth={2.5} />
-                        <p className="text-[10px] font-black uppercase tracking-[0.12em]">{t("progress_hydration_today")}</p>
-                      </div>
-
-                      <div className="mt-1 flex items-baseline gap-1">
-                        <span className="text-[29px] font-black leading-none tracking-[-0.05em] text-[#020617]">{hydrationPct}%</span>
-                        <span className="text-[10px] font-bold text-[#64748B]">{t("progress_hydration_goal")}</span>
-                      </div>
-                      <p className="mt-1 text-[11px] font-extrabold text-[#334155]">
-                        {t("progress_water_glasses_status", { current: waterGlasses, target: waterTarget })}
-                      </p>
-
-                      <div className="mt-2.5 flex items-center gap-2">
-                        {isSelectedToday && (
-                          <button
-                            type="button"
-                            onClick={handleWaterRemove}
-                            disabled={waterGlasses <= 0}
-                            aria-label={t("progress_remove_water")}
-                            title={t("progress_remove_water")}
-                            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/90 bg-white/85 text-[#0891B2] shadow-[0_5px_14px_rgba(8,145,178,0.12)] backdrop-blur-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            <Minus className="h-4 w-4" strokeWidth={2.6} />
-                          </button>
-                        )}
-                        <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-white/80 shadow-inner" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={hydrationPct}>
-                          <div className="h-full rounded-full bg-[#38BDF8] transition-all duration-500" style={{ width: `${hydrationPct}%` }} />
-                        </div>
-                        {isSelectedToday && (
-                          <button
-                            type="button"
-                            onClick={handleWaterAdd}
-                            aria-label={t("progress_add_water")}
-                            title={t("progress_add_water")}
-                            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#0891B2] text-white shadow-[0_7px_16px_rgba(8,145,178,0.24)] transition active:scale-95"
-                          >
-                            <Plus className="h-4 w-4" strokeWidth={2.8} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                </article>
+                  />
+                ))}
+              </div>
             </section>
 
             {!isSelectedToday && (
-              <section className="mb-5 rounded-[20px] border border-[#E5EAF1] bg-[#F6F8FB] px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{t("progress_past_snapshot")}</p>
-                <p className="mt-1 text-[12px] font-semibold leading-5 text-[#64748B]">{t("progress_past_snapshot_desc")}</p>
+              <section className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100/50 text-start">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{t("progress_past_snapshot")}</p>
+                <p className="mt-1 text-[12px] font-medium leading-tight text-slate-500">{t("progress_past_snapshot_desc")}</p>
               </section>
             )}
-
           </div>
         );
       })()}
-    </>
+    </motion.div>
   );
 }

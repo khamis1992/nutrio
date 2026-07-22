@@ -503,50 +503,52 @@ const Meals = () => {
         <Link
           to="/subscription"
           data-testid="meals-subscription-link"
-          className="group mb-4 block overflow-hidden rounded-[22px] bg-white p-4 shadow-[0_10px_30px_rgba(2,6,23,0.06)] ring-1 ring-[#E5EAF1] transition active:scale-[0.99]"
+          className="group mb-4 block overflow-hidden rounded-2xl bg-[#0F172A] p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-800 transition-all active:scale-[0.98]"
         >
-          <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[#E9FBF6] text-[#22C7A1] ring-1 ring-[#22C7A1]/10">
-              <ShieldCheck className="h-6 w-6" strokeWidth={2.2} />
+          <div className="flex items-center gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-800/80 text-emerald-400 ring-1 ring-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]">
+              <ShieldCheck className="h-6 w-6" strokeWidth={2} />
             </span>
 
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Meal plan balance</p>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-[24px] font-black leading-none tabular-nums text-[#020617]">{remainingMealsLabel}</span>
-                <span className="truncate text-[13px] font-bold text-[#64748B]">
-                  {isUnlimited ? "unlimited meals" : "meals remaining"}
+            <div className="min-w-0 flex-1 text-start">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{t("meal_plan_balance")}</p>
+              <div className="mt-0.5 flex items-baseline gap-1.5">
+                <span className="text-[24px] font-black leading-none tabular-nums text-white" dir="ltr">{remainingMealsLabel}</span>
+                <span className="truncate text-[13px] font-bold text-slate-400">
+                  {isUnlimited ? t("unlimited_meals") : t("meals_remaining")}
                 </span>
               </div>
             </div>
 
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1] transition group-active:bg-[#E9FBF6] group-active:text-[#22C7A1]">
-              <ChevronRight className={cn("h-5 w-5", isRTL && "rotate-180")} strokeWidth={2.3} />
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-800/50 text-slate-400 ring-1 ring-white/10 transition-all group-hover:bg-slate-800 group-hover:text-white group-active:bg-emerald-500/20 group-active:text-emerald-400 group-active:ring-emerald-500/30">
+              <ChevronRight className={cn("h-5 w-5", isRTL && "rotate-180")} strokeWidth={2.5} />
             </span>
           </div>
 
-          <div className="mt-4">
-            <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-extrabold">
-              <span className="text-[#64748B]">
+          <div className="mt-5">
+            <div className="mb-2.5 flex items-center justify-between gap-3 text-[11px] font-bold">
+              <span className="text-slate-400">
                 {subscriptionLoading
-                  ? "Checking your plan"
+                  ? t("checking_your_plan")
                   : hasActiveSubscription
                     ? isUnlimited
-                      ? "Unlimited plan active"
-                      : `${mealsUsed} of ${totalMeals} meals used`
-                    : "No active meal plan"}
+                      ? t("unlimited_plan_active")
+                      : t("meals_used_of_total", { used: mealsUsed, total: totalMeals })
+                    : t("no_active_meal_plan")}
               </span>
-              <span className={cn("tabular-nums", mealBalancePercent <= 20 && !isUnlimited ? "text-[#FB6B7A]" : "text-[#22C7A1]") }>
-                {isUnlimited ? "Active" : `${mealBalancePercent}% left`}
+              <span className={cn("tabular-nums tracking-tight", mealBalancePercent <= 20 && !isUnlimited ? "text-macro-fat" : "text-emerald-400")} dir="ltr">
+                {isUnlimited ? t("status_active") : t("pct_left", { pct: mealBalancePercent })}
               </span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-[#EDF1F5]">
+            <div className="h-2.5 overflow-hidden rounded-full bg-slate-800/80 shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)] ring-1 ring-white/5">
               <motion.span
                 initial={{ width: 0 }}
                 animate={{ width: `${mealBalancePercent}%` }}
-                transition={{ duration: 0.45, ease: "easeOut" }}
-                className={cn("block h-full rounded-full", mealBalancePercent <= 20 && !isUnlimited ? "bg-[#FB6B7A]" : "bg-[#22C7A1]")}
-              />
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className={cn("relative block h-full rounded-full overflow-hidden", mealBalancePercent <= 20 && !isUnlimited ? "bg-macro-fat" : "bg-emerald-500")}
+              >
+                <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.2),transparent)] bg-[length:200%_100%] animate-[shimmer_2s_infinite]" />
+              </motion.span>
             </div>
           </div>
         </Link>

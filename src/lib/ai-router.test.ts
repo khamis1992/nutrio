@@ -14,7 +14,7 @@ describe("runAiTask", () => {
 
   it("uses the authenticated task router and keeps citations", async () => {
     invoke.mockResolvedValue({
-      data: { content: "Evidence-based response", provider: "deepseek", model: "deepseek-chat", citations: [{ title: "Guide" }] },
+      data: { content: "Evidence-based response", provider: "longcat", model: "LongCat-2.0", citations: [{ title: "Guide" }] },
       error: null,
     } as never);
 
@@ -44,5 +44,22 @@ describe("runAiTask", () => {
       input: { daysLogged: 5, locale: "en" },
     })).rejects.toThrow("function not found");
     expect(invoke.mock.calls.map(([name]) => name)).toEqual(["ai-router"]);
+  });
+
+  it("surfaces the safe error code returned by the edge function", async () => {
+    invoke.mockResolvedValueOnce({
+      data: null,
+      error: Object.assign(new Error("Edge Function returned a non-2xx status code"), {
+        context: new Response(JSON.stringify({
+          error: "daily_ai_request_limit_reached",
+          message: "daily_ai_request_limit_reached",
+        }), { status: 429, headers: { "Content-Type": "application/json" } }),
+      }),
+    } as never);
+
+    await expect(runAiTask({
+      task: "weekly_report",
+      input: { daysLogged: 5, locale: "en" },
+    })).rejects.toThrow("daily_ai_request_limit_reached");
   });
 });

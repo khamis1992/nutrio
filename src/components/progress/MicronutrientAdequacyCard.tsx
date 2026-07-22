@@ -103,26 +103,26 @@ export function MicronutrientAdequacyCard({
   return (
     <section
       dir={isRTL ? "rtl" : "ltr"}
-      className="mb-5 rounded-[24px] border border-[#E5EAF1] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]"
+      className="mt-4 mb-5 rounded-[24px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase text-[#22C7A1]">
+          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-[#22C7A1]">
             {isRTL ? "جودة التغذية" : "Nutrition quality"}
           </p>
-          <h2 className="mt-0.5 text-[18px] font-black text-[#020617]">{copy.title}</h2>
-          <p className="mt-1 text-[11px] font-semibold leading-4 text-[#64748B]">{copy.subtitle}</p>
+          <h2 className="mt-0.5 text-[15px] font-black tracking-tight text-[#020617]">{copy.title}</h2>
+          <p className="mt-0.5 truncate text-[10px] font-semibold text-[#94A3B8]">{copy.subtitle}</p>
         </div>
-        <div className="grid shrink-0 grid-cols-2 rounded-[14px] bg-[#F6F8FB] p-1">
+        <div className="grid shrink-0 grid-cols-2 rounded-full bg-slate-50 p-0.5 ring-1 ring-slate-100">
           {(["day", "week"] as const).map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => setRange(option)}
               className={cn(
-                "min-h-9 rounded-[11px] px-2.5 text-[11px] font-black transition-colors",
+                "min-h-8 rounded-full px-3 text-[10px] font-black transition-all active:scale-95",
                 range === option
-                  ? "bg-[#020617] text-white"
+                  ? "bg-[#020617] text-white shadow-sm"
                   : "text-[#64748B]",
               )}
             >
@@ -133,28 +133,28 @@ export function MicronutrientAdequacyCard({
       </div>
 
       {isLoading ? (
-        <div className="grid min-h-36 place-items-center">
-          <Loader2 className="h-6 w-6 animate-spin text-[#22C7A1]" />
+        <div className="grid min-h-16 place-items-center">
+          <Loader2 className="h-5 w-5 animate-spin text-[#22C7A1]" />
         </div>
       ) : isError ? (
-        <div className="mt-4 rounded-[18px] bg-[#FFF1F3] p-4 text-center">
-          <p className="text-sm font-bold text-[#020617]">
+        <div className="mt-3 rounded-xl bg-[#FFF1F3] p-3 text-center">
+          <p className="text-[12px] font-bold text-[#020617]">
             {isRTL ? "تعذر تحميل بيانات المغذيات" : "Could not load nutrient data"}
           </p>
           <button
             type="button"
-            className="mt-2 min-h-11 rounded-full bg-[#020617] px-5 text-xs font-black text-white"
+            className="mt-2 min-h-9 rounded-full bg-[#020617] px-4 text-[11px] font-black text-white active:scale-95"
             onClick={() => void refetch()}
           >
             {copy.retry}
           </button>
         </div>
       ) : data.length === 0 ? (
-        <p className="mt-4 rounded-[18px] bg-[#F6F8FB] p-4 text-sm font-semibold text-[#64748B]">
+        <p className="mt-3 rounded-xl bg-[#F6F8FB] p-3 text-[12px] font-semibold text-[#64748B]">
           {copy.empty}
         </p>
       ) : (
-        <div className="mt-4 space-y-2.5">
+        <div className="mt-3 space-y-1.5">
           {data.map((row) => {
             const theme = nutrientTheme[row.nutrient_code] ?? nutrientTheme.magnesium_mg;
             const Icon = theme.Icon;
@@ -165,21 +165,21 @@ export function MicronutrientAdequacyCard({
             const healthy = row.status === "on_track";
 
             return (
-              <article key={row.nutrient_code} className="rounded-[18px] bg-[#F6F8FB] p-3">
-                <div className="flex items-center gap-3">
+              <article key={row.nutrient_code} className="rounded-xl bg-[#F6F8FB] px-2.5 py-2">
+                <div className="flex items-center gap-2.5">
                   <span
-                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full"
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full"
                     style={{ backgroundColor: theme.surface, color: theme.color }}
                   >
-                    <Icon className="h-5 w-5" strokeWidth={2.4} />
+                    <Icon className="h-4 w-4" strokeWidth={2.4} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-black text-[#020617]">
+                      <div className="min-w-0">
+                        <p className="truncate text-[12px] font-black text-[#020617]">
                           {isRTL ? row.label_ar : row.label_en}
                         </p>
-                        <p className="text-[10px] font-bold text-[#94A3B8]">
+                        <p className="text-[9px] font-bold text-[#94A3B8]">
                           {row.measured_entries} {copy.measured}
                           {row.missing_entries > 0
                             ? ` · ${row.missing_entries} ${copy.missing}`
@@ -187,23 +187,23 @@ export function MicronutrientAdequacyCard({
                         </p>
                       </div>
                       {consumed === null ? (
-                        <span className="text-xs font-black text-[#94A3B8]">--</span>
+                        <span className="text-[11px] font-black text-[#94A3B8]">--</span>
                       ) : (
-                        <p className="whitespace-nowrap text-sm font-black text-[#020617]">
+                        <p className="whitespace-nowrap text-[12px] font-black text-[#020617]">
                           {consumed}
-                          <span className="ml-0.5 text-[10px] text-[#64748B]">{row.unit}</span>
-                          <span className="text-[10px] text-[#94A3B8]"> / {row.target}</span>
+                          <span className="ml-0.5 text-[9px] text-[#64748B]">{row.unit}</span>
+                          <span className="text-[9px] text-[#94A3B8]"> / {row.target}</span>
                         </p>
                       )}
                     </div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+                    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white">
                       <div
                         className="h-full rounded-full transition-[width]"
                         style={{ width: `${visualProgress}%`, backgroundColor: theme.color }}
                       />
                     </div>
                     <p
-                      className="mt-1.5 flex items-center gap-1 text-[10px] font-bold"
+                      className="mt-1 flex items-center gap-1 text-[9px] font-bold"
                       style={{ color: healthy ? "#22C7A1" : row.status === "missing" ? "#94A3B8" : "#FB6B7A" }}
                     >
                       {healthy && <Check className="h-3 w-3" strokeWidth={3} />}
@@ -217,7 +217,7 @@ export function MicronutrientAdequacyCard({
         </div>
       )}
 
-      <p className="mt-3 text-center text-[9px] font-semibold text-[#94A3B8]">{copy.note}</p>
+      <p className="mt-2.5 text-center text-[9px] font-semibold text-[#94A3B8]">{copy.note}</p>
     </section>
   );
 }

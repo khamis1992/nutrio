@@ -122,6 +122,14 @@ export const customerRoutes = (
       }
     />
     <Route
+      path="/schedule/fill-my-week"
+      element={
+        <ProtectedRoute>
+          <Schedule />
+        </ProtectedRoute>
+      }
+    />
+    <Route
       path="/progress"
       element={
         <ProtectedRoute>

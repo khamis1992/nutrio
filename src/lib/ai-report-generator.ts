@@ -111,6 +111,10 @@ async function getHealthContextCacheToken(): Promise<string> {
 }
 
 class AIReportGenerator {
+  private readonly inFlightReports = new Map<string, Promise<{
+    content: AIReportContent;
+    fromCache: boolean;
+  }>>();
 
   async generateReportContent(data: WeeklyReportData, userId?: string, locale: ReportLocale = "en"): Promise<{
     content: AIReportContent;
@@ -126,13 +130,47 @@ class AIReportGenerator {
         return { content: cached, fromCache: true };
       }
 
-      const content = await this.generateWithAI(data, locale);
-      await this.setCachedReport(userId, weekStart, hash, content);
-      return { content, fromCache: false };
+      const requestKey = `${userId}:${weekStart}:${hash}`;
+      const existingRequest = this.inFlightReports.get(requestKey);
+      if (existingRequest) return existingRequest;
+
+      const request = this.generateFreshReport(data, locale, {
+        userId,
+        weekStart,
+        hash,
+      });
+      this.inFlightReports.set(requestKey, request);
+      try {
+        return await request;
+      } finally {
+        this.inFlightReports.delete(requestKey);
+      }
     }
 
-    const content = await this.generateWithAI(data, locale);
-    return { content, fromCache: false };
+    return this.generateFreshReport(data, locale);
+  }
+
+  private async generateFreshReport(
+    data: WeeklyReportData,
+    locale: ReportLocale,
+    cache?: { userId: string; weekStart: string; hash: string },
+  ): Promise<{ content: AIReportContent; fromCache: boolean }> {
+    try {
+      const content = await this.generateWithAI(data, locale);
+      if (cache) {
+        await this.setCachedReport(cache.userId, cache.weekStart, cache.hash, content);
+      }
+      return { content, fromCache: false };
+    } catch (error) {
+      console.warn(
+        "AI report provider not available, using fallback content",
+        error instanceof Error ? error.message : "unknown_error",
+      );
+      return {
+        content: this.generateFallbackContent(data, locale),
+        fromCache: false,
+      };
+    }
   }
 
   generateFallbackContent(data: WeeklyReportData, locale: ReportLocale = "en"): AIReportContent {
@@ -275,16 +313,11 @@ class AIReportGenerator {
   }
 
   private async callAiRouter(input: Record<string, unknown>): Promise<string> {
-    try {
-      const result = await runAiTask({
-        task: "weekly_report",
-        input,
-      });
-      return result.content;
-    } catch (error) {
-      console.warn("OpenRouter API not available, using fallback content");
-      return "";
-    }
+    const result = await runAiTask({
+      task: "weekly_report",
+      input,
+    });
+    return result.content;
   }
 
   private cleanText(text: string): string {

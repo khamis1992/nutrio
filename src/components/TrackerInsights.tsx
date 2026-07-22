@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import {
   addDays,
   addMonths,
@@ -45,6 +44,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { motion } from "framer-motion";
 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
@@ -80,17 +80,6 @@ type ActivityPoint = {
 };
 
 const periods: Period[] = ["Weekly", "Monthly", "Yearly"];
-const chartHeight = 190;
-const TRACKER_CHART_COLORS = {
-  text: "#020617",
-  surface: "#F6F8FB",
-  track: "#E5EAF1",
-  progress: "#22C7A1",
-  steps: "#7C83F6",
-  water: "#38BDF8",
-  calories: "#F97316",
-  fat: "#FB6B7A",
-};
 
 function getStepsForDate(userId: string | undefined, dateStr: string): number {
   return parseInt(localStorage.getItem(`tracker_steps_${userId}_${dateStr}`) || "0", 10);
@@ -105,114 +94,6 @@ function metricDelta(current: number, previous: number): number {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-function Panel({
-  title,
-  eyebrow,
-  icon,
-  children,
-  action,
-  className,
-}: {
-  title: string;
-  eyebrow?: string;
-  icon: ReactNode;
-  children: ReactNode;
-  action?: ReactNode;
-  className?: string;
-}) {
-  return (
-    <section className={cn("overflow-hidden rounded-[28px] bg-white shadow-[0_8px_32px_rgba(15,23,42,0.08)] ring-1 ring-slate-100", className)}>
-      <div className="flex items-start justify-between gap-3 px-5 pb-3 pt-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F6F8FB] text-[#020617] ring-1 ring-[#E5EAF1]">
-            {icon}
-          </div>
-          <div className="min-w-0">
-            {eyebrow && <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{eyebrow}</p>}
-            <h2 className="truncate text-[18px] font-black leading-tight text-slate-950">{title}</h2>
-          </div>
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  sub,
-  icon,
-  tone,
-  progress,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  icon: ReactNode;
-  tone: "emerald" | "blue" | "orange" | "teal";
-  progress?: number;
-}) {
-  const styles = {
-    emerald: {
-      icon: "bg-[#EFFFFA] text-[#22C7A1] ring-[#22C7A1]/20",
-      label: "text-[#22C7A1]",
-      bar: "bg-[#22C7A1]",
-      wash: "before:from-[#EFFFFA]",
-    },
-    blue: {
-      icon: "bg-[#EFF9FF] text-[#38BDF8] ring-[#38BDF8]/20",
-      label: "text-[#38BDF8]",
-      bar: "bg-[#38BDF8]",
-      wash: "before:from-[#EFF9FF]",
-    },
-    orange: {
-      icon: "bg-[#F3F4FF] text-[#7C83F6] ring-[#7C83F6]/20",
-      label: "text-[#7C83F6]",
-      bar: "bg-[#7C83F6]",
-      wash: "before:from-[#F3F4FF]",
-    },
-    teal: {
-      icon: "bg-[#EFFFFA] text-[#22C7A1] ring-[#22C7A1]/20",
-      label: "text-[#22C7A1]",
-      bar: "bg-[#22C7A1]",
-      wash: "before:from-[#EFFFFA]",
-    },
-  };
-  const toneStyle = styles[tone];
-
-  return (
-    <div className={cn(
-      "relative min-h-[138px] w-[154px] shrink-0 overflow-hidden rounded-[26px] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.055)] ring-1 ring-slate-100",
-      "before:absolute before:inset-x-0 before:top-0 before:h-20 before:bg-gradient-to-b before:to-transparent",
-      toneStyle.wash
-    )}>
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className={cn("text-[11px] font-black uppercase tracking-[0.14em]", toneStyle.label)}>{label}</p>
-          <p className="mt-3 text-[28px] font-black leading-none tracking-[-0.04em] text-slate-950">{value}</p>
-        </div>
-        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1", toneStyle.icon)}>
-          {icon}
-        </div>
-      </div>
-
-      <div className="relative mt-2">
-        <p className="min-h-8 text-[12px] font-bold leading-4 text-slate-500">{sub}</p>
-        {progress !== undefined && (
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-            <div
-              className={cn("h-full rounded-full transition-all", toneStyle.bar)}
-              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function LegendItem({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -224,40 +105,45 @@ function LegendItem({ color, label, dashed }: { color: string; label: string; da
 
 function EmptyChart({ label }: { label: string }) {
   return (
-    <div className="flex h-[190px] flex-col items-center justify-center px-6 text-center">
+    <div className="flex h-[160px] flex-col items-center justify-center rounded-2xl bg-slate-50 px-6 text-center ring-1 ring-slate-100/50">
       <Sparkles className="h-5 w-5 text-slate-300" />
-      <p className="mt-2 text-[13px] font-bold text-slate-500">{label}</p>
+      <p className="mt-2 text-[12px] font-medium text-slate-500">{label}</p>
     </div>
   );
 }
 
-function BmiGauge({ bmi, label }: { bmi: number; label: string }) {
+function BmiGauge({ bmi, label, t }: { bmi: number; label: string; t: (key: string) => string }) {
   const clamped = Math.max(15, Math.min(40, bmi));
   const pct = ((clamped - 15) / 25) * 100;
   const markerLeft = `calc(${pct}% - 8px)`;
-  const tone = bmi < 18.5 ? "bg-[#38BDF8]" : bmi < 25 ? "bg-[#22C7A1]" : bmi < 30 ? "bg-[#F97316]" : "bg-[#FB6B7A]";
+  const tone = bmi < 18.5 ? "bg-macro-water" : bmi < 25 ? "bg-brand" : bmi < 30 ? "bg-macro-carbs" : "bg-macro-fat";
 
   return (
     <div>
       <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-[44px] font-black leading-none tracking-[-0.04em] text-slate-950">{bmi.toFixed(1)}</p>
-          <p className="mt-1 text-[12px] font-bold text-slate-400">BMI kg/m2</p>
+        <div className="text-start">
+          <p className="text-[32px] font-black leading-none tracking-tight text-slate-900" dir="ltr">{bmi.toFixed(1)}</p>
+          <p className="mt-1 text-[11px] font-bold text-slate-400" dir="ltr">{t("bmi")} kg/m²</p>
         </div>
-        <span className={cn("rounded-full px-3 py-1.5 text-[12px] font-black text-white", tone)}>{label}</span>
+        <span className={cn("rounded-full px-2 py-1 text-[10px] font-bold text-white shadow-sm", tone)}>{label}</span>
       </div>
 
-      <div className="relative mt-5">
-        <div className="flex h-3 overflow-hidden rounded-full">
-          <div className="flex-1 bg-[#38BDF8]" />
-          <div className="flex-1 bg-[#22C7A1]" />
-          <div className="flex-1 bg-[#F97316]" />
-          <div className="flex-1 bg-[#FB6B7A]" />
+      <div className="relative mt-5" dir="ltr">
+        <div className="flex h-2 overflow-hidden rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]">
+          <div className="flex-1 bg-macro-water" />
+          <div className="flex-1 bg-brand" />
+          <div className="flex-1 bg-macro-carbs" />
+          <div className="flex-1 bg-macro-fat" />
         </div>
-        <div className="absolute -top-1.5 h-6 w-4 rounded-full bg-white shadow-[0_6px_14px_rgba(2,6,23,0.18)] ring-2 ring-[#020617]" style={{ left: markerLeft }} />
+        <motion.div
+          className="absolute -top-1.5 h-5 w-3 rounded-full bg-white shadow-[0_2px_8px_rgba(15,23,42,0.15)] ring-1 ring-slate-200"
+          initial={{ left: 0 }}
+          animate={{ left: markerLeft }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+        />
       </div>
 
-      <div className="mt-2 grid grid-cols-4 text-center text-[9px] font-bold text-slate-400">
+      <div className="mt-2 flex justify-between text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400" dir="ltr">
         <span>15</span>
         <span>22.5</span>
         <span>30</span>
@@ -268,7 +154,7 @@ function BmiGauge({ bmi, label }: { bmi: number; label: string }) {
 }
 
 export function TrackerInsights({ userId, stepGoal, waterTargetMl, waterMl, measurements, bmi, bmiLabel, profile }: Props) {
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const [period, setPeriod] = useState<Period>("Weekly");
   const [weekRef, setWeekRef] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [monthRef, setMonthRef] = useState(() => startOfMonth(new Date()));
@@ -373,246 +259,331 @@ export function TrackerInsights({ userId, stepGoal, waterTargetMl, waterMl, meas
   const hasWaterData = waterMl > 0;
 
   return (
-    <div className="space-y-3">
-      <section className="relative overflow-hidden rounded-[28px] bg-white p-5 text-[#020617] shadow-[0_8px_32px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
-        <div className="relative flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">{t("insights")}</p>
-            <h2 className="mt-1 text-[20px] font-black leading-tight tracking-[-0.04em] text-slate-900">{t("progress_insights")}</h2>
-            <p className="mt-2 text-[12px] font-semibold leading-5 text-slate-500">
-              {activeDays > 0
-                ? t("tracker_active_days_summary", { days: activeDays, steps: compactNumber(totalSteps) })
-                : t("tracker_empty_insights")}
-            </p>
-          </div>
-          <div className="relative flex h-[82px] w-[82px] shrink-0 items-center justify-center rounded-full bg-[#F6F8FB] ring-1 ring-[#E5EAF1]">
-            <svg className="absolute inset-0 -rotate-90" viewBox="0 0 82 82" aria-hidden="true">
-              <circle cx="41" cy="41" r="32" fill="none" stroke="rgba(15,23,42,0.08)" strokeWidth="7" />
-              <circle
-                cx="41"
-                cy="41"
-                r="32"
-                fill="none"
-                stroke={TRACKER_CHART_COLORS.progress}
-                strokeWidth="7"
-                strokeLinecap="round"
-                strokeDasharray={`${(goalRate / 100) * 201} 201`}
-              />
-            </svg>
-            <div className="text-center">
-              <p className="text-[22px] font-black leading-none text-[#020617]">{goalRate}%</p>
-              <p className="mt-0.5 text-[9px] font-black uppercase tracking-wide text-slate-400">{t("goal")}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative mt-5 grid grid-cols-3 gap-2">
-          <div className="rounded-[20px] bg-[#EFFFFA] p-3 ring-1 ring-[#22C7A1]/20">
-            <p className="text-[20px] font-black leading-none">{goalRate}%</p>
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">{t("goal_hit")}</p>
-          </div>
-          <div className="rounded-[20px] bg-[#F3F4FF] p-3 ring-1 ring-[#7C83F6]/20">
-            <p className="text-[20px] font-black leading-none">{compactNumber(avgSteps)}</p>
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">{t("avg_steps")}</p>
-          </div>
-          <div className="rounded-[20px] bg-[#FFF7ED] p-3 ring-1 ring-[#F97316]/20">
-            <p className="text-[20px] font-black leading-none">{compactNumber(totalCalories)}</p>
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-[#F97316]">kcal</p>
-          </div>
-        </div>
-      </section>
-
-      <div className="rounded-[28px] bg-white p-2 shadow-[0_14px_34px_rgba(15,23,42,0.05)] ring-1 ring-slate-100">
-        <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, staggerChildren: 0.1 }}
+      className="space-y-5"
+    >
+      {/* ── Period Switcher ── */}
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex w-full gap-6 border-b border-slate-200/60">
           {periods.map((item, index) => (
             <button
               key={item}
               onClick={() => setPeriod(item)}
               className={cn(
-                "flex min-h-10 items-center justify-center rounded-full text-[12px] font-black transition-all",
-                period === item ? "bg-[#020617] text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)]" : "text-slate-500"
+                "relative flex-1 pb-3 text-[14px] font-bold transition-colors",
+                period === item ? "text-slate-900" : "text-slate-400 hover:text-slate-600"
               )}
             >
               {periodLabels[index]}
+              {period === item && (
+                <motion.div layoutId="insights-period-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-brand" />
+              )}
             </button>
           ))}
         </div>
 
-        <div className="mt-2 flex items-center justify-between px-1">
-          <button onClick={previousPeriod} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-600 ring-1 ring-slate-100" aria-label={t("previous_period")}>
-            <ChevronLeft className="h-4 w-4" />
+        <div className="flex items-center gap-4">
+          <button onClick={previousPeriod} className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-600 transition-all hover:bg-slate-100 active:scale-95" aria-label={t("previous_period")}>
+            <ChevronLeft className={cn("h-4 w-4", isRTL && "rotate-180")} />
           </button>
-          <div className="flex min-h-10 items-center gap-2 rounded-full bg-slate-50 px-3 text-[13px] font-black text-slate-800 ring-1 ring-slate-100">
-            <CalendarDays className="h-4 w-4 text-[#7C83F6]" />
-            {dateLabel}
+          <div className="flex items-center gap-2 text-[13px] font-bold text-slate-800">
+            <CalendarDays className="h-4 w-4 text-slate-400" />
+            <span dir="ltr">{dateLabel}</span>
           </div>
-          <button onClick={nextPeriod} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-600 ring-1 ring-slate-100" aria-label={t("next_period")}>
-            <ChevronRight className="h-4 w-4" />
+          <button onClick={nextPeriod} className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-600 transition-all hover:bg-slate-100 active:scale-95" aria-label={t("next_period")}>
+            <ChevronRight className={cn("h-4 w-4", isRTL && "rotate-180")} />
           </button>
         </div>
       </div>
 
-      <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <SummaryCard
-          label={t("steps")}
-          value={compactNumber(totalSteps)}
-          sub={t("goal_days_reached", { current: goalHits, total: chartData.length })}
-          icon={<Footprints className="h-4 w-4" />}
-          tone="orange"
-          progress={goalRate}
-        />
-        <SummaryCard
-          label={t("water")}
-          value={`${waterPct}%`}
-          sub={t("water_today_summary", { current: waterMl.toLocaleString(), target: waterTargetMl.toLocaleString() })}
-          icon={<Droplets className="h-4 w-4" />}
-          tone="blue"
-          progress={waterPct}
-        />
-        <SummaryCard
-          label={t("today")}
-          value={`${todayStepsPct}%`}
-          sub={t("steps_goal_summary", { current: todaySteps.toLocaleString(), target: stepGoal.toLocaleString() })}
-          icon={<Target className="h-4 w-4" />}
-          tone="emerald"
-          progress={todayStepsPct}
-        />
-        <SummaryCard
-          label={t("weight")}
-          value={latestWeight != null ? `${latestWeight.toFixed(1)}` : "--"}
-          sub={weightDelta != null ? t("weight_delta_overall", { value: `${weightDelta > 0 ? "+" : ""}${weightDelta.toFixed(1)}` }) : t("log_more_weight")}
-          icon={<Scale className="h-4 w-4" />}
-          tone="teal"
-        />
-      </div>
+      {/* ── Summary Hero ── */}
+      <motion.section className="relative overflow-hidden rounded-[32px] bg-[#0F172A] p-6 shadow-[0_8px_32px_rgba(15,23,42,0.12)] ring-1 ring-slate-800">
+        <div className="absolute left-1/2 top-1/2 h-[200px] w-[200px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/10 blur-3xl" />
+        
+        <div className="relative flex flex-col items-center text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{t("progress_insights")}</p>
+          <div className="mt-2 flex items-baseline justify-center gap-1">
+            <span className="bg-gradient-to-br from-white to-slate-400 bg-clip-text text-[48px] font-black leading-none tracking-tight text-transparent" dir="ltr">{goalRate}%</span>
+          </div>
+          <p className="mt-2 text-[12px] font-medium text-slate-400">
+            {activeDays > 0
+              ? t("tracker_active_days_summary", { days: activeDays, steps: compactNumber(totalSteps) })
+              : t("tracker_empty_insights")}
+          </p>
 
-      {weeklyDelta !== null && (
-        <div className={cn(
-          "overflow-hidden rounded-[26px] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.055)] ring-1",
-          "ring-slate-100"
-        )}>
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ring-1",
-              weeklyDelta >= 0 ? "bg-[#EFFFFA] text-[#22C7A1] ring-[#22C7A1]/20" : "bg-[#FFF0F2] text-[#FB6B7A] ring-[#FB6B7A]/20"
-            )}>
-              {weeklyDelta >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+          <div className="mt-6 flex w-full justify-between border-t border-white/10 pt-5">
+            <div className="flex flex-col items-center">
+              <p className="text-[16px] font-black text-white" dir="ltr">{goalRate}%</p>
+              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-brand">{t("goal_hit")}</p>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">{t("weekly_momentum")}</p>
-              <p className="mt-1 text-[15px] font-black leading-tight text-slate-950">
-                {t("vs_previous_week", { value: `${weeklyDelta >= 0 ? "+" : ""}${weeklyDelta}` })}
-              </p>
-              <p className="mt-1 text-[12px] font-semibold leading-5 text-slate-500">
-                {t("weekly_momentum_based_on_steps")}
-              </p>
+            <div className="flex flex-col items-center">
+              <p className="text-[16px] font-black text-white" dir="ltr">{compactNumber(avgSteps)}</p>
+              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-macro-protein">{t("avg_steps")}</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <p className="text-[16px] font-black text-white" dir="ltr">{compactNumber(totalCalories)}</p>
+              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-macro-carbs">kcal</p>
             </div>
           </div>
-          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-100">
-            <div
-              className={cn("h-full rounded-full", weeklyDelta >= 0 ? "bg-[#22C7A1]" : "bg-[#FB6B7A]")}
-              style={{ width: `${Math.min(100, Math.abs(weeklyDelta))}%` }}
-            />
+        </div>
+      </motion.section>
+
+      {/* ── Featured Chart: Steps ── */}
+      <section className="rounded-[28px] bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Footprints className="h-4 w-4 text-macro-protein" />
+            <span className="text-[14px] font-bold text-slate-900">{t("steps")}</span>
+          </div>
+        </div>
+        {hasActivityData ? (
+          <div dir="ltr">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData} margin={{ left: -22, right: 12, top: 8, bottom: 0 }} barSize={period === "Monthly" ? 7 : 20}>
+                <defs>
+                  <linearGradient id="steps-bar-gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#7C83F6" />
+                    <stop offset="100%" stopColor="#9399F8" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 700 }} />
+                <YAxis hide />
+                <Tooltip 
+                  formatter={(value: number) => [`${value.toLocaleString()}`, t("steps")]} 
+                  cursor={{ fill: "#F8FAFC" }}
+                  contentStyle={{ borderRadius: '12px', border: '1px solid #F1F5F9', boxShadow: '0 4px 12px rgba(15,23,42,0.08)', fontWeight: 'bold', fontSize: '12px' }}
+                />
+                <ReferenceLine y={stepGoal} stroke="#7C83F6" strokeDasharray="4 4" strokeWidth={1.5} opacity={0.5} />
+                <Bar dataKey="steps" fill="url(#steps-bar-gradient)" radius={[4, 4, 0, 0]} activeBar={{ fill: "#636BF4" }} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <EmptyChart label={t("no_step_data_period")} />
+        )}
+        <div className="mt-2 flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-500" dir="ltr">
+          <LegendItem color="#7C83F6" label={t("steps")} />
+          <LegendItem color="#7C83F6" label={t("step_goal")} dashed />
+        </div>
+      </section>
+
+      {/* ── Stat Grid 2x2 ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col justify-between rounded-[24px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <div className="flex items-start justify-between">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-macro-protein-soft text-macro-protein ring-1 ring-macro-protein/20">
+              <Footprints className="h-5 w-5" strokeWidth={2.2} />
+            </div>
+            <span className="text-[11px] font-bold text-slate-400" dir="ltr">{goalRate}%</span>
+          </div>
+          <div className="mt-4 text-start">
+            <p className="text-[24px] font-black leading-none tracking-tight text-slate-900" dir="ltr">{compactNumber(totalSteps)}</p>
+            <p className="mt-1 text-[11px] font-bold text-slate-400">{t("steps")}</p>
+            <p className="mt-2 text-[10px] font-medium text-slate-500">{t("goal_days_reached", { current: goalHits, total: chartData.length })}</p>
+            <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+              <motion.div className="h-full rounded-full bg-macro-protein" initial={{ width: 0 }} animate={{ width: `${goalRate}%` }} transition={{ duration: 1 }} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-[24px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <div className="flex items-start justify-between">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-macro-water-soft text-macro-water ring-1 ring-macro-water/20">
+              <Droplets className="h-5 w-5" strokeWidth={2.2} />
+            </div>
+            <span className="text-[11px] font-bold text-slate-400" dir="ltr">{waterPct}%</span>
+          </div>
+          <div className="mt-4 text-start">
+            <p className="text-[24px] font-black leading-none tracking-tight text-slate-900" dir="ltr">{waterPct}%</p>
+            <p className="mt-1 text-[11px] font-bold text-slate-400">{t("water")}</p>
+            <p className="mt-2 text-[10px] font-medium text-slate-500">{t("water_today_summary", { current: waterMl.toLocaleString(), target: waterTargetMl.toLocaleString() })}</p>
+            <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+              <motion.div className="h-full rounded-full bg-macro-water" initial={{ width: 0 }} animate={{ width: `${waterPct}%` }} transition={{ duration: 1 }} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-[24px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <div className="flex items-start justify-between">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-soft text-brand ring-1 ring-brand/20">
+              <Target className="h-5 w-5" strokeWidth={2.2} />
+            </div>
+            <span className="text-[11px] font-bold text-slate-400" dir="ltr">{todayStepsPct}%</span>
+          </div>
+          <div className="mt-4 text-start">
+            <p className="text-[24px] font-black leading-none tracking-tight text-slate-900" dir="ltr">{todayStepsPct}%</p>
+            <p className="mt-1 text-[11px] font-bold text-slate-400">{t("today")}</p>
+            <p className="mt-2 text-[10px] font-medium text-slate-500">{t("steps_goal_summary", { current: todaySteps.toLocaleString(), target: stepGoal.toLocaleString() })}</p>
+            <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+              <motion.div className="h-full rounded-full bg-brand" initial={{ width: 0 }} animate={{ width: `${todayStepsPct}%` }} transition={{ duration: 1 }} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-[24px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <div className="flex items-start justify-between">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-soft text-brand ring-1 ring-brand/20">
+              <Scale className="h-5 w-5" strokeWidth={2.2} />
+            </div>
+          </div>
+          <div className="mt-4 text-start">
+            <p className="text-[24px] font-black leading-none tracking-tight text-slate-900" dir="ltr">{latestWeight != null ? `${latestWeight.toFixed(1)}` : "--"}</p>
+            <p className="mt-1 text-[11px] font-bold text-slate-400">{t("weight")}</p>
+            <p className="mt-2 text-[10px] font-medium text-slate-500">{weightDelta != null ? t("weight_delta_overall", { value: `${weightDelta > 0 ? "+" : ""}${weightDelta.toFixed(1)}` }) : t("log_more_weight")}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Momentum ── */}
+      {weeklyDelta !== null && (
+        <div className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <div className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1",
+            weeklyDelta >= 0 ? "bg-brand-soft text-brand ring-brand/20" : "bg-macro-fat-soft text-macro-fat ring-macro-fat/20"
+          )}>
+            {weeklyDelta >= 0 ? <TrendingUp className="h-5 w-5" strokeWidth={2.5} /> : <TrendingDown className="h-5 w-5" strokeWidth={2.5} />}
+          </div>
+          <div className="min-w-0 flex-1 text-start">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{t("weekly_momentum")}</p>
+            <p className="mt-0.5 text-[14px] font-black leading-tight tracking-tight text-slate-900" dir="ltr">
+              {t("vs_previous_week", { value: `${weeklyDelta >= 0 ? "+" : ""}${weeklyDelta}` })}
+            </p>
           </div>
         </div>
       )}
 
-      <Panel title={t("steps")} eyebrow={t("movement")} icon={<Footprints className="h-5 w-5 text-[#7C83F6]" />}>
-        {hasActivityData ? (
-          <ResponsiveContainer width="100%" height={chartHeight}>
-            <BarChart data={chartData} margin={{ left: -22, right: 12, top: 8, bottom: 0 }} barSize={period === "Monthly" ? 7 : 20}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="transparent" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 700 }} />
-              <YAxis hide />
-              <Tooltip formatter={(value: number) => [`${value.toLocaleString()}`, t("steps")]} cursor={{ fill: "#f1f5f9" }} />
-              <ReferenceLine y={stepGoal} stroke={TRACKER_CHART_COLORS.steps} strokeDasharray="5 5" strokeWidth={1.5} />
-              <Bar dataKey="steps" fill="#DDE1FF" radius={[8, 8, 0, 0]} activeBar={{ fill: TRACKER_CHART_COLORS.steps }} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <EmptyChart label={t("no_step_data_period")} />
-        )}
-        <div className="flex flex-wrap items-center gap-4 px-4 pb-4 text-[11px] font-bold text-slate-500">
-          <LegendItem color="#7C83F6" label={t("steps")} />
-          <LegendItem color="#7C83F6" label={t("step_goal")} dashed />
-        </div>
-      </Panel>
-
-      <Panel title={t("calorie_kcal")} eyebrow={t("estimated_burn")} icon={<Flame className="h-5 w-5 text-[#F97316]" />}>
-        {hasActivityData ? (
-          <ResponsiveContainer width="100%" height={chartHeight}>
-            <BarChart data={chartData} margin={{ left: -22, right: 12, top: 8, bottom: 0 }} barSize={period === "Monthly" ? 7 : 20}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="transparent" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 700 }} />
-              <YAxis hide />
-              <Tooltip formatter={(value: number) => [`${value} kcal`, t("calories")]} cursor={{ fill: "#f1f5f9" }} />
-              <ReferenceLine y={Math.round(stepGoal * 0.04)} stroke={TRACKER_CHART_COLORS.calories} strokeDasharray="5 5" strokeWidth={1.5} />
-              <Bar dataKey="cal" fill="#FFE5D0" radius={[8, 8, 0, 0]} activeBar={{ fill: TRACKER_CHART_COLORS.calories }} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <EmptyChart label={t("calories_after_steps_tracked")} />
-        )}
-        <div className="flex flex-wrap items-center gap-4 px-4 pb-4 text-[11px] font-bold text-slate-500">
-          <LegendItem color="#F97316" label={t("calorie")} />
-          <LegendItem color="#F97316" label={t("calorie_intake_goal")} dashed />
-        </div>
-      </Panel>
-
-      <Panel title={t("water_ml")} eyebrow={t("hydration")} icon={<Droplets className="h-5 w-5 text-[#38BDF8]" />}>
-        {hasWaterData ? (
-          <ResponsiveContainer width="100%" height={chartHeight}>
-            <BarChart data={waterData} margin={{ left: -22, right: 12, top: 8, bottom: 0 }} barSize={period === "Monthly" ? 7 : 20}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="transparent" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 700 }} />
-              <YAxis hide />
-              <Tooltip formatter={(value: number) => [`${value} mL`, t("water")]} cursor={{ fill: "#f1f5f9" }} />
-              <ReferenceLine y={waterTargetMl} stroke={TRACKER_CHART_COLORS.water} strokeDasharray="5 5" strokeWidth={1.5} />
-              <Bar dataKey="water" fill="#DDF3FF" radius={[8, 8, 0, 0]} activeBar={{ fill: TRACKER_CHART_COLORS.water }} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <EmptyChart label={t("hydration_after_water_log")} />
-        )}
-        <div className="flex flex-wrap items-center gap-4 px-4 pb-4 text-[11px] font-bold text-slate-500">
-          <LegendItem color="#38BDF8" label={t("water")} />
-          <LegendItem color="#38BDF8" label={t("water_intake_goal")} dashed />
-        </div>
-      </Panel>
-
-      <Panel title={t("weight_kg")} eyebrow={t("body_trend")} icon={<Scale className="h-5 w-5 text-[#22C7A1]" />}>
-        {weightData.length >= 2 ? (
-          <ResponsiveContainer width="100%" height={chartHeight}>
-            <LineChart data={weightData} margin={{ left: -22, right: 12, top: 8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="transparent" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 700 }} />
-              <YAxis hide domain={["auto", "auto"]} />
-              <Tooltip formatter={(value: number) => [`${value.toFixed(1)} kg`, t("weight")]} />
-              {profile?.target_weight_kg && <ReferenceLine y={profile.target_weight_kg} stroke={TRACKER_CHART_COLORS.progress} strokeDasharray="5 5" strokeWidth={1.5} />}
-              <Line type="monotone" dataKey="weight" stroke={TRACKER_CHART_COLORS.progress} strokeWidth={3} dot={<Dot r={4} fill={TRACKER_CHART_COLORS.progress} stroke="#fff" strokeWidth={2} />} activeDot={{ r: 6, fill: TRACKER_CHART_COLORS.progress }} />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <EmptyChart label={t("log_more_weight")} />
-        )}
-        <div className="flex flex-wrap items-center gap-4 px-4 pb-4 text-[11px] font-bold text-slate-500">
-          <LegendItem color="#22C7A1" label={t("weight")} />
-          {profile?.target_weight_kg && <LegendItem color="#22C7A1" label={t("weight_goal")} dashed />}
-        </div>
-      </Panel>
-
-      <Panel title={t("bmi")} eyebrow={t("body_composition")} icon={<Activity className="h-5 w-5 text-[#F97316]" />}>
-        <div className="px-4 pb-4">
-          {bmi != null ? (
-            <BmiGauge bmi={bmi} label={bmiLabel ?? (bmi < 18.5 ? t("underweight") : bmi < 25 ? t("normal") : bmi < 30 ? t("overweight") : t("obese"))} />
-          ) : (
-            <div className="rounded-[22px] bg-slate-50 p-5 text-center">
-              <BarChart3 className="mx-auto h-6 w-6 text-slate-300" />
-              <p className="mt-2 text-[13px] font-bold text-slate-500">{t("set_height_weight_bmi")}</p>
+      {/* ── Secondary Charts ── */}
+      <div className="space-y-4 pt-2">
+        <section className="rounded-[28px] bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Flame className="h-4 w-4 text-macro-carbs" />
+              <span className="text-[14px] font-bold text-slate-900">{t("calorie_kcal")}</span>
             </div>
+          </div>
+          {hasActivityData ? (
+            <div dir="ltr">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={chartData} margin={{ left: -22, right: 12, top: 8, bottom: 0 }} barSize={period === "Monthly" ? 7 : 20}>
+                  <defs>
+                    <linearGradient id="cal-bar-gradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#F97316" />
+                      <stop offset="100%" stopColor="#FB923C" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 700 }} />
+                  <YAxis hide />
+                  <Tooltip 
+                    formatter={(value: number) => [`${value} kcal`, t("calories")]} 
+                    cursor={{ fill: "#F8FAFC" }}
+                    contentStyle={{ borderRadius: '12px', border: '1px solid #F1F5F9', boxShadow: '0 4px 12px rgba(15,23,42,0.08)', fontWeight: 'bold', fontSize: '12px' }}
+                  />
+                  <ReferenceLine y={Math.round(stepGoal * 0.04)} stroke="#F97316" strokeDasharray="4 4" strokeWidth={1.5} opacity={0.5} />
+                  <Bar dataKey="cal" fill="url(#cal-bar-gradient)" radius={[4, 4, 0, 0]} activeBar={{ fill: "#EA580C" }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyChart label={t("calories_after_steps_tracked")} />
           )}
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-500" dir="ltr">
+            <LegendItem color="#F97316" label={t("calorie")} />
+            <LegendItem color="#F97316" label={t("calorie_intake_goal")} dashed />
+          </div>
+        </section>
+
+        <section className="rounded-[28px] bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Droplets className="h-4 w-4 text-macro-water" />
+              <span className="text-[14px] font-bold text-slate-900">{t("water_ml")}</span>
+            </div>
+          </div>
+          {hasWaterData ? (
+            <div dir="ltr">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={waterData} margin={{ left: -22, right: 12, top: 8, bottom: 0 }} barSize={period === "Monthly" ? 7 : 20}>
+                  <defs>
+                    <linearGradient id="water-bar-gradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#38BDF8" />
+                      <stop offset="100%" stopColor="#7DD3FC" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 700 }} />
+                  <YAxis hide />
+                  <Tooltip 
+                    formatter={(value: number) => [`${value} mL`, t("water")]} 
+                    cursor={{ fill: "#F8FAFC" }}
+                    contentStyle={{ borderRadius: '12px', border: '1px solid #F1F5F9', boxShadow: '0 4px 12px rgba(15,23,42,0.08)', fontWeight: 'bold', fontSize: '12px' }}
+                  />
+                  <ReferenceLine y={waterTargetMl} stroke="#38BDF8" strokeDasharray="4 4" strokeWidth={1.5} opacity={0.5} />
+                  <Bar dataKey="water" fill="url(#water-bar-gradient)" radius={[4, 4, 0, 0]} activeBar={{ fill: "#0EA5E9" }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyChart label={t("hydration_after_water_log")} />
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-500" dir="ltr">
+            <LegendItem color="#38BDF8" label={t("water")} />
+            <LegendItem color="#38BDF8" label={t("water_intake_goal")} dashed />
+          </div>
+        </section>
+
+        <section className="rounded-[28px] bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Scale className="h-4 w-4 text-brand" />
+              <span className="text-[14px] font-bold text-slate-900">{t("weight_kg")}</span>
+            </div>
+          </div>
+          {weightData.length >= 2 ? (
+            <div dir="ltr">
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={weightData} margin={{ left: -22, right: 12, top: 8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 700 }} />
+                  <YAxis hide domain={["auto", "auto"]} />
+                  <Tooltip 
+                    formatter={(value: number) => [`${value.toFixed(1)} kg`, t("weight")]}
+                    contentStyle={{ borderRadius: '12px', border: '1px solid #F1F5F9', boxShadow: '0 4px 12px rgba(15,23,42,0.08)', fontWeight: 'bold', fontSize: '12px' }}
+                  />
+                  {profile?.target_weight_kg && <ReferenceLine y={profile.target_weight_kg} stroke="#22C7A1" strokeDasharray="4 4" strokeWidth={1.5} opacity={0.5} />}
+                  <Line type="monotone" dataKey="weight" stroke="#22C7A1" strokeWidth={3} dot={<Dot r={4} fill="#22C7A1" stroke="#fff" strokeWidth={2} />} activeDot={{ r: 6, fill: "#10B981" }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyChart label={t("log_more_weight")} />
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-500" dir="ltr">
+            <LegendItem color="#22C7A1" label={t("weight")} />
+            {profile?.target_weight_kg && <LegendItem color="#22C7A1" label={t("weight_goal")} dashed />}
+          </div>
+        </section>
+      </div>
+
+      {/* ── BMI Section ── */}
+      <section className="rounded-[24px] bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+        <div className="mb-4 flex items-center gap-2">
+          <Activity className="h-4 w-4 text-macro-carbs" />
+          <span className="text-[14px] font-bold text-slate-900">{t("bmi")}</span>
         </div>
-      </Panel>
-    </div>
+        {bmi != null ? (
+          <BmiGauge bmi={bmi} label={bmiLabel ?? (bmi < 18.5 ? t("underweight") : bmi < 25 ? t("normal") : bmi < 30 ? t("overweight") : t("obese"))} t={t} />
+        ) : (
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-slate-50 py-6 ring-1 ring-slate-100/50">
+            <BarChart3 className="h-6 w-6 text-slate-300" />
+            <p className="mt-3 text-[12px] font-medium text-slate-500">{t("set_height_weight_bmi")}</p>
+          </div>
+        )}
+      </section>
+    </motion.div>
   );
 }

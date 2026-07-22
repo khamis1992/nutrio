@@ -25,6 +25,27 @@ export interface AiTaskResult {
   routed: boolean;
 }
 
+async function normalizeAiRouterError(error: unknown): Promise<Error> {
+  const context = error && typeof error === "object"
+    ? (error as { context?: unknown }).context
+    : null;
+
+  if (context instanceof Response) {
+    const payload = await context.clone().json().catch(() => null) as {
+      error?: unknown;
+      message?: unknown;
+    } | null;
+    const code = typeof payload?.error === "string"
+      ? payload.error
+      : typeof payload?.message === "string"
+        ? payload.message
+        : null;
+    if (code) return new Error(code);
+  }
+
+  return error instanceof Error ? error : new Error("AI_ROUTER_UNAVAILABLE");
+}
+
 export async function runAiTask(request: AiTaskRequest): Promise<AiTaskResult> {
   const { data, error } = await supabase.functions.invoke("ai-router", {
     body: { ...request, requestId: crypto.randomUUID() },
@@ -39,5 +60,7 @@ export async function runAiTask(request: AiTaskRequest): Promise<AiTaskResult> {
     };
   }
 
-  throw error || new Error("AI_ROUTER_UNAVAILABLE");
+  throw error
+    ? await normalizeAiRouterError(error)
+    : new Error("AI_ROUTER_UNAVAILABLE");
 }

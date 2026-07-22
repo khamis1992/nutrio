@@ -448,24 +448,31 @@ serve(async (req) => {
           .join("\n\n")}`
         : "";
 
-      const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
-      if (!deepseekKey) throw new HttpError(503, "ai_provider_not_configured");
+      const useLongCat = body.task === "weekly_report";
+      const providerKey = Deno.env.get(
+        useLongCat ? "LONGCAT_API_KEY" : "DEEPSEEK_API_KEY",
+      );
+      if (!providerKey) throw new HttpError(503, "ai_provider_not_configured");
+      const providerName = useLongCat ? "longcat" : "deepseek";
+      const providerModel = useLongCat ? "LongCat-2.0" : "deepseek-chat";
       const providerUrl = requireAllowedHttpsUrl(
-        Deno.env.get("DEEPSEEK_API_URL") ||
-          "https://api.deepseek.com/v1/chat/completions",
-        "DEEPSEEK_API_URL",
-        "DEEPSEEK_ALLOWED_HOSTS",
-        ["api.deepseek.com"],
+        Deno.env.get(useLongCat ? "LONGCAT_API_URL" : "DEEPSEEK_API_URL") ||
+          (useLongCat
+            ? "https://api.longcat.chat/openai/v1/chat/completions"
+            : "https://api.deepseek.com/v1/chat/completions"),
+        useLongCat ? "LONGCAT_API_URL" : "DEEPSEEK_API_URL",
+        useLongCat ? "LONGCAT_ALLOWED_HOSTS" : "DEEPSEEK_ALLOWED_HOSTS",
+        [useLongCat ? "api.longcat.chat" : "api.deepseek.com"],
       );
 
       const aiResponse = await fetch(providerUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${deepseekKey}`,
+          Authorization: `Bearer ${providerKey}`,
         },
         body: JSON.stringify({
-          model: "deepseek-chat",
+          model: providerModel,
           messages: [
             {
               role: "system",
@@ -475,6 +482,7 @@ serve(async (req) => {
           ],
           temperature: policy.temperature,
           max_tokens: policy.maxTokens,
+          ...(useLongCat ? { thinking: { type: "disabled" } } : {}),
         }),
         signal: AbortSignal.timeout(30_000),
       });
@@ -540,8 +548,8 @@ serve(async (req) => {
       return jsonResponse(req, {
         content: content.trim(),
         task: body.task,
-        provider: "deepseek",
-        model: "deepseek-chat",
+        provider: providerName,
+        model: providerModel,
         citations: citations.map(({ content: _content, ...citation }) => citation),
       });
     } catch (providerError) {
