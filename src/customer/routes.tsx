@@ -201,18 +201,16 @@ export const customerRoutes = (
         </ProtectedRoute>
       }
     />
+    {/* View current goal lives on Progress → Goal tab (single source of truth). */}
     <Route
       path="/goals"
-      element={<Navigate to="/nutrition-goals" replace />}
+      element={<Navigate to="/dashboard/progress?tab=goals" replace />}
     />
     <Route
       path="/nutrition-goals"
-      element={
-        <ProtectedRoute>
-          <NutritionGoals />
-        </ProtectedRoute>
-      }
+      element={<Navigate to="/dashboard/progress?tab=goals" replace />}
     />
+    {/* Edit/create goal only — full-screen editor, no separate "current goal" card page. */}
     <Route
       path="/edit-goal"
       element={

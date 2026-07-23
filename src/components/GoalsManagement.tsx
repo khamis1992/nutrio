@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Target, Plus, Check, Flame, Droplet, Wheat as WheatIcon, Leaf, Activity, TrendingUp, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -195,14 +196,20 @@ const HealthGoalCard = ({
 
 interface GoalsManagementProps {
   autoOpenEditor?: boolean;
+  /** Called after a successful create/update (e.g. redirect to Progress Goals). */
+  onGoalSaved?: () => void;
+  /** Called when the auto-opened editor is dismissed without saving. */
+  onEditorDismiss?: () => void;
 }
 
-export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps) => {
+export const GoalsManagement = ({ autoOpenEditor = false, onGoalSaved, onEditorDismiss }: GoalsManagementProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { goals, activeGoal, goalEvents, loading, setGoal, updateActiveGoal, updateGoalTargets, refresh } = useNutritionGoals(user?.id);
+  const queryClient = useQueryClient();
+  const { goals, activeGoal, goalEvents, loading, error: goalsError, setGoal, updateActiveGoal, updateGoalTargets, refresh } = useNutritionGoals(user?.id);
   const { profile, updateProfile } = useProfile();
+  const autoOpenedRef = useRef(false);
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showGoalAppliedDialog, setShowGoalAppliedDialog] = useState(false);
@@ -317,9 +324,10 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
   };
 
   useEffect(() => {
-    if (!autoOpenEditor || loading || showCreateDialog) return;
+    if (!autoOpenEditor || loading || showCreateDialog || autoOpenedRef.current) return;
+    // Open once after first successful load (even if no active goal yet).
+    autoOpenedRef.current = true;
     openGoalDialog();
-    // The dialog should open once when the dedicated edit-goal route is loaded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoOpenEditor, loading]);
 
@@ -378,8 +386,19 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
         description: t("goal_update_applied_desc"),
       });
 
+      // Keep app-wide consumers in sync (Progress, Dashboard, profile-driven UI).
+      await refresh();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["profile", user.id] }),
+        queryClient.invalidateQueries({ queryKey: ["profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["weeklySummary"] }),
+        queryClient.invalidateQueries({ queryKey: ["todayProgress"] }),
+        queryClient.invalidateQueries({ queryKey: ["weekdayData"] }),
+        queryClient.invalidateQueries({ queryKey: ["nutrition-goals"] }),
+      ]);
+      window.dispatchEvent(new CustomEvent("nutrition-goals-updated", { detail: { userId: user.id } }));
+
       setShowCreateDialog(false);
-      setShowGoalAppliedDialog(true);
       setFormData({
         goal_type: "general_health",
         target_weight_kg: "",
@@ -390,6 +409,12 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
         fat_target_g: 65,
         fiber_target_g: 30,
       });
+
+      if (onGoalSaved) {
+        onGoalSaved();
+      } else {
+        setShowGoalAppliedDialog(true);
+      }
     } catch (error) {
       toast({
         title: t("failed_to_create_goal"),
@@ -433,17 +458,47 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="h-48 w-full animate-pulse rounded-[28px] bg-white" />
-        <div className="h-48 w-full animate-pulse rounded-[28px] bg-white" />
+      <div className="space-y-4" aria-busy="true" aria-label={t("edit_goal")}>
+        <div className="animate-pulse rounded-[20px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="h-11 w-11 rounded-[14px] bg-slate-100" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-3 w-24 rounded-full bg-slate-100" />
+              <div className="h-4 w-40 rounded-full bg-slate-100" />
+            </div>
+          </div>
+          <div className="mt-4 h-28 rounded-[16px] bg-slate-100" />
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="h-16 rounded-[14px] bg-slate-100" />
+            <div className="h-16 rounded-[14px] bg-slate-100" />
+          </div>
+        </div>
+        <div className="h-12 animate-pulse rounded-full bg-slate-200/70" />
+        <div className="h-40 animate-pulse rounded-[20px] bg-white ring-1 ring-slate-100" />
+      </div>
+    );
+  }
+
+  if (goalsError && !activeGoal && goals.length === 0) {
+    return (
+      <div className="rounded-[20px] bg-white p-5 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+        <p className="text-[15px] font-extrabold text-slate-950">{t("failed_to_create_goal")}</p>
+        <p className="mt-1 text-[13px] font-medium text-slate-500">{t("please_try_again")}</p>
+        <Button
+          type="button"
+          onClick={() => void refresh()}
+          className="mt-4 h-12 min-h-[48px] w-full rounded-full bg-slate-950 text-[14px] font-extrabold text-white"
+        >
+          {t("retry_button")}
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Active Goal Card */}
-      {activeGoal && (
+    <div className={cn("space-y-4", autoOpenEditor && "min-h-0")}>
+      {/* On /edit-goal only the editor dialog is shown — no stacked overview underneath. */}
+      {!autoOpenEditor && activeGoal && (
         <Card className="overflow-hidden rounded-[28px] border-[#E5EAF1] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
           <CardHeader className="bg-white pb-3">
             <div className="flex items-start justify-between gap-3">
@@ -597,7 +652,7 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
         </Card>
       )}
 
-      {!activeGoal && (
+      {!autoOpenEditor && !activeGoal && (
         <Card className="rounded-[28px] border-[#E5EAF1] bg-white shadow-sm">
           <CardContent className="space-y-4 p-4">
             <div className="flex items-center gap-3">
@@ -622,7 +677,7 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
       )}
 
 
-      {goalEvents.length > 0 && (
+      {!autoOpenEditor && goalEvents.length > 0 && (
         <details className="group rounded-[28px] border border-[#E5EAF1] bg-white shadow-sm">
           <summary className="flex min-h-[70px] cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
             <div className="min-w-0">
@@ -654,7 +709,7 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
       )}
 
       {/* Previous Goals */}
-      {goals.length > 1 && (
+      {!autoOpenEditor && goals.length > 1 && (
         <details className="group rounded-[28px] border border-[#E5EAF1] bg-white shadow-sm">
           <summary className="flex min-h-[70px] cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
             <div className="min-w-0">
@@ -720,29 +775,50 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
             fiber_target_g: 30,
           });
           setEditorStep(1);
+          if (autoOpenEditor) {
+            onEditorDismiss?.();
+          }
         }
       }}>
-        <DialogContent className={cn(
-          "flex flex-col gap-0 overflow-hidden border-[#E5EAF1] bg-[#F6F8FB] p-0 shadow-[0_24px_60px_rgba(15,23,42,0.18)]",
-          autoOpenEditor
-            ? "h-dvh max-h-dvh w-screen max-w-none rounded-none border-0"
-            : "max-h-[92dvh] w-[calc(100vw-16px)] max-w-md rounded-[28px]"
-        )}>
-          <DialogHeader className="shrink-0 border-b border-[#E5EAF1] bg-white px-4 pb-3 pt-4 text-left">
-            <DialogTitle className="text-[18px] font-black leading-tight text-[#020617]">{t("create_new_nutrition_goal")}</DialogTitle>
-            <DialogDescription className="mt-1 text-[12px] font-semibold leading-5 text-[#94A3B8]">
+        <DialogContent
+          overlayClassName={autoOpenEditor ? "bg-[#F7F8FA] data-[state=open]:fade-in-0" : undefined}
+          className={cn(
+            "flex flex-col gap-0 overflow-hidden border-[#E5EAF1] bg-[#F7F8FB] p-0 shadow-[0_24px_60px_rgba(15,23,42,0.18)]",
+            autoOpenEditor
+              ? // Must stay above DialogOverlay (z-1200). Never use z below that or the page looks dimmed.
+                "fixed inset-0 left-0 top-0 z-[1202] !h-[100dvh] !max-h-[100dvh] !w-screen !max-w-none !translate-x-0 !translate-y-0 rounded-none border-0 shadow-none duration-0 data-[state=open]:zoom-in-100 data-[state=open]:slide-in-from-top-0"
+              : "max-h-[92dvh] w-[calc(100vw-16px)] max-w-md rounded-[28px]"
+          )}
+          onPointerDownOutside={(e) => {
+            if (autoOpenEditor) e.preventDefault();
+          }}
+          onInteractOutside={(e) => {
+            if (autoOpenEditor) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (autoOpenEditor) {
+              e.preventDefault();
+              onEditorDismiss?.();
+            }
+          }}
+        >
+          <DialogHeader className="shrink-0 border-b border-slate-100 bg-white px-4 pb-3 pt-[calc(12px+env(safe-area-inset-top,0px))] pe-14 text-left">
+            <DialogTitle className="text-[18px] font-extrabold leading-tight text-slate-950">
+              {activeGoal ? t("edit_goal") : t("create_new_nutrition_goal")}
+            </DialogTitle>
+            <DialogDescription className="mt-1 text-[13px] font-semibold leading-5 text-slate-500">
               {t("create_goal_description")}
             </DialogDescription>
             <div className="mt-3 grid grid-cols-3 gap-2" aria-label={t("goal_editor_progress")}>
               {[1, 2, 3].map((step) => (
                 <div key={step} className="space-y-1.5">
-                  <div className={cn("h-1.5 rounded-full transition-colors", step <= editorStep ? "bg-[#22C7A1]" : "bg-[#E5EAF1]")} />
-                  <p className={cn("text-[9px] font-black uppercase tracking-[0.08em]", step === editorStep ? "text-[#020617]" : "text-[#94A3B8]")}>{t(`goal_editor_step_${step}`)}</p>
+                  <div className={cn("h-1.5 rounded-full transition-colors", step <= editorStep ? "bg-emerald-500" : "bg-slate-200")} />
+                  <p className={cn("text-[10px] font-extrabold uppercase tracking-[0.08em]", step === editorStep ? "text-slate-950" : "text-slate-400")}>{t(`goal_editor_step_${step}`)}</p>
                 </div>
               ))}
             </div>
           </DialogHeader>
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-24">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-3 pb-28">
             {editorStep === 1 && (
             <>
             {activeGoal && (
@@ -1078,15 +1154,15 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
             )}
 
           </div>
-          <div className="shrink-0 border-t border-[#E5EAF1] bg-white px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3">
+          <div className="shrink-0 border-t border-slate-100 bg-white px-3 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-3">
             <div className={cn("grid gap-2", editorStep > 1 ? "grid-cols-[0.8fr_1.4fr]" : "grid-cols-1")}>
               {editorStep > 1 && (
-                <Button type="button" variant="outline" className="h-12 rounded-2xl border-[#E5EAF1] bg-white font-black text-[#020617]" onClick={() => setEditorStep((step) => Math.max(1, step - 1) as 1 | 2 | 3)}>
+                <Button type="button" variant="outline" className="h-12 min-h-[48px] rounded-full border-slate-200 bg-white font-extrabold text-slate-950" onClick={() => setEditorStep((step) => Math.max(1, step - 1) as 1 | 2 | 3)}>
                   {t("back")}
                 </Button>
               )}
               <Button
-                className="h-12 rounded-2xl bg-[#020617] font-black text-white hover:bg-[#020617]/90"
+                className="h-12 min-h-[48px] rounded-full bg-emerald-500 font-extrabold text-white hover:bg-emerald-600"
                 onClick={() => {
                   if (editorStep === 1) setEditorStep(2);
                   else if (editorStep === 2) setEditorStep(3);
@@ -1110,24 +1186,27 @@ export const GoalsManagement = ({ autoOpenEditor = false }: GoalsManagementProps
       </Dialog>
 
       <Dialog open={showGoalAppliedDialog} onOpenChange={setShowGoalAppliedDialog}>
-        <DialogContent className="max-w-md rounded-[28px] border-[#E5EAF1] bg-white">
+        <DialogContent className="max-w-[calc(100vw-32px)] rounded-[20px] border-slate-100 bg-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl font-black text-[#020617]">{t("goal_updated")}</DialogTitle>
-            <DialogDescription className="text-sm font-semibold leading-6 text-[#64748B]">
+            <DialogTitle className="text-[18px] font-extrabold text-slate-950">{t("goal_updated")}</DialogTitle>
+            <DialogDescription className="text-[14px] font-semibold leading-6 text-slate-500">
               {t("goal_update_applied_desc")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-3 gap-2">
             {goalImpactItems.map((item) => (
-              <div key={item} className="rounded-2xl bg-[#F6F8FB] p-3 text-center ring-1 ring-[#E5EAF1]">
-                <Check className="mx-auto h-5 w-5 text-[#22C7A1]" />
-                <p className="mt-2 text-[11px] font-black leading-snug text-[#020617]">{item}</p>
+              <div key={item} className="rounded-[14px] bg-slate-50 p-3 text-center ring-1 ring-slate-100">
+                <Check className="mx-auto h-5 w-5 text-emerald-500" strokeWidth={2.5} />
+                <p className="mt-2 text-[11px] font-extrabold leading-snug text-slate-950">{item}</p>
               </div>
             ))}
           </div>
           <Button
-            className="h-12 rounded-2xl bg-[#020617] font-black text-white hover:bg-[#020617]/90"
-            onClick={() => setShowGoalAppliedDialog(false)}
+            className="h-12 min-h-[48px] rounded-full bg-emerald-500 font-extrabold text-white hover:bg-emerald-600"
+            onClick={() => {
+              setShowGoalAppliedDialog(false);
+              onGoalSaved?.();
+            }}
           >
             {t("done")}
           </Button>

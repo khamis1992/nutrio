@@ -210,6 +210,18 @@ export function useNutritionGoals(userId: string | undefined) {
     fetchGoals();
   }, [fetchGoals]);
 
+  // Cross-instance refresh when goals are saved from edit-goal / GoalsManagement.
+  useEffect(() => {
+    if (!userId) return;
+    const onGoalsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string }>).detail;
+      if (detail?.userId && detail.userId !== userId) return;
+      void fetchGoals();
+    };
+    window.addEventListener("nutrition-goals-updated", onGoalsUpdated);
+    return () => window.removeEventListener("nutrition-goals-updated", onGoalsUpdated);
+  }, [userId, fetchGoals]);
+
   const updateGoalTargets = useCallback(async (
     updates: Partial<Pick<NutritionGoal, "daily_calorie_target" | "protein_target_g" | "carbs_target_g" | "fat_target_g">>
   ) => {

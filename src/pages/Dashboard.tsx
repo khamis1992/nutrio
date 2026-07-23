@@ -1553,9 +1553,13 @@ const Dashboard = () => {
                   <span className="text-[16px] font-black text-brand">{userName.charAt(0)}</span>
                 )}
               </div>
-              <div className="text-start">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-500">{timeGreeting}</p>
-                <h1 className="mt-0.5 text-[19px] font-black leading-none tracking-tight text-slate-900">{userName}</h1>
+              <div className="min-w-0 text-start">
+                <p className="truncate text-[13px] font-medium leading-none text-slate-500">
+                  {timeGreeting}
+                </p>
+                <h1 className="mt-1 truncate text-[18px] font-bold leading-none tracking-tight text-slate-900">
+                  {userName}
+                </h1>
               </div>
             </Link>
 
@@ -2366,15 +2370,6 @@ const Dashboard = () => {
             </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => navigate("/weekly-check-in")}
-              className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition active:scale-[0.99] hover:ring-emerald-100"
-            >
-              <span className="text-[12px] font-black text-slate-900">{isRTL ? "مراجعة الأسبوع بالذكاء الاصطناعي" : "Weekly AI check-in"}</span>
-              <span className="rounded-full bg-[#020617] px-3 py-1.5 text-[11px] font-black text-white">{isRTL ? "ابدأ المراجعة" : "Start check-in"}</span>
-            </button>
-
             {user && <BodyCorrelationWidget />}
           </motion.div>
         )}
@@ -3052,7 +3047,12 @@ const Dashboard = () => {
             TAB: PROGRESS â€” Weight, consistency, level, streak, badges
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
         {(activeTab === "progress" || progressPreloaded) && (
-          <div className={activeTab === "progress" ? "block" : "hidden"} aria-hidden={activeTab !== "progress"}>
+          <div
+            key="progress-mobile-v6"
+            className={activeTab === "progress" ? "block" : "hidden"}
+            aria-hidden={activeTab !== "progress"}
+            data-progress-host="mobile-v6"
+          >
             <ProgressRedesigned embedded />
           </div>
         )}

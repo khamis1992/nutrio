@@ -1,7 +1,15 @@
 import { useNavigate } from "react-router-dom";
-import { CalendarCheck, Droplet, Flame, Lock, Minus, Plus, Target } from "lucide-react";
-import { format, subDays } from "date-fns";
+import { addDays, format, startOfDay, subDays } from "date-fns";
 import { formatLocaleDate } from "@/lib/dateUtils";
+import {
+  CalendarDays,
+  Droplets,
+  Flame,
+  Lock,
+  Minus,
+  Plus,
+  Target,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNutritionGoals } from "@/hooks/useNutritionGoals";
 import { useWeeklySummary } from "@/hooks/useWeeklySummary";
@@ -14,7 +22,16 @@ import { useWeekdayData } from "@/hooks/useWeekdayData";
 import { computeNutritionScore } from "@/lib/nutrition-score";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
+
+/** Local noon avoids TZ day-shift when parsing yyyy-MM-dd */
+function localDateFromKey(key: string): Date {
+  return new Date(`${key}T12:00:00`);
+}
+
+function toDateKey(d: Date): string {
+  return format(d, "yyyy-MM-dd");
+}
 
 interface ProgressTodayTabProps {
   selectedDate: Date;
@@ -22,6 +39,40 @@ interface ProgressTodayTabProps {
   setCalendarDate: (v: string) => void;
   showCalendar: boolean;
   setShowCalendar: (v: boolean | ((prev: boolean) => boolean)) => void;
+}
+
+function ScoreRing({ value, size = 96 }: { value: number; size?: number }) {
+  const stroke = 8;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(100, value));
+  const dash = (pct / 100) * c;
+  const color = pct >= 80 ? "#10B981" : pct >= 50 ? "#F59E0B" : "#F43F5E";
+
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }} dir="ltr">
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EEF0F3" strokeWidth={stroke} />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${c}`}
+          initial={{ strokeDasharray: `0 ${c}` }}
+          animate={{ strokeDasharray: `${dash} ${c}` }}
+          transition={{ duration: 0.85, ease: "easeOut" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[26px] font-black leading-none tracking-tight text-slate-950">{value}</span>
+        <span className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">/100</span>
+      </div>
+    </div>
+  );
 }
 
 export default function ProgressTodayTab({
@@ -33,7 +84,7 @@ export default function ProgressTodayTab({
 }: ProgressTodayTabProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { activeGoal } = useNutritionGoals(user?.id);
+  const { activeGoal, loading: goalsLoading } = useNutritionGoals(user?.id);
   const { summary: weeklySummary } = useWeeklySummary(user?.id);
   const { streaks } = useStreak(user?.id);
   const { todayProgress } = useTodayProgress(user?.id, selectedDate, 0);
@@ -42,42 +93,67 @@ export default function ProgressTodayTab({
   const { toast } = useToast();
   const { t, language } = useLanguage();
   const selectedCellRef = useRef<HTMLButtonElement>(null);
+  const isBootstrapping = Boolean(user?.id) && goalsLoading;
 
   const selectedDateKey = format(selectedDate, "yyyy-MM-dd");
-  const isSelectedToday = selectedDateKey === format(new Date(), "yyyy-MM-dd");
+  const todayKey = format(new Date(), "yyyy-MM-dd");
+  const isSelectedToday = selectedDateKey === todayKey;
   const waterGlasses = waterSummary?.total ?? 0;
   const waterTarget = waterSummary?.target ?? 8;
+  const streakDays = streaks.logging?.currentStreak ?? 0;
 
-  const pagerDays = Array.from({ length: 7 }, (_, i) => {
-    const d = subDays(selectedDate, 6 - i);
-    const dateStr = format(d, "yyyy-MM-dd");
-    const isSelected = dateStr === selectedDateKey;
-    
-    let status: "none" | "partial" | "logged" = "none";
-    const calTarget = activeGoal?.daily_calorie_target ?? 2000;
-    const dayCal = isSelected
-      ? (todayProgress.calories ?? 0)
-      : (weekdayData.find((wd) => wd.date === dateStr)?.calories ?? 0);
-    if (dayCal > 0) {
-      status = dayCal >= calTarget * 0.9 ? "logged" : "partial";
-    }
+  // Stable 7-day window — does NOT re-anchor when tapping a day inside the strip
+  const [windowStartKey, setWindowStartKey] = useState(() =>
+    toDateKey(subDays(startOfDay(new Date()), 6)),
+  );
 
-    return {
-      date: d,
-      dateStr,
-      dayLetter: formatLocaleDate(d, language, { weekday: "narrow" }),
-      dayNum: format(d, "d"),
-      isSelected,
-      isToday: dateStr === format(new Date(), "yyyy-MM-dd"),
-      status
-    };
-  });
-
+  // Only slide the window when the selected date is outside it (e.g. date picker)
   useEffect(() => {
-    if (selectedCellRef.current) {
-      selectedCellRef.current.scrollIntoView({ inline: "center", behavior: "smooth", block: "nearest" });
+    const selected = startOfDay(localDateFromKey(selectedDateKey));
+    const start = startOfDay(localDateFromKey(windowStartKey));
+    const end = addDays(start, 6);
+    if (selected < start) {
+      setWindowStartKey(toDateKey(selected));
+    } else if (selected > end) {
+      setWindowStartKey(toDateKey(subDays(selected, 6)));
     }
-  }, [selectedDateKey]);
+  }, [selectedDateKey, windowStartKey]);
+
+  const pagerDays = useMemo(() => {
+    const start = localDateFromKey(windowStartKey);
+    const calTarget = activeGoal?.daily_calorie_target ?? 2000;
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = addDays(start, i);
+      const dateStr = toDateKey(d);
+      const isSelected = dateStr === selectedDateKey;
+      let status: "none" | "partial" | "logged" = "none";
+      const dayCal = isSelected
+        ? (todayProgress.calories ?? 0)
+        : (weekdayData.find((wd) => wd.date === dateStr)?.calories ?? 0);
+      if (dayCal > 0) status = dayCal >= calTarget * 0.9 ? "logged" : "partial";
+      return {
+        dateStr,
+        dayLetter: formatLocaleDate(d, language, { weekday: "narrow" }),
+        dayNum: format(d, "d"),
+        isSelected,
+        isToday: dateStr === todayKey,
+        status,
+      };
+    });
+  }, [
+    windowStartKey,
+    selectedDateKey,
+    todayKey,
+    language,
+    activeGoal?.daily_calorie_target,
+    todayProgress.calories,
+    weekdayData,
+  ]);
+
+  // Scroll selected into view only when it was outside the strip (window moved)
+  useEffect(() => {
+    selectedCellRef.current?.scrollIntoView({ inline: "nearest", behavior: "smooth", block: "nearest" });
+  }, [windowStartKey]);
 
   const handleWaterAdd = async () => {
     if (!user?.id) return;
@@ -91,315 +167,407 @@ export default function ProgressTodayTab({
 
   const handleWaterRemove = async () => {
     if (!user?.id || waterGlasses <= 0) return;
-    const didDecrement = await decrementWater();
-    if (!didDecrement) {
+    const ok = await decrementWater();
+    if (!ok) {
       toast({ description: t("failed_to_update"), variant: "destructive" });
       return;
     }
     toast({ description: t("progress_water_removed"), duration: 1200 });
   };
 
+  if (isBootstrapping) {
+    return (
+      <section id="progress-panel-today" role="tabpanel" aria-busy="true" className="space-y-4">
+        <div className="h-8 w-40 animate-pulse rounded-full bg-slate-200/80" />
+        <div className="h-14 animate-pulse rounded-[20px] bg-white ring-1 ring-slate-100" />
+        <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-[112px_1fr]">
+          <div className="h-36 animate-pulse rounded-[20px] bg-white ring-1 ring-slate-100" />
+          <div className="h-36 animate-pulse rounded-[20px] bg-slate-200/70" />
+        </div>
+        <div className="h-40 animate-pulse rounded-[20px] bg-white ring-1 ring-slate-100" />
+        <div className="h-36 animate-pulse rounded-[20px] bg-white ring-1 ring-slate-100" />
+      </section>
+    );
+  }
+
+  if (!activeGoal) {
+    return (
+      <section
+        id="progress-panel-today"
+        role="tabpanel"
+        className="flex flex-col items-center rounded-[20px] bg-white px-5 py-8 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
+      >
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+          <Target className="h-7 w-7" strokeWidth={2.2} />
+        </div>
+        <h2 className="mt-4 text-[20px] font-extrabold text-slate-950">{t("progress_no_goal_title")}</h2>
+        <p className="mt-2 text-[14px] font-medium leading-relaxed text-slate-500">{t("progress_no_goal_desc")}</p>
+        <button
+          type="button"
+          onClick={() => navigate("/edit-goal")}
+          className="mt-5 flex h-12 min-h-[48px] w-full items-center justify-center rounded-full bg-emerald-500 text-[15px] font-extrabold text-white shadow-[0_4px_14px_rgba(16,185,129,0.28)] active:scale-[0.98]"
+        >
+          {t("progress_set_goal")}
+        </button>
+      </section>
+    );
+  }
+
+  const calTarget = activeGoal.daily_calorie_target;
+  const proteinTarget = activeGoal.protein_target_g;
+  const carbsTarget = activeGoal.carbs_target_g;
+  const fatTarget = activeGoal.fat_target_g;
+  const calConsumed = todayProgress.calories ?? 0;
+  const proteinConsumed = todayProgress.protein ?? 0;
+  const carbsConsumed = todayProgress.carbs ?? 0;
+  const fatConsumed = todayProgress.fat ?? 0;
+  const calRemaining = calTarget - calConsumed;
+  const dailyPct = calTarget > 0 ? Math.min(100, Math.round((calConsumed / calTarget) * 100)) : 0;
+  const proteinPct = proteinTarget > 0 ? Math.min(100, Math.round((proteinConsumed / proteinTarget) * 100)) : 0;
+  const carbsPct = carbsTarget > 0 ? Math.min(100, Math.round((carbsConsumed / carbsTarget) * 100)) : 0;
+  const fatPct = fatTarget > 0 ? Math.min(100, Math.round((fatConsumed / fatTarget) * 100)) : 0;
+  const hydrationPct = Math.min(100, waterSummary?.percentage ?? 0);
+  const weeklyLoggedDays =
+    weeklySummary?.consistency?.daysLogged ?? weekdayData.filter((d) => d.calories > 0).length;
+  const weeklyConsistencyPct =
+    weeklySummary?.consistency?.percentage ?? Math.round((weeklyLoggedDays / 7) * 100);
+  const nutritionScore = computeNutritionScore({
+    caloriePct: dailyPct,
+    proteinPct,
+    hydrationPct,
+    weeklyConsistencyPct: isSelectedToday ? weeklyConsistencyPct : undefined,
+  });
+  const scoreLabel =
+    nutritionScore >= 80
+      ? t("progress_great_day")
+      : nutritionScore >= 50
+        ? t("progress_on_track")
+        : t("progress_keep_going");
+  const dateTitle = formatLocaleDate(selectedDate, language, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+
+  const macros = [
+    { label: t("protein"), current: proteinConsumed, target: proteinTarget, pct: proteinPct, color: "#6366F1", soft: "bg-indigo-50 text-indigo-600" },
+    { label: t("carbs"), current: carbsConsumed, target: carbsTarget, pct: carbsPct, color: "#F97316", soft: "bg-orange-50 text-orange-600" },
+    { label: t("fat_label"), current: fatConsumed, target: fatTarget, pct: fatPct, color: "#F43F5E", soft: "bg-rose-50 text-rose-600" },
+  ];
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.4, staggerChildren: 0.1 }}
+      id="progress-panel-today"
+      role="tabpanel"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28 }}
+      className="space-y-4"
     >
-      <div className="mb-4 flex items-center gap-2 overflow-x-auto px-1 pb-2 scrollbar-hide" dir="ltr">
-        {pagerDays.map((day, i) => {
-          const colors = ["#22C7A1", "#7C83F6", "#38BDF8", "#FB6B7A", "#F97316", "#A3E635", "#22C7A1"];
-          const dayColor = colors[i % colors.length];
-          
-          return (
+      {/* Header — large title mobile pattern */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 text-start">
+          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-slate-400">
+            {isSelectedToday ? t("today") : t("progress_past_snapshot")}
+          </p>
+          <h2 className="mt-1 truncate text-[20px] font-extrabold leading-tight tracking-tight text-slate-950">
+            {dateTitle}
+          </h2>
+        </div>
+        {!isSelectedToday ? (
+          <span className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-2xl bg-slate-100 px-3 py-2 text-[12px] font-bold text-slate-500">
+            <Lock className="h-3.5 w-3.5" strokeWidth={2.5} />
+            {t("progress_read_only")}
+          </span>
+        ) : (
+          <div
+            className={cn(
+              "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-2xl py-1.5 pe-3 ps-1.5 ring-1",
+              streakDays > 0
+                ? "bg-gradient-to-br from-orange-50 to-amber-50 ring-orange-100"
+                : "bg-slate-50 ring-slate-100"
+            )}
+            title={t("daily_streak")}
+            aria-label={
+              streakDays > 0
+                ? t("progress_day_streak", { count: streakDays })
+                : t("progress_start_streak")
+            }
+          >
+            <span
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-xl shadow-sm",
+                streakDays > 0
+                  ? "bg-gradient-to-br from-[#F97316] to-[#FB6B7A] text-white"
+                  : "bg-white text-slate-400 ring-1 ring-slate-100"
+              )}
+            >
+              <Flame
+                className={cn("h-4 w-4", streakDays > 0 && "fill-current")}
+                strokeWidth={2.4}
+              />
+            </span>
+            <span className="flex min-w-0 flex-col items-start gap-0.5 leading-none text-start">
+              <span
+                className={cn(
+                  "text-[9px] font-bold uppercase tracking-[0.1em]",
+                  streakDays > 0 ? "text-orange-500" : "text-slate-400"
+                )}
+              >
+                {t("daily_streak")}
+              </span>
+              <span
+                className={cn(
+                  "text-[13px] font-black tabular-nums",
+                  streakDays > 0 ? "text-slate-900" : "text-slate-500"
+                )}
+                dir="ltr"
+              >
+                {streakDays > 0
+                  ? t("progress_day_streak", { count: streakDays })
+                  : t("progress_start_streak")}
+              </span>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Week strip — mobile date chips */}
+      <div className="rounded-2xl bg-white p-2 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" dir="ltr">
+          {pagerDays.map((day) => (
             <button
               key={day.dateStr}
               ref={day.isSelected ? selectedCellRef : null}
+              type="button"
               onClick={() => setCalendarDate(day.dateStr)}
+              aria-pressed={day.isSelected}
+              aria-label={day.dateStr}
               className={cn(
-                "relative flex min-w-[44px] flex-col items-center justify-center gap-1.5 rounded-full py-2.5 transition-all active:scale-95",
-                day.isSelected ? "bg-slate-900 shadow-[0_4px_12px_rgba(15,23,42,0.15)]" : "bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 hover:bg-slate-50"
+                "relative flex h-[58px] min-w-[42px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 transition-all active:scale-95",
+                day.isSelected
+                  ? "bg-gradient-to-b from-[#0F172A] to-[#1E293B] text-white shadow-[0_6px_16px_rgba(15,23,42,0.2)]"
+                  : day.isToday
+                    ? "bg-emerald-50 text-slate-900 ring-1 ring-emerald-200/80"
+                    : "bg-transparent text-slate-500 hover:bg-slate-50"
               )}
             >
-              <span className={cn("text-[10px] font-bold uppercase", day.isSelected ? "text-slate-400" : "text-slate-400")}>
+              <span
+                className={cn(
+                  "text-[10px] font-bold uppercase leading-none tracking-wide",
+                  day.isSelected ? "text-white/60" : day.isToday ? "text-emerald-600" : "text-slate-400"
+                )}
+              >
                 {day.dayLetter}
               </span>
-              <span className={cn("text-[15px] font-black leading-none", day.isSelected ? "text-white" : "text-slate-900")}>
+              <span
+                className={cn(
+                  "text-[16px] font-black leading-none tabular-nums",
+                  day.isSelected ? "text-white" : "text-slate-900"
+                )}
+              >
                 {day.dayNum}
               </span>
-              <div className="mt-0.5 flex h-1.5 w-1.5 items-center justify-center">
-                {day.status === "logged" ? (
-                  <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dayColor, boxShadow: `0 0 4px ${dayColor}80` }} />
-                ) : day.status === "partial" ? (
-                  <div className="h-1.5 w-1.5 rounded-full bg-orange-400" />
-                ) : (
-                  <div className="h-1 w-1 rounded-full bg-slate-200" />
+              <span
+                className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  day.isSelected && "bg-[#A3E635] shadow-[0_0_6px_rgba(163,230,53,0.8)]",
+                  !day.isSelected && day.status === "logged" && "bg-[#22C7A1]",
+                  !day.isSelected && day.status === "partial" && "bg-[#F97316]",
+                  !day.isSelected && day.status === "none" && (day.isToday ? "bg-emerald-300" : "bg-slate-200")
                 )}
-              </div>
-              {day.isToday && !day.isSelected && (
-                <div className="absolute -top-0.5 right-1/2 h-1.5 w-1.5 translate-x-1/2 rounded-full bg-[#A3E635] ring-2 ring-white" />
-              )}
-              {day.isSelected && (
-                <motion.div layoutId="pager-indicator" className="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-t-full bg-gradient-to-r from-[#22C7A1] to-[#A3E635]" />
-              )}
+              />
             </button>
-          );
-        })}
-        <button
-          onClick={() => setShowCalendar(true)}
-          className="ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-400 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition-all hover:bg-slate-50 hover:text-slate-600 active:scale-95"
-        >
-          <CalendarCheck className="h-5 w-5" strokeWidth={2.2} />
-        </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setShowCalendar((open) => !open)}
+            aria-label={t("progress_select_date")}
+            aria-expanded={showCalendar}
+            className={cn(
+              "flex h-[58px] w-11 shrink-0 items-center justify-center rounded-2xl transition-all active:scale-95",
+              showCalendar
+                ? "bg-emerald-500 text-white shadow-[0_4px_12px_rgba(16,185,129,0.3)]"
+                : "bg-slate-50 text-slate-500 ring-1 ring-slate-100"
+            )}
+          >
+            <CalendarDays className="h-5 w-5" strokeWidth={2.2} />
+          </button>
+        </div>
       </div>
 
       {showCalendar && (
-        <motion.div 
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          className="mb-5 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
-        >
-          <div className="flex items-center gap-3">
+        <div className="rounded-[20px] bg-white p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <div className="flex items-center gap-2">
             <input
               data-testid="progress-date-input"
               type="date"
               max={format(new Date(), "yyyy-MM-dd")}
               value={calendarDate}
               onChange={(e) => setCalendarDate(e.target.value)}
-              className="h-12 min-w-0 flex-1 rounded-xl bg-slate-50 px-4 text-[15px] font-bold text-slate-900 outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-brand"
+              className="h-12 min-h-[48px] min-w-0 flex-1 rounded-full bg-slate-50 px-4 text-[15px] font-bold text-slate-900 outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-emerald-500/25"
             />
             <button
               data-testid="progress-view-btn"
-              className="h-12 rounded-xl bg-slate-900 px-5 text-[14px] font-bold text-white shadow-sm transition-all active:scale-95"
               type="button"
               onClick={() => setShowCalendar(false)}
+              className="h-12 min-h-[48px] shrink-0 rounded-full bg-slate-950 px-5 text-[14px] font-extrabold text-white active:scale-95"
             >
               {t("view")}
             </button>
           </div>
-        </motion.div>
+        </div>
       )}
 
-      {(() => {
-        if (!activeGoal) {
-          return (
-            <section id="progress-panel-today" role="tabpanel" className="flex flex-col items-center justify-center rounded-[32px] bg-white p-8 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-brand ring-1 ring-brand/20">
-                <Target className="h-8 w-8" strokeWidth={2.2} />
+      {/* Score + calories — stacked on narrow, side-by-side when space */}
+      <section className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-[112px_1fr]">
+        <div className="flex flex-col items-center justify-center rounded-[20px] bg-white px-3 py-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+          <ScoreRing value={nutritionScore} size={96} />
+          <p className="mt-2 max-w-[130px] text-center text-[12px] font-extrabold leading-snug text-slate-900">
+            {scoreLabel}
+          </p>
+        </div>
+
+        <div className="flex min-h-[132px] flex-col justify-between rounded-[20px] bg-slate-950 p-4 text-white shadow-[0_6px_18px_rgba(15,23,42,0.12)]">
+          <div className="text-start">
+            <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-white/50">
+              {calRemaining > 0 ? t("progress_remaining") : t("progress_over_target")}
+            </p>
+            <p className="mt-1.5 flex items-baseline gap-1">
+              <span className="text-[28px] font-black leading-none tracking-tight" dir="ltr">
+                {Math.abs(calRemaining).toLocaleString()}
+              </span>
+              <span className="text-[13px] font-bold text-white/45">kcal</span>
+            </p>
+            <p className="mt-1.5 text-[12px] font-semibold text-white/55" dir="ltr">
+              {calConsumed.toLocaleString()} / {calTarget.toLocaleString()}
+            </p>
+          </div>
+          <div className="mt-3">
+            <div className="mb-1.5 flex justify-between text-[12px] font-bold text-white/50">
+              <span>{t("calories")}</span>
+              <span dir="ltr">{dailyPct}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-white/10" dir="ltr">
+              <motion.div
+                className="h-full rounded-full bg-emerald-400"
+                initial={{ width: 0 }}
+                animate={{ width: `${dailyPct}%` }}
+                transition={{ duration: 0.7, ease: "easeOut" }}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Macros — list cells 48px+ */}
+      <section className="rounded-[20px] bg-white p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+        <div className="mb-2 flex h-2 overflow-hidden rounded-full bg-slate-100" dir="ltr">
+          {(() => {
+            const total = Math.max(1, proteinConsumed + carbsConsumed + fatConsumed);
+            return (
+              <>
+                <div className="h-full bg-indigo-500" style={{ width: `${(proteinConsumed / total) * 100}%` }} />
+                <div className="h-full bg-orange-500" style={{ width: `${(carbsConsumed / total) * 100}%` }} />
+                <div className="h-full bg-rose-500" style={{ width: `${(fatConsumed / total) * 100}%` }} />
+              </>
+            );
+          })()}
+        </div>
+        <div className="divide-y divide-slate-50">
+          {macros.map((m) => (
+            <div key={m.label} className="flex min-h-[52px] items-center gap-3 px-1 py-2.5">
+              <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]", m.soft)}>
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.color }} />
               </div>
-              <h2 className="mt-5 text-[22px] font-black tracking-tight text-slate-900">{t("progress_no_goal_title")}</h2>
-              <p className="mt-2 text-[14px] font-medium text-slate-500">{t("progress_no_goal_desc")}</p>
-              <button type="button" onClick={() => navigate("/edit-goal")} className="mt-6 h-14 w-full rounded-full bg-slate-900 text-[15px] font-bold text-white shadow-[0_4px_12px_rgba(15,23,42,0.15)] transition-all active:scale-[0.98]">
-                {t("progress_set_goal")}
-              </button>
-            </section>
-          );
-        }
-        const calTarget = activeGoal.daily_calorie_target;
-        const proteinTarget = activeGoal.protein_target_g;
-        const carbsTarget = activeGoal.carbs_target_g;
-        const fatTarget = activeGoal.fat_target_g;
-        const calConsumed = todayProgress.calories ?? 0;
-        const proteinConsumed = todayProgress.protein ?? 0;
-        const carbsConsumed = todayProgress.carbs ?? 0;
-        const fatConsumed = todayProgress.fat ?? 0;
-        const dailyPct = calTarget > 0 ? Math.min(100, Math.round((calConsumed / calTarget) * 100)) : 0;
-        const proteinPct = proteinTarget > 0 ? Math.min(100, Math.round((proteinConsumed / proteinTarget) * 100)) : 0;
-        const carbsPct = carbsTarget > 0 ? Math.min(100, Math.round((carbsConsumed / carbsTarget) * 100)) : 0;
-        const fatPct = fatTarget > 0 ? Math.min(100, Math.round((fatConsumed / fatTarget) * 100)) : 0;
-        const hydrationPct = Math.min(100, waterSummary?.percentage ?? 0);
-        const weeklyLoggedDays = weeklySummary?.consistency?.daysLogged ?? weekdayData.filter((d) => d.calories > 0).length;
-        const weeklyConsistencyPct = weeklySummary?.consistency?.percentage ?? Math.round((weeklyLoggedDays / 7) * 100);
-        const nutritionScore = computeNutritionScore({
-          caloriePct: dailyPct,
-          proteinPct,
-          hydrationPct,
-          weeklyConsistencyPct: isSelectedToday ? weeklyConsistencyPct : undefined,
-        });
-        
-        return (
-          <div id="progress-panel-today" role="tabpanel" className="space-y-4">
-            {/* ── HERO: Journal Entry Header ── */}
-            <div className="mb-6 px-2 text-start">
-              <div className="flex items-center justify-between">
-                <h2 className="text-[22px] font-black tracking-tight text-slate-900">
-                  {formatLocaleDate(selectedDate, language, { weekday: "long", month: "long", day: "numeric" })}
-                </h2>
-                {!isSelectedToday ? (
-                  <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 ring-1 ring-slate-200">
-                    <Lock className="h-3 w-3 text-slate-400" />
-                    <span className="text-[10px] font-bold text-slate-500">{t("progress_read_only")}</span>
-                  </div>
-                ) : (streaks.logging?.currentStreak ?? 0) > 0 ? (
-                  <div className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#F97316] to-[#FB6B7A] px-2.5 py-1 shadow-[0_2px_8px_rgba(249,115,22,0.25)]">
-                    <Flame className="h-3 w-3 text-white" />
-                    <span className="text-[10px] font-bold text-white" dir="ltr">{streaks.logging?.currentStreak}d</span>
-                  </div>
-                ) : null}
-              </div>
-              
-              <div className="mt-4 flex items-center gap-4">
-                <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] ring-1 ring-slate-100/50" dir="ltr">
-                  <svg className="absolute inset-0 h-full w-full -rotate-90 drop-shadow-sm" viewBox="0 0 64 64">
-                    <defs>
-                      <linearGradient id="score-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#22C7A1" />
-                        <stop offset="25%" stopColor="#7C83F6" />
-                        <stop offset="50%" stopColor="#38BDF8" />
-                        <stop offset="75%" stopColor="#FB6B7A" />
-                        <stop offset="100%" stopColor="#F97316" />
-                      </linearGradient>
-                    </defs>
-                    <circle cx="32" cy="32" r="28" fill="none" stroke="#F8FAFC" strokeWidth="4" />
-                    <motion.circle
-                      cx="32"
-                      cy="32"
-                      r="28"
-                      fill="none"
-                      stroke="url(#score-gradient)"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeDasharray={`${(nutritionScore / 100) * 175.9} 175.9`}
-                      pathLength="100"
-                      transition={{ duration: 1.2, ease: "easeOut" }}
-                    />
-                  </svg>
-                  <span className={cn("text-[20px] font-black leading-none tracking-tight", nutritionScore >= 80 ? "bg-gradient-to-br from-[#A3E635] to-[#22C7A1] bg-clip-text text-transparent" : nutritionScore >= 50 ? "text-[#F97316]" : "text-[#FB6B7A]")}>
-                    {nutritionScore}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{t("progress_daily_score")}</p>
-                  <p className="mt-0.5 text-[15px] font-black text-slate-900">
-                    {nutritionScore >= 80 ? t("progress_great_day") : nutritionScore >= 50 ? t("progress_on_track") : t("progress_keep_going")}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[14px] font-bold text-slate-800">{m.label}</p>
+                  <p className="text-[14px] font-extrabold text-slate-950" dir="ltr">
+                    {m.current}
+                    <span className="text-[12px] font-bold text-slate-400">/{m.target}g</span>
                   </p>
+                </div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100" dir="ltr">
+                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${m.pct}%`, backgroundColor: m.color }} />
                 </div>
               </div>
             </div>
+          ))}
+        </div>
+      </section>
 
-            {/* ── Story Card: Nutrition ── */}
-            <section className="rounded-[28px] bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
-              <div className="mb-5 flex items-start justify-between text-start">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                    {calTarget - calConsumed > 0 ? t("progress_remaining") : t("progress_over_target")}
-                  </p>
-                  <div className="mt-1 flex items-baseline gap-1.5">
-                    <span className={cn("text-[32px] font-black leading-none tracking-tight", calTarget - calConsumed > 0 ? "text-slate-900" : "text-[#FB6B7A]")} dir="ltr">
-                      {Math.abs(calTarget - calConsumed).toLocaleString()}
-                    </span>
-                    <span className="text-[12px] font-bold text-slate-500" dir="ltr">/ {calTarget.toLocaleString()} kcal</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stacked Macro Bar */}
-              <div className="mb-6 flex h-3 w-full overflow-hidden rounded-full bg-slate-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]" dir="ltr">
-                {(() => {
-                  const total = Math.max(1, proteinConsumed + carbsConsumed + fatConsumed);
-                  const pPct = (proteinConsumed / total) * 100;
-                  const cPct = (carbsConsumed / total) * 100;
-                  const fPct = (fatConsumed / total) * 100;
-                  return (
-                    <>
-                      <motion.div className="h-full bg-gradient-to-r from-[#7C83F6] to-[#636BF4]" initial={{ width: 0 }} animate={{ width: `${pPct}%` }} transition={{ duration: 1 }} />
-                      <motion.div className="h-full bg-gradient-to-r from-[#F97316] to-[#FB923C]" initial={{ width: 0 }} animate={{ width: `${cPct}%` }} transition={{ duration: 1, delay: 0.1 }} />
-                      <motion.div className="h-full bg-gradient-to-r from-[#FB6B7A] to-[#F43F5E]" initial={{ width: 0 }} animate={{ width: `${fPct}%` }} transition={{ duration: 1, delay: 0.2 }} />
-                    </>
-                  );
-                })()}
-              </div>
-
-              <div className="space-y-4">
-                {[
-                  { label: t('protein'), current: proteinConsumed, target: proteinTarget, unit: 'g', pct: proteinPct, color: '#7C83F6', bg: 'bg-[#7C83F6]/10' },
-                  { label: t('carbs'), current: carbsConsumed, target: carbsTarget, unit: 'g', pct: carbsPct, color: '#F97316', bg: 'bg-[#F97316]/10' },
-                  { label: t('fat_label'), current: fatConsumed, target: fatTarget, unit: 'g', pct: fatPct, color: '#FB6B7A', bg: 'bg-[#FB6B7A]/10' },
-                ].map((m) => (
-                  <div key={m.label} className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: m.bg }}>
-                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.color, boxShadow: `0 0 8px ${m.color}80` }} />
-                    </div>
-                    <div className="min-w-0 flex-1 text-start">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[12px] font-bold text-slate-700">{m.label}</p>
-                        <div className="flex items-baseline gap-0.5" dir="ltr">
-                          <span className="text-[14px] font-black text-slate-900">{m.current}</span>
-                          <span className="text-[10px] font-bold text-slate-400">/{m.target}{m.unit}</span>
-                        </div>
-                      </div>
-                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100" dir="ltr">
-                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${m.pct}%`, backgroundColor: m.color }} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* ── Story Card: Hydration ── */}
-            <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#38BDF8] to-[#0891B2] p-5 shadow-[0_12px_30px_-8px_rgba(56,189,248,0.4)] ring-1 ring-white/10 text-white">
-              <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-              
-              <div className="relative flex items-start justify-between">
-                <div className="text-start">
-                  <div className="flex items-center gap-2">
-                    <Droplet className="h-4 w-4 text-white/90" strokeWidth={2.5} />
-                    <p className="text-[12px] font-bold text-white/90">{t("progress_hydration_today")}</p>
-                  </div>
-                  <div className="mt-3 flex items-baseline gap-1.5">
-                    <span className="text-[32px] font-black leading-none tracking-tight" dir="ltr">{hydrationPct}%</span>
-                    <span className="text-[12px] font-bold text-white/70">{t("progress_hydration_goal")}</span>
-                  </div>
-                  <p className="mt-1 text-[12px] font-medium text-white/80" dir="ltr">
-                    {t("progress_water_glasses_status", { current: waterGlasses, target: waterTarget })}
-                  </p>
-                </div>
-
-                {isSelectedToday && (
-                  <div className="flex flex-col items-center gap-2 rounded-full bg-black/10 p-1.5 backdrop-blur-md ring-1 ring-white/20">
-                    <button
-                      type="button"
-                      onClick={handleWaterAdd}
-                      aria-label={t("progress_add_water")}
-                      className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#0891B2] shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-all active:scale-90"
-                    >
-                      <Plus className="h-5 w-5" strokeWidth={2.5} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleWaterRemove}
-                      disabled={waterGlasses <= 0}
-                      aria-label={t("progress_remove_water")}
-                      className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white shadow-sm ring-1 ring-white/30 transition-all active:scale-90 disabled:opacity-40"
-                    >
-                      <Minus className="h-5 w-5" strokeWidth={2.5} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="relative mt-5 flex flex-wrap gap-1.5" dir="ltr" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={hydrationPct} aria-label={t("progress_hydration_today")}>
-                {Array.from({ length: Math.max(waterTarget, waterGlasses) }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "h-6 w-6 rounded-full transition-all duration-500",
-                      i < waterGlasses ? "bg-white shadow-[0_2px_8px_rgba(0,0,0,0.1)]" : "border-2 border-white/30 bg-transparent"
-                    )}
-                  />
-                ))}
-              </div>
-            </section>
-
-            {!isSelectedToday && (
-              <section className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100/50 text-start">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{t("progress_past_snapshot")}</p>
-                <p className="mt-1 text-[12px] font-medium leading-tight text-slate-500">{t("progress_past_snapshot_desc")}</p>
-              </section>
-            )}
+      {/* Hydration */}
+      <section
+        className="rounded-[20px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
+        aria-label={t("progress_hydration_today")}
+      >
+        <div className="flex items-center gap-3 text-start">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-sky-50 text-sky-600">
+            <Droplets className="h-5 w-5" strokeWidth={2.4} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] font-extrabold text-slate-900">{t("progress_hydration_today")}</p>
+            <p className="mt-0.5 text-[12px] font-semibold text-slate-500" dir="ltr">
+              {t("progress_water_glasses_status", { current: waterGlasses, target: waterTarget })}
+            </p>
           </div>
-        );
-      })()}
+          <p className="shrink-0 text-[28px] font-black leading-none tracking-tight text-slate-950" dir="ltr">
+            {hydrationPct}
+            <span className="text-[13px] font-bold text-slate-400">%</span>
+          </p>
+        </div>
+
+        <div
+          className="mt-4 flex flex-wrap gap-2"
+          dir="ltr"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={hydrationPct}
+          aria-label={t("progress_hydration_today")}
+        >
+          {Array.from({ length: Math.max(waterTarget, waterGlasses) }).map((_, i) => (
+            <div
+              key={i}
+              className={cn(
+                "h-3 w-3 rounded-full transition-all",
+                i < waterGlasses ? "bg-sky-500" : "bg-slate-200"
+              )}
+            />
+          ))}
+        </div>
+
+        {isSelectedToday && (
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleWaterRemove}
+              disabled={waterGlasses <= 0}
+              aria-label={t("progress_remove_water")}
+              className="flex h-12 min-h-[48px] w-12 min-w-[48px] items-center justify-center rounded-full bg-slate-100 text-slate-700 active:scale-90 disabled:opacity-40"
+            >
+              <Minus className="h-5 w-5" strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              onClick={handleWaterAdd}
+              aria-label={t("progress_add_water")}
+              className="flex h-12 min-h-[48px] flex-1 items-center justify-center gap-2 rounded-full bg-sky-500 text-[14px] font-extrabold text-white shadow-[0_4px_12px_rgba(14,165,233,0.28)] active:scale-[0.98]"
+            >
+              <Plus className="h-5 w-5" strokeWidth={2.5} />
+              {t("progress_add_water")}
+            </button>
+          </div>
+        )}
+      </section>
+
+      {!isSelectedToday && (
+        <section className="rounded-[16px] bg-slate-50 p-4 text-start ring-1 ring-slate-100/70">
+          <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-slate-400">{t("progress_past_snapshot")}</p>
+          <p className="mt-1 text-[13px] font-medium leading-snug text-slate-500">{t("progress_past_snapshot_desc")}</p>
+        </section>
+      )}
     </motion.div>
   );
 }
