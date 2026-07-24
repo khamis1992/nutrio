@@ -14,20 +14,12 @@ import { assetPath } from "@/lib/asset-path";
 
 const C = {
   ink: "#020617",
-  bg: "#F6F8FB",
   border: "#E5EAF1",
-  muted: "#94A3B8",
-  textMuted: "#64748B",
-  progress: "#22C7A1",
-  progressSoft: "#EFFFFA",
-  protein: "#7C83F6",
-  proteinSoft: "#F3F4FF",
-  water: "#38BDF8",
-  waterSoft: "#EFF9FF",
-  fat: "#FB6B7A",
-  fatSoft: "#FFF0F2",
-  calorie: "#F97316",
-  calorieSoft: "#FFF7ED",
+  orange: "#FF611D",
+  orangeSoft: "#FFF1EA",
+  green: "#2DAE78",
+  greenSoft: "#EAF8F1",
+  navySoft: "#EEF2F7",
 };
 
 interface CarouselSlide {
@@ -51,12 +43,12 @@ const visualMotion = {
 };
 
 const onboardingImages = {
-  dashboard: assetPath("/onboarding/hero-dashboard-generated.png"),
-  meals: assetPath("/onboarding/hero-meals-generated.png"),
-  schedule: assetPath("/onboarding/hero-schedule-generated.png"),
+  dashboard: assetPath("/onboarding/hero-dashboard.png"),
+  meals: assetPath("/onboarding/hero-meals.png"),
+  schedule: assetPath("/onboarding/hero-schedule.png"),
 };
 
-const CustomerScreenVisual = ({
+const AppScreenVisual = ({
   image,
   label,
   accent,
@@ -67,16 +59,17 @@ const CustomerScreenVisual = ({
   accent: string;
   soft: string;
 }) => (
-  <motion.div {...visualMotion} className="relative flex min-h-0 flex-1 items-center justify-center px-2 py-3">
-    <div className="absolute left-1/2 top-1/2 h-[min(58dvh,430px)] w-[min(76vw,300px)] -translate-x-1/2 -translate-y-1/2 rounded-[36px] bg-[#020617] opacity-[0.04]" />
-    <div className="relative aspect-[941/1672] h-[min(56dvh,412px)] min-h-[304px] overflow-hidden rounded-[30px] border border-[#E5EAF1] bg-white shadow-[0_18px_38px_rgba(2,6,23,0.12)] max-[380px]:min-h-[270px]">
-      <img src={image} alt="" className="h-full w-full object-cover" />
-    </div>
-    <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#E5EAF1] bg-white px-3 py-2 shadow-[0_10px_24px_rgba(2,6,23,0.08)] max-[380px]:bottom-3">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: soft, color: accent }}>
-        <Sparkles className="h-4 w-4" />
-      </span>
-      <span className="whitespace-nowrap text-[12px] font-black text-[#020617]">{label}</span>
+  <motion.div {...visualMotion} className="relative flex min-h-0 flex-1 items-end justify-center px-1 pb-0 pt-1">
+    <div className="relative mb-[-18px] flex h-full w-full max-w-[320px] flex-col justify-end">
+      <div className="relative h-full min-h-0 overflow-hidden rounded-[28px] border border-[#E5EAF1] bg-white shadow-[0_14px_32px_rgba(2,6,23,0.10)]">
+        <img src={image} alt="" className="h-full w-full object-cover object-top" />
+      </div>
+      <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#E5EAF1] bg-white px-3 py-2 shadow-[0_10px_24px_rgba(2,6,23,0.08)]">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: soft, color: accent }}>
+          <Sparkles className="h-4 w-4" />
+        </span>
+        <span className="whitespace-nowrap text-[12px] font-black text-[#020617]">{label}</span>
+      </div>
     </div>
   </motion.div>
 );
@@ -91,30 +84,51 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
   const slides: CarouselSlide[] = [
     {
       id: "meals",
-      eyebrow: "Fresh daily plans",
+      eyebrow: t("onboarding_carousel_eyebrow_1"),
       title: t("onboarding_carousel_title_1"),
       subtitle: t("onboarding_carousel_subtitle_1"),
-      accent: C.progress,
-      soft: C.progressSoft,
-      preview: <CustomerScreenVisual image={onboardingImages.dashboard} label="Customer dashboard" accent={C.progress} soft={C.progressSoft} />,
+      accent: C.green,
+      soft: C.greenSoft,
+      preview: (
+        <AppScreenVisual
+          image={onboardingImages.dashboard}
+          label={t("onboarding_carousel_label_1")}
+          accent={C.green}
+          soft={C.greenSoft}
+        />
+      ),
     },
     {
       id: "track",
-      eyebrow: "Smart nutrition",
+      eyebrow: t("onboarding_carousel_eyebrow_2"),
       title: t("onboarding_carousel_title_2"),
       subtitle: t("onboarding_carousel_subtitle_2"),
-      accent: C.protein,
-      soft: C.proteinSoft,
-      preview: <CustomerScreenVisual image={onboardingImages.meals} label="Browse meals" accent={C.protein} soft={C.proteinSoft} />,
+      accent: C.orange,
+      soft: C.orangeSoft,
+      preview: (
+        <AppScreenVisual
+          image={onboardingImages.meals}
+          label={t("onboarding_carousel_label_2")}
+          accent={C.orange}
+          soft={C.orangeSoft}
+        />
+      ),
     },
     {
       id: "community",
-      eyebrow: "Built for Qatar",
+      eyebrow: t("onboarding_carousel_eyebrow_3"),
       title: t("onboarding_carousel_title_3"),
       subtitle: t("onboarding_carousel_subtitle_3"),
-      accent: C.water,
-      soft: C.waterSoft,
-      preview: <CustomerScreenVisual image={onboardingImages.schedule} label="Plan your week" accent={C.water} soft={C.waterSoft} />,
+      accent: C.ink,
+      soft: C.navySoft,
+      preview: (
+        <AppScreenVisual
+          image={onboardingImages.schedule}
+          label={t("onboarding_carousel_label_3")}
+          accent={C.green}
+          soft={C.greenSoft}
+        />
+      ),
     },
   ];
 
@@ -134,6 +148,7 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
 
   const current = slides[activeIndex];
   const isLast = activeIndex === slides.length - 1;
+  const activeAccent = current.id === "community" ? C.green : current.accent;
 
   return (
     <AnimatePresence mode="wait">
@@ -153,7 +168,7 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
               onClick={finish}
               className="h-10 rounded-full border border-[#E5EAF1] bg-white px-4 text-[13px] font-black text-[#64748B] active:scale-95"
             >
-              Skip
+              {t("onboarding_skip")}
             </button>
           </header>
 
@@ -167,15 +182,18 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
                 transition={{ duration: 0.28, ease: "easeOut" }}
                 className="flex min-h-0 flex-1 flex-col"
               >
-                <div className="flex min-h-0 flex-1 px-6">{current.preview}</div>
+                <div className="flex min-h-0 flex-1 px-5">{current.preview}</div>
 
-                <div className="shrink-0 rounded-t-[34px] border-t border-[#E5EAF1] bg-white px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-12px_30px_rgba(2,6,23,0.06)]">
+                <div className="relative z-20 shrink-0 rounded-t-[34px] border-t border-[#E5EAF1] bg-white px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-12px_30px_rgba(2,6,23,0.06)]">
                   <div className="mb-4 flex items-center justify-between">
                     <span className="inline-flex h-9 items-center gap-2 rounded-full bg-[#020617] px-3 text-[11px] font-black uppercase tracking-[0.14em] text-white">
-                      <Sparkles className="h-3.5 w-3.5" style={{ color: current.accent }} />
+                      <Sparkles className="h-3.5 w-3.5" style={{ color: activeAccent }} />
                       {current.eyebrow}
                     </span>
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: current.soft, color: current.accent }}>
+                    <span
+                      className="flex h-9 w-9 items-center justify-center rounded-full"
+                      style={{ backgroundColor: current.soft, color: activeAccent }}
+                    >
                       {activeIndex === 0 && <UtensilsCrossed className="h-4 w-4" />}
                       {activeIndex === 1 && <HeartPulse className="h-4 w-4" />}
                       {activeIndex === 2 && <ShieldCheck className="h-4 w-4" />}
@@ -198,7 +216,7 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
                         className="h-2.5 rounded-full transition-all duration-300"
                         style={{
                           width: index === activeIndex ? 30 : 10,
-                          backgroundColor: index === activeIndex ? current.accent : C.border,
+                          backgroundColor: index === activeIndex ? activeAccent : C.border,
                         }}
                         aria-label={t("onboarding_goto_page", { index: String(index + 1) })}
                       />

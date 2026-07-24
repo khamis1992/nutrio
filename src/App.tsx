@@ -27,6 +27,7 @@ const GoogleFitCallback = lazy(() => import("./pages/GoogleFitCallback"));
 
 // Customer pages (used outside CustomerLayout)
 const WalkthroughScreen = lazy(() => import("./pages/WalkthroughScreen"));
+const WelcomeOnboarding = lazy(() => import("./pages/WelcomeOnboarding"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const LiveMap = lazy(() => import("./pages/LiveMap"));
 
@@ -161,14 +162,17 @@ const App = () => (
                 <Routes>
             <Route
               path="/"
-              element={<Navigate to="/auth" replace />}
+              element={<Navigate to="/welcome" replace />}
             />
+            {/* Pre-auth marketing carousel (separate from /auth) */}
+            <Route path="/welcome" element={<WelcomeOnboarding />} />
             <Route path="/walkthrough" element={<WalkthroughScreen />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/faq" element={<FAQ />} />
+            {/* Auth-only: sign in / sign up / forgot password */}
             <Route path="/auth" element={<Auth />} />
             <Route path="/sporthub" element={<SportHubWelcome />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -177,7 +181,7 @@ const App = () => (
               element={<ProtectedRoute><GoogleFitCallback /></ProtectedRoute>}
             />
             
-            {/* Onboarding has no dock/nav */}
+            {/* Post-signup profile onboarding (authenticated) */}
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
             {/* Live map — no nav bar, full screen */}

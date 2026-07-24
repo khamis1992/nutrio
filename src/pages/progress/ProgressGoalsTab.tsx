@@ -212,7 +212,7 @@ export default function ProgressGoalsTab() {
         role="tabpanel"
         className="flex flex-col items-center rounded-[20px] bg-white px-5 py-8 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
       >
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#EFFFFA] text-[#22C7A1] ring-1 ring-[#22C7A1]/20">
           <Target className="h-7 w-7" strokeWidth={2.2} />
         </div>
         <h2 className="mt-4 text-[20px] font-extrabold text-slate-950">{t("progress_no_goal_title")}</h2>
@@ -220,7 +220,7 @@ export default function ProgressGoalsTab() {
         <button
           type="button"
           onClick={() => navigate("/edit-goal")}
-          className="mt-5 flex h-12 min-h-[48px] w-full items-center justify-center rounded-full bg-emerald-500 text-[15px] font-extrabold text-white shadow-[0_4px_14px_rgba(16,185,129,0.28)] active:scale-[0.98]"
+          className="mt-5 flex h-12 min-h-[48px] w-full items-center justify-center rounded-full bg-slate-950 text-[15px] font-extrabold text-white shadow-[0_4px_14px_rgba(15,23,42,0.18)] active:scale-[0.98]"
         >
           {t("progress_set_goal")}
         </button>
@@ -267,10 +267,10 @@ export default function ProgressGoalsTab() {
         }));
 
   const planTargets = [
-    { label: t("calories"), value: activeGoal?.daily_calorie_target ?? 2000, unit: t("progress_kcal_unit"), Icon: Flame, soft: "bg-orange-50 text-orange-600" },
-    { label: t("protein"), value: activeGoal?.protein_target_g ?? 120, unit: t("progress_gram_unit"), Icon: Target, soft: "bg-indigo-50 text-indigo-600" },
-    { label: t("carbs"), value: activeGoal?.carbs_target_g ?? 250, unit: t("progress_gram_unit"), Icon: Leaf, soft: "bg-amber-50 text-amber-600" },
-    { label: t("fat_label"), value: activeGoal?.fat_target_g ?? 65, unit: t("progress_gram_unit"), Icon: Droplets, soft: "bg-rose-50 text-rose-600" },
+    { label: t("calories"), value: activeGoal?.daily_calorie_target ?? 2000, unit: t("progress_kcal_unit"), Icon: Flame, soft: "bg-[#EFFFFA] text-[#22C7A1]" },
+    { label: t("protein"), value: activeGoal?.protein_target_g ?? 120, unit: t("progress_gram_unit"), Icon: Target, soft: "bg-[#F3F4FF] text-[#7C83F6]" },
+    { label: t("carbs"), value: activeGoal?.carbs_target_g ?? 250, unit: t("progress_gram_unit"), Icon: Leaf, soft: "bg-[#FFF7ED] text-[#F97316]" },
+    { label: t("fat_label"), value: activeGoal?.fat_target_g ?? 65, unit: t("progress_gram_unit"), Icon: Droplets, soft: "bg-[#FFF0F2] text-[#FB6B7A]" },
   ];
 
   const ringSize = 112;
@@ -299,7 +299,7 @@ export default function ProgressGoalsTab() {
           <button
             type="button"
             onClick={() => navigate("/body-metrics")}
-            className="mt-5 h-14 w-full rounded-full bg-emerald-500 text-[15px] font-extrabold text-white active:scale-[0.98]"
+            className="mt-5 h-14 w-full rounded-full bg-slate-950 text-[15px] font-extrabold text-white active:scale-[0.98]"
           >
             {t("progress_add_body_data")}
           </button>
@@ -310,11 +310,11 @@ export default function ProgressGoalsTab() {
         <section className="rounded-[20px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
           <div className="flex items-start justify-between gap-2">
             <div className="flex min-w-0 flex-1 items-center gap-2.5 text-start">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-emerald-50 text-emerald-600">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-[#EFFFFA] text-[#22C7A1]">
                 <GIcon className="h-5 w-5" strokeWidth={2.3} />
               </span>
               <div className="min-w-0">
-                <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-emerald-600">
+                <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#22C7A1]">
                   {t("current_goal")}
                 </p>
                 <h2 className="truncate text-[17px] font-extrabold tracking-tight text-slate-950">{goalName}</h2>
@@ -335,7 +335,7 @@ export default function ProgressGoalsTab() {
                   cy={ringSize / 2}
                   r={r}
                   fill="none"
-                  stroke="#10B981"
+                  stroke={PROGRESS_COLORS.calories}
                   strokeWidth={stroke}
                   strokeLinecap="round"
                   strokeDasharray={`${dash} ${circ}`}
@@ -353,8 +353,8 @@ export default function ProgressGoalsTab() {
             </div>
 
             <div className="w-full min-w-0 flex-1 space-y-2">
-              <div className="rounded-[14px] bg-emerald-50 p-3 text-start ring-1 ring-emerald-100">
-                <p className="text-[12px] font-bold uppercase tracking-wider text-emerald-700/70">
+              <div className="rounded-[14px] bg-[#EFFFFA] p-3 text-start ring-1 ring-[#22C7A1]/20">
+                <p className="text-[12px] font-bold uppercase tracking-wider text-[#22C7A1]/80">
                   {goalRightMetric.label}
                 </p>
                 <p className="mt-0.5 text-[20px] font-black text-slate-950" dir="ltr">
@@ -362,7 +362,7 @@ export default function ProgressGoalsTab() {
                   <span className="ms-1 text-[12px] font-bold text-slate-400">{goalRightMetric.unit}</span>
                 </p>
                 {goalWeight !== currentWeight && (
-                  <p className="mt-1 text-[12px] font-bold text-emerald-700" dir="ltr">
+                  <p className="mt-1 text-[12px] font-bold text-[#1EB493]" dir="ltr">
                     {t("progress_target_label")} {goalWeight.toFixed(1)} {t("progress_kg_unit")}
                   </p>
                 )}
@@ -391,7 +391,7 @@ export default function ProgressGoalsTab() {
             <button
               type="button"
               onClick={() => navigate("/edit-goal")}
-              className="flex h-12 min-h-[48px] items-center justify-center gap-1.5 rounded-full bg-emerald-500 text-[13px] font-extrabold text-white shadow-[0_4px_12px_rgba(16,185,129,0.25)] active:scale-95"
+              className="flex h-12 min-h-[48px] items-center justify-center gap-1.5 rounded-full bg-slate-950 text-[13px] font-extrabold text-white shadow-[0_4px_12px_rgba(15,23,42,0.18)] active:scale-95"
             >
               <Target className="h-4 w-4" strokeWidth={2.3} />
               {t("edit_goal")}
@@ -450,7 +450,7 @@ export default function ProgressGoalsTab() {
                   className={cn(
                     "relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[13px] font-black",
                     item.done
-                      ? "bg-emerald-500 text-white shadow-[0_4px_12px_rgba(16,185,129,0.28)]"
+                      ? "bg-[#22C7A1] text-white shadow-[0_4px_12px_rgba(34,199,161,0.28)]"
                       : "bg-white text-slate-300 ring-2 ring-slate-200"
                   )}
                 >
@@ -478,7 +478,7 @@ export default function ProgressGoalsTab() {
               </p>
               <h3 className="text-[16px] font-black text-slate-950">{t("progress_small_wins")}</h3>
             </div>
-            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-black text-emerald-700" dir="ltr">
+            <span className="rounded-full bg-[#EFFFFA] px-2.5 py-1 text-[12px] font-black text-[#22C7A1]" dir="ltr">
               {milestones.filter((m) => m.done).length}/{milestones.length}
             </span>
           </div>
@@ -488,13 +488,13 @@ export default function ProgressGoalsTab() {
                 key={m.label}
                 className={cn(
                   "flex flex-col items-center rounded-[20px] px-2 py-3.5 text-center ring-1",
-                  m.done ? "bg-emerald-50 ring-emerald-100" : "bg-slate-50 ring-slate-100"
+                  m.done ? "bg-[#EFFFFA] ring-[#22C7A1]/20" : "bg-slate-50 ring-slate-100"
                 )}
               >
                 <div
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-full",
-                    m.done ? "bg-emerald-500 text-white" : "bg-white text-slate-300 ring-1 ring-slate-200"
+                    m.done ? "bg-[#22C7A1] text-white" : "bg-white text-slate-300 ring-1 ring-slate-200"
                   )}
                 >
                   {m.done ? <Check className="h-4 w-4" strokeWidth={3} /> : <Lock className="h-3.5 w-3.5" />}
@@ -560,15 +560,15 @@ export default function ProgressGoalsTab() {
                   }}
                 />
                 {goalWeight && (
-                  <ReferenceLine y={goalWeight} stroke="#10B981" strokeDasharray="4 4" strokeWidth={1.5} opacity={0.5} />
+                  <ReferenceLine y={goalWeight} stroke={PROGRESS_COLORS.calories} strokeDasharray="4 4" strokeWidth={1.5} opacity={0.5} />
                 )}
                 <Line
                   type="monotone"
                   dataKey="actual"
-                  stroke="#10B981"
+                  stroke={PROGRESS_COLORS.calories}
                   strokeWidth={3}
-                  dot={<Dot r={4} fill="#10B981" stroke="#fff" strokeWidth={2} />}
-                  activeDot={{ r: 6, fill: "#059669" }}
+                  dot={<Dot r={4} fill={PROGRESS_COLORS.calories} stroke="#fff" strokeWidth={2} />}
+                  activeDot={{ r: 6, fill: "#1EB493" }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -579,12 +579,12 @@ export default function ProgressGoalsTab() {
       {/* Coach insight */}
       <section className="rounded-[28px] bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EFFFFA] text-[#22C7A1]">
             <Sparkles className="h-5 w-5" strokeWidth={2.3} />
           </div>
           <div className="min-w-0 flex-1 text-start">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">
+              <span className="rounded-full bg-[#EFFFFA] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#22C7A1]">
                 {t("next_best_action")}
               </span>
               <span className="text-[10px] font-bold text-slate-400">{t("progress_today_focus")}</span>
@@ -632,7 +632,7 @@ export default function ProgressGoalsTab() {
                     <div
                       className={cn(
                         "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
-                        isProposed ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"
+                        isProposed ? "bg-amber-50 text-amber-600" : "bg-[#EFFFFA] text-[#22C7A1]"
                       )}
                     >
                       <Icon className="h-5 w-5" strokeWidth={2.2} />
@@ -645,7 +645,7 @@ export default function ProgressGoalsTab() {
                         <span
                           className={cn(
                             "rounded-full px-2 py-0.5 text-[9px] font-extrabold",
-                            isProposed ? "bg-amber-100 text-amber-700" : "bg-emerald-50 text-emerald-700"
+                            isProposed ? "bg-amber-100 text-amber-700" : "bg-[#EFFFFA] text-[#22C7A1]"
                           )}
                         >
                           {isProposed ? "NEW" : "ACTIVE"}
@@ -669,15 +669,15 @@ export default function ProgressGoalsTab() {
                     </div>
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" dir="ltr">
                       <div
-                        className={cn("h-full rounded-full", isProposed ? "bg-amber-400" : "bg-emerald-500")}
+                        className={cn("h-full rounded-full", isProposed ? "bg-amber-400" : "bg-[#22C7A1]")}
                         style={{ width: `${prog?.progressPct ?? 0}%` }}
                       />
                     </div>
-                    <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-center">
+                    <div className="rounded-2xl bg-[#EFFFFA] px-3 py-2 text-center ring-1 ring-[#22C7A1]/20">
                       <p className="text-[17px] font-black text-slate-950" dir="ltr">
                         {proposal.target_value}
                       </p>
-                      <p className="text-[9px] font-bold uppercase text-emerald-700">{t("progress_target")}</p>
+                      <p className="text-[9px] font-bold uppercase text-[#22C7A1]">{t("progress_target")}</p>
                     </div>
                   </div>
 
@@ -698,7 +698,7 @@ export default function ProgressGoalsTab() {
                       <button
                         type="button"
                         onClick={() => acceptCoachGoal(proposal.id)}
-                        className="flex h-12 flex-1 items-center justify-center rounded-full bg-emerald-500 text-[13px] font-extrabold text-white active:scale-95"
+                        className="flex h-12 flex-1 items-center justify-center rounded-full bg-slate-950 text-[13px] font-extrabold text-white active:scale-95"
                       >
                         {t("progress_accept_goal")}
                       </button>

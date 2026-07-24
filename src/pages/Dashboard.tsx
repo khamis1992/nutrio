@@ -1679,70 +1679,51 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* â”€â”€ Tab Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-          <div className="mb-5 flex relative rounded-full bg-[#F1F4F7] p-1.5 z-10">
-            <svg width="0" height="0" className="absolute" aria-hidden="true">
-              <defs>
-                <linearGradient id="dashboard-tab-icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#10B981" />
-                  <stop offset="100%" stopColor="#0EA5E9" />
-                </linearGradient>
-              </defs>
-            </svg>
+          {/* Tab Bar */}
+          <div
+            role="tablist"
+            aria-label="Dashboard tabs"
+            className="relative z-10 mb-4 flex gap-1 rounded-full bg-slate-100 p-1"
+          >
             {tabs.map(({ key, label, icon: Icon, path }) => {
               const isActive = activeTab === key;
               return (
                 <motion.button
                   key={key}
                   type="button"
+                  role="tab"
+                  aria-selected={isActive}
                   data-testid={`dashboard-tab-${key}`}
                   onClick={() => navigate(path)}
-                  whileTap={prefersReducedMotion ? undefined : { scale: 0.96 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  className="relative flex-1 flex items-center justify-center gap-1.5 min-h-[54px] py-2 outline-none z-10 shrink-0"
+                  whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 28 }}
+                  className="relative z-10 flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-1.5 outline-none"
                 >
                   {isActive && !prefersReducedMotion && (
                     <motion.div
                       layoutId="dashboard-tab-indicator"
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="absolute inset-0 rounded-full bg-white shadow-[0_10px_24px_rgba(15,23,42,0.10)] -z-10"
-                      transition={{ type: "spring", bounce: 0.25, duration: 0.45 }}
-                    >
-                      <div className="absolute bottom-[6px] left-1/2 h-[3px] w-[52%] -translate-x-1/2 rounded-full bg-gradient-to-r from-emerald-500 to-sky-500" />
-                    </motion.div>
+                      className="absolute inset-0 -z-10 rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                    />
                   )}
                   {isActive && prefersReducedMotion && (
-                    <div className="absolute inset-0 rounded-full bg-white shadow-[0_10px_24px_rgba(15,23,42,0.10)] -z-10">
-                      <div className="absolute bottom-[6px] left-1/2 h-[3px] w-[52%] -translate-x-1/2 rounded-full bg-gradient-to-r from-emerald-500 to-sky-500" />
-                    </div>
+                    <div className="absolute inset-0 -z-10 rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70" />
                   )}
-                  {isActive ? (
-                    <motion.div
-                      initial={prefersReducedMotion ? false : { scale: 0.6 }}
-                      animate={{ scale: 1 }}
-                      transition={prefersReducedMotion ? undefined : { type: "spring", bounce: 0.5, duration: 0.5 }}
-                      className="relative z-10 flex items-center justify-center"
-                    >
-                      <Icon
-                        className="h-[20px] w-[20px] shrink-0"
-                        stroke="url(#dashboard-tab-icon-gradient)"
-                        strokeWidth={2.4}
-                      />
-                    </motion.div>
-                  ) : (
-                    <span className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white ring-1 ring-slate-200">
-                      <Icon className="h-[14px] w-[14px] text-slate-400" strokeWidth={2} />
-                    </span>
-                  )}
-                  <motion.span
-                    initial={!prefersReducedMotion && isActive ? { opacity: 0.5, y: 2 } : false}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={!prefersReducedMotion && isActive ? { duration: 0.3 } : undefined}
-                    className={cn("relative z-10 capitalize transition-colors duration-300 truncate", isActive ? "text-slate-900 font-extrabold text-[12px]" : "text-slate-500 font-semibold text-[12px]")}
+                  <Icon
+                    className={cn(
+                      "h-4 w-4 shrink-0 transition-colors duration-200",
+                      isActive ? "text-emerald-600" : "text-slate-400"
+                    )}
+                    strokeWidth={isActive ? 2.4 : 2}
+                  />
+                  <span
+                    className={cn(
+                      "relative z-10 truncate text-[12px] transition-colors duration-200",
+                      isActive ? "font-extrabold text-slate-900" : "font-semibold text-slate-500"
+                    )}
                   >
                     {label}
-                  </motion.span>
+                  </span>
                 </motion.button>
               );
             })}

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuthPage } from "./useAuthPage";
@@ -7,20 +7,30 @@ import { WelcomeScreen } from "./WelcomeScreen";
 import { SignUpScreen } from "./SignUpScreen";
 import { ForgotPasswordScreen } from "./ForgotPasswordScreen";
 import { SignInScreen } from "./SignInScreen";
-import { OnboardingCarousel } from "@/components/auth/OnboardingCarousel";
 
+const SEEN_KEY = "nutrio_onboarding_seen";
+
+/**
+ * Auth-only entry: sign in / sign up / forgot password.
+ * Pre-auth carousel lives at /welcome (not mixed into this route).
+ */
 export const Auth = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const state = useAuthPage();
   const { setView } = state;
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    if (new URLSearchParams(window.location.search).get("source") === "sporthub") {
-      return false;
-    }
-    return !localStorage.getItem("nutrio_onboarding_seen");
-  });
 
+  // First-time visitors land on the dedicated onboarding route.
+  useEffect(() => {
+    if (searchParams.get("source") === "sporthub") return;
+    if (searchParams.get("skip_welcome") === "1") return;
+    if (localStorage.getItem(SEEN_KEY)) return;
+    const qs = searchParams.toString();
+    navigate(qs ? `/welcome?${qs}` : "/welcome", { replace: true });
+  }, [navigate, searchParams]);
+
+  // SportHub partner handoff → signup with referral payload.
   useEffect(() => {
     if (searchParams.get("source") !== "sporthub") return;
 
@@ -31,20 +41,17 @@ export const Auth = () => {
       visited_at: new Date().toISOString(),
     };
 
-    localStorage.setItem("nutrio_onboarding_seen", "true");
+    localStorage.setItem(SEEN_KEY, "true");
     localStorage.setItem("nutrio:partner-referral", JSON.stringify(payload));
-    setShowOnboarding(false);
     setView("signup");
   }, [searchParams, setView]);
 
-  const handleOnboardingFinish = () => {
-    localStorage.setItem("nutrio_onboarding_seen", "true");
-    setShowOnboarding(false);
-  };
-
-  if (showOnboarding) {
-    return <OnboardingCarousel onFinish={handleOnboardingFinish} />;
-  }
+  // Deep-link: /auth?tab=signup
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "signup") setView("signup");
+    if (tab === "signin" || tab === "login") setView("signin");
+  }, [searchParams, setView]);
 
   if (state.authLoading || state.checkingRole) {
     return (
@@ -58,11 +65,7 @@ export const Auth = () => {
   }
 
   if (state.view === "welcome") {
-    return (
-      <WelcomeScreen
-        onSwitchView={(v) => state.setView(v)}
-      />
-    );
+    return <WelcomeScreen onSwitchView={(v) => state.setView(v)} />;
   }
 
   if (state.view === "signup") {
@@ -85,9 +88,17 @@ export const Auth = () => {
         forgotLoading={state.forgotLoading}
         forgotSent={state.forgotSent}
         forgotError={state.forgotError}
-        onEmailChange={(val) => { state.setForgotEmail(val); state.setForgotError(""); }}
+        onEmailChange={(val) => {
+          state.setForgotEmail(val);
+          state.setForgotError("");
+        }}
         onErrorClear={() => state.setForgotError("")}
-        onBack={() => { state.setView("signin"); state.setForgotEmail(""); state.setForgotSent(false); state.setForgotError(""); }}
+        onBack={() => {
+          state.setView("signin");
+          state.setForgotEmail("");
+          state.setForgotSent(false);
+          state.setForgotError("");
+        }}
         onSubmit={state.handleForgotSubmit}
       />
     );
